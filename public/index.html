@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Modern Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #f7fafc; }
+
+      /* Sidebar */
+      #sidebar {
+        width: 250px;
+        background: #2d3748;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        box-shadow: 4px 0 30px rgba(0,0,0,0.18);
+        position: relative;
+        overflow: hidden;
+      }
+      #sidebar::before {
+        content: '';
+        position: absolute;
+        top: -80px; left: -80px;
+        width: 260px; height: 260px;
+        background: radial-gradient(circle, rgba(255,107,107,0.15) 0%, transparent 70%);
+        pointer-events: none;
+      }
+      #sidebar .logo {
+        padding: 30px 22px 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        position: relative;
+      }
+      #sidebar .logo .mm-badge {
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05em;
+        font-weight: 800;
+        letter-spacing: -1px;
+        color: white;
+        flex-shrink: 0;
+        box-shadow: 0 6px 20px rgba(255,107,107,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
+      }
+      #sidebar .logo .logo-text { display: flex; flex-direction: column; line-height: 1.25; }
+      #sidebar .logo .logo-text span:first-child { font-size: 0.97em; font-weight: 700; color: white; letter-spacing: 0.1px; }
+      #sidebar .logo .logo-text span:last-child { font-size: 0.68em; color: rgba(255,255,255,0.35); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
+
+      #sidebar nav { display: flex; flex-direction: column; padding: 16px 12px; gap: 3px; }
+      #sidebar .nav-label { font-size: 0.62em; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 1.5px; padding: 10px 10px 4px; font-weight: 600; }
+      #sidebar nav a {
+        color: rgba(255,255,255,0.55);
+        text-decoration: none;
+        padding: 11px 14px;
+        font-size: 0.87em;
+        font-weight: 500;
+        border-radius: 10px;
+        transition: all 0.18s;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        position: relative;
+      }
+      #sidebar nav a:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+      #sidebar nav a.active {
+        background: linear-gradient(135deg, rgba(255,107,107,0.25), rgba(255,142,83,0.15));
+        color: white;
+        border: 1px solid rgba(255,107,107,0.3);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+      }
+      #sidebar nav a .nav-icon { font-size: 1.05em; width: 20px; text-align: center; }
+
+      #sidebar .sidebar-footer {
+        margin-top: auto;
+        padding: 16px 22px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        font-size: 0.72em;
+        color: rgba(255,255,255,0.2);
+      }
+
+      /* Main content */
+      #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+      #topbar {
+        background: white;
+        padding: 0 32px;
+        height: 62px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 1.05em;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+      }
+      #topbar-icon { font-size: 1.1em; }
+      #topbar-title { flex: 1; }
+      #topbar-time {
+        font-size: 0.78em;
+        color: #94a3b8;
+        font-weight: 400;
+      }
+
+      #content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+      /* Pages */
+      .page { display: none; animation: fadeIn 0.2s ease; }
+      .page.active { display: block; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Cards */
+      .card {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid rgba(226,232,240,0.8);
+        padding: 24px 28px;
+        margin-bottom: 22px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03);
+        transition: box-shadow 0.2s;
+      }
+      .card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.07); }
+      .card h2 {
+        margin-bottom: 18px;
+        color: #2d3748;
+        font-size: 0.75em;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-weight: 700;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card h2::before {
+        content: '';
+        display: inline-block;
+        width: 3px;
+        height: 14px;
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        border-radius: 2px;
+      }
+
+      /* Stat chips for topbar */
+      .topbar-chip {
+        background: #f1f5f9;
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 0.75em;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      /* Inbox */
+      .inbox-layout { display: flex; gap: 22px; height: calc(100vh - 140px); }
+      .inbox-list { flex: 1; min-width: 280px; overflow-y: auto; }
+      .inbox-detail { flex: 2; overflow-y: auto; }
+      .list-item {
+        cursor: pointer;
+        border-bottom: 1px solid #f8fafc;
+        padding: 14px 10px;
+        border-radius: 10px;
+        transition: all 0.15s;
+        margin-bottom: 2px;
+      }
+      .list-item:hover { background: #fff5f5; transform: translateX(2px); }
+      .list-item.selected { background: #fff5f5; border-left: 3px solid #ff6b6b; padding-left: 7px; }
+      .badge {
+        font-size: 0.7em;
+        color: white;
+        background: #ff6b6b;
+        border-radius: 20px;
+        padding: 2px 9px;
+        margin-left: 6px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+      .badge.sent { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+      .badge.in-progress { background: linear-gradient(135deg, #f39c12, #e67e22); }
+      .badge.new { background: linear-gradient(135deg, #ff6b6b, #ff8e53); }
+
+      /* Forms */
+      textarea, input[type="text"], input:not([type="checkbox"]), select {
+        width: 100%;
+        padding: 10px 13px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        margin: 5px 0 10px;
+        font-size: 0.92em;
+        font-family: 'Inter', sans-serif;
+        background: #fafbfc;
+        transition: all 0.15s;
+        color: #2d3748;
+      }
+      textarea:focus, input:focus, select:focus {
+        outline: none;
+        border-color: #ff6b6b;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(255,107,107,0.12);
+      }
+      button {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 0.87em;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        margin: 3px 3px 3px 0;
+        transition: all 0.18s;
+        letter-spacing: 0.1px;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        color: white;
+        box-shadow: 0 3px 10px rgba(255,107,107,0.35);
+      }
+      .btn-primary:hover { box-shadow: 0 6px 18px rgba(255,107,107,0.45); transform: translateY(-1px); }
+      .btn-success {
+        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        color: white;
+        box-shadow: 0 3px 10px rgba(39,174,96,0.3);
+      }
+      .btn-success:hover { box-shadow: 0 6px 18px rgba(39,174,96,0.4); transform: translateY(-1px); }
+      .btn-secondary { background: #f1f5f9; color: #4a5568; border: 1px solid #e2e8f0; }
+      .btn-secondary:hover { background: #e2e8f0; transform: translateY(-1px); }
+      .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; box-shadow: 0 3px 10px rgba(231,76,60,0.3); }
+      .btn-danger:hover { box-shadow: 0 6px 18px rgba(231,76,60,0.4); transform: translateY(-1px); }
+
+      /* Calendar */
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-top: 10px;
+      }
+      .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color: #a0aec0; padding: 6px 0; }
+      .cal-day {
+        min-height: 70px;
+        border: 1px solid #edf2f7;
+        border-radius: 6px;
+        padding: 6px;
+        background: white;
+        font-size: 0.85em;
+        vertical-align: top;
+      }
+      .cal-day.today { border-color: #ff6b6b; background: #fff5f5; }
+      .cal-day.empty { background: #fafafa; border-color: #f0f0f0; }
+      .cal-day-num { font-weight: bold; margin-bottom: 4px; color: #2d3748; }
+      .cal-event {
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        color: white;
+        border-radius: 3px;
+        padding: 2px 5px;
+        font-size: 0.78em;
+        margin-top: 2px;
+        cursor: pointer;
+      }
+      .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .cal-nav h3 { flex: 1; }
+      .modal-overlay {
+        display: none;
+        position: fixed; inset: 0;
+        background: rgba(8,15,30,0.55);
+        backdrop-filter: blur(3px);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+      .modal {
+        background: white;
+        border-radius: 18px;
+        padding: 32px;
+        width: 440px;
+        max-width: 95vw;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+        animation: modalIn 0.2s ease;
+      }
+      @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
+      @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
+      .modal h3 { font-size: 1.1em; font-weight: 700; color: #080f1e; margin-bottom: 20px; }
+      .modal label { font-size: 0.83em; font-weight: 600; color: #475569; display: block; margin-bottom: 2px; }
+      .modal .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+      .task-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        margin: 14px 0 10px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .task-toggle:has(input:checked) {
+        background: #fff5f5;
+        border-color: #ff6b6b;
+      }
+      .task-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #ff6b6b; }
+      .task-toggle span { font-size: 0.88em; font-weight: 500; color: #334155; }
+      pre { white-space: pre-wrap; font-family: Arial, sans-serif; font-size: 0.9em; }
+
+      /* Command Center */
+      .chat-msg { display:flex; gap:10px; align-items:flex-start; animation: fadeIn 0.2s ease; }
+      .chat-msg.user { flex-direction:row-reverse; }
+      .chat-bubble {
+        max-width: 75%;
+        padding: 11px 15px;
+        border-radius: 14px;
+        font-size: 0.88em;
+        line-height: 1.55;
+      }
+      .chat-msg.user .chat-bubble { background: linear-gradient(135deg,#ff6b6b,#ff8e53); color:white; border-bottom-right-radius:4px; }
+      .chat-msg.ai .chat-bubble { background: #f1f5f9; color:#2d3748; border-bottom-left-radius:4px; }
+      .chat-msg.ai .chat-bubble.thinking { color:#94a3b8; font-style:italic; }
+      .chat-avatar {
+        width:30px;height:30px;border-radius:50%;
+        display:flex;align-items:center;justify-content:center;
+        font-size:0.8em;font-weight:700;flex-shrink:0;margin-top:2px;
+      }
+      .chat-avatar.ai { background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white; }
+      .chat-avatar.user { background:#2d3748;color:white; }
+      .action-chip {
+        background:#fff5f5;border:1px solid #ffcdd2;color:#c0392b;
+        border-radius:8px;padding:7px 10px;font-size:0.8em;
+        display:flex;align-items:center;gap:6px;
+      }
+      .quick-prompt {
+        background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+        padding:9px 12px;font-size:0.82em;color:#4a5568;cursor:pointer;
+        transition:all 0.15s;text-align:left;width:100%;
+      }
+      .quick-prompt:hover { background:#fff5f5;border-color:#ff6b6b;color:#ff6b6b; }
+
+      /* Contacts */
+      .contact-card {
+        background: white;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.18s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .contact-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.09); transform: translateY(-2px); }
+      .contact-card.selected { border-color: #ff6b6b; box-shadow: 0 0 0 3px rgba(255,107,107,0.15); }
+      .contact-avatar {
+        width: 46px; height: 46px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1em; font-weight: 700; color: white;
+        flex-shrink: 0;
+      }
+      .avatar-resident { background: linear-gradient(135deg, #ff6b6b, #ff8e53); }
+      .avatar-vendor   { background: linear-gradient(135deg, #667eea, #764ba2); }
+      .avatar-important { background: linear-gradient(135deg, #f093fb, #f5576c); }
+      .contact-info { flex: 1; min-width: 0; }
+      .contact-name { font-weight: 600; font-size: 0.93em; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .contact-sub { font-size: 0.78em; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .contact-type-tag {
+        font-size: 0.68em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        padding: 2px 8px; border-radius: 20px; flex-shrink: 0;
+      }
+      .tag-resident { background: #fff5f5; color: #ff6b6b; }
+      .tag-vendor { background: #f0ecff; color: #764ba2; }
+      .tag-important { background: #fdf0ff; color: #c026d3; }
+
+      /* Tasks */
+      .task-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 10px;
+        border-bottom: 1px solid #f1f5f9;
+        border-radius: 8px;
+        transition: background 0.15s;
+      }
+      .task-item:hover { background: #f8fafc; }
+      .task-item.done { opacity: 0.5; }
+      .task-item.done .task-title { text-decoration: line-through; }
+      .task-item.overdue .task-due { color: #e74c3c; font-weight: 600; }
+      .task-check {
+        width: 20px; height: 20px;
+        border: 2px solid #cbd5e1;
+        border-radius: 6px;
+        flex-shrink: 0;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+        margin-top: 1px;
+      }
+      .task-check:hover { border-color: #4a90e2; background: #eef4ff; }
+      .task-check.checked { background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-color: transparent; color: white; font-size: 0.75em; }
+      .task-body { flex: 1; }
+      .task-title { font-size: 0.92em; font-weight: 600; color: #0f172a; margin-bottom: 3px; }
+      .task-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+      .task-due { font-size: 0.78em; color: #64748b; }
+      .task-cat {
+        font-size: 0.7em;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .cat-vendor { background: #ede9fe; color: #7c3aed; }
+      .cat-maintenance { background: #fff7ed; color: #ea580c; }
+      .cat-lease { background: #ecfdf5; color: #059669; }
+      .cat-finance { background: #eff6ff; color: #2563eb; }
+      .cat-other { background: #f1f5f9; color: #475569; }
+      .task-notes { font-size: 0.8em; color: #94a3b8; margin-top: 3px; }
+      .task-delete { color: #cbd5e1; cursor: pointer; font-size: 1em; padding: 2px 6px; border-radius: 4px; }
+      .task-delete:hover { color: #e74c3c; background: #fff1f0; }
+      .active-filter { background: linear-gradient(135deg, #4a90e2, #6c63d4) !important; color: white !important; border-color: transparent !important; }
+      .stat-chip {
+        flex: 1;
+        background: white;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 18px 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      }
+      .stat-chip .stat-num { font-size: 2em; font-weight: 700; color: #0f172a; line-height: 1; }
+      .stat-chip .stat-label { font-size: 0.75em; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+      .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
+      .week-task .wt-date { font-size: 0.75em; color: #94a3b8; margin-top: 2px; }
+    </style>
+  </head>
+  <body>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="logo">
+        <div class="mm-badge">MM</div>
+        <div class="logo-text">
+          <span>Modern</span>
+          <span>Management</span>
+        </div>
+      </div>
+      <nav>
+        <div class="nav-label">Workspace</div>
+        <a href="#" class="active" onclick="showPage('inbox', '&#9993;', this)"><span class="nav-icon">&#9993;</span> Inbox</a>
+        <a href="#" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
+        <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
+        <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
+        <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
+        <a href="#" onclick="showPage('command', '&#9889;', this)"><span class="nav-icon">&#9889;</span> Command Center</a>
+        <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+      </nav>
+      <div class="sidebar-footer">Modern Management &copy; 2026</div>
+    </div>
+
+    <!-- Main -->
+    <div id="main">
+      <div id="topbar">
+        <span id="topbar-icon">&#9993;</span>
+        <span id="topbar-title">Inbox</span>
+        <span class="topbar-chip" id="topbar-time"></span>
+      </div>
+      <div id="content">
+
+        <!-- INBOX PAGE -->
+        <div class="page active" id="page-inbox">
+          <div class="inbox-layout">
+            <div class="inbox-list card">
+              <h2>Messages</h2>
+              <div id="messageList"></div>
+            </div>
+            <div class="inbox-detail card" id="detailPanel">
+              <h2>Message Details</h2>
+              <div id="messageDetail" style="color:#888;">Select a message to view details.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPERATIONS PAGE -->
+        <div class="page" id="page-operations">
+          <div class="card">
+            <h2>Automation Settings</h2>
+            <label><input type="checkbox" id="autoReply" /> &nbsp;Auto response active</label><br><br>
+            <label><input type="checkbox" id="requireReview" /> &nbsp;Manager review required</label><br><br>
+            <button class="btn-primary" onclick="saveAutomation()">Save Settings</button>
+          </div>
+
+          <div class="card">
+            <h2>Knowledge Base</h2>
+            <div id="knowledgeList" style="margin-bottom:16px;"></div>
+            <hr style="margin-bottom:16px;">
+
+            <p style="font-weight:bold;margin-bottom:8px;">Upload a Document</p>
+            <div id="uploadZone" style="border:2px dashed #ccd3de;border-radius:8px;padding:24px;text-align:center;color:#888;cursor:pointer;margin-bottom:16px;" onclick="document.getElementById('fileInput').click()">
+              Click to upload a PDF or TXT file
+              <input type="file" id="fileInput" accept=".pdf,.txt" style="display:none" onchange="uploadFile(this)" />
+            </div>
+            <div id="uploadStatus" style="margin-bottom:12px;font-size:0.9em;"></div>
+
+            <hr style="margin-bottom:16px;">
+            <p style="font-weight:bold;margin-bottom:8px;">Or Add Manually</p>
+            <form id="kbForm" onsubmit="event.preventDefault(); addKnowledge();">
+              <input id="kbTitle" placeholder="Document title" required />
+              <select id="kbType">
+                <option value="policy">Policy</option>
+                <option value="procedure">Procedure</option>
+                <option value="other">Other</option>
+              </select>
+              <textarea id="kbContent" placeholder="Document content..." rows="4" required></textarea>
+              <button type="submit" class="btn-primary">Add Document</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- CALENDAR PAGE -->
+        <div class="page" id="page-calendar">
+          <div class="card">
+            <div class="cal-nav">
+              <button class="btn-secondary" onclick="changeMonth(-1)">&#8592;</button>
+              <h3 id="calTitle"></h3>
+              <button class="btn-secondary" onclick="changeMonth(1)">&#8594;</button>
+              <button class="btn-primary" onclick="openAddEvent()">+ Add Event</button>
+            </div>
+            <div class="calendar-grid" id="calDayHeaders"></div>
+            <div class="calendar-grid" id="calGrid"></div>
+          </div>
+        </div>
+
+        <!-- COMMAND CENTER PAGE -->
+        <div class="page" id="page-command">
+          <div style="display:flex;gap:22px;height:calc(100vh - 140px);">
+
+            <!-- Chat panel -->
+            <div style="flex:1;display:flex;flex-direction:column;">
+              <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0;">
+                <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;">
+                  <h2 style="margin:0;border:none;padding:0;">AI Command Center</h2>
+                  <p style="font-size:0.82em;color:#94a3b8;margin-top:4px;">Tell the AI what to do — it can send messages, add calendar events, create tasks, and more.</p>
+                </div>
+                <div id="commandChat" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;"></div>
+                <div style="padding:16px 20px;border-top:1px solid #f1f5f9;display:flex;gap:10px;">
+                  <textarea id="commandInput" placeholder='Try: "Send Alex Rivera a message about his maintenance request" or "Add a board meeting on April 20th"' rows="2" style="margin:0;resize:none;flex:1;"></textarea>
+                  <button class="btn-primary" onclick="submitCommand()" style="align-self:flex-end;padding:10px 18px;white-space:nowrap;">Send &#9654;</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Suggestions + Action log -->
+            <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:16px;">
+              <div class="card">
+                <h2>Quick Prompts</h2>
+                <div style="display:flex;flex-direction:column;gap:8px;" id="quickPrompts"></div>
+              </div>
+              <div class="card" style="flex:1;overflow-y:auto;">
+                <h2>Actions Taken</h2>
+                <div id="actionLog" style="font-size:0.83em;color:#64748b;display:flex;flex-direction:column;gap:8px;">
+                  <p style="color:#94a3b8;">Actions the AI takes will appear here.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- CONTACTS PAGE -->
+        <div class="page" id="page-contacts">
+
+          <!-- Search + Add -->
+          <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
+            <input id="contactSearch" type="text" placeholder="Search contacts..." style="margin:0;flex:1;max-width:340px;" oninput="renderContacts()" />
+            <div style="display:flex;gap:8px;">
+              <button class="btn-secondary contact-type-filter active-filter" onclick="filterContactType('all',this)" style="font-size:0.8em;padding:7px 14px;">All</button>
+              <button class="btn-secondary contact-type-filter" onclick="filterContactType('resident',this)" style="font-size:0.8em;padding:7px 14px;">Residents</button>
+              <button class="btn-secondary contact-type-filter" onclick="filterContactType('vendor',this)" style="font-size:0.8em;padding:7px 14px;">Vendors</button>
+              <button class="btn-secondary contact-type-filter" onclick="filterContactType('important',this)" style="font-size:0.8em;padding:7px 14px;">Important</button>
+            </div>
+            <button class="btn-primary" onclick="openAddContact()" style="margin-left:auto;">+ Add Contact</button>
+          </div>
+
+          <div style="display:flex;gap:22px;">
+            <!-- Contact grid -->
+            <div style="flex:1;">
+              <div id="contactGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;"></div>
+            </div>
+
+            <!-- Contact detail -->
+            <div style="width:300px;flex-shrink:0;" id="contactDetailPanel">
+              <div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;">
+                <div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div>
+                <div style="font-size:0.9em;">Select a contact to view details</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TASKS PAGE -->
+        <div class="page" id="page-tasks">
+
+          <!-- Summary row -->
+          <div style="display:flex;gap:16px;margin-bottom:22px;" id="taskSummaryRow"></div>
+
+          <div style="display:flex;gap:22px;">
+
+            <!-- Task list -->
+            <div style="flex:1.4;">
+              <div class="card">
+                <h2>All Tasks</h2>
+
+                <!-- Filters -->
+                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                  <button class="btn-secondary task-filter active-filter" onclick="filterTasks('all', this)" style="font-size:0.8em;padding:6px 14px;">All</button>
+                  <button class="btn-secondary task-filter" onclick="filterTasks('pending', this)" style="font-size:0.8em;padding:6px 14px;">Pending</button>
+                  <button class="btn-secondary task-filter" onclick="filterTasks('done', this)" style="font-size:0.8em;padding:6px 14px;">Done</button>
+                  <button class="btn-secondary task-filter" onclick="filterTasks('overdue', this)" style="font-size:0.8em;padding:6px 14px;color:#e74c3c;">Overdue</button>
+                </div>
+
+                <div id="taskList"></div>
+              </div>
+            </div>
+
+            <!-- Add task form -->
+            <div style="flex:1;">
+              <div class="card">
+                <h2>New Task</h2>
+                <form onsubmit="event.preventDefault(); addTask();">
+                  <label style="font-size:0.85em;font-weight:600;color:#475569;">Title</label>
+                  <input id="taskTitle" placeholder="e.g. Alert vendors of insurance renewal" required />
+
+                  <label style="font-size:0.85em;font-weight:600;color:#475569;">Category</label>
+                  <select id="taskCategory">
+                    <option value="vendor">Vendor</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="lease">Lease</option>
+                    <option value="finance">Finance</option>
+                    <option value="other">Other</option>
+                  </select>
+
+                  <label style="font-size:0.85em;font-weight:600;color:#475569;">Due Date</label>
+                  <input type="date" id="taskDueDate" required />
+
+                  <label style="font-size:0.85em;font-weight:600;color:#475569;">Notes</label>
+                  <textarea id="taskNotes" placeholder="Any extra details..." rows="3"></textarea>
+
+                  <button type="submit" class="btn-primary" style="width:100%;margin-top:4px;">Add Task</button>
+                </form>
+              </div>
+
+              <!-- Upcoming tasks -->
+              <div class="card">
+                <h2>Due This Week</h2>
+                <div id="tasksDueThisWeek"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ADMIN PAGE -->
+        <div class="page" id="page-admin">
+
+          <!-- Rent Payments -->
+          <div class="card">
+            <h2>Rent Payments</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-size:0.9em;color:#888;">Track resident rent status and send late notices.</span>
+              <button class="btn-primary" onclick="openAddRent()">+ Add Resident</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
+              <thead>
+                <tr style="background:#f4f6f9;text-align:left;">
+                  <th style="padding:8px 10px;">Resident</th>
+                  <th style="padding:8px 10px;">Unit</th>
+                  <th style="padding:8px 10px;">Amount</th>
+                  <th style="padding:8px 10px;">Due Date</th>
+                  <th style="padding:8px 10px;">Status</th>
+                  <th style="padding:8px 10px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rentTable"></tbody>
+            </table>
+          </div>
+
+          <!-- Invoices -->
+          <div class="card">
+            <h2>Invoices & Vendor Payments</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-size:0.9em;color:#888;">Review and approve vendor invoices.</span>
+              <button class="btn-primary" onclick="openAddInvoice()">+ Add Invoice</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
+              <thead>
+                <tr style="background:#f4f6f9;text-align:left;">
+                  <th style="padding:8px 10px;">Vendor</th>
+                  <th style="padding:8px 10px;">Description</th>
+                  <th style="padding:8px 10px;">Amount</th>
+                  <th style="padding:8px 10px;">Date</th>
+                  <th style="padding:8px 10px;">Status</th>
+                  <th style="padding:8px 10px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceTable"></tbody>
+            </table>
+          </div>
+
+          <!-- Budget -->
+          <div class="card">
+            <h2>Budget Tracker</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <span style="font-size:0.9em;color:#888;">Track expenses against your property budget.</span>
+              <button class="btn-primary" onclick="openAddExpense()">+ Add Expense</button>
+            </div>
+            <div id="budgetSummary" style="display:flex;gap:16px;margin-bottom:16px;"></div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
+              <thead>
+                <tr style="background:#f4f6f9;text-align:left;">
+                  <th style="padding:8px 10px;">Category</th>
+                  <th style="padding:8px 10px;">Description</th>
+                  <th style="padding:8px 10px;">Amount</th>
+                  <th style="padding:8px 10px;">Date</th>
+                </tr>
+              </thead>
+              <tbody id="expenseTable"></tbody>
+            </table>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+      let selectedMessage;
+      let calYear, calMonth;
+      let messages = [];
+      let calEvents = [
+        { date: '2026-04-05', title: 'Lease renewal — Alex Rivera' },
+        { date: '2026-04-10', title: 'Maintenance inspection' },
+        { date: '2026-04-15', title: 'Board meeting' }
+      ];
+
+      // --- Navigation ---
+      function showPage(name, icon, link) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById('page-' + name).classList.add('active');
+        link.classList.add('active');
+        const titles = { inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts', command: 'Command Center' };
+        document.getElementById('topbar-icon').innerHTML = icon;
+        document.getElementById('topbar-title').textContent = titles[name];
+      }
+
+      function updateClock() {
+        const now = new Date();
+        document.getElementById('topbar-time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      // --- API helper ---
+      async function api(path, method = 'GET', body) {
+        const options = { method, headers: { 'Content-Type': 'application/json' } };
+        if (body) options.body = JSON.stringify(body);
+        const res = await fetch('/api/' + path, options);
+        if (!res.ok) { console.error('API error', path, await res.text()); return null; }
+        return res.json();
+      }
+
+      // --- Inbox ---
+      async function loadInbox() {
+        messages = await api('messages') || [];
+        const list = document.getElementById('messageList');
+        list.innerHTML = '';
+        messages.forEach(msg => {
+          const line = document.createElement('div');
+          line.className = 'list-item';
+          const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
+          line.innerHTML = `<strong>${msg.subject}</strong><br><span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>`;
+          line.onclick = () => showMessage(msg.id);
+          list.appendChild(line);
+        });
+      }
+
+      async function showMessage(id) {
+        const msg = await api('messages/' + id);
+        selectedMessage = msg;
+        const panel = document.getElementById('messageDetail');
+        panel.innerHTML = `
+          <h3 style="margin-bottom:10px">${msg.subject}</h3>
+          <p><b>Resident:</b> ${msg.resident}</p>
+          <p><b>Category:</b> ${msg.category}</p>
+          <p style="margin:10px 0;padding:10px;background:#f9f9f9;border-radius:6px;">${msg.text}</p>
+          <p><b>Status:</b> ${msg.status}</p>
+          <div style="margin:12px 0;">
+            <button class="btn-primary" onclick="generateDraft()">Generate AI Draft</button>
+            <button class="btn-secondary" onclick="setStatus('in-progress')">Mark In-Progress</button>
+            <button class="btn-success" onclick="setStatus('sent')">Mark Sent</button>
+          </div>
+          <div id='draftArea'></div>
+        `;
+        const drafts = await api('drafts');
+        const related = drafts.filter(d => d.messageId === msg.id);
+        const area = document.getElementById('draftArea');
+        if (related.length) {
+          area.innerHTML = '<h4 style="margin:12px 0 8px">Drafts</h4>' + related.map(d =>
+            `<div style="background:#f4f6f9;border-radius:6px;padding:10px;margin-bottom:8px;">
+              <pre>${d.content}</pre>
+              <div style="margin-top:6px;font-size:0.85em;color:#888;">Status: ${d.status}</div>
+              <button class="btn-secondary" style="margin-top:6px" onclick="applyDraft(${d.id})">Edit & Save</button>
+            </div>`
+          ).join('');
+        }
+      }
+
+      async function generateDraft() {
+        if (!selectedMessage) return;
+        document.getElementById('draftArea').innerHTML = '<p style="color:#888">Generating draft...</p>';
+        try {
+          const res = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId: selectedMessage.id, contacts })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            document.getElementById('draftArea').innerHTML = `<p style="color:#e74c3c">Error: ${data.error || 'Failed to generate draft'}<br><small>${data.details || ''}</small></p>`;
+            return;
+          }
+          showMessage(selectedMessage.id);
+        } catch (err) {
+          document.getElementById('draftArea').innerHTML = `<p style="color:#e74c3c">Error: ${err.message}</p>`;
+        }
+      }
+
+      async function applyDraft(draftId) {
+        const text = prompt('Edit your response draft:', '');
+        if (text === null) return;
+        await api('drafts/' + draftId, 'PUT', { content: text, status: 'ready' });
+        alert('Draft saved and ready to send.');
+        if (selectedMessage) showMessage(selectedMessage.id);
+      }
+
+      async function setStatus(status) {
+        if (!selectedMessage) return;
+        await api('messages/' + selectedMessage.id + '/status', 'PUT', { status });
+        showMessage(selectedMessage.id);
+        loadInbox();
+      }
+
+      // --- Operations ---
+      async function loadAutomation() {
+        const auto = await api('automation');
+        if (!auto) return;
+        document.getElementById('autoReply').checked = auto.autoReplyEnabled;
+        document.getElementById('requireReview').checked = auto.managerReviewRequired;
+      }
+
+      async function saveAutomation() {
+        const autoReplyEnabled = document.getElementById('autoReply').checked;
+        const managerReviewRequired = document.getElementById('requireReview').checked;
+        await api('automation', 'PUT', { autoReplyEnabled, managerReviewRequired });
+        alert('Settings saved.');
+      }
+
+      async function loadKnowledge() {
+        const docs = await api('knowledge');
+        const list = document.getElementById('knowledgeList');
+        list.innerHTML = docs.map(d =>
+          `<div style="border-bottom:1px solid #eee;padding:10px 0;">
+            <strong>${d.title}</strong> <span style="font-size:0.8em;color:#888;">(${d.type})</span>
+            <p style="margin-top:4px;font-size:0.9em;color:#555;">${d.content}</p>
+          </div>`
+        ).join('');
+      }
+
+      async function uploadFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const status = document.getElementById('uploadStatus');
+        status.style.color = '#888';
+        status.textContent = 'Uploading ' + file.name + '...';
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/knowledge/upload', { method: 'POST', body: formData });
+        if (res.ok) {
+          status.style.color = '#27ae60';
+          status.textContent = '✓ "' + file.name + '" uploaded successfully.';
+          input.value = '';
+          loadKnowledge();
+        } else {
+          const err = await res.json();
+          status.style.color = '#e74c3c';
+          status.textContent = 'Error: ' + (err.error || 'Upload failed');
+        }
+      }
+
+      async function addKnowledge() {
+        const title = document.getElementById('kbTitle').value;
+        const type = document.getElementById('kbType').value;
+        const content = document.getElementById('kbContent').value;
+        await api('knowledge', 'POST', { title, type, content });
+        document.getElementById('kbForm').reset();
+        loadKnowledge();
+      }
+
+      // --- Calendar ---
+      function initCalendar() {
+        const now = new Date();
+        calYear = now.getFullYear();
+        calMonth = now.getMonth();
+        renderCalendar();
+      }
+
+      function changeMonth(dir) {
+        calMonth += dir;
+        if (calMonth > 11) { calMonth = 0; calYear++; }
+        if (calMonth < 0) { calMonth = 11; calYear--; }
+        renderCalendar();
+      }
+
+      function renderCalendar() {
+        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        document.getElementById('calTitle').textContent = months[calMonth] + ' ' + calYear;
+
+        const headers = document.getElementById('calDayHeaders');
+        headers.innerHTML = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="cal-header">${d}</div>`).join('');
+
+        const grid = document.getElementById('calGrid');
+        grid.innerHTML = '';
+
+        const firstDay = new Date(calYear, calMonth, 1).getDay();
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const today = new Date();
+
+        for (let i = 0; i < firstDay; i++) {
+          grid.innerHTML += `<div class="cal-day empty"></div>`;
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+          const taskEvts = tasks.filter(t => !t.done && t.dueDate === dateStr).map(t => ({ title: '✓ ' + t.title, isTask: true }));
+          const events = [...calEvents.filter(e => e.date === dateStr), ...taskEvts];
+          const eventsHtml = events.map(e => `<div class="cal-event" style="${e.isTask ? 'background:linear-gradient(135deg,#7b5ea7,#6c63d4)' : ''}" title="${e.title}">${e.title}</div>`).join('');
+          grid.innerHTML += `<div class="cal-day ${isToday ? 'today' : ''}"><div class="cal-day-num">${d}</div>${eventsHtml}</div>`;
+        }
+      }
+
+      function openAddEvent() {
+        document.getElementById('eventModal').style.display = 'flex';
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventDate').value = '';
+        document.getElementById('eventAlsoTask').checked = false;
+        document.getElementById('eventCategory').value = 'other';
+        setTimeout(() => document.getElementById('eventTitle').focus(), 50);
+      }
+
+      function closeEventModal() {
+        document.getElementById('eventModal').style.display = 'none';
+      }
+
+      function submitAddEvent() {
+        const title = document.getElementById('eventTitle').value.trim();
+        const date = document.getElementById('eventDate').value;
+        if (!title || !date) { alert('Please fill in both title and date.'); return; }
+        calEvents.push({ date, title });
+        if (document.getElementById('eventAlsoTask').checked) {
+          const category = document.getElementById('eventCategory').value;
+          const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+          tasks.push({ id, title, category, dueDate: date, notes: 'Added from calendar.', done: false });
+          renderTasks();
+        }
+        renderCalendar();
+        closeEventModal();
+      }
+
+      // --- Admin Data ---
+      let rentPayments = [
+        { id: 1, resident: 'Alex Rivera', unit: '101', amount: 1500, dueDate: '2026-04-01', status: 'paid' },
+        { id: 2, resident: 'Mira Chen', unit: '204', amount: 1750, dueDate: '2026-04-01', status: 'late' },
+        { id: 3, resident: 'Jordan Lee', unit: '305', amount: 1600, dueDate: '2026-04-01', status: 'pending' },
+      ];
+      let invoices = [
+        { id: 1, vendor: 'AcePlumbing Co.', description: 'Fix leaky pipe unit 101', amount: 320, date: '2026-04-02', status: 'pending' },
+        { id: 2, vendor: 'GreenLawn Services', description: 'Monthly landscaping', amount: 450, date: '2026-04-01', status: 'approved' },
+      ];
+      let expenses = [
+        { id: 1, category: 'Maintenance', description: 'Plumbing repair', amount: 320, date: '2026-04-02' },
+        { id: 2, category: 'Landscaping', description: 'Monthly lawn care', amount: 450, date: '2026-04-01' },
+        { id: 3, category: 'Utilities', description: 'Common area electricity', amount: 210, date: '2026-04-01' },
+      ];
+      const monthlyBudget = 5000;
+
+      function renderRentTable() {
+        const tbody = document.getElementById('rentTable');
+        tbody.innerHTML = rentPayments.map(r => {
+          const statusColor = r.status === 'paid' ? '#27ae60' : r.status === 'late' ? '#e74c3c' : '#e67e22';
+          return `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 10px;">${r.resident}</td>
+            <td style="padding:8px 10px;">${r.unit}</td>
+            <td style="padding:8px 10px;">$${r.amount}</td>
+            <td style="padding:8px 10px;">${r.dueDate}</td>
+            <td style="padding:8px 10px;"><span style="color:white;background:${statusColor};border-radius:4px;padding:2px 8px;font-size:0.82em;">${r.status}</span></td>
+            <td style="padding:8px 10px;">
+              ${r.status !== 'paid' ? `<button class="btn-success" style="font-size:0.8em;padding:4px 8px;" onclick="markRentPaid(${r.id})">Mark Paid</button>` : ''}
+              ${r.status === 'late' ? `<button class="btn-secondary" style="font-size:0.8em;padding:4px 8px;" onclick="sendLateNotice(${r.id})">Send Notice</button>` : ''}
+            </td>
+          </tr>`;
+        }).join('');
+      }
+
+      function markRentPaid(id) {
+        const r = rentPayments.find(r => r.id === id);
+        if (r) { r.status = 'paid'; renderRentTable(); }
+      }
+
+      function sendLateNotice(id) {
+        const r = rentPayments.find(r => r.id === id);
+        if (r) alert(`Late notice sent to ${r.resident} for unit ${r.unit}.\n\nAmount due: $${r.amount}`);
+      }
+
+      function openAddRent() {
+        const resident = prompt('Resident name:'); if (!resident) return;
+        const unit = prompt('Unit number:'); if (!unit) return;
+        const amount = prompt('Monthly rent amount:'); if (!amount) return;
+        const dueDate = prompt('Due date (YYYY-MM-DD):'); if (!dueDate) return;
+        const id = rentPayments.length ? Math.max(...rentPayments.map(r => r.id)) + 1 : 1;
+        rentPayments.push({ id, resident, unit, amount: Number(amount), dueDate, status: 'pending' });
+        renderRentTable();
+      }
+
+      function renderInvoiceTable() {
+        const tbody = document.getElementById('invoiceTable');
+        tbody.innerHTML = invoices.map(inv => {
+          const statusColor = inv.status === 'approved' ? '#27ae60' : inv.status === 'rejected' ? '#e74c3c' : '#e67e22';
+          return `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 10px;">${inv.vendor}</td>
+            <td style="padding:8px 10px;">${inv.description}</td>
+            <td style="padding:8px 10px;">$${inv.amount}</td>
+            <td style="padding:8px 10px;">${inv.date}</td>
+            <td style="padding:8px 10px;"><span style="color:white;background:${statusColor};border-radius:4px;padding:2px 8px;font-size:0.82em;">${inv.status}</span></td>
+            <td style="padding:8px 10px;">
+              ${inv.status === 'pending' ? `<button class="btn-success" style="font-size:0.8em;padding:4px 8px;" onclick="approveInvoice(${inv.id})">Approve</button>` : ''}
+              ${inv.status === 'pending' ? `<button class="btn-secondary" style="font-size:0.8em;padding:4px 8px;color:#e74c3c;" onclick="rejectInvoice(${inv.id})">Reject</button>` : ''}
+            </td>
+          </tr>`;
+        }).join('');
+      }
+
+      function approveInvoice(id) {
+        const inv = invoices.find(i => i.id === id);
+        if (inv) { inv.status = 'approved'; renderInvoiceTable(); }
+      }
+
+      function rejectInvoice(id) {
+        const inv = invoices.find(i => i.id === id);
+        if (inv) { inv.status = 'rejected'; renderInvoiceTable(); }
+      }
+
+      function openAddInvoice() {
+        const vendor = prompt('Vendor name:'); if (!vendor) return;
+        const description = prompt('Description:'); if (!description) return;
+        const amount = prompt('Amount:'); if (!amount) return;
+        const date = prompt('Date (YYYY-MM-DD):'); if (!date) return;
+        const id = invoices.length ? Math.max(...invoices.map(i => i.id)) + 1 : 1;
+        invoices.push({ id, vendor, description, amount: Number(amount), date, status: 'pending' });
+        renderInvoiceTable();
+      }
+
+      function renderExpenseTable() {
+        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const remaining = monthlyBudget - total;
+        const pct = Math.min(100, Math.round((total / monthlyBudget) * 100));
+        const barColor = pct > 90 ? '#e74c3c' : pct > 70 ? '#e67e22' : '#27ae60';
+        document.getElementById('budgetSummary').innerHTML = `
+          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">MONTHLY BUDGET</div>
+            <div style="font-size:1.4em;font-weight:bold;color:#1a2e4a;">$${monthlyBudget.toLocaleString()}</div>
+          </div>
+          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">SPENT</div>
+            <div style="font-size:1.4em;font-weight:bold;color:#e74c3c;">$${total.toLocaleString()}</div>
+          </div>
+          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">REMAINING</div>
+            <div style="font-size:1.4em;font-weight:bold;color:#27ae60;">$${remaining.toLocaleString()}</div>
+          </div>
+          <div style="flex:2;background:#f4f6f9;border-radius:8px;padding:14px;">
+            <div style="font-size:0.8em;color:#888;margin-bottom:8px;">BUDGET USED — ${pct}%</div>
+            <div style="background:#dde3ec;border-radius:4px;height:12px;">
+              <div style="background:${barColor};width:${pct}%;height:12px;border-radius:4px;transition:width 0.3s;"></div>
+            </div>
+          </div>
+        `;
+        const tbody = document.getElementById('expenseTable');
+        tbody.innerHTML = expenses.map(e =>
+          `<tr style="border-bottom:1px solid #eee;">
+            <td style="padding:8px 10px;">${e.category}</td>
+            <td style="padding:8px 10px;">${e.description}</td>
+            <td style="padding:8px 10px;">$${e.amount}</td>
+            <td style="padding:8px 10px;">${e.date}</td>
+          </tr>`
+        ).join('');
+      }
+
+      function openAddExpense() {
+        const category = prompt('Category (e.g. Maintenance, Utilities):'); if (!category) return;
+        const description = prompt('Description:'); if (!description) return;
+        const amount = prompt('Amount:'); if (!amount) return;
+        const date = prompt('Date (YYYY-MM-DD):'); if (!date) return;
+        const id = expenses.length ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
+        expenses.push({ id, category, description, amount: Number(amount), date });
+        renderExpenseTable();
+      }
+
+      function updateTaskBadge() {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const twoDaysOut = new Date(today); twoDaysOut.setDate(twoDaysOut.getDate() + 2);
+        const urgent = tasks.filter(t => !t.done && new Date(t.dueDate) <= twoDaysOut && new Date(t.dueDate) >= today);
+        const overdue = tasks.filter(t => !t.done && new Date(t.dueDate) < today);
+        const count = urgent.length + overdue.length;
+        const badge = document.getElementById('task-alert-badge');
+        if (count > 0) {
+          badge.textContent = count;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+
+      // --- Tasks ---
+      let tasks = [
+        { id: 1, title: 'Alert vendors of insurance renewal', category: 'vendor', dueDate: '2026-04-10', notes: 'Contact AcePlumbing and GreenLawn before policy expires.', done: false },
+        { id: 2, title: 'Follow up on lease renewals', category: 'lease', dueDate: '2026-04-15', notes: 'Alex Rivera and Mira Chen leases up in 60 days.', done: false },
+        { id: 3, title: 'Review Q1 budget report', category: 'finance', dueDate: '2026-04-07', notes: '', done: false },
+      ];
+      let taskFilter = 'all';
+
+      function addTask() {
+        const title = document.getElementById('taskTitle').value.trim();
+        const category = document.getElementById('taskCategory').value;
+        const dueDate = document.getElementById('taskDueDate').value;
+        const notes = document.getElementById('taskNotes').value.trim();
+        if (!title || !dueDate) return;
+        const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+        tasks.push({ id, title, category, dueDate, notes, done: false });
+        document.getElementById('taskTitle').value = '';
+        document.getElementById('taskNotes').value = '';
+        document.getElementById('taskDueDate').value = '';
+        renderTasks();
+        updateTaskBadge();
+        renderCalendar();
+      }
+
+      function toggleTask(id) {
+        const t = tasks.find(t => t.id === id);
+        if (t) { t.done = !t.done; renderTasks(); updateTaskBadge(); renderCalendar(); }
+      }
+
+      function deleteTask(id) {
+        tasks = tasks.filter(t => t.id !== id);
+        renderTasks();
+        updateTaskBadge();
+        renderCalendar();
+      }
+
+      function filterTasks(filter, btn) {
+        taskFilter = filter;
+        document.querySelectorAll('.task-filter').forEach(b => b.classList.remove('active-filter'));
+        btn.classList.add('active-filter');
+        renderTasks();
+      }
+
+      function renderTasks() {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const total = tasks.length;
+        const done = tasks.filter(t => t.done).length;
+        const overdue = tasks.filter(t => !t.done && new Date(t.dueDate) < today).length;
+        const pending = tasks.filter(t => !t.done).length;
+
+        document.getElementById('taskSummaryRow').innerHTML = `
+          <div class="stat-chip"><div class="stat-num">${total}</div><div class="stat-label">Total Tasks</div></div>
+          <div class="stat-chip"><div class="stat-num" style="color:#4a90e2">${pending}</div><div class="stat-label">Pending</div></div>
+          <div class="stat-chip"><div class="stat-num" style="color:#27ae60">${done}</div><div class="stat-label">Completed</div></div>
+          <div class="stat-chip"><div class="stat-num" style="color:#e74c3c">${overdue}</div><div class="stat-label">Overdue</div></div>
+        `;
+
+        let filtered = tasks;
+        if (taskFilter === 'pending') filtered = tasks.filter(t => !t.done && new Date(t.dueDate) >= today);
+        if (taskFilter === 'done') filtered = tasks.filter(t => t.done);
+        if (taskFilter === 'overdue') filtered = tasks.filter(t => !t.done && new Date(t.dueDate) < today);
+
+        filtered.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+        const list = document.getElementById('taskList');
+        if (!filtered.length) { list.innerHTML = '<p style="color:#94a3b8;font-size:0.9em;padding:12px 0;">No tasks here.</p>'; return; }
+
+        list.innerHTML = filtered.map(t => {
+          const due = new Date(t.dueDate);
+          const isOverdue = !t.done && due < today;
+          const dueFmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          return `
+            <div class="task-item ${t.done ? 'done' : ''} ${isOverdue ? 'overdue' : ''}">
+              <div class="task-check ${t.done ? 'checked' : ''}" onclick="toggleTask(${t.id})">${t.done ? '✓' : ''}</div>
+              <div class="task-body">
+                <div class="task-title">${t.title}</div>
+                <div class="task-meta">
+                  <span class="task-cat cat-${t.category}">${t.category}</span>
+                  <span class="task-due">&#128197; ${dueFmt}${isOverdue ? ' — Overdue' : ''}</span>
+                </div>
+                ${t.notes ? `<div class="task-notes">${t.notes}</div>` : ''}
+              </div>
+              <span class="task-delete" onclick="deleteTask(${t.id})">&#10005;</span>
+            </div>`;
+        }).join('');
+
+        // Due this week
+        const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+        const thisWeek = tasks.filter(t => !t.done && new Date(t.dueDate) >= today && new Date(t.dueDate) <= weekEnd);
+        const weekEl = document.getElementById('tasksDueThisWeek');
+        if (!thisWeek.length) {
+          weekEl.innerHTML = '<p style="color:#94a3b8;font-size:0.85em;">Nothing due this week.</p>';
+        } else {
+          weekEl.innerHTML = thisWeek.sort((a,b) => new Date(a.dueDate)-new Date(b.dueDate)).map(t => {
+            const d = new Date(t.dueDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            return `<div class="week-task"><strong>${t.title}</strong><div class="wt-date">&#128197; ${d}</div></div>`;
+          }).join('');
+        }
+      }
+
+      // --- Contacts ---
+      let contacts = [
+        { id: 1, name: 'Alex Rivera', type: 'resident', unit: '101', email: 'alex.rivera@email.com', phone: '555-201-1111', notes: 'Lease ends June 2026. Prefers email contact.' },
+        { id: 2, name: 'Mira Chen', type: 'resident', unit: '204', email: 'mira.chen@email.com', phone: '555-201-2222', notes: 'Has two pets. Renewal pending.' },
+        { id: 3, name: 'Jordan Lee', type: 'resident', unit: '305', email: 'jordan.lee@email.com', phone: '555-201-3333', notes: 'Monthly lease. Works night shifts.' },
+        { id: 4, name: 'AcePlumbing Co.', type: 'vendor', email: 'service@aceplumbing.com', phone: '555-400-1000', notes: 'Emergency plumbing. Insurance renews Sept 2026.' },
+        { id: 5, name: 'GreenLawn Services', type: 'vendor', email: 'info@greenlawn.com', phone: '555-400-2000', notes: 'Monthly landscaping contract.' },
+        { id: 6, name: 'City Housing Authority', type: 'important', email: 'contact@cityhousing.gov', phone: '555-300-0001', notes: 'Annual inspections and compliance.' },
+      ];
+      let contactTypeFilter = 'all';
+      let selectedContact = null;
+
+      function filterContactType(type, btn) {
+        contactTypeFilter = type;
+        document.querySelectorAll('.contact-type-filter').forEach(b => b.classList.remove('active-filter'));
+        btn.classList.add('active-filter');
+        renderContacts();
+      }
+
+      function renderContacts() {
+        const search = document.getElementById('contactSearch').value.toLowerCase();
+        let filtered = contacts.filter(c => {
+          const matchType = contactTypeFilter === 'all' || c.type === contactTypeFilter;
+          const matchSearch = c.name.toLowerCase().includes(search) || (c.email||'').toLowerCase().includes(search) || (c.phone||'').toLowerCase().includes(search);
+          return matchType && matchSearch;
+        });
+
+        const grid = document.getElementById('contactGrid');
+        if (!filtered.length) {
+          grid.innerHTML = '<p style="color:#94a3b8;font-size:0.9em;grid-column:1/-1;">No contacts found.</p>';
+          return;
+        }
+
+        grid.innerHTML = filtered.map(c => {
+          const initials = c.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+          const isSelected = selectedContact && selectedContact.id === c.id;
+          return `<div class="contact-card ${isSelected ? 'selected' : ''}" onclick="selectContact(${c.id})">
+            <div class="contact-avatar avatar-${c.type}">${initials}</div>
+            <div class="contact-info">
+              <div class="contact-name">${c.name}</div>
+              <div class="contact-sub">${c.email || c.phone || ''}</div>
+            </div>
+            <span class="contact-type-tag tag-${c.type}">${c.type}</span>
+          </div>`;
+        }).join('');
+      }
+
+      function selectContact(id) {
+        selectedContact = contacts.find(c => c.id === id);
+        renderContacts();
+        const c = selectedContact;
+        const initials = c.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+        document.getElementById('contactDetailPanel').innerHTML = `
+          <div class="card" style="padding:28px 24px;">
+            <div style="text-align:center;margin-bottom:20px;">
+              <div class="contact-avatar avatar-${c.type}" style="width:64px;height:64px;font-size:1.5em;margin:0 auto 12px;">${initials}</div>
+              <div style="font-size:1.1em;font-weight:700;color:#2d3748;">${c.name}</div>
+              <span class="contact-type-tag tag-${c.type}" style="margin-top:6px;display:inline-block;">${c.type}</span>
+              ${c.unit ? `<div style="font-size:0.82em;color:#94a3b8;margin-top:4px;">Unit ${c.unit}</div>` : ''}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px;font-size:0.88em;">
+              ${c.email ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Email</span><div style="margin-top:3px;color:#2d3748;">${c.email}</div></div>` : ''}
+              ${c.phone ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Phone</span><div style="margin-top:3px;color:#2d3748;">${c.phone}</div></div>` : ''}
+              ${c.notes ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Notes</span><div style="margin-top:3px;color:#2d3748;">${c.notes}</div></div>` : ''}
+            </div>
+            <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
+              <button class="btn-primary" style="width:100%;" onclick="composeToContact(${c.id})">&#9993; Compose Message</button>
+              <button class="btn-secondary" style="width:100%;" onclick="deleteContact(${c.id})">Remove Contact</button>
+            </div>
+          </div>`;
+      }
+
+      function composeToContact(id) {
+        const c = contacts.find(c => c.id === id);
+        if (!c) return;
+        // Pre-fill a new message in the inbox and switch to it
+        const subject = prompt(`Message subject to ${c.name}:`, '');
+        if (!subject) return;
+        const text = prompt('Message body:', '');
+        if (!text) return;
+        const newMsg = {
+          id: messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1,
+          resident: c.name, subject, category: c.type === 'resident' ? 'general' : c.type,
+          text, status: 'new', createdAt: new Date().toISOString()
+        };
+        messages.push(newMsg);
+        showPage('inbox', '&#9993;', document.querySelector('#sidebar nav a'));
+        document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+        document.querySelector('#sidebar nav a').classList.add('active');
+        loadInbox();
+        setTimeout(() => showMessage(newMsg.id), 200);
+      }
+
+      function openAddContact() {
+        const name = prompt('Full name:'); if (!name) return;
+        const type = prompt('Type (resident / vendor / important):', 'resident'); if (!type) return;
+        const email = prompt('Email (optional):', '') || '';
+        const phone = prompt('Phone (optional):', '') || '';
+        const unit = type === 'resident' ? (prompt('Unit number (optional):', '') || '') : '';
+        const notes = prompt('Notes (optional):', '') || '';
+        const id = contacts.length ? Math.max(...contacts.map(c => c.id)) + 1 : 1;
+        contacts.push({ id, name, type, email, phone, unit, notes });
+        renderContacts();
+      }
+
+      function deleteContact(id) {
+        if (!confirm('Remove this contact?')) return;
+        contacts = contacts.filter(c => c.id !== id);
+        selectedContact = null;
+        document.getElementById('contactDetailPanel').innerHTML = `<div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;"><div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div><div style="font-size:0.9em;">Select a contact to view details</div></div>`;
+        renderContacts();
+      }
+
+      // --- Command Center ---
+      let chatHistory = [];
+
+      const quickPromptList = [
+        'Send Alex Rivera a message about his maintenance request',
+        'Add a vendor insurance review meeting on April 25th',
+        'Create a task to follow up on Mira Chen\'s lease renewal',
+        'Draft a rent reminder for all residents',
+        'Add a board meeting on May 1st as a task',
+        'What contacts do I have?',
+      ];
+
+      function initCommandCenter() {
+        const container = document.getElementById('quickPrompts');
+        container.innerHTML = quickPromptList.map(p =>
+          `<button class="quick-prompt" onclick="useQuickPrompt(this)">${p}</button>`
+        ).join('');
+        appendChatMsg('ai', 'Hi! I\'m your AI command center. Tell me what you\'d like to do — I can compose messages, add calendar events, create tasks, and more. What do you need?');
+      }
+
+      function useQuickPrompt(btn) {
+        document.getElementById('commandInput').value = btn.textContent;
+        submitCommand();
+      }
+
+      function appendChatMsg(role, text, isThinking) {
+        const chat = document.getElementById('commandChat');
+        const div = document.createElement('div');
+        div.className = `chat-msg ${role}`;
+        const initials = role === 'ai' ? 'MM' : 'You';
+        div.innerHTML = `
+          <div class="chat-avatar ${role}">${initials}</div>
+          <div class="chat-bubble ${isThinking ? 'thinking' : ''}">${text}</div>`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        return div;
+      }
+
+      function logAction(icon, text) {
+        const log = document.getElementById('actionLog');
+        if (log.querySelector('p')) log.innerHTML = '';
+        const div = document.createElement('div');
+        div.className = 'action-chip';
+        div.innerHTML = `<span>${icon}</span><span>${text}</span>`;
+        log.prepend(div);
+      }
+
+      async function applyActions(actions) {
+        if (!actions || !actions.length) return;
+        for (const action of actions) {
+          if (action.type === 'add_calendar_event') {
+            calEvents.push({ date: action.date, title: action.title });
+            renderCalendar();
+            logAction('📅', `Added event: "${action.title}" on ${action.date}`);
+          } else if (action.type === 'add_task') {
+            const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+            tasks.push({ id, title: action.title, category: action.category || 'other', dueDate: action.dueDate, notes: action.notes || '', done: false });
+            renderTasks();
+            updateTaskBadge();
+            logAction('✓', `Created task: "${action.title}"`);
+          } else if (action.type === 'compose_message') {
+            await api('messages', 'POST', { resident: action.to, subject: action.subject, category: 'general', text: action.body });
+            await loadInbox();
+            logAction('✉️', `Composed message to ${action.to}`);
+          }
+        }
+      }
+
+      async function submitCommand() {
+        const input = document.getElementById('commandInput');
+        const prompt = input.value.trim();
+        if (!prompt) return;
+        input.value = '';
+
+        appendChatMsg('user', prompt);
+        const thinking = appendChatMsg('ai', 'Thinking...', true);
+
+        try {
+          const res = await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt,
+              contacts,
+              calEvents,
+              tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
+              messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status }))
+            })
+          });
+          const data = await res.json();
+          thinking.remove();
+
+          if (!res.ok) {
+            appendChatMsg('ai', `Sorry, something went wrong: ${data.error || 'Unknown error'}`);
+            return;
+          }
+
+          appendChatMsg('ai', data.reply);
+          applyActions(data.actions);
+        } catch (err) {
+          thinking.remove();
+          appendChatMsg('ai', `Error: ${err.message}`);
+        }
+      }
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey && document.activeElement.id === 'commandInput') {
+          e.preventDefault();
+          submitCommand();
+        }
+      });
+
+      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); renderTasks(); updateTaskBadge(); renderContacts(); initCommandCenter(); };
+    </script>
+  <!-- Add Event Modal -->
+  <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
+    <div class="modal">
+      <h3>&#128197; Add Calendar Event</h3>
+
+      <label>Event Title</label>
+      <input id="eventTitle" placeholder="e.g. Insurance renewal reminder" />
+
+      <label>Date</label>
+      <input type="date" id="eventDate" />
+
+      <label class="task-toggle" style="cursor:pointer;">
+        <input type="checkbox" id="eventAlsoTask" />
+        <span>Also add this as a Task</span>
+      </label>
+
+      <div id="taskCategoryRow" style="display:block;">
+        <label>Task Category</label>
+        <select id="eventCategory">
+          <option value="vendor">Vendor</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="lease">Lease</option>
+          <option value="finance">Finance</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEventModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitAddEvent()">Add Event</button>
+      </div>
+    </div>
+  </div>
+
+  </body>
+</html>
