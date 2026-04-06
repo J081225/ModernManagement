@@ -6,12 +6,16 @@ const path = require('path');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
+const twilio = require('twilio');
+
 const app = express();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -290,6 +294,43 @@ When the user asks you to do something, use the available tools to carry out the
   } catch (err) {
     console.error('Command error:', err.message);
     res.status(500).json({ error: 'Command failed', details: err.message });
+  }
+});
+
+// --- Twilio: Incoming SMS ---
+app.post('/api/sms/incoming', (req, res) => {
+  const from = req.body.From || 'Unknown';
+  const body = req.body.Body || '';
+  const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
+  messages.push({
+    id,
+    resident: from,
+    subject: `SMS from ${from}`,
+    category: 'sms',
+    text: body,
+    status: 'new',
+    phone: from,
+    createdAt: new Date().toISOString()
+  });
+  // Respond with empty TwiML so Twilio doesn't send an auto-reply
+  res.set('Content-Type', 'text/xml');
+  res.send('<Response></Response>');
+});
+
+// --- Twilio: Send SMS reply ---
+app.post('/api/sms/send', async (req, res) => {
+  const { to, body } = req.body;
+  if (!to || !body) return res.status(400).json({ error: 'Missing to or body' });
+  try {
+    const msg = await twilioClient.messages.create({
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to,
+      body
+    });
+    res.json({ success: true, sid: msg.sid });
+  } catch (err) {
+    console.error('Twilio send error:', err.message);
+    res.status(500).json({ error: 'Failed to send SMS', details: err.message });
   }
 });
 

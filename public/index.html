@@ -246,25 +246,31 @@
       }
       .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color: #a0aec0; padding: 6px 0; }
       .cal-day {
-        min-height: 70px;
+        min-height: 80px;
         border: 1px solid #edf2f7;
-        border-radius: 6px;
+        border-radius: 8px;
         padding: 6px;
         background: white;
         font-size: 0.85em;
         vertical-align: top;
+        cursor: pointer;
+        transition: all 0.15s;
       }
+      .cal-day:hover { border-color: #ff6b6b; background: #fff9f9; }
       .cal-day.today { border-color: #ff6b6b; background: #fff5f5; }
-      .cal-day.empty { background: #fafafa; border-color: #f0f0f0; }
-      .cal-day-num { font-weight: bold; margin-bottom: 4px; color: #2d3748; }
+      .cal-day.selected { border-color: #ff6b6b; background: #fff5f5; box-shadow: 0 0 0 2px rgba(255,107,107,0.25); }
+      .cal-day.empty { background: #fafafa; border-color: #f0f0f0; cursor: default; pointer-events: none; }
+      .cal-day-num { font-weight: 700; margin-bottom: 4px; color: #2d3748; font-size: 0.92em; }
+      .cal-day.today .cal-day-num { color: #ff6b6b; }
       .cal-event {
         background: linear-gradient(135deg, #ff6b6b, #ff8e53);
         color: white;
-        border-radius: 3px;
-        padding: 2px 5px;
+        border-radius: 4px;
+        padding: 3px 6px;
         font-size: 0.78em;
-        margin-top: 2px;
-        cursor: pointer;
+        margin-top: 3px;
+        cursor: default;
+        user-select: none;
       }
       .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
       .cal-nav h3 { flex: 1; }
@@ -525,15 +531,29 @@
 
         <!-- CALENDAR PAGE -->
         <div class="page" id="page-calendar">
-          <div class="card">
-            <div class="cal-nav">
-              <button class="btn-secondary" onclick="changeMonth(-1)">&#8592;</button>
-              <h3 id="calTitle"></h3>
-              <button class="btn-secondary" onclick="changeMonth(1)">&#8594;</button>
-              <button class="btn-primary" onclick="openAddEvent()">+ Add Event</button>
+          <div style="display:flex;gap:22px;">
+
+            <!-- Calendar grid -->
+            <div style="flex:1;">
+              <div class="card">
+                <div class="cal-nav">
+                  <button class="btn-secondary" onclick="changeMonth(-1)">&#8592;</button>
+                  <h3 id="calTitle"></h3>
+                  <button class="btn-secondary" onclick="changeMonth(1)">&#8594;</button>
+                  <button class="btn-primary" onclick="openAddEvent()">+ Add Event</button>
+                </div>
+                <div class="calendar-grid" id="calDayHeaders"></div>
+                <div class="calendar-grid" id="calGrid"></div>
+              </div>
             </div>
-            <div class="calendar-grid" id="calDayHeaders"></div>
-            <div class="calendar-grid" id="calGrid"></div>
+
+            <!-- Day detail panel -->
+            <div style="width:300px;flex-shrink:0;">
+              <div class="card" id="dayDetailPanel">
+                <p style="color:#94a3b8;font-size:0.88em;text-align:center;padding:20px 0;">Click a day to view & manage its events and tasks.</p>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -799,12 +819,14 @@
           <h3 style="margin-bottom:10px">${msg.subject}</h3>
           <p><b>Resident:</b> ${msg.resident}</p>
           <p><b>Category:</b> ${msg.category}</p>
+          ${msg.phone ? `<p><b>Phone:</b> ${msg.phone}</p>` : ''}
           <p style="margin:10px 0;padding:10px;background:#f9f9f9;border-radius:6px;">${msg.text}</p>
           <p><b>Status:</b> ${msg.status}</p>
           <div style="margin:12px 0;">
             <button class="btn-primary" onclick="generateDraft()">Generate AI Draft</button>
             <button class="btn-secondary" onclick="setStatus('in-progress')">Mark In-Progress</button>
             <button class="btn-success" onclick="setStatus('sent')">Mark Sent</button>
+            ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
           </div>
           <div id='draftArea'></div>
         `;
@@ -819,6 +841,24 @@
               <button class="btn-secondary" style="margin-top:6px" onclick="applyDraft(${d.id})">Edit & Save</button>
             </div>`
           ).join('');
+        }
+      }
+
+      async function sendSMSReply() {
+        if (!selectedMessage || !selectedMessage.phone) return;
+        const body = prompt('Type your SMS reply:', '');
+        if (!body) return;
+        const res = await fetch('/api/sms/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: selectedMessage.phone, body })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('SMS sent successfully!');
+          setStatus('sent');
+        } else {
+          alert('Failed to send SMS: ' + (data.error || 'Unknown error'));
         }
       }
 
@@ -928,6 +968,8 @@
         renderCalendar();
       }
 
+      let selectedDate = null;
+
       function renderCalendar() {
         const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         document.getElementById('calTitle').textContent = months[calMonth] + ' ' + calYear;
@@ -940,7 +982,8 @@
 
         const firstDay = new Date(calYear, calMonth, 1).getDay();
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-        const today = new Date();
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 
         for (let i = 0; i < firstDay; i++) {
           grid.innerHTML += `<div class="cal-day empty"></div>`;
@@ -948,12 +991,93 @@
 
         for (let d = 1; d <= daysInMonth; d++) {
           const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
-          const taskEvts = tasks.filter(t => !t.done && t.dueDate === dateStr).map(t => ({ title: '✓ ' + t.title, isTask: true }));
-          const events = [...calEvents.filter(e => e.date === dateStr), ...taskEvts];
-          const eventsHtml = events.map(e => `<div class="cal-event" style="${e.isTask ? 'background:linear-gradient(135deg,#7b5ea7,#6c63d4)' : ''}" title="${e.title}">${e.title}</div>`).join('');
-          grid.innerHTML += `<div class="cal-day ${isToday ? 'today' : ''}"><div class="cal-day-num">${d}</div>${eventsHtml}</div>`;
+          const isToday = dateStr === todayStr;
+          const isSelected = dateStr === selectedDate;
+          const dayEvents = calEvents.filter(e => e.date === dateStr);
+          const dayTasks = tasks.filter(t => !t.done && t.dueDate === dateStr);
+          const dotHtml = (dayEvents.length || dayTasks.length)
+            ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
+                ${dayEvents.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ff8e53);"></div>`).join('')}
+                ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#7b5ea7,#6c63d4);"></div>`).join('')}
+              </div>`
+            : '';
+          grid.innerHTML += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" onclick="selectDay('${dateStr}')">
+            <div class="cal-day-num">${d}</div>
+            ${dotHtml}
+          </div>`;
         }
+
+        if (selectedDate) renderDayDetail(selectedDate);
+      }
+
+      function selectDay(dateStr) {
+        selectedDate = dateStr;
+        renderCalendar();
+        renderDayDetail(dateStr);
+      }
+
+      function renderDayDetail(dateStr) {
+        const date = new Date(dateStr + 'T00:00:00');
+        const label = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        const dayEvents = calEvents.filter(e => e.date === dateStr);
+        const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+
+        const eventsHtml = dayEvents.length
+          ? dayEvents.map((e, i) => {
+              const realIdx = calEvents.findIndex(ev => ev.date === dateStr && ev.title === e.title);
+              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff5f5;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
+                <span style="color:#2d3748;">&#128197; ${e.title}</span>
+                <span onclick="deleteCalEvent(${realIdx})" style="cursor:pointer;color:#ff6b6b;font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
+              </div>`;
+            }).join('')
+          : '<p style="color:#94a3b8;font-size:0.83em;">No events.</p>';
+
+        const tasksHtml = dayTasks.length
+          ? dayTasks.map(t => `
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f0ff;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
+                <span style="color:#2d3748;${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${t.title}</span>
+                <div style="display:flex;gap:6px;">
+                  <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:#7b5ea7;font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
+                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:#e74c3c;font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
+                </div>
+              </div>`).join('')
+          : '<p style="color:#94a3b8;font-size:0.83em;">No tasks.</p>';
+
+        document.getElementById('dayDetailPanel').innerHTML = `
+          <h2 style="font-size:0.8em;">${label}</h2>
+          <p style="font-size:0.75em;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Events</p>
+          ${eventsHtml}
+          <p style="font-size:0.75em;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin:12px 0 8px;">Tasks</p>
+          ${tasksHtml}
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
+            <button class="btn-primary" style="width:100%;" onclick="openAddEventOnDate('${dateStr}')">+ Add Event</button>
+            <button class="btn-secondary" style="width:100%;" onclick="openAddTaskOnDate('${dateStr}')">+ Add Task</button>
+          </div>
+        `;
+      }
+
+      function openAddEventOnDate(dateStr) {
+        document.getElementById('eventModal').style.display = 'flex';
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventDate').value = dateStr;
+        document.getElementById('eventAlsoTask').checked = false;
+        document.getElementById('eventCategory').value = 'other';
+        setTimeout(() => document.getElementById('eventTitle').focus(), 50);
+      }
+
+      function openAddTaskOnDate(dateStr) {
+        showPage('tasks', '&#10003;', document.getElementById('nav-tasks'));
+        document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById('nav-tasks').classList.add('active');
+        document.getElementById('taskDueDate').value = dateStr;
+        document.getElementById('taskTitle').focus();
+      }
+
+      function deleteCalEvent(idx) {
+        if (idx < 0 || idx >= calEvents.length) return;
+        calEvents.splice(idx, 1);
+        renderCalendar();
+        if (selectedDate) renderDayDetail(selectedDate);
       }
 
       function openAddEvent() {
@@ -1164,7 +1288,7 @@
 
       function toggleTask(id) {
         const t = tasks.find(t => t.id === id);
-        if (t) { t.done = !t.done; renderTasks(); updateTaskBadge(); renderCalendar(); }
+        if (t) { t.done = !t.done; renderTasks(); updateTaskBadge(); renderCalendar(); if (selectedDate) renderDayDetail(selectedDate); }
       }
 
       function deleteTask(id) {
@@ -1172,6 +1296,7 @@
         renderTasks();
         updateTaskBadge();
         renderCalendar();
+        if (selectedDate) renderDayDetail(selectedDate);
       }
 
       function filterTasks(filter, btn) {
