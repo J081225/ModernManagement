@@ -7,6 +7,8 @@ const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const twilio = require('twilio');
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -294,6 +296,43 @@ When the user asks you to do something, use the available tools to carry out the
   } catch (err) {
     console.error('Command error:', err.message);
     res.status(500).json({ error: 'Command failed', details: err.message });
+  }
+});
+
+// --- SendGrid: Incoming Email ---
+app.post('/api/email/incoming', (req, res) => {
+  const from = req.body.from || 'Unknown';
+  const subject = req.body.subject || '(No subject)';
+  const text = req.body.text || req.body.html || '';
+  const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
+  messages.push({
+    id,
+    resident: from,
+    subject,
+    category: 'email',
+    text: text.replace(/<[^>]*>/g, '').trim(),
+    status: 'new',
+    email: from,
+    createdAt: new Date().toISOString()
+  });
+  res.sendStatus(200);
+});
+
+// --- SendGrid: Send Email ---
+app.post('/api/email/send', async (req, res) => {
+  const { to, subject, body } = req.body;
+  if (!to || !subject || !body) return res.status(400).json({ error: 'Missing to, subject, or body' });
+  try {
+    await sgMail.send({
+      to,
+      from: process.env.SENDGRID_FROM_EMAIL,
+      subject,
+      text: body
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('SendGrid error:', err.message);
+    res.status(500).json({ error: 'Failed to send email', details: err.message });
   }
 });
 

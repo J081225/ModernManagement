@@ -827,6 +827,7 @@
             <button class="btn-secondary" onclick="setStatus('in-progress')">Mark In-Progress</button>
             <button class="btn-success" onclick="setStatus('sent')">Mark Sent</button>
             ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
+            ${msg.email && msg.category === 'email' ? `<button class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
           </div>
           <div id='draftArea'></div>
         `;
@@ -859,6 +860,26 @@
           setStatus('sent');
         } else {
           alert('Failed to send SMS: ' + (data.error || 'Unknown error'));
+        }
+      }
+
+      async function sendEmailReply() {
+        if (!selectedMessage || !selectedMessage.email) return;
+        const subject = prompt('Subject:', 'Re: ' + (selectedMessage.subject || ''));
+        if (!subject) return;
+        const body = prompt('Type your email reply:', '');
+        if (!body) return;
+        const res = await fetch('/api/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: selectedMessage.email, subject, body })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Email sent successfully!');
+          setStatus('sent');
+        } else {
+          alert('Failed to send email: ' + (data.error || 'Unknown error'));
         }
       }
 
