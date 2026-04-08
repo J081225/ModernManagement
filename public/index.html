@@ -944,14 +944,53 @@
         const related = drafts.filter(d => d.messageId === msg.id);
         const area = document.getElementById('draftArea');
         if (related.length) {
-          area.innerHTML = '<h4 style="margin:12px 0 8px">Drafts</h4>' + related.map(d =>
-            `<div style="background:#f4f6f9;border-radius:6px;padding:10px;margin-bottom:8px;">
-              <pre>${d.content}</pre>
-              <div style="margin-top:6px;font-size:0.85em;color:#888;">Status: ${d.status}</div>
-              <button class="btn-secondary" style="margin-top:6px" onclick="applyDraft(${d.id})">Edit & Save</button>
+          area.innerHTML = '<h4 style="margin:12px 0 8px">AI Draft</h4>' + related.map(d =>
+            `<div style="background:#f4f6f9;border-radius:8px;padding:14px;margin-bottom:8px;">
+              <textarea id="draftText-${d.id}" style="width:100%;min-height:180px;font-family:inherit;font-size:0.9em;padding:10px;border:1px solid #ddd;border-radius:6px;resize:vertical;box-sizing:border-box;">${d.content}</textarea>
+              <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-primary" onclick="sendDraft(${d.id})" style="background:linear-gradient(135deg,#ff6b6b,#ff8e53);">&#9993; Send Reply</button>
+                <button class="btn-secondary" onclick="copyDraft(${d.id})">&#128203; Copy</button>
+              </div>
+              <div style="margin-top:6px;font-size:0.8em;color:#aaa;">Status: ${d.status}</div>
             </div>`
           ).join('');
         }
+      }
+
+      async function sendDraft(draftId) {
+        if (!selectedMessage) return;
+        const textarea = document.getElementById('draftText-' + draftId);
+        const body = textarea ? textarea.value.trim() : '';
+        if (!body) return alert('Draft is empty.');
+
+        if (selectedMessage.email && selectedMessage.category === 'email') {
+          const subject = 'Re: ' + (selectedMessage.subject || '');
+          const res = await fetch('/api/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: selectedMessage.email, subject, body })
+          });
+          const data = await res.json();
+          if (data.success) { alert('Email sent!'); setStatus('sent'); }
+          else alert('Failed to send: ' + (data.error || 'Unknown error'));
+        } else if (selectedMessage.phone && selectedMessage.category === 'sms') {
+          const res = await fetch('/api/sms/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: selectedMessage.phone, body })
+          });
+          const data = await res.json();
+          if (data.success) { alert('SMS sent!'); setStatus('sent'); }
+          else alert('Failed to send: ' + (data.error || 'Unknown error'));
+        } else {
+          alert('No email or phone on this message to reply to.');
+        }
+      }
+
+      function copyDraft(draftId) {
+        const textarea = document.getElementById('draftText-' + draftId);
+        if (!textarea) return;
+        navigator.clipboard.writeText(textarea.value).then(() => alert('Draft copied to clipboard!'));
       }
 
       async function sendSMSReply() {
