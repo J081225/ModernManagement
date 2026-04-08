@@ -300,7 +300,7 @@ When the user asks you to do something, use the available tools to carry out the
 });
 
 // --- SendGrid: Incoming Email ---
-app.post('/api/email/incoming', (req, res) => {
+app.post('/api/email/incoming', upload.none(), (req, res) => {
   console.log('Incoming email fields:', JSON.stringify(Object.keys(req.body)));
   console.log('From:', req.body.from, '| Subject:', req.body.subject, '| Text length:', (req.body.text || '').length);
 
