@@ -301,18 +301,29 @@ When the user asks you to do something, use the available tools to carry out the
 
 // --- SendGrid: Incoming Email ---
 app.post('/api/email/incoming', (req, res) => {
-  const from = req.body.from || 'Unknown';
+  console.log('Incoming email fields:', JSON.stringify(Object.keys(req.body)));
+  console.log('From:', req.body.from, '| Subject:', req.body.subject, '| Text length:', (req.body.text || '').length);
+
+  const fromRaw = req.body.from || req.body.sender || 'Unknown';
+  // Extract email address from "Name <email@example.com>" format
+  const emailMatch = fromRaw.match(/<([^>]+)>/);
+  const email = emailMatch ? emailMatch[1] : fromRaw;
+  // Extract display name, fallback to email
+  const nameMatch = fromRaw.match(/^([^<]+)</);
+  const resident = nameMatch ? nameMatch[1].trim() : email;
+
   const subject = req.body.subject || '(No subject)';
-  const text = req.body.text || req.body.html || '';
+  const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
+
   const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
   messages.push({
     id,
-    resident: from,
+    resident,
     subject,
     category: 'email',
-    text: text.replace(/<[^>]*>/g, '').trim(),
+    text: text || '(No message body)',
     status: 'new',
-    email: from,
+    email,
     createdAt: new Date().toISOString()
   });
   res.sendStatus(200);
