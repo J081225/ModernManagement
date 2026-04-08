@@ -516,13 +516,19 @@
             <h2>Automation Settings</h2>
             <p style="color:#666;font-size:0.9em;margin-bottom:12px;">Choose how incoming messages are handled:</p>
             <div style="display:flex;gap:10px;margin-bottom:16px;">
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px solid #eee;border-radius:8px;cursor:pointer;flex:1;" id="label-auto">
-                <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" />
-                <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#9889; Auto Response</span>
+              <label style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:2px solid #eee;border-radius:8px;cursor:pointer;width:180px;" id="label-auto">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" />
+                  <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#9889; Auto Response</span>
+                </div>
+                <span style="font-size:0.75em;color:#94a3b8;padding-left:18px;">AI replies instantly</span>
               </label>
-              <label style="display:flex;align-items:center;gap:8px;padding:10px 16px;border:2px solid #ff6b6b;border-radius:8px;cursor:pointer;background:#fff8f8;flex:1;" id="label-review">
-                <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked />
-                <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#128065; Manager Review</span>
+              <label style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:2px solid #ff6b6b;border-radius:8px;cursor:pointer;background:#fff8f8;width:180px;" id="label-review">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked />
+                  <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#128065; Manager Review</span>
+                </div>
+                <span style="font-size:0.75em;color:#94a3b8;padding-left:18px;">You review before sending</span>
               </label>
             </div>
             <button class="btn-primary" onclick="saveAutomation()">Save Settings</button>
