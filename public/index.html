@@ -931,8 +931,6 @@
           <p><b>Status:</b> ${msg.status}</p>
           <div style="margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn-primary" onclick="generateDraft()">&#10024; Generate AI Draft</button>
-            <button class="btn-secondary" onclick="setStatus('in-progress')">Mark In-Progress</button>
-            <button class="btn-success" onclick="setStatus('sent')">Mark Sent</button>
             ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
             ${msg.email && msg.category === 'email' ? `<button class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
             ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:#f0f4ff;color:#667eea;border-color:#667eea;">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:#f0fff4;color:#27ae60;border-color:#27ae60;">&#8617; Move to Inbox</button>`}
