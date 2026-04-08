@@ -818,29 +818,13 @@
         updateInboxBadge();
       }
 
-      function deleteMessage(id) {
-        messages = messages.filter(m => m.id !== id);
+      async function deleteMessage(id) {
+        await fetch('/api/messages/' + id, { method: 'DELETE' });
         if (selectedMessage && selectedMessage.id === id) {
           selectedMessage = null;
           document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
         }
-        const list = document.getElementById('messageList');
-        list.innerHTML = '';
-        messages.forEach(msg => {
-          const line = document.createElement('div');
-          line.className = 'list-item';
-          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
-          const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
-          line.innerHTML = `
-            <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <strong>${msg.subject}</strong><br>
-              <span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>
-            </div>
-            <button onclick="deleteMessage(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1.1em;cursor:pointer;padding:4px 6px;border-radius:4px;flex-shrink:0;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
-          `;
-          list.appendChild(line);
-        });
-        updateInboxBadge();
+        loadInbox();
       }
 
       function updateInboxBadge() {

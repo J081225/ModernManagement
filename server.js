@@ -56,6 +56,13 @@ app.post('/api/messages', (req, res) => {
   res.status(201).json(newMessage);
 });
 
+app.delete('/api/messages/:id', (req, res) => {
+  const idx = messages.findIndex(m => m.id === Number(req.params.id));
+  if (idx === -1) return res.status(404).json({ error: 'Message not found' });
+  messages.splice(idx, 1);
+  res.json({ success: true });
+});
+
 app.put('/api/messages/:id/status', (req, res) => {
   const message = findMessage(req.params.id);
   if (!message) return res.status(404).json({ error: 'Message not found' });
