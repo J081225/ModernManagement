@@ -464,7 +464,8 @@
       </div>
       <nav>
         <div class="nav-label">Workspace</div>
-        <a href="#" class="active" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+        <a href="#" class="active" onclick="showPage('home', '&#127968;', this)" id="nav-home"><span class="nav-icon">&#127968;</span> Home</a>
+        <a href="#" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
@@ -484,8 +485,86 @@
       </div>
       <div id="content">
 
+        <!-- HOME PAGE -->
+        <div class="page active" id="page-home">
+          <!-- Hero Banner -->
+          <div id="homeBanner" style="position:relative;width:100%;height:220px;border-radius:16px;overflow:hidden;margin-bottom:24px;background:linear-gradient(135deg,#2d3748,#4a5568);display:flex;align-items:flex-end;">
+            <img id="bannerImg" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;" />
+            <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 60%);"></div>
+            <div style="position:relative;padding:24px 28px;flex:1;">
+              <div id="homePropertyName" style="font-size:1.6em;font-weight:700;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.4);">Welcome to Modern Management</div>
+              <div id="homePropertySub" style="color:rgba(255,255,255,0.75);font-size:0.9em;margin-top:4px;">Your property dashboard</div>
+            </div>
+            <div style="position:relative;padding:16px 20px;display:flex;gap:8px;">
+              <label style="background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8em;font-family:inherit;">
+                &#128247; Change Photo
+                <input type="file" accept="image/*" style="display:none;" onchange="uploadBannerPhoto(this)" />
+              </label>
+              <button onclick="editPropertyName()" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8em;font-family:inherit;">&#9998; Edit Name</button>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
+              <div style="font-size:1.8em;margin-bottom:6px;">&#9993;</div>
+              <div id="stat-inbox" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
+              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">New Messages</div>
+            </div>
+            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
+              <div style="font-size:1.8em;margin-bottom:6px;">&#10003;</div>
+              <div id="stat-tasks" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
+              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Pending Tasks</div>
+            </div>
+            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
+              <div style="font-size:1.8em;margin-bottom:6px;">&#128100;</div>
+              <div id="stat-contacts" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
+              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Contacts</div>
+            </div>
+            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
+              <div style="font-size:1.8em;margin-bottom:6px;">&#128197;</div>
+              <div id="stat-events" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
+              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Upcoming Events</div>
+            </div>
+          </div>
+
+          <!-- Quick Access Grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#9993;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Inbox</div>
+              <div style="font-size:0.82em;color:#94a3b8;">View and respond to resident messages</div>
+            </div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('operations','&#9881;',document.querySelector('#sidebar nav a:nth-child(3)'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#9881;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Operations</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Automation settings and knowledge base</div>
+            </div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#128197;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Calendar</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Events, tasks and scheduling</div>
+            </div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('admin','&#128188;',document.querySelector('#sidebar nav a:nth-child(5)'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#128188;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Admin</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Rent, invoices and budget</div>
+            </div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#128100;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Contacts</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Residents, vendors and staff</div>
+            </div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('command','&#9889;',document.querySelector('#sidebar nav a:nth-child(7)'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#9889;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Command Center</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Ask AI to take action</div>
+            </div>
+          </div>
+        </div>
+
         <!-- INBOX PAGE -->
-        <div class="page active" id="page-inbox">
+        <div class="page" id="page-inbox">
           <div class="inbox-layout">
             <!-- Folder sidebar -->
             <div class="inbox-folders card" style="padding:12px 8px;">
@@ -807,7 +886,8 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
-        const titles = { inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts', command: 'Command Center' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts', command: 'Command Center' };
+        if (name === 'home') loadHomeStats();
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
       }
@@ -1779,7 +1859,57 @@
         }
       });
 
-      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); loadTasks(); loadContacts(); initCommandCenter(); };
+      // --- Home Page ---
+      function uploadBannerPhoto(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById('bannerImg');
+          img.src = e.target.result;
+          img.style.display = 'block';
+          localStorage.setItem('mm_banner', e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function editPropertyName() {
+        const name = prompt('Property name:', document.getElementById('homePropertyName').textContent);
+        if (!name) return;
+        const sub = prompt('Subtitle (e.g. address or tagline):', document.getElementById('homePropertySub').textContent);
+        document.getElementById('homePropertyName').textContent = name;
+        document.getElementById('homePropertySub').textContent = sub || '';
+        localStorage.setItem('mm_propname', name);
+        localStorage.setItem('mm_propsub', sub || '');
+      }
+
+      async function loadHomeStats() {
+        const [inboxMsgs, taskList, contactList, eventList] = await Promise.all([
+          fetch('/api/messages?folder=inbox').then(r => r.json()),
+          fetch('/api/tasks').then(r => r.json()),
+          fetch('/api/contacts').then(r => r.json()),
+          fetch('/api/calevents').then(r => r.json())
+        ]);
+        const newMsgs = inboxMsgs.filter(m => m.status === 'new').length;
+        const pendingTasks = taskList.filter(t => !t.done).length;
+        const today = new Date().toISOString().split('T')[0];
+        const upcomingEvents = eventList.filter(e => e.date >= today).length;
+        document.getElementById('stat-inbox').textContent = newMsgs;
+        document.getElementById('stat-tasks').textContent = pendingTasks;
+        document.getElementById('stat-contacts').textContent = contactList.length;
+        document.getElementById('stat-events').textContent = upcomingEvents;
+      }
+
+      function restoreHomeSettings() {
+        const banner = localStorage.getItem('mm_banner');
+        if (banner) { document.getElementById('bannerImg').src = banner; document.getElementById('bannerImg').style.display = 'block'; }
+        const name = localStorage.getItem('mm_propname');
+        const sub = localStorage.getItem('mm_propsub');
+        if (name) document.getElementById('homePropertyName').textContent = name;
+        if (sub !== null) document.getElementById('homePropertySub').textContent = sub;
+      }
+
+      window.onload = () => { restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); loadTasks(); loadContacts(); initCommandCenter(); };
     </script>
   <!-- Add Event Modal -->
   <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
