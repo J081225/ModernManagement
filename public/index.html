@@ -162,8 +162,13 @@
       }
 
       /* Inbox */
-      .inbox-layout { display: flex; gap: 22px; height: calc(100vh - 140px); }
-      .inbox-list { flex: 1; min-width: 280px; overflow-y: auto; }
+      .inbox-layout { display: flex; gap: 16px; height: calc(100vh - 140px); }
+      .inbox-folders { width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
+      .folder-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 0.92em; color: #4a5568; width: 100%; text-align: left; font-family: inherit; transition: background 0.15s; }
+      .folder-btn:hover { background: #f0f4f8; }
+      .folder-btn.active { background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(255,142,83,0.1)); color: #ff6b6b; font-weight: 600; }
+      .folder-count { margin-left: auto; background: #e74c3c; color: white; font-size: 0.7em; font-weight: 700; border-radius: 20px; padding: 1px 6px; }
+      .inbox-list { flex: 1; min-width: 260px; overflow-y: auto; }
       .inbox-detail { flex: 2; overflow-y: auto; }
       .list-item {
         cursor: pointer;
@@ -482,10 +487,22 @@
         <!-- INBOX PAGE -->
         <div class="page active" id="page-inbox">
           <div class="inbox-layout">
+            <!-- Folder sidebar -->
+            <div class="inbox-folders card" style="padding:12px 8px;">
+              <div style="font-size:0.7em;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;padding:4px 14px 8px;">Folders</div>
+              <button class="folder-btn active" onclick="switchFolder('inbox', this)">&#9993; Inbox <span id="folder-badge-inbox" style="display:none;" class="folder-count"></span></button>
+              <button class="folder-btn" onclick="switchFolder('archive', this)">&#128451; Archive</button>
+              <button class="folder-btn" onclick="switchFolder('deleted', this)">&#128465; Deleted <span id="folder-badge-deleted" style="display:none;" class="folder-count"></span></button>
+              <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f0f0f0;">
+                <button id="emptyTrashBtn" onclick="emptyTrash()" style="display:none;width:100%;padding:8px;border:1px solid #e74c3c;background:none;color:#e74c3c;border-radius:6px;cursor:pointer;font-size:0.82em;font-family:inherit;">&#128465; Empty Trash</button>
+              </div>
+            </div>
+            <!-- Message list -->
             <div class="inbox-list card">
-              <h2>Messages</h2>
+              <h2 id="folderTitle">Inbox</h2>
               <div id="messageList"></div>
             </div>
+            <!-- Message detail -->
             <div class="inbox-detail card" id="detailPanel">
               <h2>Message Details</h2>
               <div id="messageDetail" style="color:#888;">Select a message to view details.</div>
@@ -797,38 +814,103 @@
       }
 
       // --- Inbox ---
+      let currentFolder = 'inbox';
+
       async function loadInbox() {
-        messages = await api('messages') || [];
+        await switchFolder(currentFolder, null);
+      }
+
+      async function switchFolder(folder, btn) {
+        currentFolder = folder;
+        // Update active folder button
+        document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        else {
+          document.querySelectorAll('.folder-btn').forEach(b => {
+            if (b.textContent.toLowerCase().includes(folder)) b.classList.add('active');
+          });
+        }
+        // Update title
+        const titles = { inbox: 'Inbox', archive: 'Archive', deleted: 'Deleted' };
+        document.getElementById('folderTitle').textContent = titles[folder] || folder;
+        // Show/hide empty trash button
+        document.getElementById('emptyTrashBtn').style.display = folder === 'deleted' ? 'block' : 'none';
+
+        const res = await fetch('/api/messages?folder=' + folder);
+        messages = await res.json();
+
         const list = document.getElementById('messageList');
         list.innerHTML = '';
+        if (!messages.length) {
+          list.innerHTML = '<p style="color:#aaa;padding:16px;font-size:0.9em;">No messages here.</p>';
+        }
         messages.forEach(msg => {
           const line = document.createElement('div');
           line.className = 'list-item';
-          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;';
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
+          const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : '&#128172;';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <strong>${msg.subject}</strong><br>
-              <span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>
+              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${catIcon} ${msg.subject}</div>
+              <div style="color:#666;font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
-            <button onclick="deleteMessage(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1.1em;cursor:pointer;padding:4px 6px;border-radius:4px;flex-shrink:0;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
+            <div style="display:flex;gap:2px;flex-shrink:0;">
+              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#ccc'">&#128451;</button>` : ''}
+              ${folder === 'deleted' ? `<button onclick="moveMessage(${msg.id},'inbox')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Restore" onmouseover="this.style.color='#27ae60'" onmouseout="this.style.color='#ccc'">&#8617;</button>` : ''}
+              ${folder === 'deleted' ? `<button onclick="permanentDelete(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete Forever" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#10006;</button>` : `<button onclick="moveMessage(${msg.id},'deleted')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>`}
+            </div>
           `;
           list.appendChild(line);
         });
         updateInboxBadge();
+        updateFolderCounts();
       }
 
-      async function deleteMessage(id) {
+      async function moveMessage(id, folder) {
+        await fetch('/api/messages/' + id + '/folder', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder })
+        });
+        if (selectedMessage && selectedMessage.id === id) {
+          selectedMessage = null;
+          document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
+        }
+        switchFolder(currentFolder, null);
+      }
+
+      async function permanentDelete(id) {
+        if (!confirm('Permanently delete this message? This cannot be undone.')) return;
         await fetch('/api/messages/' + id, { method: 'DELETE' });
         if (selectedMessage && selectedMessage.id === id) {
           selectedMessage = null;
           document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
         }
-        loadInbox();
+        switchFolder(currentFolder, null);
+      }
+
+      async function emptyTrash() {
+        if (!confirm('Permanently delete all messages in Deleted? This cannot be undone.')) return;
+        await fetch('/api/messages/folder/deleted', { method: 'DELETE' });
+        switchFolder('deleted', null);
+      }
+
+      async function updateFolderCounts() {
+        const [inbox, deleted] = await Promise.all([
+          fetch('/api/messages?folder=inbox').then(r => r.json()),
+          fetch('/api/messages?folder=deleted').then(r => r.json())
+        ]);
+        const inboxNew = inbox.filter(m => m.status === 'new').length;
+        const deletedCount = deleted.length;
+        const ib = document.getElementById('folder-badge-inbox');
+        const db2 = document.getElementById('folder-badge-deleted');
+        if (ib) { ib.textContent = inboxNew; ib.style.display = inboxNew > 0 ? 'inline' : 'none'; }
+        if (db2) { db2.textContent = deletedCount; db2.style.display = deletedCount > 0 ? 'inline' : 'none'; }
       }
 
       function updateInboxBadge() {
-        const newCount = messages.filter(m => m.status === 'new').length;
+        const newCount = messages.filter(m => m.status === 'new' && currentFolder === 'inbox').length;
         const badge = document.getElementById('inbox-alert-badge');
         if (badge) {
           if (newCount > 0) { badge.textContent = newCount; badge.style.display = 'inline'; }
@@ -847,12 +929,14 @@
           ${msg.phone ? `<p><b>Phone:</b> ${msg.phone}</p>` : ''}
           <p style="margin:10px 0;padding:10px;background:#f9f9f9;border-radius:6px;">${msg.text}</p>
           <p><b>Status:</b> ${msg.status}</p>
-          <div style="margin:12px 0;">
-            <button class="btn-primary" onclick="generateDraft()">Generate AI Draft</button>
+          <div style="margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn-primary" onclick="generateDraft()">&#10024; Generate AI Draft</button>
             <button class="btn-secondary" onclick="setStatus('in-progress')">Mark In-Progress</button>
             <button class="btn-success" onclick="setStatus('sent')">Mark Sent</button>
             ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
             ${msg.email && msg.category === 'email' ? `<button class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
+            ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:#f0f4ff;color:#667eea;border-color:#667eea;">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:#f0fff4;color:#27ae60;border-color:#27ae60;">&#8617; Move to Inbox</button>`}
+            ${msg.folder !== 'deleted' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'deleted')" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#128465; Delete</button>` : `<button class="btn-secondary" onclick="permanentDelete(${msg.id})" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#10006; Delete Forever</button>`}
           </div>
           <div id='draftArea'></div>
         `;

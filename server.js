@@ -8,6 +8,7 @@ const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const twilio = require('twilio');
 const sgMail = require('@sendgrid/mail');
+const Database = require('better-sqlite3');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const app = express();
@@ -22,11 +23,31 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// In-memory data stores
-let messages = [
-  { id: 1, resident: 'Alex Rivera', subject: 'Maintenance: Leaky faucet', category: 'maintenance', text: 'My kitchen faucet is leaking and spraying water.', status: 'new', createdAt: new Date().toISOString() },
-  { id: 2, resident: 'Mira Chen', subject: 'Renewal question', category: 'renewal', text: 'When should I confirm renewal terms?', status: 'new', createdAt: new Date().toISOString() }
-];
+// --- SQLite Database ---
+const db = new Database('modernmanagement.db');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    resident TEXT,
+    subject TEXT,
+    category TEXT,
+    text TEXT,
+    status TEXT DEFAULT 'new',
+    folder TEXT DEFAULT 'inbox',
+    email TEXT,
+    phone TEXT,
+    createdAt TEXT
+  )
+`);
+
+// Seed sample messages if empty
+const msgCount = db.prepare('SELECT COUNT(*) as c FROM messages').get();
+if (msgCount.c === 0) {
+  const ins = db.prepare('INSERT INTO messages (resident, subject, category, text, status, folder, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  ins.run('Alex Rivera', 'Maintenance: Leaky faucet', 'maintenance', 'My kitchen faucet is leaking and spraying water.', 'new', 'inbox', new Date().toISOString());
+  ins.run('Mira Chen', 'Renewal question', 'renewal', 'When should I confirm renewal terms?', 'new', 'inbox', new Date().toISOString());
+}
+
 let drafts = [];
 let docs = [
   { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
@@ -34,40 +55,50 @@ let docs = [
 ];
 let automation = { autoReplyEnabled: true, managerReviewRequired: true, model: 'claude-opus-4-6', rules: ['renewal', 'maintenance', 'availability'] };
 
-function findMessage(id) { return messages.find(m => m.id === Number(id)); }
-
 app.get('/api/messages', (req, res) => {
-  const status = req.query.status;
-  if (status) return res.json(messages.filter(msg => msg.status === status));
-  res.json(messages);
+  const folder = req.query.folder || 'inbox';
+  const rows = db.prepare('SELECT * FROM messages WHERE folder = ? ORDER BY createdAt DESC').all(folder);
+  res.json(rows);
 });
 
 app.get('/api/messages/:id', (req, res) => {
-  const message = findMessage(req.params.id);
+  const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(req.params.id));
   if (!message) return res.status(404).json({ error: 'Message not found' });
   res.json(message);
 });
 
 app.post('/api/messages', (req, res) => {
   const { resident, subject, category, text } = req.body;
-  const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
-  const newMessage = { id, resident, subject, category, text, status: 'new', createdAt: new Date().toISOString() };
-  messages.push(newMessage);
+  const result = db.prepare('INSERT INTO messages (resident, subject, category, text, status, folder, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)').run(resident, subject, category, text, 'new', 'inbox', new Date().toISOString());
+  const newMessage = db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json(newMessage);
 });
 
+// Move message to a folder (inbox / archive / deleted)
+app.put('/api/messages/:id/folder', (req, res) => {
+  const { folder } = req.body;
+  const result = db.prepare('UPDATE messages SET folder = ? WHERE id = ?').run(folder, Number(req.params.id));
+  if (result.changes === 0) return res.status(404).json({ error: 'Message not found' });
+  res.json(db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(req.params.id)));
+});
+
+// Permanently delete a single message
 app.delete('/api/messages/:id', (req, res) => {
-  const idx = messages.findIndex(m => m.id === Number(req.params.id));
-  if (idx === -1) return res.status(404).json({ error: 'Message not found' });
-  messages.splice(idx, 1);
+  const result = db.prepare('DELETE FROM messages WHERE id = ?').run(Number(req.params.id));
+  if (result.changes === 0) return res.status(404).json({ error: 'Message not found' });
+  res.json({ success: true });
+});
+
+// Empty all messages in deleted folder
+app.delete('/api/messages/folder/deleted', (_req, res) => {
+  db.prepare("DELETE FROM messages WHERE folder = 'deleted'").run();
   res.json({ success: true });
 });
 
 app.put('/api/messages/:id/status', (req, res) => {
-  const message = findMessage(req.params.id);
-  if (!message) return res.status(404).json({ error: 'Message not found' });
-  message.status = req.body.status;
-  res.json(message);
+  const result = db.prepare('UPDATE messages SET status = ? WHERE id = ?').run(req.body.status, Number(req.params.id));
+  if (result.changes === 0) return res.status(404).json({ error: 'Message not found' });
+  res.json(db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(req.params.id)));
 });
 
 app.get('/api/drafts', (req, res) => res.json(drafts));
@@ -134,7 +165,7 @@ app.put('/api/automation', (req, res) => {
 
 app.post('/api/generate', async (req, res) => {
   const { messageId, contacts } = req.body;
-  const message = findMessage(messageId);
+  const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(messageId));
   if (!message) return res.status(404).json({ error: 'Message not found' });
 
   const knowledgeContext = docs.length
@@ -312,27 +343,15 @@ app.post('/api/email/incoming', upload.none(), (req, res) => {
   console.log('From:', req.body.from, '| Subject:', req.body.subject, '| Text length:', (req.body.text || '').length);
 
   const fromRaw = req.body.from || req.body.sender || 'Unknown';
-  // Extract email address from "Name <email@example.com>" format
   const emailMatch = fromRaw.match(/<([^>]+)>/);
   const email = emailMatch ? emailMatch[1] : fromRaw;
-  // Extract display name, fallback to email
   const nameMatch = fromRaw.match(/^([^<]+)</);
   const resident = nameMatch ? nameMatch[1].trim() : email;
 
   const subject = req.body.subject || '(No subject)';
   const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
 
-  const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
-  messages.push({
-    id,
-    resident,
-    subject,
-    category: 'email',
-    text: text || '(No message body)',
-    status: 'new',
-    email,
-    createdAt: new Date().toISOString()
-  });
+  db.prepare('INSERT INTO messages (resident, subject, category, text, status, folder, email, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email, new Date().toISOString());
   res.sendStatus(200);
 });
 
@@ -358,18 +377,7 @@ app.post('/api/email/send', async (req, res) => {
 app.post('/api/sms/incoming', (req, res) => {
   const from = req.body.From || 'Unknown';
   const body = req.body.Body || '';
-  const id = messages.length ? Math.max(...messages.map(m => m.id)) + 1 : 1;
-  messages.push({
-    id,
-    resident: from,
-    subject: `SMS from ${from}`,
-    category: 'sms',
-    text: body,
-    status: 'new',
-    phone: from,
-    createdAt: new Date().toISOString()
-  });
-  // Respond with empty TwiML so Twilio doesn't send an auto-reply
+  db.prepare('INSERT INTO messages (resident, subject, category, text, status, folder, phone, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from, new Date().toISOString());
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 });
