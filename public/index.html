@@ -459,7 +459,7 @@
       </div>
       <nav>
         <div class="nav-label">Workspace</div>
-        <a href="#" class="active" onclick="showPage('inbox', '&#9993;', this)"><span class="nav-icon">&#9993;</span> Inbox</a>
+        <a href="#" class="active" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
@@ -804,11 +804,52 @@
         messages.forEach(msg => {
           const line = document.createElement('div');
           line.className = 'list-item';
+          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
-          line.innerHTML = `<strong>${msg.subject}</strong><br><span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>`;
-          line.onclick = () => showMessage(msg.id);
+          line.innerHTML = `
+            <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
+              <strong>${msg.subject}</strong><br>
+              <span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>
+            </div>
+            <button onclick="deleteMessage(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1.1em;cursor:pointer;padding:4px 6px;border-radius:4px;flex-shrink:0;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
+          `;
           list.appendChild(line);
         });
+        updateInboxBadge();
+      }
+
+      function deleteMessage(id) {
+        messages = messages.filter(m => m.id !== id);
+        if (selectedMessage && selectedMessage.id === id) {
+          selectedMessage = null;
+          document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
+        }
+        const list = document.getElementById('messageList');
+        list.innerHTML = '';
+        messages.forEach(msg => {
+          const line = document.createElement('div');
+          line.className = 'list-item';
+          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+          const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
+          line.innerHTML = `
+            <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
+              <strong>${msg.subject}</strong><br>
+              <span style="color:#666;font-size:0.9em">${msg.resident}</span> <span class="badge ${badgeClass}">${msg.status}</span>
+            </div>
+            <button onclick="deleteMessage(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1.1em;cursor:pointer;padding:4px 6px;border-radius:4px;flex-shrink:0;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
+          `;
+          list.appendChild(line);
+        });
+        updateInboxBadge();
+      }
+
+      function updateInboxBadge() {
+        const newCount = messages.filter(m => m.status === 'new').length;
+        const badge = document.getElementById('inbox-alert-badge');
+        if (badge) {
+          if (newCount > 0) { badge.textContent = newCount; badge.style.display = 'inline'; }
+          else { badge.style.display = 'none'; }
+        }
       }
 
       async function showMessage(id) {
@@ -915,7 +956,7 @@
         if (!selectedMessage) return;
         await api('messages/' + selectedMessage.id + '/status', 'PUT', { status });
         showMessage(selectedMessage.id);
-        loadInbox();
+        await loadInbox();
       }
 
       // --- Operations ---
