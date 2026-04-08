@@ -89,6 +89,76 @@ app.delete('/api/contacts/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// --- Tasks table ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    category TEXT,
+    "dueDate" TEXT,
+    notes TEXT,
+    done BOOLEAN DEFAULT false
+  )
+`).then(async () => {
+  const { rows } = await pool.query('SELECT COUNT(*) FROM tasks');
+  if (rows[0].count === '0') {
+    await pool.query(`INSERT INTO tasks (title, category, "dueDate", notes, done) VALUES
+      ('Alert vendors of insurance renewal', 'vendor', '2026-04-10', 'Contact AcePlumbing and GreenLawn before policy expires.', false),
+      ('Follow up on lease renewals', 'lease', '2026-04-15', 'Alex Rivera and Mira Chen leases up in 60 days.', false)`);
+  }
+}).catch(err => console.error('Tasks DB init error:', err.message));
+
+app.get('/api/tasks', async (_req, res) => {
+  const { rows } = await pool.query('SELECT * FROM tasks ORDER BY "dueDate" ASC');
+  res.json(rows);
+});
+app.post('/api/tasks', async (req, res) => {
+  const { title, category, dueDate, notes } = req.body;
+  const { rows } = await pool.query('INSERT INTO tasks (title, category, "dueDate", notes, done) VALUES ($1,$2,$3,$4,false) RETURNING *', [title, category, dueDate, notes || '']);
+  res.status(201).json(rows[0]);
+});
+app.put('/api/tasks/:id', async (req, res) => {
+  const { done, title, category, dueDate, notes } = req.body;
+  const { rows } = await pool.query('UPDATE tasks SET done=$1, title=$2, category=$3, "dueDate"=$4, notes=$5 WHERE id=$6 RETURNING *', [done, title, category, dueDate, notes || '', Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'Task not found' });
+  res.json(rows[0]);
+});
+app.delete('/api/tasks/:id', async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM tasks WHERE id=$1', [Number(req.params.id)]);
+  if (!rowCount) return res.status(404).json({ error: 'Task not found' });
+  res.json({ success: true });
+});
+
+// --- Calendar Events table ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS cal_events (
+    id SERIAL PRIMARY KEY,
+    date TEXT,
+    title TEXT
+  )
+`).then(async () => {
+  const { rows } = await pool.query('SELECT COUNT(*) FROM cal_events');
+  if (rows[0].count === '0') {
+    await pool.query(`INSERT INTO cal_events (date, title) VALUES
+      ('2026-04-10', 'Maintenance inspection')`);
+  }
+}).catch(err => console.error('CalEvents DB init error:', err.message));
+
+app.get('/api/calevents', async (_req, res) => {
+  const { rows } = await pool.query('SELECT * FROM cal_events ORDER BY date ASC');
+  res.json(rows);
+});
+app.post('/api/calevents', async (req, res) => {
+  const { date, title } = req.body;
+  const { rows } = await pool.query('INSERT INTO cal_events (date, title) VALUES ($1,$2) RETURNING *', [date, title]);
+  res.status(201).json(rows[0]);
+});
+app.delete('/api/calevents/:id', async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM cal_events WHERE id=$1', [Number(req.params.id)]);
+  if (!rowCount) return res.status(404).json({ error: 'Event not found' });
+  res.json({ success: true });
+});
+
 let drafts = [];
 let docs = [
   { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },

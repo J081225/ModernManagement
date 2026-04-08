@@ -1190,11 +1190,10 @@
         const dayTasks = tasks.filter(t => t.dueDate === dateStr);
 
         const eventsHtml = dayEvents.length
-          ? dayEvents.map((e, i) => {
-              const realIdx = calEvents.findIndex(ev => ev.date === dateStr && ev.title === e.title);
+          ? dayEvents.map(e => {
               return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff5f5;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
                 <span style="color:#2d3748;">&#128197; ${e.title}</span>
-                <span onclick="deleteCalEvent(${realIdx})" style="cursor:pointer;color:#ff6b6b;font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
+                <span onclick="deleteCalEvent(${e.id})" style="cursor:pointer;color:#ff6b6b;font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
               </div>`;
             }).join('')
           : '<p style="color:#94a3b8;font-size:0.83em;">No events.</p>';
@@ -1240,10 +1239,9 @@
         document.getElementById('taskTitle').focus();
       }
 
-      function deleteCalEvent(idx) {
-        if (idx < 0 || idx >= calEvents.length) return;
-        calEvents.splice(idx, 1);
-        renderCalendar();
+      async function deleteCalEvent(id) {
+        await fetch('/api/calevents/' + id, { method: 'DELETE' });
+        loadCalEvents();
         if (selectedDate) renderDayDetail(selectedDate);
       }
 
@@ -1260,18 +1258,17 @@
         document.getElementById('eventModal').style.display = 'none';
       }
 
-      function submitAddEvent() {
+      async function submitAddEvent() {
         const title = document.getElementById('eventTitle').value.trim();
         const date = document.getElementById('eventDate').value;
         if (!title || !date) { alert('Please fill in both title and date.'); return; }
-        calEvents.push({ date, title });
+        await api('calevents', 'POST', { date, title });
         if (document.getElementById('eventAlsoTask').checked) {
           const category = document.getElementById('eventCategory').value;
-          const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-          tasks.push({ id, title, category, dueDate: date, notes: 'Added from calendar.', done: false });
-          renderTasks();
+          await api('tasks', 'POST', { title, category, dueDate: date, notes: 'Added from calendar.' });
         }
-        renderCalendar();
+        await loadCalEvents();
+        await loadTasks();
         closeEventModal();
       }
 
@@ -1430,40 +1427,44 @@
       }
 
       // --- Tasks ---
-      let tasks = [
-        { id: 1, title: 'Alert vendors of insurance renewal', category: 'vendor', dueDate: '2026-04-10', notes: 'Contact AcePlumbing and GreenLawn before policy expires.', done: false },
-        { id: 2, title: 'Follow up on lease renewals', category: 'lease', dueDate: '2026-04-15', notes: 'Alex Rivera and Mira Chen leases up in 60 days.', done: false },
-        { id: 3, title: 'Review Q1 budget report', category: 'finance', dueDate: '2026-04-07', notes: '', done: false },
-      ];
+      let tasks = [];
       let taskFilter = 'all';
 
-      function addTask() {
+      async function loadTasks() {
+        tasks = await api('tasks') || [];
+        renderTasks();
+        updateTaskBadge();
+        renderCalendar();
+      }
+
+      async function loadCalEvents() {
+        calEvents = await api('calevents') || [];
+        renderCalendar();
+      }
+
+      async function addTask() {
         const title = document.getElementById('taskTitle').value.trim();
         const category = document.getElementById('taskCategory').value;
         const dueDate = document.getElementById('taskDueDate').value;
         const notes = document.getElementById('taskNotes').value.trim();
         if (!title || !dueDate) return;
-        const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-        tasks.push({ id, title, category, dueDate, notes, done: false });
+        await api('tasks', 'POST', { title, category, dueDate, notes });
         document.getElementById('taskTitle').value = '';
         document.getElementById('taskNotes').value = '';
         document.getElementById('taskDueDate').value = '';
-        renderTasks();
-        updateTaskBadge();
-        renderCalendar();
+        loadTasks();
       }
 
-      function toggleTask(id) {
+      async function toggleTask(id) {
         const t = tasks.find(t => t.id === id);
-        if (t) { t.done = !t.done; renderTasks(); updateTaskBadge(); renderCalendar(); if (selectedDate) renderDayDetail(selectedDate); }
+        if (!t) return;
+        await fetch('/api/tasks/' + id, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({...t, done: !t.done}) });
+        loadTasks();
       }
 
-      function deleteTask(id) {
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        updateTaskBadge();
-        renderCalendar();
-        if (selectedDate) renderDayDetail(selectedDate);
+      async function deleteTask(id) {
+        await fetch('/api/tasks/' + id, { method: 'DELETE' });
+        loadTasks();
       }
 
       function filterTasks(filter, btn) {
@@ -1752,7 +1753,7 @@
         }
       });
 
-      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); renderTasks(); updateTaskBadge(); loadContacts(); initCommandCenter(); };
+      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); loadTasks(); loadContacts(); initCommandCenter(); };
     </script>
   <!-- Add Event Modal -->
   <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
