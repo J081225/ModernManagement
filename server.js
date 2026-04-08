@@ -8,7 +8,10 @@ const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const twilio = require('twilio');
 const sgMail = require('@sendgrid/mail');
+const { Pool } = require('pg');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const app = express();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -22,12 +25,28 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- In-memory data stores with folder support ---
-let messages = [
-  { id: 1, resident: 'Alex Rivera', subject: 'Maintenance: Leaky faucet', category: 'maintenance', text: 'My kitchen faucet is leaking and spraying water.', status: 'new', folder: 'inbox', email: null, phone: null, createdAt: new Date().toISOString() },
-  { id: 2, resident: 'Mira Chen', subject: 'Renewal question', category: 'renewal', text: 'When should I confirm renewal terms?', status: 'new', folder: 'inbox', email: null, phone: null, createdAt: new Date().toISOString() }
-];
-let nextMsgId = 3;
+// --- PostgreSQL setup ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    resident TEXT,
+    subject TEXT,
+    category TEXT,
+    text TEXT,
+    status TEXT DEFAULT 'new',
+    folder TEXT DEFAULT 'inbox',
+    email TEXT,
+    phone TEXT,
+    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(async () => {
+  const { rows } = await pool.query('SELECT COUNT(*) FROM messages');
+  if (rows[0].count === '0') {
+    await pool.query(`INSERT INTO messages (resident, subject, category, text, status, folder) VALUES
+      ('Alex Rivera', 'Maintenance: Leaky faucet', 'maintenance', 'My kitchen faucet is leaking and spraying water.', 'new', 'inbox'),
+      ('Mira Chen', 'Renewal question', 'renewal', 'When should I confirm renewal terms?', 'new', 'inbox')`);
+  }
+}).catch(err => console.error('DB init error:', err.message));
 
 let drafts = [];
 let docs = [
@@ -36,51 +55,48 @@ let docs = [
 ];
 let automation = { autoReplyEnabled: true, managerReviewRequired: true, model: 'claude-opus-4-6', rules: ['renewal', 'maintenance', 'availability'] };
 
-app.get('/api/messages', (req, res) => {
+app.get('/api/messages', async (req, res) => {
   const folder = req.query.folder || 'inbox';
-  res.json(messages.filter(m => m.folder === folder).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+  const { rows } = await pool.query('SELECT * FROM messages WHERE folder=$1 ORDER BY "createdAt" DESC', [folder]);
+  res.json(rows);
 });
 
-app.get('/api/messages/:id', (req, res) => {
-  const message = messages.find(m => m.id === Number(req.params.id));
-  if (!message) return res.status(404).json({ error: 'Message not found' });
-  res.json(message);
+app.get('/api/messages/:id', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1', [Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  res.json(rows[0]);
 });
 
-app.post('/api/messages', (req, res) => {
+app.post('/api/messages', async (req, res) => {
   const { resident, subject, category, text } = req.body;
-  const newMessage = { id: nextMsgId++, resident, subject, category, text, status: 'new', folder: 'inbox', email: null, phone: null, createdAt: new Date().toISOString() };
-  messages.push(newMessage);
-  res.status(201).json(newMessage);
+  const { rows } = await pool.query(
+    'INSERT INTO messages (resident, subject, category, text, status, folder) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [resident, subject, category, text, 'new', 'inbox']
+  );
+  res.status(201).json(rows[0]);
 });
 
-// Move message to a folder (inbox / archive / deleted)
-app.put('/api/messages/:id/folder', (req, res) => {
-  const message = messages.find(m => m.id === Number(req.params.id));
-  if (!message) return res.status(404).json({ error: 'Message not found' });
-  message.folder = req.body.folder;
-  res.json(message);
+app.put('/api/messages/:id/folder', async (req, res) => {
+  const { rows } = await pool.query('UPDATE messages SET folder=$1 WHERE id=$2 RETURNING *', [req.body.folder, Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  res.json(rows[0]);
 });
 
-// Permanently delete a single message
-app.delete('/api/messages/:id', (req, res) => {
-  const idx = messages.findIndex(m => m.id === Number(req.params.id));
-  if (idx === -1) return res.status(404).json({ error: 'Message not found' });
-  messages.splice(idx, 1);
+app.delete('/api/messages/:id', async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM messages WHERE id=$1', [Number(req.params.id)]);
+  if (!rowCount) return res.status(404).json({ error: 'Message not found' });
   res.json({ success: true });
 });
 
-// Empty all messages in deleted folder
-app.delete('/api/messages/folder/deleted', (_req, res) => {
-  messages = messages.filter(m => m.folder !== 'deleted');
+app.delete('/api/messages/folder/deleted', async (_req, res) => {
+  await pool.query("DELETE FROM messages WHERE folder='deleted'");
   res.json({ success: true });
 });
 
-app.put('/api/messages/:id/status', (req, res) => {
-  const message = messages.find(m => m.id === Number(req.params.id));
-  if (!message) return res.status(404).json({ error: 'Message not found' });
-  message.status = req.body.status;
-  res.json(message);
+app.put('/api/messages/:id/status', async (req, res) => {
+  const { rows } = await pool.query('UPDATE messages SET status=$1 WHERE id=$2 RETURNING *', [req.body.status, Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  res.json(rows[0]);
 });
 
 app.get('/api/drafts', (req, res) => res.json(drafts));
@@ -333,7 +349,7 @@ app.post('/api/email/incoming', upload.none(), (req, res) => {
   const subject = req.body.subject || '(No subject)';
   const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
 
-  messages.push({ id: nextMsgId++, resident, subject, category: 'email', text: text || '(No message body)', status: 'new', folder: 'inbox', email, phone: null, createdAt: new Date().toISOString() });
+  pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7)', [resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]).catch(err => console.error('DB insert error:', err.message));
   res.sendStatus(200);
 });
 
@@ -359,7 +375,7 @@ app.post('/api/email/send', async (req, res) => {
 app.post('/api/sms/incoming', (req, res) => {
   const from = req.body.From || 'Unknown';
   const body = req.body.Body || '';
-  messages.push({ id: nextMsgId++, resident: from, subject: `SMS from ${from}`, category: 'sms', text: body, status: 'new', folder: 'inbox', email: null, phone: from, createdAt: new Date().toISOString() });
+  pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7)', [from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]).catch(err => console.error('DB insert error:', err.message));
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 });
