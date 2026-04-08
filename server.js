@@ -163,7 +163,8 @@ app.put('/api/automation', (req, res) => {
 
 app.post('/api/generate', async (req, res) => {
   const { messageId, contacts } = req.body;
-  const message = db.prepare('SELECT * FROM messages WHERE id = ?').get(Number(messageId));
+  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1', [Number(messageId)]);
+  const message = rows[0];
   if (!message) return res.status(404).json({ error: 'Message not found' });
 
   const knowledgeContext = docs.length
