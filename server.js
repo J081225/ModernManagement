@@ -48,6 +48,47 @@ pool.query(`
   }
 }).catch(err => console.error('DB init error:', err.message));
 
+// --- Contacts table ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS contacts (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    type TEXT,
+    unit TEXT,
+    email TEXT,
+    phone TEXT,
+    notes TEXT
+  )
+`).then(async () => {
+  const { rows } = await pool.query('SELECT COUNT(*) FROM contacts');
+  if (rows[0].count === '0') {
+    await pool.query(`INSERT INTO contacts (name, type, unit, email, phone, notes) VALUES
+      ('Alex Rivera', 'resident', '101', 'alex.rivera@email.com', '555-201-1111', 'Lease ends June 2026. Prefers email contact.'),
+      ('Mira Chen', 'resident', '204', 'mira.chen@email.com', '555-201-2222', 'Has two pets. Renewal pending.'),
+      ('Jordan Lee', 'resident', '305', 'jordan.lee@email.com', '555-201-3333', 'Monthly lease. Works night shifts.')`);
+  }
+}).catch(err => console.error('Contacts DB init error:', err.message));
+
+app.get('/api/contacts', async (_req, res) => {
+  const { rows } = await pool.query('SELECT * FROM contacts ORDER BY name ASC');
+  res.json(rows);
+});
+
+app.post('/api/contacts', async (req, res) => {
+  const { name, type, unit, email, phone, notes } = req.body;
+  const { rows } = await pool.query(
+    'INSERT INTO contacts (name, type, unit, email, phone, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [name, type, unit || '', email || '', phone || '', notes || '']
+  );
+  res.status(201).json(rows[0]);
+});
+
+app.delete('/api/contacts/:id', async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM contacts WHERE id=$1', [Number(req.params.id)]);
+  if (!rowCount) return res.status(404).json({ error: 'Contact not found' });
+  res.json({ success: true });
+});
+
 let drafts = [];
 let docs = [
   { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },

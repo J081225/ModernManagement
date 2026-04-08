@@ -1531,15 +1531,13 @@
       }
 
       // --- Contacts ---
-      let contacts = [
-        { id: 1, name: 'Alex Rivera', type: 'resident', unit: '101', email: 'alex.rivera@email.com', phone: '555-201-1111', notes: 'Lease ends June 2026. Prefers email contact.' },
-        { id: 2, name: 'Mira Chen', type: 'resident', unit: '204', email: 'mira.chen@email.com', phone: '555-201-2222', notes: 'Has two pets. Renewal pending.' },
-        { id: 3, name: 'Jordan Lee', type: 'resident', unit: '305', email: 'jordan.lee@email.com', phone: '555-201-3333', notes: 'Monthly lease. Works night shifts.' },
-        { id: 4, name: 'AcePlumbing Co.', type: 'vendor', email: 'service@aceplumbing.com', phone: '555-400-1000', notes: 'Emergency plumbing. Insurance renews Sept 2026.' },
-        { id: 5, name: 'GreenLawn Services', type: 'vendor', email: 'info@greenlawn.com', phone: '555-400-2000', notes: 'Monthly landscaping contract.' },
-        { id: 6, name: 'City Housing Authority', type: 'important', email: 'contact@cityhousing.gov', phone: '555-300-0001', notes: 'Annual inspections and compliance.' },
-      ];
+      let contacts = [];
       let contactTypeFilter = 'all';
+
+      async function loadContacts() {
+        contacts = await api('contacts') || [];
+        renderContacts();
+      }
       let selectedContact = null;
 
       function filterContactType(type, btn) {
@@ -1623,24 +1621,23 @@
         setTimeout(() => showMessage(newMsg.id), 200);
       }
 
-      function openAddContact() {
+      async function openAddContact() {
         const name = prompt('Full name:'); if (!name) return;
         const type = prompt('Type (resident / vendor / important):', 'resident'); if (!type) return;
         const email = prompt('Email (optional):', '') || '';
         const phone = prompt('Phone (optional):', '') || '';
         const unit = type === 'resident' ? (prompt('Unit number (optional):', '') || '') : '';
         const notes = prompt('Notes (optional):', '') || '';
-        const id = contacts.length ? Math.max(...contacts.map(c => c.id)) + 1 : 1;
-        contacts.push({ id, name, type, email, phone, unit, notes });
-        renderContacts();
+        await api('contacts', 'POST', { name, type, email, phone, unit, notes });
+        loadContacts();
       }
 
-      function deleteContact(id) {
+      async function deleteContact(id) {
         if (!confirm('Remove this contact?')) return;
-        contacts = contacts.filter(c => c.id !== id);
+        await fetch('/api/contacts/' + id, { method: 'DELETE' });
         selectedContact = null;
         document.getElementById('contactDetailPanel').innerHTML = `<div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;"><div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div><div style="font-size:0.9em;">Select a contact to view details</div></div>`;
-        renderContacts();
+        loadContacts();
       }
 
       // --- Command Center ---
@@ -1755,7 +1752,7 @@
         }
       });
 
-      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); renderTasks(); updateTaskBadge(); renderContacts(); initCommandCenter(); };
+      window.onload = () => { loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); renderTasks(); updateTaskBadge(); loadContacts(); initCommandCenter(); };
     </script>
   <!-- Add Event Modal -->
   <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
