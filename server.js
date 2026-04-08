@@ -361,7 +361,8 @@ app.post('/api/email/send', async (req, res) => {
   try {
     await sgMail.send({
       to,
-      from: process.env.SENDGRID_FROM_EMAIL,
+      from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+      replyTo: process.env.SENDGRID_FROM_EMAIL,
       subject,
       text: body
     });
