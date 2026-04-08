@@ -164,7 +164,28 @@ let docs = [
   { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
   { id: 2, title: 'Maintenance Escalation', type: 'procedure', content: 'For emergency leaks, dispatch within 2 hours and notify resident within 30 min.' }
 ];
-let automation = { autoReplyEnabled: true, managerReviewRequired: true, model: 'claude-opus-4-6', rules: ['renewal', 'maintenance', 'availability'] };
+let automation = { autoReplyEnabled: false, managerReviewRequired: true };
+
+// Persist automation in DB
+pool.query(`CREATE TABLE IF NOT EXISTS automation (id INTEGER PRIMARY KEY, "autoReplyEnabled" BOOLEAN DEFAULT false)`)
+  .then(async () => {
+    const { rows } = await pool.query('SELECT * FROM automation WHERE id=1');
+    if (rows.length) {
+      automation.autoReplyEnabled = rows[0].autoReplyEnabled;
+      automation.managerReviewRequired = !rows[0].autoReplyEnabled;
+    } else {
+      await pool.query('INSERT INTO automation (id, "autoReplyEnabled") VALUES (1, false)');
+    }
+  }).catch(err => console.error('Automation DB init error:', err.message));
+
+app.get('/api/automation', (req, res) => res.json(automation));
+app.put('/api/automation', async (req, res) => {
+  const autoReplyEnabled = !!req.body.autoReplyEnabled;
+  automation.autoReplyEnabled = autoReplyEnabled;
+  automation.managerReviewRequired = !autoReplyEnabled;
+  await pool.query('UPDATE automation SET "autoReplyEnabled"=$1 WHERE id=1', [autoReplyEnabled]);
+  res.json(automation);
+});
 
 app.get('/api/messages', async (req, res) => {
   const folder = req.query.folder || 'inbox';
