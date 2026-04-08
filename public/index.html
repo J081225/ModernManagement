@@ -514,9 +514,22 @@
         <div class="page" id="page-operations">
           <div class="card">
             <h2>Automation Settings</h2>
-            <label><input type="checkbox" id="autoReply" /> &nbsp;Auto response active</label><br><br>
-            <label><input type="checkbox" id="requireReview" /> &nbsp;Manager review required</label><br><br>
-            <button class="btn-primary" onclick="saveAutomation()">Save Settings</button>
+            <p style="color:#666;font-size:0.9em;margin-bottom:16px;">Choose how incoming messages are handled:</p>
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:14px;border:2px solid #eee;border-radius:10px;cursor:pointer;margin-bottom:10px;" id="label-auto">
+              <input type="radio" name="responseMode" id="autoReply" value="auto" style="margin-top:3px;" onchange="updateModeUI()" />
+              <div>
+                <div style="font-weight:600;color:#2d3748;">&#9889; Auto Response</div>
+                <div style="font-size:0.85em;color:#718096;margin-top:2px;">AI automatically generates and sends a reply when a new message arrives. No action needed from you.</div>
+              </div>
+            </label>
+            <label style="display:flex;align-items:flex-start;gap:10px;padding:14px;border:2px solid #ff6b6b;border-radius:10px;cursor:pointer;background:#fff8f8;" id="label-review">
+              <input type="radio" name="responseMode" id="requireReview" value="review" style="margin-top:3px;" onchange="updateModeUI()" checked />
+              <div>
+                <div style="font-weight:600;color:#2d3748;">&#128065; Manager Review</div>
+                <div style="font-size:0.85em;color:#718096;margin-top:2px;">Messages arrive in your inbox. You manually generate an AI draft, review it, and send.</div>
+              </div>
+            </label>
+            <button class="btn-primary" style="margin-top:16px;" onclick="saveAutomation()">Save Settings</button>
           </div>
 
           <div class="card">
@@ -1065,17 +1078,28 @@
       }
 
       // --- Operations ---
+      function updateModeUI() {
+        const isAuto = document.getElementById('autoReply').checked;
+        document.getElementById('label-auto').style.borderColor = isAuto ? '#ff6b6b' : '#eee';
+        document.getElementById('label-auto').style.background = isAuto ? '#fff8f8' : '';
+        document.getElementById('label-review').style.borderColor = isAuto ? '#eee' : '#ff6b6b';
+        document.getElementById('label-review').style.background = isAuto ? '' : '#fff8f8';
+      }
+
       async function loadAutomation() {
         const auto = await api('automation');
         if (!auto) return;
-        document.getElementById('autoReply').checked = auto.autoReplyEnabled;
-        document.getElementById('requireReview').checked = auto.managerReviewRequired;
+        if (auto.autoReplyEnabled) {
+          document.getElementById('autoReply').checked = true;
+        } else {
+          document.getElementById('requireReview').checked = true;
+        }
+        updateModeUI();
       }
 
       async function saveAutomation() {
         const autoReplyEnabled = document.getElementById('autoReply').checked;
-        const managerReviewRequired = document.getElementById('requireReview').checked;
-        await api('automation', 'PUT', { autoReplyEnabled, managerReviewRequired });
+        await api('automation', 'PUT', { autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
         alert('Settings saved.');
       }
 

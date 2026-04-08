@@ -447,8 +447,44 @@ When the user asks you to do something, use the available tools to carry out the
   }
 });
 
+// Helper: auto-generate and send AI reply for a message
+async function autoReplyToMessage(message) {
+  try {
+    const knowledgeContext = docs.length
+      ? docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n')
+      : 'No company policies uploaded.';
+
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 1024,
+      system: `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`,
+      messages: [{ role: 'user', content: `Please draft a response to this message:\n\nFrom: ${message.resident}\nSubject: ${message.subject}\n\n${message.text}` }]
+    });
+
+    const draft = response.content.find(b => b.type === 'text')?.text || '';
+    if (!draft) return;
+
+    if (message.email) {
+      await sgMail.send({
+        to: message.email,
+        from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: 'Re: ' + message.subject,
+        text: draft
+      });
+    } else if (message.phone) {
+      await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to: message.phone, body: draft });
+    }
+
+    await pool.query('UPDATE messages SET status=$1 WHERE id=$2', ['sent', message.id]);
+    console.log('Auto-reply sent for message', message.id);
+  } catch (err) {
+    console.error('Auto-reply error:', err.message);
+  }
+}
+
 // --- SendGrid: Incoming Email ---
-app.post('/api/email/incoming', upload.none(), (req, res) => {
+app.post('/api/email/incoming', upload.none(), async (req, res) => {
   console.log('Incoming email fields:', JSON.stringify(Object.keys(req.body)));
   console.log('From:', req.body.from, '| Subject:', req.body.subject, '| Text length:', (req.body.text || '').length);
 
@@ -461,8 +497,12 @@ app.post('/api/email/incoming', upload.none(), (req, res) => {
   const subject = req.body.subject || '(No subject)';
   const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
 
-  pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7)', [resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]).catch(err => console.error('DB insert error:', err.message));
+  const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]);
   res.sendStatus(200);
+
+  if (automation.autoReplyEnabled && rows[0]) {
+    autoReplyToMessage(rows[0]);
+  }
 });
 
 // --- SendGrid: Send Email ---
@@ -485,12 +525,16 @@ app.post('/api/email/send', async (req, res) => {
 });
 
 // --- Twilio: Incoming SMS ---
-app.post('/api/sms/incoming', (req, res) => {
+app.post('/api/sms/incoming', async (req, res) => {
   const from = req.body.From || 'Unknown';
   const body = req.body.Body || '';
-  pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7)', [from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]).catch(err => console.error('DB insert error:', err.message));
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
+
+  const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
+  if (automation.autoReplyEnabled && rows[0]) {
+    autoReplyToMessage(rows[0]);
+  }
 });
 
 // --- Twilio: Send SMS reply ---
