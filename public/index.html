@@ -1909,6 +1909,24 @@
         if (sub !== null) document.getElementById('homePropertySub').textContent = sub;
       }
 
+      // --- Auto-poll for new messages every 10 seconds ---
+      let lastMessageCount = 0;
+      async function pollInbox() {
+        try {
+          const res = await fetch('/api/messages?folder=inbox');
+          const latest = await res.json();
+          if (latest.length !== lastMessageCount) {
+            lastMessageCount = latest.length;
+            messages = latest;
+            if (currentFolder === 'inbox') await switchFolder('inbox', null);
+            updateInboxBadge();
+            updateFolderCounts();
+            loadHomeStats();
+          }
+        } catch (e) {}
+      }
+      setInterval(pollInbox, 10000);
+
       window.onload = () => { restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); loadTasks(); loadContacts(); initCommandCenter(); };
     </script>
   <!-- Add Event Modal -->
