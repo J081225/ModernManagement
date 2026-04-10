@@ -159,6 +159,61 @@ app.delete('/api/calevents/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// --- Budget Transactions table ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS budget_transactions (
+    id SERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    category TEXT,
+    description TEXT,
+    amount NUMERIC(10,2) NOT NULL,
+    date TEXT,
+    notes TEXT,
+    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(async () => {
+  const { rows } = await pool.query('SELECT COUNT(*) FROM budget_transactions');
+  if (rows[0].count === '0') {
+    await pool.query(`INSERT INTO budget_transactions (type, category, description, amount, date, notes) VALUES
+      ('income',  'Rent Received',  'Unit 101 — April rent',       1800.00, '2026-04-01', ''),
+      ('income',  'Rent Received',  'Unit 204 — April rent',       1600.00, '2026-04-01', ''),
+      ('income',  'Rent Received',  'Unit 305 — April rent',       1600.00, '2026-04-01', ''),
+      ('income',  'Late Fee',       'Unit 305 late payment fee',    75.00,  '2026-04-03', ''),
+      ('expense', 'Maintenance',    'Plumbing repair — Unit 101',  320.00,  '2026-04-02', 'AcePlumbing Co.'),
+      ('expense', 'Landscaping',    'Monthly lawn care',           450.00,  '2026-04-01', 'GreenLawn Services'),
+      ('expense', 'Utilities',      'Common area electricity',     210.00,  '2026-04-01', ''),
+      ('expense', 'Insurance',      'Monthly property insurance',  380.00,  '2026-04-01', '')`);
+  }
+}).catch(err => console.error('Budget DB init error:', err.message));
+
+app.get('/api/budget', async (req, res) => {
+  const { month, year } = req.query;
+  let q = 'SELECT * FROM budget_transactions';
+  const params = [];
+  if (month && year) {
+    q += ` WHERE date LIKE $1`;
+    params.push(`${year}-${String(month).padStart(2,'0')}%`);
+  }
+  q += ' ORDER BY date ASC, "createdAt" ASC';
+  const { rows } = await pool.query(q, params);
+  res.json(rows);
+});
+
+app.post('/api/budget', async (req, res) => {
+  const { type, category, description, amount, date, notes } = req.body;
+  const { rows } = await pool.query(
+    'INSERT INTO budget_transactions (type, category, description, amount, date, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [type, category, description || '', Number(amount), date, notes || '']
+  );
+  res.status(201).json(rows[0]);
+});
+
+app.delete('/api/budget/:id', async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM budget_transactions WHERE id=$1', [Number(req.params.id)]);
+  if (!rowCount) return res.status(404).json({ error: 'Transaction not found' });
+  res.json({ success: true });
+});
+
 let drafts = [];
 let docs = [
   { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
@@ -287,11 +342,6 @@ app.post('/api/knowledge/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-app.get('/api/automation', (req, res) => res.json(automation));
-app.put('/api/automation', (req, res) => {
-  Object.assign(automation, req.body);
-  res.json(automation);
-});
 
 app.post('/api/generate', async (req, res) => {
   const { messageId, contacts } = req.body;

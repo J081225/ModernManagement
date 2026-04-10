@@ -846,23 +846,51 @@
 
           <!-- Budget -->
           <div class="card">
-            <h2>Budget Tracker</h2>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <span style="font-size:0.9em;color:#888;">Track expenses against your property budget.</span>
-              <button class="btn-primary" onclick="openAddExpense()">+ Add Expense</button>
+            <h2>&#128200; Budget Tracker</h2>
+
+            <!-- Summary cards -->
+            <div id="budgetSummary" style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;"></div>
+
+            <!-- Controls row -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+              <select id="budgetMonthSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+                <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+                <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+                <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+                <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+              </select>
+              <select id="budgetYearSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+                <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+              </select>
+              <select id="budgetTypeSel" onchange="renderBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+                <option value="all">All Transactions</option>
+                <option value="income">Income Only</option>
+                <option value="expense">Expenses Only</option>
+              </select>
+              <div style="flex:1;"></div>
+              <button class="btn-primary" onclick="openAddTransaction()" style="white-space:nowrap;">+ Add Transaction</button>
             </div>
-            <div id="budgetSummary" style="display:flex;gap:16px;margin-bottom:16px;"></div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
-              <thead>
-                <tr style="background:#f4f6f9;text-align:left;">
-                  <th style="padding:8px 10px;">Category</th>
-                  <th style="padding:8px 10px;">Description</th>
-                  <th style="padding:8px 10px;">Amount</th>
-                  <th style="padding:8px 10px;">Date</th>
-                </tr>
-              </thead>
-              <tbody id="expenseTable"></tbody>
-            </table>
+
+            <!-- Ledger table -->
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:0.9em;min-width:680px;">
+                <thead>
+                  <tr style="background:#f4f6f9;text-align:left;">
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;white-space:nowrap;">Date</th>
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;">Type</th>
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;">Category</th>
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;">Description</th>
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;text-align:right;">Amount</th>
+                    <th style="padding:9px 10px;font-weight:600;color:#475569;text-align:right;white-space:nowrap;">Running Balance</th>
+                    <th style="padding:9px 10px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="budgetTable"></tbody>
+              </table>
+            </div>
+
+            <!-- Category breakdown -->
+            <div id="budgetBreakdown" style="margin-top:20px;"></div>
           </div>
 
         </div>
@@ -1388,12 +1416,7 @@
         { id: 1, vendor: 'AcePlumbing Co.', description: 'Fix leaky pipe unit 101', amount: 320, date: '2026-04-02', status: 'pending' },
         { id: 2, vendor: 'GreenLawn Services', description: 'Monthly landscaping', amount: 450, date: '2026-04-01', status: 'approved' },
       ];
-      let expenses = [
-        { id: 1, category: 'Maintenance', description: 'Plumbing repair', amount: 320, date: '2026-04-02' },
-        { id: 2, category: 'Landscaping', description: 'Monthly lawn care', amount: 450, date: '2026-04-01' },
-        { id: 3, category: 'Utilities', description: 'Common area electricity', amount: 210, date: '2026-04-01' },
-      ];
-      const monthlyBudget = 5000;
+      let budgetTransactions = [];
 
       function renderRentTable() {
         const tbody = document.getElementById('rentTable');
@@ -1471,50 +1494,144 @@
         renderInvoiceTable();
       }
 
-      function renderExpenseTable() {
-        const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-        const remaining = monthlyBudget - total;
-        const pct = Math.min(100, Math.round((total / monthlyBudget) * 100));
-        const barColor = pct > 90 ? '#e74c3c' : pct > 70 ? '#e67e22' : '#27ae60';
-        document.getElementById('budgetSummary').innerHTML = `
-          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">MONTHLY BUDGET</div>
-            <div style="font-size:1.4em;font-weight:bold;color:#1a2e4a;">$${monthlyBudget.toLocaleString()}</div>
-          </div>
-          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">SPENT</div>
-            <div style="font-size:1.4em;font-weight:bold;color:#e74c3c;">$${total.toLocaleString()}</div>
-          </div>
-          <div style="flex:1;background:#f4f6f9;border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:0.8em;color:#888;margin-bottom:4px;">REMAINING</div>
-            <div style="font-size:1.4em;font-weight:bold;color:#27ae60;">$${remaining.toLocaleString()}</div>
-          </div>
-          <div style="flex:2;background:#f4f6f9;border-radius:8px;padding:14px;">
-            <div style="font-size:0.8em;color:#888;margin-bottom:8px;">BUDGET USED — ${pct}%</div>
-            <div style="background:#dde3ec;border-radius:4px;height:12px;">
-              <div style="background:${barColor};width:${pct}%;height:12px;border-radius:4px;transition:width 0.3s;"></div>
-            </div>
-          </div>
-        `;
-        const tbody = document.getElementById('expenseTable');
-        tbody.innerHTML = expenses.map(e =>
-          `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:8px 10px;">${e.category}</td>
-            <td style="padding:8px 10px;">${e.description}</td>
-            <td style="padding:8px 10px;">$${e.amount}</td>
-            <td style="padding:8px 10px;">${e.date}</td>
-          </tr>`
-        ).join('');
+      // --- Budget Tracker ---
+      async function loadBudget() {
+        const month = document.getElementById('budgetMonthSel').value;
+        const year = document.getElementById('budgetYearSel').value;
+        budgetTransactions = await api(`budget?month=${month}&year=${year}`) || [];
+        renderBudget();
       }
 
-      function openAddExpense() {
-        const category = prompt('Category (e.g. Maintenance, Utilities):'); if (!category) return;
-        const description = prompt('Description:'); if (!description) return;
-        const amount = prompt('Amount:'); if (!amount) return;
-        const date = prompt('Date (YYYY-MM-DD):'); if (!date) return;
-        const id = expenses.length ? Math.max(...expenses.map(e => e.id)) + 1 : 1;
-        expenses.push({ id, category, description, amount: Number(amount), date });
-        renderExpenseTable();
+      function renderBudget() {
+        const typeFilter = document.getElementById('budgetTypeSel').value;
+        const filtered = typeFilter === 'all' ? budgetTransactions : budgetTransactions.filter(t => t.type === typeFilter);
+
+        const totalIncome = budgetTransactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+        const totalExpense = budgetTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+        const netBalance = totalIncome - totalExpense;
+        const netColor = netBalance >= 0 ? '#27ae60' : '#e74c3c';
+
+        document.getElementById('budgetSummary').innerHTML = `
+          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#e8f8f0,#d4f0e3);border:1px solid #b2dfcb;border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:#27ae60;letter-spacing:1px;margin-bottom:5px;">TOTAL INCOME</div>
+            <div style="font-size:1.55em;font-weight:800;color:#1a7a45;">+$${totalIncome.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#fdf0f0,#f8dcdc);border:1px solid #f0b8b8;border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:#e74c3c;letter-spacing:1px;margin-bottom:5px;">TOTAL EXPENSES</div>
+            <div style="font-size:1.55em;font-weight:800;color:#c0392b;">-$${totalExpense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f0f4ff,#e1eaff);border:1px solid #b8caff;border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:#667eea;letter-spacing:1px;margin-bottom:5px;">NET BALANCE</div>
+            <div style="font-size:1.55em;font-weight:800;color:${netColor};">${netBalance >= 0 ? '+' : ''}$${netBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          </div>
+          <div style="flex:1;min-width:140px;background:#f4f6f9;border:1px solid #dde3ec;border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:#64748b;letter-spacing:1px;margin-bottom:5px;">TRANSACTIONS</div>
+            <div style="font-size:1.55em;font-weight:800;color:#2d3748;">${budgetTransactions.length}</div>
+          </div>
+        `;
+
+        // Running balance through filtered rows
+        let balance = 0;
+        // Pre-compute balances for all (not filtered) to show meaningful running total
+        const allSorted = [...budgetTransactions];
+        const balanceMap = {};
+        let runningAll = 0;
+        allSorted.forEach(t => {
+          runningAll += t.type === 'income' ? Number(t.amount) : -Number(t.amount);
+          balanceMap[t.id] = runningAll;
+        });
+
+        const tbody = document.getElementById('budgetTable');
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa;font-size:0.9em;">No transactions for this period.</td></tr>`;
+        } else {
+          tbody.innerHTML = filtered.map(t => {
+            const isIncome = t.type === 'income';
+            const amtStr = (isIncome ? '+' : '-') + '$' + Number(t.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+            const amtColor = isIncome ? '#27ae60' : '#e74c3c';
+            const bal = balanceMap[t.id];
+            const balColor = bal >= 0 ? '#27ae60' : '#e74c3c';
+            const typeBadge = isIncome
+              ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Income</span>`
+              : `<span style="background:#fdf0f0;color:#e74c3c;border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Expense</span>`;
+            return `<tr style="border-bottom:1px solid #f0f2f5;">
+              <td style="padding:9px 10px;white-space:nowrap;color:#64748b;font-size:0.88em;">${t.date || ''}</td>
+              <td style="padding:9px 10px;">${typeBadge}</td>
+              <td style="padding:9px 10px;color:#475569;font-size:0.9em;">${t.category || ''}</td>
+              <td style="padding:9px 10px;color:#2d3748;">${t.description || ''}${t.notes ? `<div style="font-size:0.78em;color:#94a3b8;margin-top:1px;">${t.notes}</div>` : ''}</td>
+              <td style="padding:9px 10px;text-align:right;font-weight:700;color:${amtColor};">${amtStr}</td>
+              <td style="padding:9px 10px;text-align:right;font-weight:600;color:${balColor};">$${bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+              <td style="padding:9px 6px;text-align:right;">
+                <button onclick="deleteTransaction(${t.id})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1em;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
+              </td>
+            </tr>`;
+          }).join('');
+        }
+
+        // Category breakdown
+        const catTotals = {};
+        budgetTransactions.forEach(t => {
+          const key = `${t.type}::${t.category}`;
+          catTotals[key] = (catTotals[key] || 0) + Number(t.amount);
+        });
+        const incomeRows = Object.entries(catTotals).filter(([k]) => k.startsWith('income::'))
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:0.88em;"><span style="color:#475569;">${k.split('::')[1]}</span><span style="font-weight:600;color:#27ae60;">+$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
+        const expenseRows = Object.entries(catTotals).filter(([k]) => k.startsWith('expense::'))
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:0.88em;"><span style="color:#475569;">${k.split('::')[1]}</span><span style="font-weight:600;color:#e74c3c;">-$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
+
+        document.getElementById('budgetBreakdown').innerHTML = (incomeRows || expenseRows) ? `
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            ${incomeRows ? `<div style="flex:1;min-width:200px;background:#f8fffe;border:1px solid #d4ece2;border-radius:8px;padding:14px;">
+              <div style="font-size:0.78em;font-weight:700;color:#27ae60;letter-spacing:1px;margin-bottom:10px;">INCOME BY CATEGORY</div>
+              ${incomeRows}
+            </div>` : ''}
+            ${expenseRows ? `<div style="flex:1;min-width:200px;background:#fff8f8;border:1px solid #ecdbd4;border-radius:8px;padding:14px;">
+              <div style="font-size:0.78em;font-weight:700;color:#e74c3c;letter-spacing:1px;margin-bottom:10px;">EXPENSES BY CATEGORY</div>
+              ${expenseRows}
+            </div>` : ''}
+          </div>` : '';
+      }
+
+      async function deleteTransaction(id) {
+        if (!confirm('Delete this transaction?')) return;
+        await api(`budget/${id}`, 'DELETE');
+        await loadBudget();
+      }
+
+      function openAddTransaction() {
+        // Set today's date as default
+        document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+        updateTxCategories();
+        document.getElementById('txModal').style.display = 'flex';
+      }
+
+      function closeTxModal() {
+        document.getElementById('txModal').style.display = 'none';
+        document.getElementById('txForm').reset();
+      }
+
+      function updateTxCategories() {
+        const type = document.getElementById('txType').value;
+        const sel = document.getElementById('txCategory');
+        const incomeCategories = ['Rent Received','Late Fee','Application Fee','Parking Fee','Pet Fee','Security Deposit','Other Income'];
+        const expenseCategories = ['Maintenance','Utilities','Landscaping','Insurance','Property Tax','Management Fee','Repairs','Supplies','Advertising','Professional Services','Other Expense'];
+        const cats = type === 'income' ? incomeCategories : expenseCategories;
+        sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+      }
+
+      async function submitAddTransaction() {
+        const type = document.getElementById('txType').value;
+        const category = document.getElementById('txCategory').value;
+        const description = document.getElementById('txDescription').value.trim();
+        const amount = document.getElementById('txAmount').value;
+        const date = document.getElementById('txDate').value;
+        const notes = document.getElementById('txNotes').value.trim();
+        if (!description || !amount || !date) return alert('Please fill in description, amount, and date.');
+        await api('budget', 'POST', { type, category, description, amount: Number(amount), date, notes });
+        closeTxModal();
+        await loadBudget();
       }
 
       function updateTaskBadge() {
@@ -1927,8 +2044,61 @@
       }
       setInterval(pollInbox, 10000);
 
-      window.onload = () => { restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable(); renderExpenseTable(); loadTasks(); loadContacts(); initCommandCenter(); };
+      window.onload = () => {
+        restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge();
+        initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable();
+        // Init budget month/year to current
+        const now = new Date();
+        document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
+        document.getElementById('budgetYearSel').value = String(now.getFullYear());
+        loadBudget();
+        loadTasks(); loadContacts(); initCommandCenter();
+      };
     </script>
+  <!-- Add Transaction Modal -->
+  <div class="modal-overlay" id="txModal" onclick="if(event.target===this)closeTxModal()" style="display:none;">
+    <div class="modal" style="max-width:460px;">
+      <h3>&#128200; Add Transaction</h3>
+      <form id="txForm" onsubmit="event.preventDefault();submitAddTransaction();">
+        <div style="display:flex;gap:12px;margin-bottom:14px;">
+          <label style="flex:1;cursor:pointer;">
+            <div style="font-size:0.83em;font-weight:600;color:#475569;margin-bottom:4px;">Transaction Type</div>
+            <select id="txType" onchange="updateTxCategories()" style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;">
+              <option value="income">&#43; Income</option>
+              <option value="expense">&#8722; Expense</option>
+            </select>
+          </label>
+          <label style="flex:1;cursor:pointer;">
+            <div style="font-size:0.83em;font-weight:600;color:#475569;margin-bottom:4px;">Category</div>
+            <select id="txCategory" style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;"></select>
+          </label>
+        </div>
+
+        <label style="font-size:0.83em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Description *</label>
+        <input id="txDescription" placeholder="e.g. Unit 101 April rent" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;margin-bottom:14px;" />
+
+        <div style="display:flex;gap:12px;margin-bottom:14px;">
+          <div style="flex:1;">
+            <label style="font-size:0.83em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Amount ($) *</label>
+            <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;" />
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.83em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Date *</label>
+            <input type="date" id="txDate" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;" />
+          </div>
+        </div>
+
+        <label style="font-size:0.83em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Notes (optional)</label>
+        <input id="txNotes" placeholder="Vendor name, unit, etc." style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;margin-bottom:18px;" />
+
+        <div class="modal-footer" style="margin-top:0;">
+          <button type="button" class="btn-secondary" onclick="closeTxModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Add Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Add Event Modal -->
   <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
     <div class="modal">
