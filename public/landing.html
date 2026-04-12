@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1117;
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background gradient blobs */
+    .bg-blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.18;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob-1 { width: 600px; height: 600px; background: #ff6b6b; top: -200px; left: -150px; }
+    .blob-2 { width: 500px; height: 500px; background: #667eea; bottom: -100px; right: -100px; }
+    .blob-3 { width: 350px; height: 350px; background: #ff8e53; top: 40%; left: 40%; }
+
+    /* Nav */
+    nav {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 48px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-badge {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.95em;
+      letter-spacing: -1px;
+      box-shadow: 0 4px 20px rgba(255,107,107,0.4);
+    }
+    .nav-name { font-size: 1em; font-weight: 700; color: white; }
+    .nav-sub { font-size: 0.68em; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.2px; }
+
+    .btn-signin-nav {
+      background: rgba(255,255,255,0.08);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: 0.88em;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-signin-nav:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.3); }
+
+    /* Hero */
+    .hero {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 100px 24px 80px;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(255,107,107,0.12);
+      border: 1px solid rgba(255,107,107,0.25);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78em;
+      font-weight: 600;
+      color: #ff8e53;
+      letter-spacing: 0.5px;
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-size: clamp(2.4em, 5vw, 4em);
+      font-weight: 800;
+      line-height: 1.12;
+      letter-spacing: -1.5px;
+      max-width: 720px;
+      margin-bottom: 24px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.12em;
+      color: rgba(255,255,255,0.55);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 44px;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-primary-hero {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      border: none;
+      padding: 14px 34px;
+      border-radius: 10px;
+      font-size: 1em;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(255,107,107,0.35);
+      transition: all 0.2s;
+      letter-spacing: 0.2px;
+    }
+    .btn-primary-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255,107,107,0.5); }
+    .hero-note {
+      font-size: 0.82em;
+      color: rgba(255,255,255,0.3);
+      margin-top: 18px;
+    }
+
+    /* Feature cards */
+    .features {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      max-width: 1000px;
+      margin: 20px auto 80px;
+      padding: 0 32px;
+    }
+    .feature-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 26px 24px;
+      transition: all 0.2s;
+    }
+    .feature-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); transform: translateY(-2px); }
+    .feature-icon {
+      font-size: 1.6em;
+      margin-bottom: 14px;
+    }
+    .feature-card h3 { font-size: 0.97em; font-weight: 700; margin-bottom: 8px; color: white; }
+    .feature-card p { font-size: 0.83em; color: rgba(255,255,255,0.45); line-height: 1.6; }
+
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 5;
+      text-align: center;
+      padding: 28px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.78em;
+      color: rgba(255,255,255,0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav>
+    <div class="nav-logo">
+      <div class="nav-badge">MM</div>
+      <div>
+        <div class="nav-name">Modern Management</div>
+        <div class="nav-sub">Property Intelligence</div>
+      </div>
+    </div>
+    <a href="/login" class="btn-signin-nav">Sign In</a>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-eyebrow">&#128274; Authorized Access Only</div>
+    <h1>Property Management,<br><span>Reimagined.</span></h1>
+    <p>A private workspace for managing residents, communications, finances, and operations — all powered by AI.</p>
+    <div class="hero-actions">
+      <a href="/login" class="btn-primary-hero">Sign In to Workspace &rarr;</a>
+    </div>
+    <div class="hero-note">&#128100; Access restricted to authorized users only</div>
+  </section>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">&#9993;</div>
+      <h3>Smart Inbox</h3>
+      <p>Manage all resident messages by email and SMS in one place, with AI-drafted replies.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128200;</div>
+      <h3>Budget Tracker</h3>
+      <p>Full income and expense ledger with running balances and category breakdowns.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#128101;</div>
+      <h3>Resident Directory</h3>
+      <p>Contact details, lease notes, and unit info for every resident in one place.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&#129302;</div>
+      <h3>AI Command Center</h3>
+      <p>Ask anything — add tasks, schedule events, or compose messages with natural language.</p>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2026 Modern Management &nbsp;&middot;&nbsp; Private &amp; Confidential
+  </footer>
+
+</body>
+</html>

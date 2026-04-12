@@ -8,6 +8,7 @@ const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
 const twilio = require('twilio');
 const sgMail = require('@sendgrid/mail');
+const session = require('express-session');
 const { Pool } = require('pg');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -21,9 +22,65 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'mm-session-secret-2026',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+}));
+
+// Serve public static files (landing, login pages)
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// --- Auth helpers ---
+function requireAuth(req, res, next) {
+  if (req.session && req.session.authenticated) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+function requireAuthPage(req, res, next) {
+  if (req.session && req.session.authenticated) return next();
+  res.redirect('/login');
+}
+
+// --- Page routes ---
+app.get('/', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+app.get('/login', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+app.get('/workspace', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'app.html'));
+});
+
+// --- Login / Logout ---
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  const validUser = process.env.ADMIN_USERNAME || 'admin';
+  const validPass = process.env.ADMIN_PASSWORD || 'modernmgmt2026';
+  if (username === validUser && password === validPass) {
+    req.session.authenticated = true;
+    res.json({ success: true });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+app.get('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
+// Protect all /api/* routes except login and inbound webhooks
+app.use('/api', (req, res, next) => {
+  const open = ['/login', '/sms/incoming', '/email/incoming'];
+  if (open.some(p => req.path === p)) return next();
+  if (req.session && req.session.authenticated) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+});
 
 // --- PostgreSQL setup ---
 pool.query(`

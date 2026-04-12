@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Modern Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1117;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .bg-blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob-1 { width: 500px; height: 500px; background: #ff6b6b; top: -150px; left: -150px; }
+    .blob-2 { width: 400px; height: 400px; background: #667eea; bottom: -100px; right: -100px; }
+
+    .login-card {
+      position: relative;
+      z-index: 5;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 18px;
+      padding: 44px 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+    }
+
+    .logo-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+    .logo-badge {
+      width: 54px;
+      height: 54px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1em;
+      letter-spacing: -1px;
+      box-shadow: 0 8px 30px rgba(255,107,107,0.4);
+      margin-bottom: 14px;
+    }
+    .logo-row h2 { font-size: 1.25em; font-weight: 700; color: white; }
+    .logo-row p { font-size: 0.82em; color: rgba(255,255,255,0.35); margin-top: 4px; }
+
+    label {
+      display: block;
+      font-size: 0.82em;
+      font-weight: 600;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 9px;
+      color: white;
+      font-size: 0.95em;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: all 0.2s;
+      margin-bottom: 18px;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: rgba(255,107,107,0.6);
+      background: rgba(255,255,255,0.1);
+      box-shadow: 0 0 0 3px rgba(255,107,107,0.1);
+    }
+    input::placeholder { color: rgba(255,255,255,0.2); }
+
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      border: none;
+      border-radius: 9px;
+      color: white;
+      font-size: 0.97em;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.3);
+      transition: all 0.2s;
+      margin-top: 4px;
+    }
+    .btn-login:hover { transform: translateY(-1px); box-shadow: 0 10px 30px rgba(255,107,107,0.45); }
+    .btn-login:active { transform: translateY(0); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .error-msg {
+      background: rgba(231,76,60,0.15);
+      border: 1px solid rgba(231,76,60,0.35);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85em;
+      color: #ff7675;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    .back-link {
+      text-align: center;
+      margin-top: 22px;
+      font-size: 0.82em;
+      color: rgba(255,255,255,0.25);
+    }
+    .back-link a { color: rgba(255,255,255,0.4); text-decoration: none; }
+    .back-link a:hover { color: rgba(255,255,255,0.7); }
+  </style>
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+
+  <div class="login-card">
+    <div class="logo-row">
+      <div class="logo-badge">MM</div>
+      <h2>Modern Management</h2>
+      <p>Sign in to your workspace</p>
+    </div>
+
+    <div class="error-msg" id="errorMsg">Incorrect username or password. Please try again.</div>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <label>Username</label>
+      <input type="text" id="username" placeholder="Enter your username" autocomplete="username" required />
+
+      <label>Password</label>
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required />
+
+      <button type="submit" class="btn-login" id="loginBtn">Sign In &rarr;</button>
+    </form>
+
+    <div class="back-link"><a href="/">&larr; Back to home</a></div>
+  </div>
+
+  <script>
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const err = document.getElementById('errorMsg');
+      err.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          window.location.href = '/workspace';
+        } else {
+          err.style.display = 'block';
+          btn.disabled = false;
+          btn.textContent = 'Sign In →';
+          document.getElementById('password').value = '';
+        }
+      } catch {
+        err.textContent = 'Connection error. Please try again.';
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign In →';
+      }
+    }
+  </script>
+
+</body>
+</html>
