@@ -470,7 +470,6 @@
         <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
         <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
-        <a href="#" onclick="showPage('command', '&#9889;', this)"><span class="nav-icon">&#9889;</span> Command Center</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
       <div class="sidebar-footer">Modern Management &copy; 2026</div>
@@ -529,6 +528,32 @@
             </div>
           </div>
 
+          <!-- AI Command Bar -->
+          <div class="card" style="margin-bottom:24px;padding:22px 24px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+              <div style="width:34px;height:34px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#129302;</div>
+              <div>
+                <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Ask AI</div>
+                <div style="font-size:0.77em;color:#94a3b8;">Add events, create tasks, compose messages — just type what you need</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-end;">
+              <input id="homeCommandInput" type="text" placeholder='e.g. "Add a board meeting on May 5th" or "Create a task to inspect unit 204"'
+                style="flex:1;margin:0;padding:12px 16px;border-radius:10px;font-size:0.93em;"
+                onkeydown="if(event.key==='Enter')submitHomeCommand()" />
+              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:12px 20px;white-space:nowrap;border-radius:10px;">Send &#9654;</button>
+            </div>
+            <!-- Quick prompt chips -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128197; Add calendar event</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#10003; Create a task</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#9993; Compose a message</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; What contacts do I have?</button>
+            </div>
+            <!-- Response area -->
+            <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
+          </div>
+
           <!-- Quick Access Grid -->
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
             <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))">
@@ -556,10 +581,10 @@
               <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Contacts</div>
               <div style="font-size:0.82em;color:#94a3b8;">Residents, vendors and staff</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('command','&#9889;',document.querySelector('#sidebar nav a:nth-child(7)'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#9889;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Command Center</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Ask AI to take action</div>
+            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))">
+              <div style="font-size:1.4em;margin-bottom:8px;">&#10003;</div>
+              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Tasks</div>
+              <div style="font-size:0.82em;color:#94a3b8;">Track and manage open work items</div>
             </div>
           </div>
         </div>
@@ -670,41 +695,6 @@
         </div>
 
         <!-- COMMAND CENTER PAGE -->
-        <div class="page" id="page-command">
-          <div style="display:flex;gap:22px;height:calc(100vh - 140px);">
-
-            <!-- Chat panel -->
-            <div style="flex:1;display:flex;flex-direction:column;">
-              <div class="card" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0;">
-                <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;">
-                  <h2 style="margin:0;border:none;padding:0;">AI Command Center</h2>
-                  <p style="font-size:0.82em;color:#94a3b8;margin-top:4px;">Tell the AI what to do — it can send messages, add calendar events, create tasks, and more.</p>
-                </div>
-                <div id="commandChat" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;"></div>
-                <div style="padding:16px 20px;border-top:1px solid #f1f5f9;display:flex;gap:10px;">
-                  <textarea id="commandInput" placeholder='Try: "Send Alex Rivera a message about his maintenance request" or "Add a board meeting on April 20th"' rows="2" style="margin:0;resize:none;flex:1;"></textarea>
-                  <button class="btn-primary" onclick="submitCommand()" style="align-self:flex-end;padding:10px 18px;white-space:nowrap;">Send &#9654;</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Suggestions + Action log -->
-            <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:16px;">
-              <div class="card">
-                <h2>Quick Prompts</h2>
-                <div style="display:flex;flex-direction:column;gap:8px;" id="quickPrompts"></div>
-              </div>
-              <div class="card" style="flex:1;overflow-y:auto;">
-                <h2>Actions Taken</h2>
-                <div id="actionLog" style="font-size:0.83em;color:#64748b;display:flex;flex-direction:column;gap:8px;">
-                  <p style="color:#94a3b8;">Actions the AI takes will appear here.</p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
         <!-- CONTACTS PAGE -->
         <div class="page" id="page-contacts">
 
@@ -915,7 +905,7 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts', command: 'Command Center' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts' };
         if (name === 'home') loadHomeStats();
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
@@ -1865,82 +1855,42 @@
         loadContacts();
       }
 
-      // --- Command Center ---
-      let chatHistory = [];
-
-      const quickPromptList = [
-        'Send Alex Rivera a message about his maintenance request',
-        'Add a vendor insurance review meeting on April 25th',
-        'Create a task to follow up on Mira Chen\'s lease renewal',
-        'Draft a rent reminder for all residents',
-        'Add a board meeting on May 1st as a task',
-        'What contacts do I have?',
-      ];
-
-      function initCommandCenter() {
-        const container = document.getElementById('quickPrompts');
-        container.innerHTML = quickPromptList.map(p =>
-          `<button class="quick-prompt" onclick="useQuickPrompt(this)">${p}</button>`
-        ).join('');
-        appendChatMsg('ai', 'Hi! I\'m your AI command center. Tell me what you\'d like to do — I can compose messages, add calendar events, create tasks, and more. What do you need?');
+      // --- AI Command Bar (Home page) ---
+      function homePrompt(btn) {
+        document.getElementById('homeCommandInput').value = btn.textContent.replace(/^[^\w]+/, '').trim();
+        submitHomeCommand();
       }
 
-      function useQuickPrompt(btn) {
-        document.getElementById('commandInput').value = btn.textContent;
-        submitCommand();
-      }
-
-      function appendChatMsg(role, text, isThinking) {
-        const chat = document.getElementById('commandChat');
-        const div = document.createElement('div');
-        div.className = `chat-msg ${role}`;
-        const initials = role === 'ai' ? 'MM' : 'You';
-        div.innerHTML = `
-          <div class="chat-avatar ${role}">${initials}</div>
-          <div class="chat-bubble ${isThinking ? 'thinking' : ''}">${text}</div>`;
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
-        return div;
-      }
-
-      function logAction(icon, text) {
-        const log = document.getElementById('actionLog');
-        if (log.querySelector('p')) log.innerHTML = '';
-        const div = document.createElement('div');
-        div.className = 'action-chip';
-        div.innerHTML = `<span>${icon}</span><span>${text}</span>`;
-        log.prepend(div);
-      }
-
-      async function applyActions(actions) {
+      async function applyActions(actions, actionLog) {
         if (!actions || !actions.length) return;
         for (const action of actions) {
           if (action.type === 'add_calendar_event') {
-            calEvents.push({ date: action.date, title: action.title });
+            await api('calevents', 'POST', { date: action.date, title: action.title });
+            await loadCalEvents();
             renderCalendar();
-            logAction('📅', `Added event: "${action.title}" on ${action.date}`);
+            actionLog.push(`&#128197; Added event: "${action.title}" on ${action.date}`);
           } else if (action.type === 'add_task') {
-            const id = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
-            tasks.push({ id, title: action.title, category: action.category || 'other', dueDate: action.dueDate, notes: action.notes || '', done: false });
-            renderTasks();
-            updateTaskBadge();
-            logAction('✓', `Created task: "${action.title}"`);
+            await api('tasks', 'POST', { title: action.title, category: action.category || 'other', dueDate: action.dueDate, notes: action.notes || '' });
+            await loadTasks();
+            actionLog.push(`&#10003; Created task: "${action.title}"`);
           } else if (action.type === 'compose_message') {
             await api('messages', 'POST', { resident: action.to, subject: action.subject, category: 'general', text: action.body });
             await loadInbox();
-            logAction('✉️', `Composed message to ${action.to}`);
+            actionLog.push(`&#9993; Composed message to ${action.to}`);
           }
         }
       }
 
-      async function submitCommand() {
-        const input = document.getElementById('commandInput');
+      async function submitHomeCommand() {
+        const input = document.getElementById('homeCommandInput');
         const prompt = input.value.trim();
         if (!prompt) return;
         input.value = '';
+        input.disabled = true;
 
-        appendChatMsg('user', prompt);
-        const thinking = appendChatMsg('ai', 'Thinking...', true);
+        const responseBox = document.getElementById('homeCommandResponse');
+        responseBox.style.display = 'block';
+        responseBox.innerHTML = '<span style="color:#94a3b8;">&#129302; Thinking...</span>';
 
         try {
           const res = await fetch('/api/command', {
@@ -1955,27 +1905,25 @@
             })
           });
           const data = await res.json();
-          thinking.remove();
+          const actionLog = [];
+          if (res.ok) await applyActions(data.actions, actionLog);
 
-          if (!res.ok) {
-            appendChatMsg('ai', `Sorry, something went wrong: ${data.error || 'Unknown error'}`);
-            return;
-          }
-
-          appendChatMsg('ai', data.reply);
-          applyActions(data.actions);
+          const replyText = res.ok ? data.reply : `Sorry, something went wrong: ${data.error || 'Unknown error'}`;
+          const actionsHtml = actionLog.length
+            ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8edf4;display:flex;flex-wrap:wrap;gap:6px;">${actionLog.map(a => `<span style="background:#eef2ff;color:#4f46e5;border-radius:6px;padding:3px 10px;font-size:0.82em;">${a}</span>`).join('')}</div>`
+            : '';
+          responseBox.innerHTML = `
+            <div style="display:flex;gap:10px;align-items:flex-start;">
+              <div style="width:28px;height:28px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
+              <div style="flex:1;">${replyText}${actionsHtml}</div>
+            </div>`;
         } catch (err) {
-          thinking.remove();
-          appendChatMsg('ai', `Error: ${err.message}`);
+          responseBox.innerHTML = `<span style="color:#e74c3c;">Error: ${err.message}</span>`;
         }
+        input.disabled = false;
+        input.focus();
+        loadHomeStats();
       }
-
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && !e.shiftKey && document.activeElement.id === 'commandInput') {
-          e.preventDefault();
-          submitCommand();
-        }
-      });
 
       // --- Home Page ---
       function uploadBannerPhoto(input) {
@@ -2053,7 +2001,7 @@
         document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
         document.getElementById('budgetYearSel').value = String(now.getFullYear());
         loadBudget();
-        loadTasks(); loadContacts(); initCommandCenter();
+        loadTasks(); loadContacts();
       };
     </script>
   <!-- Add Transaction Modal -->
