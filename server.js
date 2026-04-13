@@ -582,11 +582,18 @@ async function autoReplyToMessage(message) {
       ? docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n')
       : 'No company policies uploaded.';
 
+    const isVoicemail = message.category === 'voicemail';
+    const systemPrompt = isVoicemail
+      ? `You are a professional property management assistant. Write a SHORT SMS reply (under 160 characters) acknowledging a voicemail was received. Be warm and let them know someone will follow up soon. Do NOT include "Best regards" or signatures.`
+      : `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`;
+
     const response = await anthropic.messages.create({
       model: 'claude-opus-4-6',
-      max_tokens: 1024,
-      system: `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`,
-      messages: [{ role: 'user', content: `Please draft a response to this message:\n\nFrom: ${message.resident}\nSubject: ${message.subject}\n\n${message.text}` }]
+      max_tokens: isVoicemail ? 100 : 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: isVoicemail
+        ? `Acknowledge this voicemail in a short SMS: ${message.text}`
+        : `Please draft a response to this message:\n\nFrom: ${message.resident}\nSubject: ${message.subject}\n\n${message.text}` }]
     });
 
     const draft = response.content.find(b => b.type === 'text')?.text || '';
