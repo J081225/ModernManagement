@@ -154,9 +154,14 @@ pool.query(`
     category TEXT,
     "dueDate" TEXT,
     notes TEXT,
-    done BOOLEAN DEFAULT false
+    done BOOLEAN DEFAULT false,
+    suggested BOOLEAN DEFAULT false,
+    "aiReason" TEXT DEFAULT ''
   )
 `).then(async () => {
+  // Add columns if upgrading existing table
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`);
   const { rows } = await pool.query('SELECT COUNT(*) FROM tasks');
   if (rows[0].count === '0') {
     await pool.query(`INSERT INTO tasks (title, category, "dueDate", notes, done) VALUES
@@ -166,12 +171,15 @@ pool.query(`
 }).catch(err => console.error('Tasks DB init error:', err.message));
 
 app.get('/api/tasks', async (_req, res) => {
-  const { rows } = await pool.query('SELECT * FROM tasks ORDER BY "dueDate" ASC');
+  const { rows } = await pool.query('SELECT * FROM tasks ORDER BY suggested DESC, "dueDate" ASC');
   res.json(rows);
 });
 app.post('/api/tasks', async (req, res) => {
-  const { title, category, dueDate, notes } = req.body;
-  const { rows } = await pool.query('INSERT INTO tasks (title, category, "dueDate", notes, done) VALUES ($1,$2,$3,$4,false) RETURNING *', [title, category, dueDate, notes || '']);
+  const { title, category, dueDate, notes, suggested, aiReason } = req.body;
+  const { rows } = await pool.query(
+    'INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,$5,$6) RETURNING *',
+    [title, category, dueDate, notes || '', suggested || false, aiReason || '']
+  );
   res.status(201).json(rows[0]);
 });
 app.put('/api/tasks/:id', async (req, res) => {
@@ -179,6 +187,17 @@ app.put('/api/tasks/:id', async (req, res) => {
   const { rows } = await pool.query('UPDATE tasks SET done=$1, title=$2, category=$3, "dueDate"=$4, notes=$5 WHERE id=$6 RETURNING *', [done, title, category, dueDate, notes || '', Number(req.params.id)]);
   if (!rows.length) return res.status(404).json({ error: 'Task not found' });
   res.json(rows[0]);
+});
+// Approve AI-suggested task
+app.put('/api/tasks/:id/approve', async (req, res) => {
+  const { rows } = await pool.query('UPDATE tasks SET suggested=false WHERE id=$1 RETURNING *', [Number(req.params.id)]);
+  if (!rows.length) return res.status(404).json({ error: 'Task not found' });
+  res.json(rows[0]);
+});
+// Reject AI-suggested task
+app.delete('/api/tasks/:id/reject', async (req, res) => {
+  await pool.query('DELETE FROM tasks WHERE id=$1', [Number(req.params.id)]);
+  res.json({ success: true });
 });
 app.delete('/api/tasks/:id', async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM tasks WHERE id=$1', [Number(req.params.id)]);
@@ -576,6 +595,52 @@ When the user asks you to do something, use the available tools to carry out the
 });
 
 // Helper: auto-generate and send AI reply for a message
+// --- AI Task Suggestion ---
+async function suggestTasksFromConversation(message, replyText) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 600,
+      system: `You are a property management assistant that identifies follow-up tasks from resident communications. Return ONLY a valid JSON array of task objects, or [] if no tasks are needed. Each object must have: title (string), category (one of: maintenance, vendor, lease, finance, other), dueDate (YYYY-MM-DD), notes (string), aiReason (string explaining why this task is needed).`,
+      messages: [{
+        role: 'user',
+        content: `Analyze this property management conversation and identify any tasks that were promised, implied, or are clearly necessary.
+
+Today's date: ${today}
+Resident/caller: ${message.resident}
+Message received: "${message.text}"
+${replyText ? `Reply sent: "${replyText}"` : ''}
+
+Rules:
+- If an emergency was mentioned (gas leak, flood, fire, no heat, etc.), set dueDate to today
+- If something was promised ("we will dispatch", "we will follow up", "we will send"), create a task for it
+- If maintenance is needed, create a task for it
+- If a lease or financial issue was raised, create a task if follow-up is needed
+- Do not create tasks for things already resolved
+- Return [] if no tasks are needed
+
+Return only the JSON array, no other text.`
+      }]
+    });
+
+    const text = response.content[0].text.trim();
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return;
+    const suggested = JSON.parse(match[0]);
+    for (const t of suggested) {
+      if (!t.title || !t.dueDate) continue;
+      await pool.query(
+        `INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,true,$5)`,
+        [t.title, t.category || 'other', t.dueDate, t.notes || `From: ${message.resident} — ${message.subject}`, t.aiReason || '']
+      );
+    }
+    console.log(`AI suggested ${suggested.length} task(s) from message ${message.id}`);
+  } catch (err) {
+    console.error('Task suggestion error:', err.message);
+  }
+}
+
 async function autoReplyToMessage(message) {
   try {
     const knowledgeContext = docs.length
@@ -613,6 +678,9 @@ async function autoReplyToMessage(message) {
 
     await pool.query('UPDATE messages SET status=$1 WHERE id=$2', ['sent', message.id]);
     console.log('Auto-reply sent for message', message.id);
+
+    // Suggest follow-up tasks based on what was promised in the reply
+    suggestTasksFromConversation(message, draft);
   } catch (err) {
     console.error('Auto-reply error:', err.message);
   }
@@ -635,8 +703,9 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
   const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]);
   res.sendStatus(200);
 
-  if (automation.autoReplyEnabled && rows[0]) {
-    autoReplyToMessage(rows[0]);
+  if (rows[0]) {
+    if (automation.autoReplyEnabled) autoReplyToMessage(rows[0]);
+    else suggestTasksFromConversation(rows[0], null);
   }
 });
 
@@ -667,8 +736,9 @@ app.post('/api/sms/incoming', async (req, res) => {
   res.send('<Response></Response>');
 
   const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
-  if (automation.autoReplyEnabled && rows[0]) {
-    autoReplyToMessage(rows[0]);
+  if (rows[0]) {
+    if (automation.autoReplyEnabled) autoReplyToMessage(rows[0]);
+    else suggestTasksFromConversation(rows[0], null);
   }
 });
 
@@ -734,9 +804,9 @@ app.post('/api/voice/transcription', async (req, res) => {
       `UPDATE messages SET text=$1, subject=$2 WHERE subject LIKE $3 RETURNING *`,
       [text, `Voicemail from ${phone}`, `[CALLSID:${CallSid}]%`]
     );
-    // If auto-reply is on, SMS the caller back
-    if (rows.length && automation.autoReplyEnabled) {
-      await autoReplyToMessage(rows[0]);
+    if (rows.length) {
+      if (automation.autoReplyEnabled) await autoReplyToMessage(rows[0]);
+      else suggestTasksFromConversation(rows[0], null);
     }
   } catch (err) {
     console.error('Transcription update error:', err.message);

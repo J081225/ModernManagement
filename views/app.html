@@ -762,7 +762,21 @@
         <div class="page" id="page-tasks">
 
           <!-- Summary row -->
-          <div style="display:flex;gap:16px;margin-bottom:22px;" id="taskSummaryRow"></div>
+          <div style="display:flex;gap:16px;margin-bottom:22px;flex-wrap:wrap;" id="taskSummaryRow"></div>
+
+          <!-- AI Suggested Tasks -->
+          <div id="suggestedSection" style="display:none;margin-bottom:22px;">
+            <div class="card" style="border:1.5px solid #fed7aa;background:linear-gradient(135deg,#fffbf5,#fff7ed);">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <div style="width:32px;height:32px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.95em;">&#129302;</div>
+                <div>
+                  <div style="font-weight:700;color:#9a3412;font-size:0.97em;">AI Suggested Tasks</div>
+                  <div style="font-size:0.77em;color:#c2410c;">Based on recent activity — approve to add, reject to dismiss</div>
+                </div>
+              </div>
+              <div id="suggestedList" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+          </div>
 
           <div style="display:flex;gap:22px;">
 
@@ -1660,9 +1674,11 @@
       function updateTaskBadge() {
         const today = new Date(); today.setHours(0,0,0,0);
         const twoDaysOut = new Date(today); twoDaysOut.setDate(twoDaysOut.getDate() + 2);
-        const urgent = tasks.filter(t => !t.done && new Date(t.dueDate) <= twoDaysOut && new Date(t.dueDate) >= today);
-        const overdue = tasks.filter(t => !t.done && new Date(t.dueDate) < today);
-        const count = urgent.length + overdue.length;
+        const active = tasks.filter(t => !t.suggested);
+        const urgent = active.filter(t => !t.done && new Date(t.dueDate) <= twoDaysOut && new Date(t.dueDate) >= today);
+        const overdue = active.filter(t => !t.done && new Date(t.dueDate) < today);
+        const suggested = tasks.filter(t => t.suggested).length;
+        const count = urgent.length + overdue.length + suggested;
         const badge = document.getElementById('task-alert-badge');
         if (count > 0) {
           badge.textContent = count;
@@ -1720,25 +1736,65 @@
         renderTasks();
       }
 
+      async function approveTask(id) {
+        await fetch('/api/tasks/' + id + '/approve', { method: 'PUT' });
+        loadTasks();
+      }
+      async function rejectTask(id) {
+        await fetch('/api/tasks/' + id + '/reject', { method: 'DELETE' });
+        loadTasks();
+      }
+
       function renderTasks() {
         const today = new Date(); today.setHours(0,0,0,0);
-        const total = tasks.length;
-        const done = tasks.filter(t => t.done).length;
-        const overdue = tasks.filter(t => !t.done && new Date(t.dueDate) < today).length;
-        const pending = tasks.filter(t => !t.done).length;
+        const suggested = tasks.filter(t => t.suggested);
+        const active = tasks.filter(t => !t.suggested);
+        const done = active.filter(t => t.done).length;
+        const overdue = active.filter(t => !t.done && new Date(t.dueDate) < today).length;
+        const pending = active.filter(t => !t.done).length;
 
         document.getElementById('taskSummaryRow').innerHTML = `
-          <div class="stat-chip"><div class="stat-num">${total}</div><div class="stat-label">Total Tasks</div></div>
+          <div class="stat-chip"><div class="stat-num">${active.length}</div><div class="stat-label">Total Tasks</div></div>
           <div class="stat-chip"><div class="stat-num" style="color:#4a90e2">${pending}</div><div class="stat-label">Pending</div></div>
           <div class="stat-chip"><div class="stat-num" style="color:#27ae60">${done}</div><div class="stat-label">Completed</div></div>
           <div class="stat-chip"><div class="stat-num" style="color:#e74c3c">${overdue}</div><div class="stat-label">Overdue</div></div>
+          ${suggested.length ? `<div class="stat-chip" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fed7aa;cursor:pointer;" onclick="document.getElementById('suggestedSection').scrollIntoView({behavior:'smooth'})"><div class="stat-num" style="color:#ea580c;">${suggested.length}</div><div class="stat-label" style="color:#ea580c;">AI Suggested</div></div>` : ''}
         `;
 
-        let filtered = tasks;
-        if (taskFilter === 'pending') filtered = tasks.filter(t => !t.done && new Date(t.dueDate) >= today);
-        if (taskFilter === 'done') filtered = tasks.filter(t => t.done);
-        if (taskFilter === 'overdue') filtered = tasks.filter(t => !t.done && new Date(t.dueDate) < today);
+        // --- AI Suggested Tasks ---
+        const sugSection = document.getElementById('suggestedSection');
+        if (suggested.length) {
+          sugSection.style.display = 'block';
+          document.getElementById('suggestedList').innerHTML = suggested.map(t => {
+            const due = new Date(t.dueDate);
+            const dueFmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return `
+              <div style="background:white;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">
+                <div style="font-size:1.4em;margin-top:2px;">&#129302;</div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:700;color:#1a2e4a;font-size:0.95em;margin-bottom:4px;">${t.title}</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 8px;font-size:0.75em;font-weight:600;">${t.category}</span>
+                    <span style="color:#64748b;font-size:0.8em;">&#128197; ${dueFmt}</span>
+                  </div>
+                  ${t.notes ? `<div style="font-size:0.82em;color:#64748b;margin-bottom:6px;">${t.notes}</div>` : ''}
+                  ${t.aiReason ? `<div style="font-size:0.78em;color:#ea580c;background:#fff7ed;border-radius:5px;padding:4px 8px;display:inline-block;">&#129302; ${t.aiReason}</div>` : ''}
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                  <button onclick="approveTask(${t.id})" style="background:#27ae60;color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Approve</button>
+                  <button onclick="rejectTask(${t.id})" style="background:none;color:#e74c3c;border:1px solid #fca5a5;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
+                </div>
+              </div>`;
+          }).join('');
+        } else {
+          sugSection.style.display = 'none';
+        }
 
+        // --- Regular Tasks ---
+        let filtered = active;
+        if (taskFilter === 'pending') filtered = active.filter(t => !t.done && new Date(t.dueDate) >= today);
+        if (taskFilter === 'done') filtered = active.filter(t => t.done);
+        if (taskFilter === 'overdue') filtered = active.filter(t => !t.done && new Date(t.dueDate) < today);
         filtered.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
         const list = document.getElementById('taskList');
