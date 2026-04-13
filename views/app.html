@@ -300,6 +300,7 @@
       @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
       @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
       @keyframes micPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(1.4); } }
+      @keyframes spin { to { transform: rotate(360deg); } }
       #micBtn.listening { background:linear-gradient(135deg,#ff6b6b,#ff8e53) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px rgba(255,107,107,0.2); animation:micPulse 1.2s infinite; }
       .modal h3 { font-size: 1.1em; font-weight: 700; color: #080f1e; margin-bottom: 20px; }
       .modal label { font-size: 0.83em; font-weight: 600; color: #475569; display: block; margin-bottom: 2px; }
@@ -565,6 +566,24 @@
             </div>
             <!-- Response area -->
             <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
+          </div>
+
+          <!-- Daily Report -->
+          <div class="card" style="margin-bottom:24px;padding:22px 24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:34px;height:34px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#128196;</div>
+                <div>
+                  <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Property Report</div>
+                  <div style="font-size:0.77em;color:#94a3b8;">AI-generated report — tasks, insights, market tips, and workflow suggestions</div>
+                </div>
+              </div>
+              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;padding:10px 20px;white-space:nowrap;">
+                &#128196; Generate Report
+              </button>
+            </div>
+            <!-- Report output -->
+            <div id="reportOutput" style="display:none;margin-top:20px;"></div>
           </div>
 
           <!-- Quick Access Grid -->
@@ -1998,6 +2017,87 @@
         input.disabled = false;
         input.focus();
         loadHomeStats();
+      }
+
+      // --- Property Report ---
+      async function generateReport() {
+        const btn = document.getElementById('generateReportBtn');
+        const output = document.getElementById('reportOutput');
+        btn.disabled = true;
+        btn.innerHTML = '&#9203; Generating...';
+        output.style.display = 'block';
+        output.innerHTML = `
+          <div style="display:flex;align-items:center;gap:12px;padding:20px;color:#667eea;">
+            <div style="width:20px;height:20px;border:2px solid #667eea;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <span style="font-size:0.92em;">Analyzing your property data and generating insights...</span>
+          </div>`;
+
+        try {
+          // Gather fresh data
+          const [freshTasks, freshMessages, freshEvents, freshContacts, freshBudget] = await Promise.all([
+            fetch('/api/tasks').then(r => r.json()),
+            fetch('/api/messages?folder=inbox').then(r => r.json()),
+            fetch('/api/calevents').then(r => r.json()),
+            fetch('/api/contacts').then(r => r.json()),
+            fetch('/api/budget').then(r => r.json())
+          ]);
+
+          const income = freshBudget.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+          const expenses = freshBudget.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+
+          const res = await fetch('/api/report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tasks: freshTasks,
+              messages: freshMessages,
+              calEvents: freshEvents,
+              contacts: freshContacts,
+              budget: { income, expenses, net: income - expenses }
+            })
+          });
+          const data = await res.json();
+
+          // Render report with section formatting
+          const now = new Date();
+          const dateStr = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+          const formatted = (data.report || '')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^#{1,3} (.+)$/gm, '<div class="report-section-head">$1</div>')
+            .replace(/^(\d+)\. /gm, '<span style="font-weight:700;color:#667eea;">$1.</span> ')
+            .replace(/^[-•] /gm, '<span style="color:#667eea;margin-right:4px;">▸</span>')
+            .replace(/\n{2,}/g, '</p><p style="margin-bottom:10px;">')
+            .replace(/\n/g, '<br>');
+
+          output.innerHTML = `
+            <div style="border-top:2px solid #667eea;padding-top:18px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
+                <div>
+                  <div style="font-size:1.05em;font-weight:700;color:#1a2e4a;">Property Management Report</div>
+                  <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">${dateStr}</div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <span style="background:#eef2ff;color:#667eea;border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshTasks.filter(t=>!t.done).length} open tasks</span>
+                  <span style="background:#fef3f2;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshMessages.filter(m=>m.status==='new').length} new messages</span>
+                  <span style="background:${income-expenses>=0?'#f0fdf4':'#fef3f2'};color:${income-expenses>=0?'#27ae60':'#e74c3c'};border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${income-expenses>=0?'+':''}\$${(income-expenses).toLocaleString('en-US',{minimumFractionDigits:2})} balance</span>
+                </div>
+              </div>
+              <div style="font-size:0.91em;color:#2d3748;line-height:1.75;">
+                <style>
+                  .report-section-head { font-size:0.82em;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid #eef2ff; }
+                </style>
+                <p style="margin-bottom:10px;">${formatted}</p>
+              </div>
+              <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
+                <button onclick="document.getElementById('reportOutput').style.display='none'" class="btn-secondary" style="font-size:0.8em;padding:6px 14px;">Close Report</button>
+              </div>
+            </div>`;
+        } catch (err) {
+          output.innerHTML = `<span style="color:#e74c3c;font-size:0.9em;">Error generating report: ${err.message}</span>`;
+        }
+        btn.disabled = false;
+        btn.innerHTML = '&#128196; Generate Report';
       }
 
       // --- Home Page ---

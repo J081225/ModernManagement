@@ -682,8 +682,76 @@ app.post('/api/sms/send', async (req, res) => {
   }
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// --- Property Report ---
+app.post('/api/report', async (req, res) => {
+  const { tasks, messages, calEvents, contacts, budget } = req.body;
+  const today = new Date().toISOString().split('T')[0];
+  const todayFmt = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  const pendingTasks = (tasks || []).filter(t => !t.done);
+  const overdueTasks = pendingTasks.filter(t => t.dueDate && t.dueDate < today);
+  const newMsgs = (messages || []).filter(m => m.status === 'new');
+  const upcomingEvents = (calEvents || []).filter(e => e.date >= today).slice(0, 8);
+
+  const prompt = `You are an expert property management advisor with deep knowledge of real estate market trends, landlord best practices, tenant relations, and operational efficiency. Today is ${todayFmt}.
+
+Generate a comprehensive, actionable property management report based on the following live data:
+
+## TASKS
+Open tasks (${pendingTasks.length} total, ${overdueTasks.length} overdue):
+${pendingTasks.length ? pendingTasks.map(t => `- [${t.dueDate < today ? 'OVERDUE' : 'pending'}] ${t.title} — due ${t.dueDate} (${t.category})`).join('\n') : 'No open tasks.'}
+
+## INBOX
+${newMsgs.length} new unread messages out of ${(messages||[]).length} total:
+${newMsgs.length ? newMsgs.map(m => `- From ${m.resident}: "${m.subject}"`).join('\n') : 'Inbox is clear.'}
+
+## CALENDAR
+Upcoming events:
+${upcomingEvents.length ? upcomingEvents.map(e => `- ${e.date}: ${e.title}`).join('\n') : 'No upcoming events scheduled.'}
+
+## CONTACTS
+${(contacts||[]).length} contacts on file (${(contacts||[]).filter(c=>c.type==='resident').length} residents, ${(contacts||[]).filter(c=>c.type==='vendor').length} vendors)
+
+## FINANCIALS (current month)
+- Total Income: $${(budget.income||0).toLocaleString('en-US', {minimumFractionDigits:2})}
+- Total Expenses: $${(budget.expenses||0).toLocaleString('en-US', {minimumFractionDigits:2})}
+- Net Balance: $${(budget.net||0).toLocaleString('en-US', {minimumFractionDigits:2})}
+
+---
+
+Write a professional report with EXACTLY these five sections. Use the section titles as written:
+
+**Executive Summary**
+2-3 sentences on the overall health of the property right now — what's going well, what needs attention.
+
+**Priority Action Items**
+A numbered list of the top 5 most urgent things to do right now. Draw from the tasks, overdue items, and unread messages. Be specific — include resident names, task names, and dates where relevant.
+
+**AI Recommendations**
+4-5 smart, proactive suggestions that go BEYOND the existing task list. Include:
+- At least one insight based on current property management market trends or best practices (e.g. rent pricing, lease renewal timing, seasonal maintenance, tenant retention)
+- At least one workflow or productivity improvement
+- At least one financial optimization idea based on the income/expense data
+
+**Activity Insights**
+A brief analysis of recent activity — communication patterns, response times, task completion pace. Note any patterns worth paying attention to.
+
+**This Week's Focus**
+3 specific things the manager should focus on in the next 7 days to move the property forward. Be concrete and motivating.
+
+Keep the tone professional but direct. Be genuinely useful — not generic.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    res.json({ report: response.content[0].text });
+  } catch (err) {
+    console.error('Report generation error:', err.message);
+    res.status(500).json({ error: 'Failed to generate report', details: err.message });
+  }
 });
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
