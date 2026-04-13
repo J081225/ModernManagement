@@ -452,9 +452,122 @@
       .stat-chip .stat-label { font-size: 0.75em; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
       .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
       .week-task .wt-date { font-size: 0.75em; color: #94a3b8; margin-top: 2px; }
+
+      /* ── Mobile hamburger button ── */
+      #hamburger-btn {
+        display: none;
+        background: none;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 1.1em;
+        color: #4a5568;
+        margin: 0;
+      }
+      #hamburger-btn:hover { background: #f1f5f9; }
+
+      /* overlay behind slide-in sidebar on mobile */
+      #sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 90;
+      }
+      #sidebar-overlay.visible { display: block; }
+
+      /* ── Mobile breakpoint ── */
+      @media (max-width: 768px) {
+
+        /* Stack body vertically */
+        body { flex-direction: column; height: auto; min-height: 100vh; }
+
+        /* Slide-in sidebar drawer */
+        #sidebar {
+          position: fixed;
+          top: 0; left: 0;
+          height: 100%;
+          width: 240px;
+          z-index: 100;
+          transform: translateX(-100%);
+          transition: transform 0.25s ease;
+        }
+        #sidebar.open { transform: translateX(0); }
+
+        /* Main takes full width */
+        #main { width: 100%; flex: 1; }
+
+        /* Topbar: show hamburger, shrink padding */
+        #topbar { padding: 0 14px; gap: 8px; }
+        #hamburger-btn { display: flex; align-items: center; justify-content: center; }
+        #topbar-time { display: none; }
+
+        /* Content padding */
+        #content { padding: 16px 14px; }
+
+        /* Cards: reduce padding */
+        .card { padding: 16px 16px; }
+
+        /* Inbox: stack panels vertically */
+        .inbox-layout { flex-direction: column; height: auto; gap: 10px; }
+        .inbox-folders {
+          width: 100%;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .folder-btn { width: auto; flex: 1; min-width: 90px; padding: 8px 10px; font-size: 0.85em; }
+        .inbox-list { min-width: 0; max-height: 280px; overflow-y: auto; }
+        .inbox-detail { min-height: 300px; }
+
+        /* Home banner: shorter */
+        #homeBanner { height: 150px !important; }
+        #homePropertyName { font-size: 1.2em !important; }
+
+        /* AI bar: stack input/buttons */
+        #homeCommandInput { font-size: 0.88em !important; }
+
+        /* Stats grid: 2 columns */
+        #page-home > div:nth-child(2) { grid-template-columns: repeat(2, 1fr) !important; }
+
+        /* Calendar: reduce cell sizes */
+        .cal-day { min-height: 50px; font-size: 0.78em; padding: 4px; }
+        .cal-event { font-size: 0.7em; padding: 2px 4px; }
+        .cal-nav button { padding: 7px 10px; font-size: 0.82em; }
+
+        /* Tables: horizontal scroll */
+        .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { min-width: 560px; }
+
+        /* Maintenance chips */
+        #maint-summary { flex-wrap: wrap; }
+
+        /* Modal: full width on small screens */
+        .modal { width: 95vw; padding: 22px 18px; }
+
+        /* Contact cards: remove transform hover */
+        .contact-card:hover { transform: none; }
+
+        /* Buttons in rows: allow wrapping */
+        .modal .modal-footer { flex-wrap: wrap; }
+
+        /* Hide sidebar footer text */
+        .sidebar-footer { display: none; }
+      }
+
+      @media (max-width: 480px) {
+        /* Single-column stat grid on very small screens */
+        #page-home > div:nth-child(2) { grid-template-columns: 1fr 1fr !important; }
+        .card h2 { font-size: 0.7em; }
+        #topbar { font-size: 0.9em; }
+      }
     </style>
   </head>
   <body>
+
+    <!-- Mobile sidebar overlay -->
+    <div id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
 
     <!-- Sidebar -->
     <div id="sidebar">
@@ -482,6 +595,7 @@
     <!-- Main -->
     <div id="main">
       <div id="topbar">
+        <button id="hamburger-btn" onclick="toggleMobileSidebar()" title="Menu">&#9776;</button>
         <span id="topbar-icon">&#9993;</span>
         <span id="topbar-title">Inbox</span>
         <span class="topbar-chip" id="topbar-time"></span>
@@ -875,7 +989,8 @@
               <span style="font-size:0.9em;color:#888;">Track resident rent status and send late notices.</span>
               <button class="btn-primary" onclick="openAddRent()">+ Add Resident</button>
             </div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
+            <div class="table-scroll-wrap">
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
               <thead>
                 <tr style="background:#f4f6f9;text-align:left;">
                   <th style="padding:8px 10px;">Resident</th>
@@ -888,6 +1003,7 @@
               </thead>
               <tbody id="rentTable"></tbody>
             </table>
+            </div>
           </div>
 
           <!-- Invoices -->
@@ -897,7 +1013,8 @@
               <span style="font-size:0.9em;color:#888;">Review and approve vendor invoices.</span>
               <button class="btn-primary" onclick="openAddInvoice()">+ Add Invoice</button>
             </div>
-            <table style="width:100%;border-collapse:collapse;font-size:0.93em;">
+            <div class="table-scroll-wrap">
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
               <thead>
                 <tr style="background:#f4f6f9;text-align:left;">
                   <th style="padding:8px 10px;">Vendor</th>
@@ -910,6 +1027,7 @@
               </thead>
               <tbody id="invoiceTable"></tbody>
             </table>
+            </div>
           </div>
 
           <!-- Budget -->
@@ -2140,6 +2258,30 @@
         document.getElementById('contactDetailPanel').innerHTML = `<div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;"><div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div><div style="font-size:0.9em;">Select a contact to view details</div></div>`;
         loadContacts();
       }
+
+      // --- Mobile sidebar ---
+      function toggleMobileSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+          sidebar.classList.remove('open');
+          overlay.classList.remove('visible');
+        } else {
+          sidebar.classList.add('open');
+          overlay.classList.add('visible');
+        }
+      }
+      function closeMobileSidebar() {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('visible');
+      }
+      // Close sidebar when a nav item is tapped on mobile
+      document.querySelectorAll('#sidebar nav a').forEach(a => {
+        a.addEventListener('click', () => {
+          if (window.innerWidth <= 768) closeMobileSidebar();
+        });
+      });
 
       // --- Dictation ---
       window.micActive = false;
