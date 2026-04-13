@@ -9,6 +9,7 @@ const Anthropic = require('@anthropic-ai/sdk').default;
 const twilio = require('twilio');
 const sgMail = require('@sendgrid/mail');
 const session = require('express-session');
+const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -18,6 +19,9 @@ const app = express();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
+const BCRYPT_ROUNDS = 10;
+// User ID that receives all inbound webhooks (Twilio/SendGrid) — always the first admin account
+const WEBHOOK_USER_ID = 1;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -29,18 +33,18 @@ app.use(session({
   cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
 
-// Serve public static files (landing, login pages)
+// Serve public static files (landing, login, signup pages)
 app.use(express.static(path.join(__dirname, 'public')));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // --- Auth helpers ---
 function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
+  if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
 }
 function requireAuthPage(req, res, next) {
-  if (req.session && req.session.authenticated) return next();
+  if (req.session && req.session.authenticated && req.session.userId) return next();
   res.redirect('/login');
 }
 
@@ -53,178 +57,332 @@ app.get('/login', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
+app.get('/signup', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+});
 app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
 
-// --- Login / Logout ---
-app.post('/api/login', (req, res) => {
+// --- Database setup & migrations ---
+async function initDB() {
+  // Users table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      email TEXT DEFAULT '',
+      plan TEXT DEFAULT 'free',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Seed admin user from env vars if no users exist
+  const { rows: userRows } = await pool.query('SELECT COUNT(*) FROM users');
+  if (userRows[0].count === '0') {
+    const adminUser = process.env.ADMIN_USERNAME || 'admin';
+    const adminPass = process.env.ADMIN_PASSWORD || 'modernmgmt2026';
+    const hash = await bcrypt.hash(adminPass, BCRYPT_ROUNDS);
+    await pool.query(
+      'INSERT INTO users (username, password_hash, plan) VALUES ($1, $2, $3)',
+      [adminUser, hash, 'admin']
+    );
+    console.log('Admin user seeded.');
+  }
+
+  // Messages table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      resident TEXT,
+      subject TEXT,
+      category TEXT,
+      text TEXT,
+      status TEXT DEFAULT 'new',
+      folder TEXT DEFAULT 'inbox',
+      email TEXT,
+      phone TEXT,
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  const { rows: msgRows } = await pool.query('SELECT COUNT(*) FROM messages WHERE user_id=1');
+  if (msgRows[0].count === '0') {
+    await pool.query(`INSERT INTO messages (user_id, resident, subject, category, text, status, folder) VALUES
+      (1, 'Alex Rivera', 'Maintenance: Leaky faucet', 'maintenance', 'My kitchen faucet is leaking and spraying water.', 'new', 'inbox'),
+      (1, 'Mira Chen', 'Renewal question', 'renewal', 'When should I confirm renewal terms?', 'new', 'inbox')`);
+  }
+
+  // Contacts table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS contacts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      name TEXT,
+      type TEXT,
+      unit TEXT,
+      email TEXT,
+      phone TEXT,
+      notes TEXT
+    )
+  `);
+  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  const { rows: conRows } = await pool.query('SELECT COUNT(*) FROM contacts WHERE user_id=1');
+  if (conRows[0].count === '0') {
+    await pool.query(`INSERT INTO contacts (user_id, name, type, unit, email, phone, notes) VALUES
+      (1, 'Alex Rivera', 'resident', '101', 'alex.rivera@email.com', '555-201-1111', 'Lease ends June 2026. Prefers email contact.'),
+      (1, 'Mira Chen', 'resident', '204', 'mira.chen@email.com', '555-201-2222', 'Has two pets. Renewal pending.'),
+      (1, 'Jordan Lee', 'resident', '305', 'jordan.lee@email.com', '555-201-3333', 'Monthly lease. Works night shifts.')`);
+  }
+
+  // Tasks table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      title TEXT,
+      category TEXT,
+      "dueDate" TEXT,
+      notes TEXT,
+      done BOOLEAN DEFAULT false,
+      suggested BOOLEAN DEFAULT false,
+      "aiReason" TEXT DEFAULT ''
+    )
+  `);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`);
+
+  const { rows: taskRows } = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=1');
+  if (taskRows[0].count === '0') {
+    await pool.query(`INSERT INTO tasks (user_id, title, category, "dueDate", notes, done) VALUES
+      (1, 'Alert vendors of insurance renewal', 'vendor', '2026-04-10', 'Contact AcePlumbing and GreenLawn before policy expires.', false),
+      (1, 'Follow up on lease renewals', 'lease', '2026-04-15', 'Alex Rivera and Mira Chen leases up in 60 days.', false)`);
+  }
+
+  // Maintenance tickets table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS maintenance_tickets (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      unit TEXT DEFAULT '',
+      resident TEXT DEFAULT '',
+      category TEXT DEFAULT 'general',
+      priority TEXT DEFAULT 'normal',
+      status TEXT DEFAULT 'open',
+      outcome TEXT DEFAULT '',
+      requires_action BOOLEAN DEFAULT false,
+      action_notes TEXT DEFAULT '',
+      emergency_sms_sent BOOLEAN DEFAULT false,
+      "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+      "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE maintenance_tickets ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  // Calendar events table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cal_events (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      date TEXT,
+      title TEXT
+    )
+  `);
+  await pool.query(`ALTER TABLE cal_events ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  const { rows: evtRows } = await pool.query('SELECT COUNT(*) FROM cal_events WHERE user_id=1');
+  if (evtRows[0].count === '0') {
+    await pool.query(`INSERT INTO cal_events (user_id, date, title) VALUES (1, '2026-04-10', 'Maintenance inspection')`);
+  }
+
+  // Budget transactions table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS budget_transactions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      type TEXT NOT NULL,
+      category TEXT,
+      description TEXT,
+      amount NUMERIC(10,2) NOT NULL,
+      date TEXT,
+      notes TEXT,
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE budget_transactions ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  const { rows: budRows } = await pool.query('SELECT COUNT(*) FROM budget_transactions WHERE user_id=1');
+  if (budRows[0].count === '0') {
+    await pool.query(`INSERT INTO budget_transactions (user_id, type, category, description, amount, date, notes) VALUES
+      (1, 'income',  'Rent Received',  'Unit 101 — April rent',       1800.00, '2026-04-01', ''),
+      (1, 'income',  'Rent Received',  'Unit 204 — April rent',       1600.00, '2026-04-01', ''),
+      (1, 'income',  'Rent Received',  'Unit 305 — April rent',       1600.00, '2026-04-01', ''),
+      (1, 'income',  'Late Fee',       'Unit 305 late payment fee',    75.00,  '2026-04-03', ''),
+      (1, 'expense', 'Maintenance',    'Plumbing repair — Unit 101',  320.00,  '2026-04-02', 'AcePlumbing Co.'),
+      (1, 'expense', 'Landscaping',    'Monthly lawn care',           450.00,  '2026-04-01', 'GreenLawn Services'),
+      (1, 'expense', 'Utilities',      'Common area electricity',     210.00,  '2026-04-01', ''),
+      (1, 'expense', 'Insurance',      'Monthly property insurance',  380.00,  '2026-04-01', '')`);
+  }
+
+  // Automation table (per user)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS automation (
+      user_id INTEGER PRIMARY KEY,
+      "autoReplyEnabled" BOOLEAN DEFAULT false
+    )
+  `);
+  // Ensure admin row exists
+  await pool.query(`INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`);
+
+  console.log('DB init complete.');
+}
+
+initDB().catch(err => console.error('DB init error:', err.message));
+
+// --- Automation helpers ---
+async function getAutomation(userId) {
+  const { rows } = await pool.query('SELECT * FROM automation WHERE user_id=$1', [userId]);
+  if (rows.length) return { autoReplyEnabled: rows[0].autoReplyEnabled };
+  // Create default row for new user
+  await pool.query('INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, false) ON CONFLICT DO NOTHING', [userId]);
+  return { autoReplyEnabled: false };
+}
+
+// --- Login / Logout / Signup ---
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  const validUser = process.env.ADMIN_USERNAME || 'admin';
-  const validPass = process.env.ADMIN_PASSWORD || 'modernmgmt2026';
-  if (username === validUser && password === validPass) {
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE username=$1', [username.trim()]);
+    if (!rows.length) return res.status(401).json({ error: 'Invalid credentials' });
+    const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
     req.session.authenticated = true;
+    req.session.userId = user.id;
+    req.session.username = user.username;
     res.json({ success: true });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
+  } catch (err) {
+    console.error('Login error:', err.message);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
+
+app.post('/api/signup', async (req, res) => {
+  const { username, password, email } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  try {
+    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const { rows } = await pool.query(
+      'INSERT INTO users (username, password_hash, email, plan) VALUES ($1,$2,$3,$4) RETURNING *',
+      [username.trim().toLowerCase(), hash, email || '', 'free']
+    );
+    const user = rows[0];
+    // Ensure automation row exists
+    await pool.query('INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, false) ON CONFLICT DO NOTHING', [user.id]);
+    req.session.authenticated = true;
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    res.json({ success: true });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Username already taken' });
+    console.error('Signup error:', err.message);
+    res.status(500).json({ error: 'Signup failed' });
+  }
+});
+
 app.get('/api/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
 
-// Protect all /api/* routes except login and inbound webhooks
+app.get('/api/me', requireAuth, (req, res) => {
+  res.json({ userId: req.session.userId, username: req.session.username });
+});
+
+// Protect all /api/* routes except login/signup and inbound webhooks
 app.use('/api', (req, res, next) => {
-  const open = ['/login', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription'];
   if (open.some(p => req.path === p)) return next();
-  if (req.session && req.session.authenticated) return next();
+  if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
 });
 
-// --- PostgreSQL setup ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS messages (
-    id SERIAL PRIMARY KEY,
-    resident TEXT,
-    subject TEXT,
-    category TEXT,
-    text TEXT,
-    status TEXT DEFAULT 'new',
-    folder TEXT DEFAULT 'inbox',
-    email TEXT,
-    phone TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).then(async () => {
-  const { rows } = await pool.query('SELECT COUNT(*) FROM messages');
-  if (rows[0].count === '0') {
-    await pool.query(`INSERT INTO messages (resident, subject, category, text, status, folder) VALUES
-      ('Alex Rivera', 'Maintenance: Leaky faucet', 'maintenance', 'My kitchen faucet is leaking and spraying water.', 'new', 'inbox'),
-      ('Mira Chen', 'Renewal question', 'renewal', 'When should I confirm renewal terms?', 'new', 'inbox')`);
-  }
-}).catch(err => console.error('DB init error:', err.message));
-
-// --- Contacts table ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS contacts (
-    id SERIAL PRIMARY KEY,
-    name TEXT,
-    type TEXT,
-    unit TEXT,
-    email TEXT,
-    phone TEXT,
-    notes TEXT
-  )
-`).then(async () => {
-  const { rows } = await pool.query('SELECT COUNT(*) FROM contacts');
-  if (rows[0].count === '0') {
-    await pool.query(`INSERT INTO contacts (name, type, unit, email, phone, notes) VALUES
-      ('Alex Rivera', 'resident', '101', 'alex.rivera@email.com', '555-201-1111', 'Lease ends June 2026. Prefers email contact.'),
-      ('Mira Chen', 'resident', '204', 'mira.chen@email.com', '555-201-2222', 'Has two pets. Renewal pending.'),
-      ('Jordan Lee', 'resident', '305', 'jordan.lee@email.com', '555-201-3333', 'Monthly lease. Works night shifts.')`);
-  }
-}).catch(err => console.error('Contacts DB init error:', err.message));
-
-app.get('/api/contacts', async (_req, res) => {
-  const { rows } = await pool.query('SELECT * FROM contacts ORDER BY name ASC');
+// --- Contacts ---
+app.get('/api/contacts', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM contacts WHERE user_id=$1 ORDER BY name ASC', [req.session.userId]);
   res.json(rows);
 });
 
 app.post('/api/contacts', async (req, res) => {
   const { name, type, unit, email, phone, notes } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO contacts (name, type, unit, email, phone, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [name, type, unit || '', email || '', phone || '', notes || '']
+    'INSERT INTO contacts (user_id, name, type, unit, email, phone, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [req.session.userId, name, type, unit || '', email || '', phone || '', notes || '']
   );
   res.status(201).json(rows[0]);
 });
 
 app.delete('/api/contacts/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM contacts WHERE id=$1', [Number(req.params.id)]);
+  const { rowCount } = await pool.query('DELETE FROM contacts WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Contact not found' });
   res.json({ success: true });
 });
 
-// --- Tasks table ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,
-    title TEXT,
-    category TEXT,
-    "dueDate" TEXT,
-    notes TEXT,
-    done BOOLEAN DEFAULT false,
-    suggested BOOLEAN DEFAULT false,
-    "aiReason" TEXT DEFAULT ''
-  )
-`).then(async () => {
-  // Add columns if upgrading existing table
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`);
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`);
-  const { rows } = await pool.query('SELECT COUNT(*) FROM tasks');
-  if (rows[0].count === '0') {
-    await pool.query(`INSERT INTO tasks (title, category, "dueDate", notes, done) VALUES
-      ('Alert vendors of insurance renewal', 'vendor', '2026-04-10', 'Contact AcePlumbing and GreenLawn before policy expires.', false),
-      ('Follow up on lease renewals', 'lease', '2026-04-15', 'Alex Rivera and Mira Chen leases up in 60 days.', false)`);
-  }
-}).catch(err => console.error('Tasks DB init error:', err.message));
-
-app.get('/api/tasks', async (_req, res) => {
-  const { rows } = await pool.query('SELECT * FROM tasks ORDER BY suggested DESC, "dueDate" ASC');
+// --- Tasks ---
+app.get('/api/tasks', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM tasks WHERE user_id=$1 ORDER BY suggested DESC, "dueDate" ASC', [req.session.userId]);
   res.json(rows);
 });
+
 app.post('/api/tasks', async (req, res) => {
   const { title, category, dueDate, notes, suggested, aiReason } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,$5,$6) RETURNING *',
-    [title, category, dueDate, notes || '', suggested || false, aiReason || '']
+    'INSERT INTO tasks (user_id, title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,$5,false,$6,$7) RETURNING *',
+    [req.session.userId, title, category, dueDate, notes || '', suggested || false, aiReason || '']
   );
   res.status(201).json(rows[0]);
 });
+
 app.put('/api/tasks/:id', async (req, res) => {
   const { done, title, category, dueDate, notes } = req.body;
-  const { rows } = await pool.query('UPDATE tasks SET done=$1, title=$2, category=$3, "dueDate"=$4, notes=$5 WHERE id=$6 RETURNING *', [done, title, category, dueDate, notes || '', Number(req.params.id)]);
+  const { rows } = await pool.query(
+    'UPDATE tasks SET done=$1, title=$2, category=$3, "dueDate"=$4, notes=$5 WHERE id=$6 AND user_id=$7 RETURNING *',
+    [done, title, category, dueDate, notes || '', Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Task not found' });
   res.json(rows[0]);
 });
-// Approve AI-suggested task
+
 app.put('/api/tasks/:id/approve', async (req, res) => {
-  const { rows } = await pool.query('UPDATE tasks SET suggested=false WHERE id=$1 RETURNING *', [Number(req.params.id)]);
+  const { rows } = await pool.query(
+    'UPDATE tasks SET suggested=false WHERE id=$1 AND user_id=$2 RETURNING *',
+    [Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Task not found' });
   res.json(rows[0]);
 });
-// Reject AI-suggested task
+
 app.delete('/api/tasks/:id/reject', async (req, res) => {
-  await pool.query('DELETE FROM tasks WHERE id=$1', [Number(req.params.id)]);
+  await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
 });
+
 app.delete('/api/tasks/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM tasks WHERE id=$1', [Number(req.params.id)]);
+  const { rowCount } = await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Task not found' });
   res.json({ success: true });
 });
 
-// --- Maintenance Tickets table ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS maintenance_tickets (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    unit TEXT DEFAULT '',
-    resident TEXT DEFAULT '',
-    category TEXT DEFAULT 'general',
-    priority TEXT DEFAULT 'normal',
-    status TEXT DEFAULT 'open',
-    outcome TEXT DEFAULT '',
-    requires_action BOOLEAN DEFAULT false,
-    action_notes TEXT DEFAULT '',
-    emergency_sms_sent BOOLEAN DEFAULT false,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
-    "updatedAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).catch(err => console.error('Maintenance DB init error:', err.message));
-
+// --- Maintenance Tickets ---
 const EMERGENCY_KEYWORDS = [
   'gas leak','gas smell','flooding','flood','sewage','raw sewage',
   'fire','smoke','carbon monoxide','no heat','burst pipe','burst pipes',
@@ -252,8 +410,11 @@ async function sendEmergencySMS(ticket) {
   }
 }
 
-app.get('/api/maintenance', async (_req, res) => {
-  const { rows } = await pool.query('SELECT * FROM maintenance_tickets ORDER BY priority DESC, "createdAt" DESC');
+app.get('/api/maintenance', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM maintenance_tickets WHERE user_id=$1 ORDER BY priority DESC, "createdAt" DESC',
+    [req.session.userId]
+  );
   res.json(rows);
 });
 
@@ -261,18 +422,16 @@ app.post('/api/maintenance', async (req, res) => {
   const { title, description, unit, resident, category } = req.body;
   const priority = isEmergency(title + ' ' + description) ? 'emergency' : 'normal';
   const { rows } = await pool.query(
-    `INSERT INTO maintenance_tickets (title, description, unit, resident, category, priority)
-     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [title, description || '', unit || '', resident || '', category || 'general', priority]
+    `INSERT INTO maintenance_tickets (user_id, title, description, unit, resident, category, priority)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [req.session.userId, title, description || '', unit || '', resident || '', category || 'general', priority]
   );
   const ticket = rows[0];
   res.status(201).json(ticket);
-  // Fire emergency SMS after responding
   if (priority === 'emergency') sendEmergencySMS(ticket);
-  // Also create an AI-suggested task
   suggestTasksFromConversation(
     { id: ticket.id, resident: ticket.resident || 'Unknown', subject: title, text: description || title, category: 'maintenance' },
-    null
+    null, req.session.userId
   );
 });
 
@@ -280,15 +439,15 @@ app.put('/api/maintenance/:id', async (req, res) => {
   const { status, outcome, requires_action, action_notes } = req.body;
   const { rows } = await pool.query(
     `UPDATE maintenance_tickets SET status=$1, outcome=$2, requires_action=$3, action_notes=$4, "updatedAt"=NOW()
-     WHERE id=$5 RETURNING *`,
-    [status, outcome || '', requires_action || false, action_notes || '', Number(req.params.id)]
+     WHERE id=$5 AND user_id=$6 RETURNING *`,
+    [status, outcome || '', requires_action || false, action_notes || '', Number(req.params.id), req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'Ticket not found' });
-  // If resolved with office action required, create a suggested task
   if (status === 'resolved' && requires_action) {
     await pool.query(
-      `INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,true,$5)`,
+      `INSERT INTO tasks (user_id, title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,$5,false,true,$6)`,
       [
+        req.session.userId,
         `Office action required: ${rows[0].title}`,
         'maintenance',
         new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
@@ -301,73 +460,38 @@ app.put('/api/maintenance/:id', async (req, res) => {
 });
 
 app.delete('/api/maintenance/:id', async (req, res) => {
-  await pool.query('DELETE FROM maintenance_tickets WHERE id=$1', [Number(req.params.id)]);
+  await pool.query('DELETE FROM maintenance_tickets WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
 });
 
-// --- Calendar Events table ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS cal_events (
-    id SERIAL PRIMARY KEY,
-    date TEXT,
-    title TEXT
-  )
-`).then(async () => {
-  const { rows } = await pool.query('SELECT COUNT(*) FROM cal_events');
-  if (rows[0].count === '0') {
-    await pool.query(`INSERT INTO cal_events (date, title) VALUES
-      ('2026-04-10', 'Maintenance inspection')`);
-  }
-}).catch(err => console.error('CalEvents DB init error:', err.message));
-
-app.get('/api/calevents', async (_req, res) => {
-  const { rows } = await pool.query('SELECT * FROM cal_events ORDER BY date ASC');
+// --- Calendar Events ---
+app.get('/api/calevents', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM cal_events WHERE user_id=$1 ORDER BY date ASC', [req.session.userId]);
   res.json(rows);
 });
+
 app.post('/api/calevents', async (req, res) => {
   const { date, title } = req.body;
-  const { rows } = await pool.query('INSERT INTO cal_events (date, title) VALUES ($1,$2) RETURNING *', [date, title]);
+  const { rows } = await pool.query(
+    'INSERT INTO cal_events (user_id, date, title) VALUES ($1,$2,$3) RETURNING *',
+    [req.session.userId, date, title]
+  );
   res.status(201).json(rows[0]);
 });
+
 app.delete('/api/calevents/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM cal_events WHERE id=$1', [Number(req.params.id)]);
+  const { rowCount } = await pool.query('DELETE FROM cal_events WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Event not found' });
   res.json({ success: true });
 });
 
-// --- Budget Transactions table ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS budget_transactions (
-    id SERIAL PRIMARY KEY,
-    type TEXT NOT NULL,
-    category TEXT,
-    description TEXT,
-    amount NUMERIC(10,2) NOT NULL,
-    date TEXT,
-    notes TEXT,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).then(async () => {
-  const { rows } = await pool.query('SELECT COUNT(*) FROM budget_transactions');
-  if (rows[0].count === '0') {
-    await pool.query(`INSERT INTO budget_transactions (type, category, description, amount, date, notes) VALUES
-      ('income',  'Rent Received',  'Unit 101 — April rent',       1800.00, '2026-04-01', ''),
-      ('income',  'Rent Received',  'Unit 204 — April rent',       1600.00, '2026-04-01', ''),
-      ('income',  'Rent Received',  'Unit 305 — April rent',       1600.00, '2026-04-01', ''),
-      ('income',  'Late Fee',       'Unit 305 late payment fee',    75.00,  '2026-04-03', ''),
-      ('expense', 'Maintenance',    'Plumbing repair — Unit 101',  320.00,  '2026-04-02', 'AcePlumbing Co.'),
-      ('expense', 'Landscaping',    'Monthly lawn care',           450.00,  '2026-04-01', 'GreenLawn Services'),
-      ('expense', 'Utilities',      'Common area electricity',     210.00,  '2026-04-01', ''),
-      ('expense', 'Insurance',      'Monthly property insurance',  380.00,  '2026-04-01', '')`);
-  }
-}).catch(err => console.error('Budget DB init error:', err.message));
-
+// --- Budget ---
 app.get('/api/budget', async (req, res) => {
   const { month, year } = req.query;
-  let q = 'SELECT * FROM budget_transactions';
-  const params = [];
+  let q = 'SELECT * FROM budget_transactions WHERE user_id=$1';
+  const params = [req.session.userId];
   if (month && year) {
-    q += ` WHERE date LIKE $1`;
+    q += ` AND date LIKE $2`;
     params.push(`${year}-${String(month).padStart(2,'0')}%`);
   }
   q += ' ORDER BY date ASC, "createdAt" ASC';
@@ -378,54 +502,45 @@ app.get('/api/budget', async (req, res) => {
 app.post('/api/budget', async (req, res) => {
   const { type, category, description, amount, date, notes } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO budget_transactions (type, category, description, amount, date, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [type, category, description || '', Number(amount), date, notes || '']
+    'INSERT INTO budget_transactions (user_id, type, category, description, amount, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [req.session.userId, type, category, description || '', Number(amount), date, notes || '']
   );
   res.status(201).json(rows[0]);
 });
 
 app.delete('/api/budget/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM budget_transactions WHERE id=$1', [Number(req.params.id)]);
+  const { rowCount } = await pool.query('DELETE FROM budget_transactions WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Transaction not found' });
   res.json({ success: true });
 });
 
-let drafts = [];
-let docs = [
-  { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
-  { id: 2, title: 'Maintenance Escalation', type: 'procedure', content: 'For emergency leaks, dispatch within 2 hours and notify resident within 30 min.' }
-];
-let automation = { autoReplyEnabled: false, managerReviewRequired: true };
-
-// Persist automation in DB
-pool.query(`CREATE TABLE IF NOT EXISTS automation (id INTEGER PRIMARY KEY, "autoReplyEnabled" BOOLEAN DEFAULT false)`)
-  .then(async () => {
-    const { rows } = await pool.query('SELECT * FROM automation WHERE id=1');
-    if (rows.length) {
-      automation.autoReplyEnabled = rows[0].autoReplyEnabled;
-      automation.managerReviewRequired = !rows[0].autoReplyEnabled;
-    } else {
-      await pool.query('INSERT INTO automation (id, "autoReplyEnabled") VALUES (1, false)');
-    }
-  }).catch(err => console.error('Automation DB init error:', err.message));
-
-app.get('/api/automation', (req, res) => res.json(automation));
-app.put('/api/automation', async (req, res) => {
-  const autoReplyEnabled = !!req.body.autoReplyEnabled;
-  automation.autoReplyEnabled = autoReplyEnabled;
-  automation.managerReviewRequired = !autoReplyEnabled;
-  await pool.query('UPDATE automation SET "autoReplyEnabled"=$1 WHERE id=1', [autoReplyEnabled]);
-  res.json(automation);
+// --- Automation ---
+app.get('/api/automation', async (req, res) => {
+  const automationData = await getAutomation(req.session.userId);
+  res.json(automationData);
 });
 
+app.put('/api/automation', async (req, res) => {
+  const autoReplyEnabled = !!req.body.autoReplyEnabled;
+  await pool.query(
+    'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled"=$2',
+    [req.session.userId, autoReplyEnabled]
+  );
+  res.json({ autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
+});
+
+// --- Messages ---
 app.get('/api/messages', async (req, res) => {
   const folder = req.query.folder || 'inbox';
-  const { rows } = await pool.query('SELECT * FROM messages WHERE folder=$1 ORDER BY "createdAt" DESC', [folder]);
+  const { rows } = await pool.query(
+    'SELECT * FROM messages WHERE user_id=$1 AND folder=$2 ORDER BY "createdAt" DESC',
+    [req.session.userId, folder]
+  );
   res.json(rows);
 });
 
 app.get('/api/messages/:id', async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1', [Number(req.params.id)]);
+  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   res.json(rows[0]);
 });
@@ -433,36 +548,49 @@ app.get('/api/messages/:id', async (req, res) => {
 app.post('/api/messages', async (req, res) => {
   const { resident, subject, category, text } = req.body;
   const { rows } = await pool.query(
-    'INSERT INTO messages (resident, subject, category, text, status, folder) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-    [resident, subject, category, text, 'new', 'inbox']
+    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+    [req.session.userId, resident, subject, category, text, 'new', 'inbox']
   );
   res.status(201).json(rows[0]);
 });
 
 app.put('/api/messages/:id/folder', async (req, res) => {
-  const { rows } = await pool.query('UPDATE messages SET folder=$1 WHERE id=$2 RETURNING *', [req.body.folder, Number(req.params.id)]);
+  const { rows } = await pool.query(
+    'UPDATE messages SET folder=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
+    [req.body.folder, Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   res.json(rows[0]);
 });
 
 app.delete('/api/messages/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM messages WHERE id=$1', [Number(req.params.id)]);
+  const { rowCount } = await pool.query('DELETE FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Message not found' });
   res.json({ success: true });
 });
 
-app.delete('/api/messages/folder/deleted', async (_req, res) => {
-  await pool.query("DELETE FROM messages WHERE folder='deleted'");
+app.delete('/api/messages/folder/deleted', async (req, res) => {
+  await pool.query("DELETE FROM messages WHERE folder='deleted' AND user_id=$1", [req.session.userId]);
   res.json({ success: true });
 });
 
 app.put('/api/messages/:id/status', async (req, res) => {
-  const { rows } = await pool.query('UPDATE messages SET status=$1 WHERE id=$2 RETURNING *', [req.body.status, Number(req.params.id)]);
+  const { rows } = await pool.query(
+    'UPDATE messages SET status=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
+    [req.body.status, Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   res.json(rows[0]);
 });
 
-app.get('/api/drafts', (req, res) => res.json(drafts));
+// --- In-memory drafts & knowledge (not user-scoped, ephemeral) ---
+let drafts = [];
+let docs = [
+  { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
+  { id: 2, title: 'Maintenance Escalation', type: 'procedure', content: 'For emergency leaks, dispatch within 2 hours and notify resident within 30 min.' }
+];
+
+app.get('/api/drafts', (_req, res) => res.json(drafts));
 
 app.post('/api/drafts', (req, res) => {
   const { messageId, content, status } = req.body;
@@ -478,7 +606,7 @@ app.put('/api/drafts/:id', (req, res) => {
   res.json(draft);
 });
 
-app.get('/api/knowledge', (req, res) => res.json(docs));
+app.get('/api/knowledge', (_req, res) => res.json(docs));
 app.post('/api/knowledge', (req, res) => {
   const { title, type, content } = req.body;
   const id = docs.length ? Math.max(...docs.map(d => d.id)) + 1 : 1;
@@ -518,10 +646,10 @@ app.post('/api/knowledge/upload', upload.single('file'), async (req, res) => {
   }
 });
 
-
+// --- AI: Generate draft reply ---
 app.post('/api/generate', async (req, res) => {
   const { messageId, contacts } = req.body;
-  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1', [Number(messageId)]);
+  const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(messageId), req.session.userId]);
   const message = rows[0];
   if (!message) return res.status(404).json({ error: 'Message not found' });
 
@@ -549,15 +677,12 @@ Guidelines:
 - Address the resident by first name
 - Be warm but professional
 - Reference relevant policies where appropriate, but don't quote them verbatim
-- If relevant contacts (vendors, staff) are mentioned, you may reference them by name
 - Keep responses to 3-5 short paragraphs
 - End with "Best regards,\\nThe Property Management Team"`,
-      messages: [
-        {
-          role: 'user',
-          content: `Please draft a response to this resident message:\n\nFrom: ${message.resident}\nSubject: ${message.subject}\nCategory: ${message.category}\n\nMessage:\n${message.text}`
-        }
-      ]
+      messages: [{
+        role: 'user',
+        content: `Please draft a response to this resident message:\n\nFrom: ${message.resident}\nSubject: ${message.subject}\nCategory: ${message.category}\n\nMessage:\n${message.text}`
+      }]
     });
 
     const draft = response.content.find(b => b.type === 'text')?.text || '';
@@ -570,6 +695,7 @@ Guidelines:
   }
 });
 
+// --- AI: Command center ---
 app.post('/api/command', async (req, res) => {
   const { prompt, contacts, calEvents, tasks, messages: msgList } = req.body;
 
@@ -658,12 +784,10 @@ When the user asks you to do something, use the available tools to carry out the
       }
     }
 
-    // If Claude used tools but gave no text, generate a confirmation
     if (!reply && actions.length) {
       reply = `Done! I've completed ${actions.length} action${actions.length > 1 ? 's' : ''} for you.`;
     }
 
-    // If tools were used, get Claude's follow-up text response
     if (actions.length && response.stop_reason === 'tool_use') {
       const toolResults = actions.map(a => ({
         type: 'tool_result',
@@ -694,9 +818,8 @@ When the user asks you to do something, use the available tools to carry out the
   }
 });
 
-// Helper: auto-generate and send AI reply for a message
 // --- AI Task Suggestion ---
-async function suggestTasksFromConversation(message, replyText) {
+async function suggestTasksFromConversation(message, replyText, userId) {
   const today = new Date().toISOString().split('T')[0];
   try {
     const response = await anthropic.messages.create({
@@ -731,8 +854,8 @@ Return only the JSON array, no other text.`
     for (const t of suggested) {
       if (!t.title || !t.dueDate) continue;
       await pool.query(
-        `INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,true,$5)`,
-        [t.title, t.category || 'other', t.dueDate, t.notes || `From: ${message.resident} — ${message.subject}`, t.aiReason || '']
+        `INSERT INTO tasks (user_id, title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,$5,false,true,$6)`,
+        [userId, t.title, t.category || 'other', t.dueDate, t.notes || `From: ${message.resident} — ${message.subject}`, t.aiReason || '']
       );
     }
     console.log(`AI suggested ${suggested.length} task(s) from message ${message.id}`);
@@ -741,7 +864,8 @@ Return only the JSON array, no other text.`
   }
 }
 
-async function autoReplyToMessage(message) {
+// --- Auto-reply helper ---
+async function autoReplyToMessage(message, userId) {
   try {
     const knowledgeContext = docs.length
       ? docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n')
@@ -779,8 +903,7 @@ async function autoReplyToMessage(message) {
     await pool.query('UPDATE messages SET status=$1 WHERE id=$2', ['sent', message.id]);
     console.log('Auto-reply sent for message', message.id);
 
-    // Suggest follow-up tasks based on what was promised in the reply
-    suggestTasksFromConversation(message, draft);
+    suggestTasksFromConversation(message, draft, userId);
   } catch (err) {
     console.error('Auto-reply error:', err.message);
   }
@@ -788,24 +911,24 @@ async function autoReplyToMessage(message) {
 
 // --- SendGrid: Incoming Email ---
 app.post('/api/email/incoming', upload.none(), async (req, res) => {
-  console.log('Incoming email fields:', JSON.stringify(Object.keys(req.body)));
-  console.log('From:', req.body.from, '| Subject:', req.body.subject, '| Text length:', (req.body.text || '').length);
-
   const fromRaw = req.body.from || req.body.sender || 'Unknown';
   const emailMatch = fromRaw.match(/<([^>]+)>/);
   const email = emailMatch ? emailMatch[1] : fromRaw;
   const nameMatch = fromRaw.match(/^([^<]+)</);
   const resident = nameMatch ? nameMatch[1].trim() : email;
-
   const subject = req.body.subject || '(No subject)';
   const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
 
-  const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]);
+  const { rows } = await pool.query(
+    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+    [WEBHOOK_USER_ID, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
+  );
   res.sendStatus(200);
 
   if (rows[0]) {
-    if (automation.autoReplyEnabled) autoReplyToMessage(rows[0]);
-    else suggestTasksFromConversation(rows[0], null);
+    const autoData = await getAutomation(WEBHOOK_USER_ID);
+    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
+    else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
   }
 });
 
@@ -835,10 +958,15 @@ app.post('/api/sms/incoming', async (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 
-  const { rows } = await pool.query('INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
+  const { rows } = await pool.query(
+    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+    [WEBHOOK_USER_ID, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]
+  ).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
+
   if (rows[0]) {
-    if (automation.autoReplyEnabled) autoReplyToMessage(rows[0]);
-    else suggestTasksFromConversation(rows[0], null);
+    const autoData = await getAutomation(WEBHOOK_USER_ID);
+    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
+    else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
   }
 });
 
@@ -847,11 +975,7 @@ app.post('/api/sms/send', async (req, res) => {
   const { to, body } = req.body;
   if (!to || !body) return res.status(400).json({ error: 'Missing to or body' });
   try {
-    const msg = await twilioClient.messages.create({
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to,
-      body
-    });
+    const msg = await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to, body });
     res.json({ success: true, sid: msg.sid });
   } catch (err) {
     console.error('Twilio send error:', err.message);
@@ -860,8 +984,6 @@ app.post('/api/sms/send', async (req, res) => {
 });
 
 // --- Voice / Voicemail ---
-
-// Step 1: Twilio calls this when someone dials your number
 app.post('/api/voice/incoming', (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const base = `${proto}://${req.headers.host}`;
@@ -872,14 +994,13 @@ app.post('/api/voice/incoming', (req, res) => {
 </Response>`);
 });
 
-// Step 2: Called immediately when recording ends — save placeholder to inbox
 app.post('/api/voice/recording', async (req, res) => {
   const { From, CallSid } = req.body;
   const phone = From || 'Unknown';
   try {
     await pool.query(
-      `INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,'new','inbox',$5)`,
-      [`Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
+      `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,'new','inbox',$6)`,
+      [WEBHOOK_USER_ID, `Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
     );
   } catch (err) {
     console.error('Voice recording save error:', err.message);
@@ -890,7 +1011,6 @@ app.post('/api/voice/recording', async (req, res) => {
 </Response>`);
 });
 
-// Step 3: Called ~1-2 min later when Twilio finishes transcribing
 app.post('/api/voice/transcription', async (req, res) => {
   const { TranscriptionText, TranscriptionStatus, CallSid, From } = req.body;
   const phone = From || 'Unknown';
@@ -899,14 +1019,14 @@ app.post('/api/voice/transcription', async (req, res) => {
     : '📞 Voicemail received (transcription unavailable — check your Twilio recordings)';
 
   try {
-    // Update the placeholder message saved in step 2
     const { rows } = await pool.query(
-      `UPDATE messages SET text=$1, subject=$2 WHERE subject LIKE $3 RETURNING *`,
-      [text, `Voicemail from ${phone}`, `[CALLSID:${CallSid}]%`]
+      `UPDATE messages SET text=$1, subject=$2 WHERE user_id=$3 AND subject LIKE $4 RETURNING *`,
+      [text, `Voicemail from ${phone}`, WEBHOOK_USER_ID, `[CALLSID:${CallSid}]%`]
     );
     if (rows.length) {
-      if (automation.autoReplyEnabled) await autoReplyToMessage(rows[0]);
-      else suggestTasksFromConversation(rows[0], null);
+      const autoData = await getAutomation(WEBHOOK_USER_ID);
+      if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
+      else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
     }
   } catch (err) {
     console.error('Transcription update error:', err.message);

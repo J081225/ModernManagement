@@ -72,6 +72,20 @@
       transition: all 0.2s;
     }
     .btn-signin-nav:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.3); }
+    .btn-signup-nav {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: 0.88em;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(255,107,107,0.35);
+    }
+    .btn-signup-nav:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,107,0.5); }
 
     /* Hero */
     .hero {
@@ -198,7 +212,10 @@
         <div class="nav-sub">Property Intelligence</div>
       </div>
     </div>
-    <a href="/login" class="btn-signin-nav">Sign In</a>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="/login" class="btn-signin-nav">Sign In</a>
+      <a href="/signup" class="btn-signup-nav">Get Started &rarr;</a>
+    </div>
   </nav>
 
   <section class="hero">
@@ -206,9 +223,10 @@
     <h1>Property Management,<br><span>Reimagined.</span></h1>
     <p>A private workspace for managing residents, communications, finances, and operations — all powered by AI.</p>
     <div class="hero-actions">
-      <a href="/login" class="btn-primary-hero">Sign In to Workspace &rarr;</a>
+      <a href="/signup" class="btn-primary-hero">Get Started Free &rarr;</a>
+      <a href="/login" style="font-size:0.9em;color:rgba(255,255,255,0.45);text-decoration:none;padding:12px 8px;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">Already have an account? Sign in</a>
     </div>
-    <div class="hero-note">&#128100; Access restricted to authorized users only</div>
+    <div class="hero-note">&#10003; Free plan &nbsp;&middot;&nbsp; No credit card required</div>
   </section>
 
   <div class="features">
