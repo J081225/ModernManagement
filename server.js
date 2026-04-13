@@ -10,7 +10,9 @@ const twilio = require('twilio');
 const sgMail = require('@sendgrid/mail');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const Stripe = require('stripe');
 const { Pool } = require('pg');
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
@@ -24,6 +26,8 @@ const BCRYPT_ROUNDS = 10;
 const WEBHOOK_USER_ID = 1;
 
 app.use(cors());
+// Raw body needed for Stripe webhook signature verification — must be before bodyParser
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(session({
@@ -246,6 +250,11 @@ async function initDB() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true`);
 
+  // Onboarding + Stripe columns
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`);
+
   console.log('DB init complete.');
 }
 
@@ -406,13 +415,22 @@ app.get('/api/logout', (req, res) => {
   res.redirect('/');
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json({ userId: req.session.userId, username: req.session.username });
+app.get('/api/me', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT id, username, email, plan, onboarding_completed FROM users WHERE id=$1', [req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'User not found' });
+  res.json(rows[0]);
+});
+
+app.put('/api/me/onboarding', requireAuth, async (req, res) => {
+  await pool.query('UPDATE users SET onboarding_completed=true WHERE id=$1', [req.session.userId]);
+  res.json({ success: true });
 });
 
 // Protect all /api/* routes except login/signup and inbound webhooks
 app.use('/api', (req, res, next) => {
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/billing/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -1210,5 +1228,165 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
     res.status(500).json({ error: 'Failed to generate report', details: err.message });
   }
 });
+
+// --- CSV Contact Import ---
+app.post('/api/contacts/import', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const csv = req.file.buffer.toString('utf-8');
+    const lines = csv.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row' });
+
+    // Detect header positions (case-insensitive)
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+    const col = (name) => headers.indexOf(name);
+    const nameIdx = col('name');
+    if (nameIdx === -1) return res.status(400).json({ error: 'CSV must have a "name" column' });
+
+    const typeIdx = col('type');
+    const unitIdx = col('unit');
+    const emailIdx = col('email');
+    const phoneIdx = col('phone');
+    const notesIdx = col('notes');
+
+    const parseRow = (line) => {
+      // Handle quoted fields with commas
+      const fields = [];
+      let cur = '', inQuote = false;
+      for (const ch of line) {
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      fields.push(cur.trim());
+      return fields;
+    };
+
+    let imported = 0;
+    const errors = [];
+    for (let i = 1; i < lines.length; i++) {
+      const fields = parseRow(lines[i]);
+      const name = fields[nameIdx]?.replace(/['"]/g, '').trim();
+      if (!name) continue;
+      try {
+        await pool.query(
+          'INSERT INTO contacts (user_id, name, type, unit, email, phone, notes) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+          [
+            req.session.userId,
+            name,
+            typeIdx >= 0 ? (fields[typeIdx]?.replace(/['"]/g, '').trim() || 'resident') : 'resident',
+            unitIdx >= 0 ? (fields[unitIdx]?.replace(/['"]/g, '').trim() || '') : '',
+            emailIdx >= 0 ? (fields[emailIdx]?.replace(/['"]/g, '').trim() || '') : '',
+            phoneIdx >= 0 ? (fields[phoneIdx]?.replace(/['"]/g, '').trim() || '') : '',
+            notesIdx >= 0 ? (fields[notesIdx]?.replace(/['"]/g, '').trim() || '') : ''
+          ]
+        );
+        imported++;
+      } catch (rowErr) {
+        errors.push(`Row ${i + 1}: ${rowErr.message}`);
+      }
+    }
+    res.json({ imported, errors });
+  } catch (err) {
+    console.error('CSV import error:', err.message);
+    res.status(500).json({ error: 'Failed to parse CSV', details: err.message });
+  }
+});
+
+// --- Stripe Billing ---
+app.post('/api/billing/create-checkout', requireAuth, async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Billing not configured' });
+  const appUrl = process.env.APP_URL || 'https://modernmanagement.onrender.com';
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id=$1', [req.session.userId]);
+    const user = rows[0];
+    // Reuse existing customer or create new
+    let customerId = user.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email || undefined,
+        metadata: { userId: String(user.id), username: user.username }
+      });
+      customerId = customer.id;
+      await pool.query('UPDATE users SET stripe_customer_id=$1 WHERE id=$2', [customerId, user.id]);
+    }
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: 'subscription',
+      line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID, quantity: 1 }],
+      success_url: `${appUrl}/workspace?upgraded=1`,
+      cancel_url: `${appUrl}/workspace`,
+      allow_promotion_codes: true,
+      subscription_data: { trial_period_days: 14 }
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('Stripe checkout error:', err.message);
+    res.status(500).json({ error: 'Failed to create checkout session', details: err.message });
+  }
+});
+
+app.get('/api/billing/portal', requireAuth, async (req, res) => {
+  if (!stripe) return res.status(503).json({ error: 'Billing not configured' });
+  const appUrl = process.env.APP_URL || 'https://modernmanagement.onrender.com';
+  try {
+    const { rows } = await pool.query('SELECT stripe_customer_id FROM users WHERE id=$1', [req.session.userId]);
+    const customerId = rows[0]?.stripe_customer_id;
+    if (!customerId) return res.status(400).json({ error: 'No billing account found' });
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${appUrl}/workspace`
+    });
+    res.json({ url: portal.url });
+  } catch (err) {
+    console.error('Stripe portal error:', err.message);
+    res.status(500).json({ error: 'Failed to open billing portal', details: err.message });
+  }
+});
+
+// Stripe webhook — must use raw body
+app.post('/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    if (!stripe) return res.sendStatus(200);
+    const sig = req.headers['stripe-signature'];
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    } catch (err) {
+      console.error('Stripe webhook signature error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const customerId = session.customer;
+        await pool.query(
+          'UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE stripe_customer_id=$3',
+          ['pro', session.subscription, customerId]
+        );
+        console.log('User upgraded to Pro:', customerId);
+      } else if (event.type === 'customer.subscription.deleted') {
+        const sub = event.data.object;
+        await pool.query(
+          'UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE stripe_customer_id=$3',
+          ['free', '', sub.customer]
+        );
+        console.log('User downgraded to free:', sub.customer);
+      } else if (event.type === 'customer.subscription.updated') {
+        const sub = event.data.object;
+        const plan = sub.status === 'active' || sub.status === 'trialing' ? 'pro' : 'free';
+        await pool.query(
+          'UPDATE users SET plan=$1 WHERE stripe_customer_id=$2',
+          [plan, sub.customer]
+        );
+      }
+    } catch (err) {
+      console.error('Stripe webhook handler error:', err.message);
+    }
+    res.sendStatus(200);
+  }
+);
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

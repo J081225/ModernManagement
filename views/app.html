@@ -452,6 +452,8 @@
       .stat-chip .stat-label { font-size: 0.75em; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
       .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
       .week-task .wt-date { font-size: 0.75em; color: #94a3b8; margin-top: 2px; }
+      .ob-step-dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; transition: all 0.2s; }
+      .ob-step-dot.active { background: linear-gradient(135deg, #ff6b6b, #ff8e53); width: 24px; border-radius: 4px; }
 
       /* ── Mobile hamburger button ── */
       #hamburger-btn {
@@ -854,7 +856,11 @@
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('vendor',this)" style="font-size:0.8em;padding:7px 14px;">Vendors</button>
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('important',this)" style="font-size:0.8em;padding:7px 14px;">Important</button>
             </div>
-            <button class="btn-primary" onclick="openAddContact()" style="margin-left:auto;">+ Add Contact</button>
+            <label class="btn-secondary" style="margin-left:auto;cursor:pointer;padding:10px 18px;font-size:0.87em;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:10px;background:#f1f5f9;color:#4a5568;" title="Import contacts from a CSV file">
+              &#128196; Import CSV
+              <input type="file" accept=".csv" style="display:none;" onchange="importContactsCSV(this)" />
+            </label>
+            <button class="btn-primary" onclick="openAddContact()">+ Add Contact</button>
           </div>
 
           <div style="display:flex;gap:22px;">
@@ -1005,6 +1011,18 @@
               <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
             </div>
             <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#27ae60;margin-top:8px;font-weight:500;">&#10003; Settings saved</div>
+          </div>
+
+          <!-- Billing -->
+          <div class="card" style="margin-bottom:22px;" id="billingCard">
+            <h2>&#128179; Plan &amp; Billing</h2>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
+              <div id="planBadge" style="display:inline-flex;align-items:center;gap:8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.85em;font-weight:600;color:#475569;">
+                <span id="planIcon">&#10003;</span> <span id="planName">Free plan</span>
+              </div>
+              <div id="planDesc" style="font-size:0.85em;color:#94a3b8;"></div>
+            </div>
+            <div id="billingActions"></div>
           </div>
 
           <!-- Rent Payments -->
@@ -2321,6 +2339,151 @@
         loadContacts();
       }
 
+      // --- Onboarding ---
+      async function checkOnboarding() {
+        const user = await api('me');
+        if (!user) return;
+        if (!user.onboarding_completed) {
+          const modal = document.getElementById('onboardingModal');
+          modal.style.display = 'flex';
+        }
+        // Show upgrade prompt if on free plan
+        updatePlanUI(user.plan || 'free');
+      }
+
+      function obNext(step) {
+        // Save step 1 data before moving
+        if (step === 2) {
+          const name = document.getElementById('ob-property-name').value.trim();
+          if (name) {
+            localStorage.setItem('mm_property_name', name);
+            document.getElementById('homePropertyName').textContent = name;
+          }
+        }
+        // Save step 2 data
+        if (step === 3) {
+          const email = document.getElementById('ob-notif-email').value.trim();
+          if (email) api('settings', 'PUT', { notification_email: email, notifications_enabled: true });
+        }
+        // Hide all steps, show target
+        [1,2,3].forEach(n => {
+          document.getElementById(`ob-step-${n}`).style.display = n === step ? '' : 'none';
+          const dot = document.getElementById(`ob-dot-${n}`);
+          dot.classList.toggle('active', n === step);
+        });
+      }
+
+      async function finishOnboarding() {
+        await api('me/onboarding', 'PUT', {});
+        document.getElementById('onboardingModal').style.display = 'none';
+      }
+
+      // --- Billing ---
+      async function loadBillingStatus() {
+        const user = await api('me');
+        if (!user) return;
+        updatePlanUI(user.plan || 'free');
+      }
+
+      function updatePlanUI(plan) {
+        const badge = document.getElementById('planBadge');
+        const icon = document.getElementById('planIcon');
+        const name = document.getElementById('planName');
+        const desc = document.getElementById('planDesc');
+        const actions = document.getElementById('billingActions');
+        if (!badge) return;
+
+        if (plan === 'pro' || plan === 'admin') {
+          badge.style.background = 'linear-gradient(135deg,rgba(255,107,107,0.12),rgba(255,142,83,0.08))';
+          badge.style.border = '1px solid rgba(255,107,107,0.3)';
+          badge.style.color = '#ff6b6b';
+          icon.textContent = '⭐';
+          name.textContent = plan === 'admin' ? 'Admin' : 'Pro plan';
+          desc.textContent = plan === 'admin' ? 'Full access — all features unlocked.' : 'All features unlocked. Thank you!';
+          actions.innerHTML = plan === 'admin' ? '' :
+            `<button class="btn-secondary" onclick="openBillingPortal()" style="font-size:0.85em;">Manage subscription &rarr;</button>`;
+        } else {
+          icon.textContent = '○';
+          name.textContent = 'Free plan';
+          desc.textContent = 'Upgrade to Pro for unlimited AI, voicemail, reports & more.';
+          actions.innerHTML = `
+            <div style="background:linear-gradient(135deg,rgba(255,107,107,0.06),rgba(255,142,83,0.04));border:1px solid rgba(255,107,107,0.15);border-radius:12px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+              <div>
+                <div style="font-weight:700;font-size:0.93em;color:#0f172a;">Upgrade to Pro — $49/month</div>
+                <div style="font-size:0.8em;color:#64748b;margin-top:3px;">Unlimited AI replies, voicemail, reports, maintenance, budget tracker &amp; more. 14-day free trial.</div>
+              </div>
+              <button class="btn-primary" onclick="startUpgrade()" style="white-space:nowrap;">Upgrade now &rarr;</button>
+            </div>`;
+        }
+      }
+
+      async function startUpgrade() {
+        const btn = event.target;
+        btn.disabled = true; btn.textContent = 'Loading…';
+        const data = await api('billing/create-checkout', 'POST', {});
+        if (data && data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('Billing is not yet configured. Please contact support.');
+          btn.disabled = false; btn.textContent = 'Upgrade now →';
+        }
+      }
+
+      async function openBillingPortal() {
+        const data = await api('billing/portal', 'GET');
+        if (data && data.url) window.open(data.url, '_blank');
+        else alert('Could not open billing portal.');
+      }
+
+      // Check for ?upgraded=1 in URL
+      if (new URLSearchParams(window.location.search).get('upgraded') === '1') {
+        history.replaceState({}, '', '/workspace');
+        setTimeout(() => {
+          const toast = document.createElement('div');
+          toast.innerHTML = '&#11088; You\'re now on Pro! All features are unlocked.';
+          toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:0.95em;z-index:9999;box-shadow:0 8px 30px rgba(255,107,107,0.4);';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 5000);
+        }, 800);
+      }
+
+      // --- CSV Contact Import ---
+      async function importContactsCSV(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const formData = new FormData();
+        formData.append('file', file);
+        input.value = ''; // reset so same file can be re-selected
+
+        const label = input.closest('label');
+        const origHTML = label.innerHTML;
+        label.innerHTML = '&#8987; Importing…';
+
+        try {
+          const res = await fetch('/api/contacts/import', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (res.ok) {
+            await loadContacts();
+            let msg = `✓ Imported ${data.imported} contact${data.imported !== 1 ? 's' : ''}.`;
+            if (data.errors && data.errors.length) msg += ` ${data.errors.length} row(s) skipped.`;
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#27ae60;color:white;padding:12px 24px;border-radius:10px;font-weight:600;font-size:0.9em;z-index:9999;box-shadow:0 4px 16px rgba(39,174,96,0.35);';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+          } else {
+            alert(data.error || 'Import failed.');
+          }
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        } finally {
+          label.innerHTML = origHTML;
+        }
+      }
+
       // --- Mobile sidebar ---
       function toggleMobileSidebar() {
         const sidebar = document.getElementById('sidebar');
@@ -2628,6 +2791,7 @@
 
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
+        loadBillingStatus(); checkOnboarding();
         initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable();
         // Init budget month/year to current
         const now = new Date();
@@ -2638,6 +2802,51 @@
       };
     </script>
   <!-- Maintenance Ticket Modal -->
+  <!-- Onboarding Modal -->
+  <div class="modal-overlay" id="onboardingModal" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:480px;text-align:center;">
+      <!-- Step indicators -->
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:28px;">
+        <div class="ob-step-dot active" id="ob-dot-1"></div>
+        <div class="ob-step-dot" id="ob-dot-2"></div>
+        <div class="ob-step-dot" id="ob-dot-3"></div>
+      </div>
+
+      <!-- Step 1 -->
+      <div id="ob-step-1">
+        <div style="font-size:2.5em;margin-bottom:14px;">&#127968;</div>
+        <h3 style="font-size:1.3em;margin-bottom:10px;">Welcome to Modern Management!</h3>
+        <p style="font-size:0.88em;color:#64748b;margin-bottom:24px;line-height:1.6;">Let's get your workspace set up in 2 minutes. First — what's the name of your property or business?</p>
+        <input id="ob-property-name" type="text" placeholder="e.g. Riverside Apartments, Smith Law Group..." style="text-align:center;font-size:1em;font-weight:600;" />
+        <button class="btn-primary" onclick="obNext(2)" style="width:100%;margin-top:8px;">Continue &rarr;</button>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="ob-step-2" style="display:none;">
+        <div style="font-size:2.5em;margin-bottom:14px;">&#128276;</div>
+        <h3 style="font-size:1.3em;margin-bottom:10px;">Stay in the loop</h3>
+        <p style="font-size:0.88em;color:#64748b;margin-bottom:24px;line-height:1.6;">Get an email alert whenever a new message, SMS, or voicemail arrives — even when you're not in the app.</p>
+        <input id="ob-notif-email" type="email" placeholder="your@email.com" style="text-align:center;" />
+        <button class="btn-primary" onclick="obNext(3)" style="width:100%;margin-top:8px;">Continue &rarr;</button>
+        <button onclick="obNext(3)" style="width:100%;margin-top:6px;background:none;color:#94a3b8;font-size:0.82em;border:none;cursor:pointer;padding:4px;">Skip for now</button>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="ob-step-3" style="display:none;">
+        <div style="font-size:2.8em;margin-bottom:14px;">&#127881;</div>
+        <h3 style="font-size:1.3em;margin-bottom:10px;">You're all set!</h3>
+        <p style="font-size:0.88em;color:#64748b;margin-bottom:20px;line-height:1.6;">Here's a quick look at what you can do:</p>
+        <div style="text-align:left;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#9993;</span> <span><strong>Inbox</strong> — manage resident emails, SMS &amp; voicemails</span></div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#129302;</span> <span><strong>Ask AI</strong> — add events, tasks, or compose messages by typing or speaking</span></div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#128295;</span> <span><strong>Maintenance</strong> — log tickets, get emergency SMS alerts</span></div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#128200;</span> <span><strong>Budget</strong> — track income and expenses with a full ledger</span></div>
+        </div>
+        <button class="btn-primary" onclick="finishOnboarding()" style="width:100%;">Go to my workspace &rarr;</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="maintModal" onclick="if(event.target===this)closeMaintModal()" style="display:none;">
     <div class="modal" style="max-width:500px;">
       <h3 id="maintModalTitle">🔧 New Maintenance Ticket</h3>
