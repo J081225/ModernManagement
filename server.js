@@ -205,6 +205,106 @@ app.delete('/api/tasks/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// --- Maintenance Tickets table ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS maintenance_tickets (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    unit TEXT DEFAULT '',
+    resident TEXT DEFAULT '',
+    category TEXT DEFAULT 'general',
+    priority TEXT DEFAULT 'normal',
+    status TEXT DEFAULT 'open',
+    outcome TEXT DEFAULT '',
+    requires_action BOOLEAN DEFAULT false,
+    action_notes TEXT DEFAULT '',
+    emergency_sms_sent BOOLEAN DEFAULT false,
+    "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(err => console.error('Maintenance DB init error:', err.message));
+
+const EMERGENCY_KEYWORDS = [
+  'gas leak','gas smell','flooding','flood','sewage','raw sewage',
+  'fire','smoke','carbon monoxide','no heat','burst pipe','burst pipes',
+  'broken window','shattered window','structural','collapse','roof collapse',
+  'electrical fire','sparks','no water','water damage','major leak'
+];
+
+function isEmergency(text) {
+  const lower = (text || '').toLowerCase();
+  return EMERGENCY_KEYWORDS.some(k => lower.includes(k));
+}
+
+async function sendEmergencySMS(ticket) {
+  const phone = process.env.MAINTENANCE_PHONE;
+  if (!phone) { console.log('No MAINTENANCE_PHONE set — skipping emergency SMS'); return false; }
+  try {
+    const msg = `🚨 EMERGENCY MAINTENANCE — ${ticket.unit ? 'Unit ' + ticket.unit + ' · ' : ''}${ticket.title}. ${ticket.description ? ticket.description.slice(0, 100) : ''} Resident: ${ticket.resident || 'Unknown'}. Please respond immediately.`;
+    await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to: phone, body: msg });
+    await pool.query('UPDATE maintenance_tickets SET emergency_sms_sent=true WHERE id=$1', [ticket.id]);
+    console.log('Emergency SMS sent for ticket', ticket.id);
+    return true;
+  } catch (err) {
+    console.error('Emergency SMS error:', err.message);
+    return false;
+  }
+}
+
+app.get('/api/maintenance', async (_req, res) => {
+  const { rows } = await pool.query('SELECT * FROM maintenance_tickets ORDER BY priority DESC, "createdAt" DESC');
+  res.json(rows);
+});
+
+app.post('/api/maintenance', async (req, res) => {
+  const { title, description, unit, resident, category } = req.body;
+  const priority = isEmergency(title + ' ' + description) ? 'emergency' : 'normal';
+  const { rows } = await pool.query(
+    `INSERT INTO maintenance_tickets (title, description, unit, resident, category, priority)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [title, description || '', unit || '', resident || '', category || 'general', priority]
+  );
+  const ticket = rows[0];
+  res.status(201).json(ticket);
+  // Fire emergency SMS after responding
+  if (priority === 'emergency') sendEmergencySMS(ticket);
+  // Also create an AI-suggested task
+  suggestTasksFromConversation(
+    { id: ticket.id, resident: ticket.resident || 'Unknown', subject: title, text: description || title, category: 'maintenance' },
+    null
+  );
+});
+
+app.put('/api/maintenance/:id', async (req, res) => {
+  const { status, outcome, requires_action, action_notes } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE maintenance_tickets SET status=$1, outcome=$2, requires_action=$3, action_notes=$4, "updatedAt"=NOW()
+     WHERE id=$5 RETURNING *`,
+    [status, outcome || '', requires_action || false, action_notes || '', Number(req.params.id)]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Ticket not found' });
+  // If resolved with office action required, create a suggested task
+  if (status === 'resolved' && requires_action) {
+    await pool.query(
+      `INSERT INTO tasks (title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,false,true,$5)`,
+      [
+        `Office action required: ${rows[0].title}`,
+        'maintenance',
+        new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
+        action_notes || `Maintenance resolved ticket for unit ${rows[0].unit}. Office follow-up needed.`,
+        'Maintenance marked this ticket as requiring office action (contractor/payment/approval).'
+      ]
+    );
+  }
+  res.json(rows[0]);
+});
+
+app.delete('/api/maintenance/:id', async (req, res) => {
+  await pool.query('DELETE FROM maintenance_tickets WHERE id=$1', [Number(req.params.id)]);
+  res.json({ success: true });
+});
+
 // --- Calendar Events table ---
 pool.query(`
   CREATE TABLE IF NOT EXISTS cal_events (

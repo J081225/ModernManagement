@@ -472,6 +472,7 @@
         <a href="#" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
+        <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
@@ -834,6 +835,36 @@
           </div>
         </div>
 
+        <!-- MAINTENANCE PAGE -->
+        <div class="page" id="page-maintenance">
+
+          <!-- Emergency banner -->
+          <div id="emergencyBanner" style="display:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:1.5em;">🚨</span>
+            <div><strong>Emergency tickets open</strong> — maintenance contact has been notified via SMS</div>
+          </div>
+
+          <!-- Summary chips -->
+          <div id="maintSummary" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;"></div>
+
+          <!-- Controls -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+            <select id="maintFilter" onchange="renderMaintenance()" style="padding:8px 12px;border:1px solid #dde3ec;border-radius:8px;font-size:0.88em;background:white;">
+              <option value="all">All Tickets</option>
+              <option value="emergency">🚨 Emergency</option>
+              <option value="open">Open</option>
+              <option value="in-progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <div style="flex:1;"></div>
+            <button class="btn-primary" onclick="openNewTicket()" style="white-space:nowrap;">+ New Ticket</button>
+          </div>
+
+          <!-- Ticket list -->
+          <div id="maintTicketList" style="display:flex;flex-direction:column;gap:14px;"></div>
+
+        </div>
+
         <!-- ADMIN PAGE -->
         <div class="page" id="page-admin">
 
@@ -951,7 +982,7 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', tasks: 'Tasks', contacts: 'Contacts' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts' };
         if (name === 'home') loadHomeStats();
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
@@ -1833,6 +1864,173 @@
         }
       }
 
+      // --- Maintenance ---
+      let maintenanceTickets = [];
+
+      async function loadMaintenance() {
+        maintenanceTickets = await api('maintenance') || [];
+        renderMaintenance();
+        updateMaintBadge();
+      }
+
+      function updateMaintBadge() {
+        const open = maintenanceTickets.filter(t => t.status !== 'resolved').length;
+        const badge = document.getElementById('maint-alert-badge');
+        if (open > 0) { badge.textContent = open; badge.style.display = 'inline-block'; }
+        else badge.style.display = 'none';
+      }
+
+      function renderMaintenance() {
+        const filter = document.getElementById('maintFilter').value;
+        const emergencies = maintenanceTickets.filter(t => t.priority === 'emergency' && t.status !== 'resolved');
+
+        // Emergency banner
+        const banner = document.getElementById('emergencyBanner');
+        if (emergencies.length) banner.style.display = 'flex'; else banner.style.display = 'none';
+
+        // Summary
+        const open = maintenanceTickets.filter(t => t.status === 'open').length;
+        const inProg = maintenanceTickets.filter(t => t.status === 'in-progress').length;
+        const resolved = maintenanceTickets.filter(t => t.status === 'resolved').length;
+        const emgCount = maintenanceTickets.filter(t => t.priority === 'emergency').length;
+        const needsAction = maintenanceTickets.filter(t => t.requires_action && t.status !== 'resolved').length;
+        document.getElementById('maintSummary').innerHTML = `
+          <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='open';renderMaintenance()">
+            <div class="stat-num" style="color:#f59e0b;">${open}</div><div class="stat-label">Open</div>
+          </div>
+          <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='in-progress';renderMaintenance()">
+            <div class="stat-num" style="color:#3b82f6;">${inProg}</div><div class="stat-label">In Progress</div>
+          </div>
+          <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='resolved';renderMaintenance()">
+            <div class="stat-num" style="color:#27ae60;">${resolved}</div><div class="stat-label">Resolved</div>
+          </div>
+          ${emgCount ? `<div class="stat-chip" style="background:#fef2f2;border-color:#fca5a5;cursor:pointer;" onclick="document.getElementById('maintFilter').value='emergency';renderMaintenance()">
+            <div class="stat-num" style="color:#dc2626;">${emgCount}</div><div class="stat-label" style="color:#dc2626;">Emergency</div>
+          </div>` : ''}
+          ${needsAction ? `<div class="stat-chip" style="background:#fff7ed;border-color:#fed7aa;">
+            <div class="stat-num" style="color:#ea580c;">${needsAction}</div><div class="stat-label" style="color:#ea580c;">Needs Action</div>
+          </div>` : ''}
+        `;
+
+        // Filter tickets
+        let filtered = maintenanceTickets;
+        if (filter === 'emergency') filtered = maintenanceTickets.filter(t => t.priority === 'emergency');
+        else if (filter !== 'all') filtered = maintenanceTickets.filter(t => t.status === filter);
+
+        const list = document.getElementById('maintTicketList');
+        if (!filtered.length) {
+          list.innerHTML = '<div class="card" style="text-align:center;color:#94a3b8;padding:32px;">No tickets found.</div>';
+          return;
+        }
+
+        list.innerHTML = filtered.map(t => {
+          const isEmergency = t.priority === 'emergency';
+          const statusColors = { open: '#f59e0b', 'in-progress': '#3b82f6', resolved: '#27ae60' };
+          const statusColor = statusColors[t.status] || '#94a3b8';
+          const created = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+
+          return `<div class="card" style="border-left:4px solid ${isEmergency ? '#dc2626' : statusColor};padding:18px 20px;">
+            <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:220px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                  ${isEmergency ? '<span style="background:#dc2626;color:white;border-radius:5px;padding:2px 9px;font-size:0.75em;font-weight:700;">🚨 EMERGENCY</span>' : ''}
+                  <span style="background:${statusColor}22;color:${statusColor};border-radius:5px;padding:2px 9px;font-size:0.75em;font-weight:700;text-transform:uppercase;">${t.status}</span>
+                  <span style="background:#f1f5f9;color:#64748b;border-radius:5px;padding:2px 8px;font-size:0.75em;">${t.category}</span>
+                  ${t.requires_action ? '<span style="background:#fff7ed;color:#ea580c;border-radius:5px;padding:2px 8px;font-size:0.75em;font-weight:600;">⚠ Office Action Required</span>' : ''}
+                </div>
+                <div style="font-size:1.02em;font-weight:700;color:#1a2e4a;margin-bottom:4px;">${t.title}</div>
+                <div style="font-size:0.82em;color:#64748b;margin-bottom:6px;">
+                  ${t.unit ? `Unit ${t.unit} · ` : ''}${t.resident || ''} · Created ${created}
+                  ${t.emergency_sms_sent ? ' · <span style="color:#27ae60;">✓ Emergency SMS sent</span>' : ''}
+                </div>
+                ${t.description ? `<div style="font-size:0.88em;color:#475569;margin-bottom:8px;">${t.description}</div>` : ''}
+                ${t.outcome ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#166534;margin-bottom:8px;"><strong>Maintenance Outcome:</strong> ${t.outcome}</div>` : ''}
+                ${t.action_notes ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#9a3412;"><strong>Office Action Notes:</strong> ${t.action_notes}</div>` : ''}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;">
+                ${t.status !== 'resolved' ? `
+                  <select onchange="quickUpdateStatus(${t.id}, this.value)" style="padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.85em;background:white;font-family:inherit;">
+                    <option value="open" ${t.status==='open'?'selected':''}>Open</option>
+                    <option value="in-progress" ${t.status==='in-progress'?'selected':''}>In Progress</option>
+                    <option value="resolved" ${t.status==='resolved'?'selected':''}>Resolved</option>
+                  </select>
+                  <button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Update / Resolve</button>
+                ` : `<button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Edit</button>`}
+                <button onclick="deleteMaintTicket(${t.id})" style="background:none;border:1px solid #fca5a5;color:#e74c3c;border-radius:7px;padding:7px 10px;font-size:0.82em;cursor:pointer;font-family:inherit;">&#128465; Delete</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      async function quickUpdateStatus(id, status) {
+        const t = maintenanceTickets.find(t => t.id === id);
+        if (!t) return;
+        await api(`maintenance/${id}`, 'PUT', { status, outcome: t.outcome, requires_action: t.requires_action, action_notes: t.action_notes });
+        await loadMaintenance();
+      }
+
+      async function deleteMaintTicket(id) {
+        if (!confirm('Delete this maintenance ticket?')) return;
+        await api(`maintenance/${id}`, 'DELETE');
+        await loadMaintenance();
+      }
+
+      function openNewTicket() {
+        document.getElementById('maintModalTitle').textContent = '🔧 New Maintenance Ticket';
+        document.getElementById('maintTicketId').value = '';
+        document.getElementById('maintForm').reset();
+        document.getElementById('maintUpdateSection').style.display = 'none';
+        document.getElementById('maintModal').style.display = 'flex';
+      }
+
+      function openUpdateTicket(id) {
+        const t = maintenanceTickets.find(t => t.id === id);
+        if (!t) return;
+        document.getElementById('maintModalTitle').textContent = '🔧 Update Ticket';
+        document.getElementById('maintTicketId').value = id;
+        document.getElementById('maintTitleInput').value = t.title;
+        document.getElementById('maintDesc').value = t.description || '';
+        document.getElementById('maintUnit').value = t.unit || '';
+        document.getElementById('maintResident').value = t.resident || '';
+        document.getElementById('maintCategory').value = t.category || 'general';
+        document.getElementById('maintStatus').value = t.status || 'open';
+        document.getElementById('maintOutcome').value = t.outcome || '';
+        document.getElementById('maintRequiresAction').checked = t.requires_action || false;
+        document.getElementById('maintActionNotes').value = t.action_notes || '';
+        document.getElementById('maintUpdateSection').style.display = 'block';
+        document.getElementById('maintModal').style.display = 'flex';
+      }
+
+      function closeMaintModal() {
+        document.getElementById('maintModal').style.display = 'none';
+      }
+
+      async function submitMaintTicket() {
+        const id = document.getElementById('maintTicketId').value;
+        const title = document.getElementById('maintTitleInput').value.trim();
+        const description = document.getElementById('maintDesc').value.trim();
+        const unit = document.getElementById('maintUnit').value.trim();
+        const resident = document.getElementById('maintResident').value.trim();
+        const category = document.getElementById('maintCategory').value;
+        if (!title) return alert('Please enter a title.');
+
+        if (id) {
+          const status = document.getElementById('maintStatus').value;
+          const outcome = document.getElementById('maintOutcome').value.trim();
+          const requires_action = document.getElementById('maintRequiresAction').checked;
+          const action_notes = document.getElementById('maintActionNotes').value.trim();
+          await api(`maintenance/${id}`, 'PUT', { status, outcome, requires_action, action_notes });
+        } else {
+          const newTicket = await api('maintenance', 'POST', { title, description, unit, resident, category });
+          if (newTicket && newTicket.priority === 'emergency') {
+            alert('🚨 Emergency ticket created! Your maintenance contact is being notified via SMS.');
+          }
+        }
+        closeMaintModal();
+        await loadMaintenance();
+      }
+
       // --- Contacts ---
       let contacts = [];
       let contactTypeFilter = 'all';
@@ -2232,9 +2430,74 @@
         document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
         document.getElementById('budgetYearSel').value = String(now.getFullYear());
         loadBudget();
-        loadTasks(); loadContacts();
+        loadTasks(); loadContacts(); loadMaintenance();
       };
     </script>
+  <!-- Maintenance Ticket Modal -->
+  <div class="modal-overlay" id="maintModal" onclick="if(event.target===this)closeMaintModal()" style="display:none;">
+    <div class="modal" style="max-width:500px;">
+      <h3 id="maintModalTitle">🔧 New Maintenance Ticket</h3>
+      <input type="hidden" id="maintTicketId" />
+
+      <label>Title / Issue *</label>
+      <input id="maintTitleInput" placeholder="e.g. Gas smell in hallway, Broken heater unit 204" style="margin-bottom:14px;" />
+
+      <div style="display:flex;gap:12px;margin-bottom:14px;">
+        <div style="flex:1;">
+          <label>Unit</label>
+          <input id="maintUnit" placeholder="e.g. 204" />
+        </div>
+        <div style="flex:1;">
+          <label>Resident</label>
+          <input id="maintResident" placeholder="e.g. Alex Rivera" />
+        </div>
+      </div>
+
+      <label>Category</label>
+      <select id="maintCategory" style="margin-bottom:14px;">
+        <option value="general">General</option>
+        <option value="plumbing">Plumbing</option>
+        <option value="electrical">Electrical</option>
+        <option value="hvac">HVAC / Heating</option>
+        <option value="appliance">Appliance</option>
+        <option value="structural">Structural</option>
+        <option value="pest">Pest Control</option>
+        <option value="other">Other</option>
+      </select>
+
+      <label>Description</label>
+      <textarea id="maintDesc" rows="3" placeholder="Describe the issue in detail..." style="margin-bottom:14px;"></textarea>
+
+      <!-- Update section (only shown when editing) -->
+      <div id="maintUpdateSection" style="display:none;border-top:1px solid #e8edf4;padding-top:16px;margin-top:4px;">
+        <label>Status</label>
+        <select id="maintStatus" style="margin-bottom:14px;">
+          <option value="open">Open</option>
+          <option value="in-progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+
+        <label>Maintenance Outcome / What Was Done</label>
+        <textarea id="maintOutcome" rows="3" placeholder="What did maintenance do? What was the result?" style="margin-bottom:14px;"></textarea>
+
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;font-weight:600;color:#ea580c;">
+          <input type="checkbox" id="maintRequiresAction" style="width:16px;height:16px;" />
+          Office action required (contractor, payment, approval, etc.)
+        </label>
+
+        <div id="actionNotesWrap">
+          <label>Office Action Notes</label>
+          <textarea id="maintActionNotes" rows="2" placeholder="What does the office need to do? e.g. Get contractor quote, approve repair over $500..." style="margin-bottom:14px;"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeMaintModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitMaintTicket()">Save Ticket</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add Transaction Modal -->
   <div class="modal-overlay" id="txModal" onclick="if(event.target===this)closeTxModal()" style="display:none;">
     <div class="modal" style="max-width:460px;">
