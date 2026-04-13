@@ -3,91 +3,79 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Modern Management</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Modern Management — AI-Powered Property Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
     body {
       font-family: 'Inter', sans-serif;
       background: #0d1117;
       color: white;
-      min-height: 100vh;
       overflow-x: hidden;
     }
 
-    /* Background gradient blobs */
+    /* ── Background blobs ── */
     .bg-blob {
       position: fixed;
       border-radius: 50%;
-      filter: blur(100px);
-      opacity: 0.18;
+      filter: blur(120px);
+      opacity: 0.12;
       pointer-events: none;
       z-index: 0;
     }
-    .blob-1 { width: 600px; height: 600px; background: #ff6b6b; top: -200px; left: -150px; }
-    .blob-2 { width: 500px; height: 500px; background: #667eea; bottom: -100px; right: -100px; }
-    .blob-3 { width: 350px; height: 350px; background: #ff8e53; top: 40%; left: 40%; }
+    .blob-1 { width: 700px; height: 700px; background: #ff6b6b; top: -250px; left: -200px; }
+    .blob-2 { width: 600px; height: 600px; background: #667eea; bottom: 0; right: -200px; }
+    .blob-3 { width: 400px; height: 400px; background: #ff8e53; top: 60%; left: 35%; }
 
-    /* Nav */
+    /* ── Nav ── */
     nav {
-      position: relative;
-      z-index: 10;
+      position: sticky;
+      top: 0;
+      z-index: 100;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 22px 48px;
+      padding: 18px 56px;
       border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(16px);
     }
-    .nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
     .nav-badge {
-      width: 40px;
-      height: 40px;
+      width: 38px; height: 38px;
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
       border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.95em;
-      letter-spacing: -1px;
-      box-shadow: 0 4px 20px rgba(255,107,107,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.9em; letter-spacing: -1px;
+      box-shadow: 0 4px 16px rgba(255,107,107,0.4);
     }
-    .nav-name { font-size: 1em; font-weight: 700; color: white; }
-    .nav-sub { font-size: 0.68em; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 1.2px; }
-
-    .btn-signin-nav {
-      background: rgba(255,255,255,0.08);
-      color: white;
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 9px 22px;
+    .nav-wordmark { font-size: 0.97em; font-weight: 700; color: white; }
+    .nav-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-nav-ghost {
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      padding: 8px 18px;
       border-radius: 8px;
       font-size: 0.88em;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s;
+      font-weight: 500;
+      transition: color 0.2s;
     }
-    .btn-signin-nav:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.3); }
-    .btn-signup-nav {
+    .btn-nav-ghost:hover { color: white; }
+    .btn-nav-primary {
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
       color: white;
-      border: none;
-      padding: 9px 22px;
+      text-decoration: none;
+      padding: 8px 20px;
       border-radius: 8px;
       font-size: 0.88em;
       font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s;
       box-shadow: 0 4px 14px rgba(255,107,107,0.35);
+      transition: all 0.2s;
     }
-    .btn-signup-nav:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,107,0.5); }
+    .btn-nav-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,107,107,0.5); }
 
-    /* Hero */
+    /* ── Hero ── */
     .hero {
       position: relative;
       z-index: 5;
@@ -95,106 +83,294 @@
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 100px 24px 80px;
+      padding: 110px 24px 90px;
     }
     .hero-eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(255,107,107,0.12);
-      border: 1px solid rgba(255,107,107,0.25);
+      background: rgba(255,107,107,0.1);
+      border: 1px solid rgba(255,107,107,0.22);
       border-radius: 20px;
-      padding: 5px 14px;
+      padding: 5px 16px;
       font-size: 0.78em;
       font-weight: 600;
       color: #ff8e53;
-      letter-spacing: 0.5px;
-      margin-bottom: 28px;
+      letter-spacing: 0.4px;
+      margin-bottom: 30px;
     }
     .hero h1 {
-      font-size: clamp(2.4em, 5vw, 4em);
-      font-weight: 800;
-      line-height: 1.12;
-      letter-spacing: -1.5px;
-      max-width: 720px;
-      margin-bottom: 24px;
+      font-size: clamp(2.6em, 6vw, 4.4em);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -2px;
+      max-width: 800px;
+      margin-bottom: 26px;
     }
-    .hero h1 span {
-      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+    .hero h1 .grad {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .hero p {
-      font-size: 1.12em;
-      color: rgba(255,255,255,0.55);
-      max-width: 520px;
-      line-height: 1.7;
-      margin-bottom: 44px;
+    .hero-sub {
+      font-size: 1.15em;
+      color: rgba(255,255,255,0.5);
+      max-width: 560px;
+      line-height: 1.75;
+      margin-bottom: 46px;
     }
-    .hero-actions {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .btn-primary-hero {
+    .hero-ctas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+    .btn-hero-primary {
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
       color: white;
-      border: none;
-      padding: 14px 34px;
-      border-radius: 10px;
+      text-decoration: none;
+      padding: 15px 36px;
+      border-radius: 11px;
       font-size: 1em;
       font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: 0 8px 30px rgba(255,107,107,0.35);
+      box-shadow: 0 8px 28px rgba(255,107,107,0.38);
       transition: all 0.2s;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.1px;
     }
-    .btn-primary-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(255,107,107,0.5); }
-    .hero-note {
-      font-size: 0.82em;
-      color: rgba(255,255,255,0.3);
-      margin-top: 18px;
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255,107,107,0.52); }
+    .btn-hero-ghost {
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      padding: 15px 26px;
+      border-radius: 11px;
+      font-size: 1em;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: all 0.2s;
     }
+    .btn-hero-ghost:hover { color: white; border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.04); }
+    .hero-note { font-size: 0.8em; color: rgba(255,255,255,0.25); }
+    .hero-note span { color: rgba(255,255,255,0.4); }
 
-    /* Feature cards */
-    .features {
+    /* ── Stats bar ── */
+    .stats-bar {
       position: relative;
       z-index: 5;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      padding: 36px 24px;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      text-align: center;
+      padding: 0 52px;
+      border-right: 1px solid rgba(255,255,255,0.07);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-size: 2.2em; font-weight: 800; color: white; letter-spacing: -1px; }
+    .stat-num .unit { font-size: 0.55em; font-weight: 600; color: rgba(255,255,255,0.4); vertical-align: super; }
+    .stat-label { font-size: 0.78em; color: rgba(255,255,255,0.35); margin-top: 4px; letter-spacing: 0.3px; }
+
+    /* ── Features ── */
+    .section {
+      position: relative;
+      z-index: 5;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 90px 32px;
+    }
+    .section-label {
+      font-size: 0.72em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #ff8e53;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .section-title {
+      font-size: clamp(1.8em, 3.5vw, 2.6em);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      text-align: center;
+      color: rgba(255,255,255,0.45);
+      font-size: 1.02em;
+      line-height: 1.7;
+      max-width: 540px;
+      margin: 0 auto 60px;
+    }
+
+    .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-      max-width: 1000px;
-      margin: 20px auto 80px;
-      padding: 0 32px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
     }
     .feature-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 16px;
+      padding: 28px 26px;
+      transition: all 0.22s;
+    }
+    .feature-card:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,107,107,0.2);
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      width: 44px; height: 44px;
+      background: rgba(255,107,107,0.12);
+      border: 1px solid rgba(255,107,107,0.2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.25em;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 { font-size: 0.97em; font-weight: 700; color: white; margin-bottom: 8px; }
+    .feature-card p { font-size: 0.83em; color: rgba(255,255,255,0.42); line-height: 1.65; }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+    .pricing-card {
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 14px;
-      padding: 26px 24px;
+      border-radius: 20px;
+      padding: 34px 30px 30px;
+      position: relative;
+      transition: all 0.22s;
+    }
+    .pricing-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-4px); }
+    .pricing-card.featured {
+      background: rgba(255,107,107,0.08);
+      border-color: rgba(255,107,107,0.35);
+      box-shadow: 0 0 0 1px rgba(255,107,107,0.15), 0 24px 60px rgba(255,107,107,0.1);
+    }
+    .pricing-card.featured:hover { border-color: rgba(255,107,107,0.55); }
+    .popular-badge {
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      font-size: 0.7em;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 4px 16px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .plan-name { font-size: 0.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.45); margin-bottom: 12px; }
+    .plan-price { font-size: 3em; font-weight: 900; letter-spacing: -2px; color: white; line-height: 1; margin-bottom: 4px; }
+    .plan-price .dollar { font-size: 0.45em; font-weight: 600; vertical-align: super; color: rgba(255,255,255,0.6); }
+    .plan-price .period { font-size: 0.28em; font-weight: 500; color: rgba(255,255,255,0.35); letter-spacing: 0; vertical-align: baseline; }
+    .plan-desc { font-size: 0.83em; color: rgba(255,255,255,0.38); margin-bottom: 26px; line-height: 1.5; }
+    .plan-divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 24px 0; }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; }
+    .plan-features li { font-size: 0.85em; color: rgba(255,255,255,0.62); display: flex; align-items: flex-start; gap: 9px; line-height: 1.4; }
+    .plan-features li::before { content: '✓'; color: #ff6b6b; font-weight: 700; font-size: 0.9em; flex-shrink: 0; margin-top: 1px; }
+    .plan-features li.muted { color: rgba(255,255,255,0.28); }
+    .plan-features li.muted::before { color: rgba(255,255,255,0.15); }
+    .btn-plan {
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      padding: 13px;
+      border-radius: 10px;
+      font-size: 0.92em;
+      font-weight: 700;
       transition: all 0.2s;
     }
-    .feature-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); transform: translateY(-2px); }
-    .feature-icon {
-      font-size: 1.6em;
-      margin-bottom: 14px;
+    .btn-plan-ghost {
+      background: rgba(255,255,255,0.07);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.12);
     }
-    .feature-card h3 { font-size: 0.97em; font-weight: 700; margin-bottom: 8px; color: white; }
-    .feature-card p { font-size: 0.83em; color: rgba(255,255,255,0.45); line-height: 1.6; }
+    .btn-plan-ghost:hover { background: rgba(255,255,255,0.12); }
+    .btn-plan-primary {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.35);
+    }
+    .btn-plan-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(255,107,107,0.5); }
+    .btn-plan-outline {
+      background: transparent;
+      color: rgba(255,255,255,0.55);
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .btn-plan-outline:hover { border-color: rgba(255,255,255,0.3); color: white; }
 
-    /* Footer */
-    footer {
+    /* ── FAQ ── */
+    .faq-list { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      padding: 20px 24px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .faq-item:hover { background: rgba(255,255,255,0.055); }
+    .faq-q { font-size: 0.92em; font-weight: 600; color: white; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .faq-toggle { color: #ff6b6b; font-size: 1.1em; flex-shrink: 0; transition: transform 0.2s; }
+    .faq-a { font-size: 0.84em; color: rgba(255,255,255,0.45); line-height: 1.7; margin-top: 12px; display: none; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-toggle { transform: rotate(45deg); }
+
+    /* ── Final CTA ── */
+    .cta-section {
       position: relative;
       z-index: 5;
       text-align: center;
-      padding: 28px;
+      padding: 100px 24px;
       border-top: 1px solid rgba(255,255,255,0.06);
-      font-size: 0.78em;
-      color: rgba(255,255,255,0.2);
+    }
+    .cta-section h2 { font-size: clamp(2em, 4vw, 3em); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .cta-section p { font-size: 1.05em; color: rgba(255,255,255,0.45); margin-bottom: 36px; }
+
+    /* ── Footer ── */
+    footer {
+      position: relative;
+      z-index: 5;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: 32px 56px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    footer .foot-logo { display: flex; align-items: center; gap: 10px; font-size: 0.88em; font-weight: 600; color: rgba(255,255,255,0.4); }
+    footer .foot-links { display: flex; gap: 24px; }
+    footer .foot-links a { font-size: 0.82em; color: rgba(255,255,255,0.25); text-decoration: none; transition: color 0.2s; }
+    footer .foot-links a:hover { color: rgba(255,255,255,0.55); }
+
+    /* ── Mobile ── */
+    @media (max-width: 900px) {
+      nav { padding: 16px 24px; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+      .stat-item { padding: 16px 28px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); width: 50%; }
+      .stat-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.07); }
+      .stat-item:last-child { border-bottom: none; }
+      footer { padding: 28px 24px; flex-direction: column; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .hero h1 { letter-spacing: -1px; }
+      .stat-item { width: 100%; border-right: none; }
+      nav .btn-nav-ghost { display: none; }
     }
   </style>
 </head>
@@ -204,57 +380,240 @@
   <div class="bg-blob blob-2"></div>
   <div class="bg-blob blob-3"></div>
 
+  <!-- Nav -->
   <nav>
-    <div class="nav-logo">
+    <a href="/" class="nav-logo">
       <div class="nav-badge">MM</div>
-      <div>
-        <div class="nav-name">Modern Management</div>
-        <div class="nav-sub">Property Intelligence</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;">
-      <a href="/login" class="btn-signin-nav">Sign In</a>
-      <a href="/signup" class="btn-signup-nav">Get Started &rarr;</a>
+      <div class="nav-wordmark">Modern Management</div>
+    </a>
+    <div class="nav-actions">
+      <a href="#pricing" class="btn-nav-ghost">Pricing</a>
+      <a href="/login" class="btn-nav-ghost">Sign In</a>
+      <a href="/signup" class="btn-nav-primary">Get Started Free</a>
     </div>
   </nav>
 
+  <!-- Hero -->
   <section class="hero">
-    <div class="hero-eyebrow">&#128274; Authorized Access Only</div>
-    <h1>Property Management,<br><span>Reimagined.</span></h1>
-    <p>A private workspace for managing residents, communications, finances, and operations — all powered by AI.</p>
-    <div class="hero-actions">
-      <a href="/signup" class="btn-primary-hero">Get Started Free &rarr;</a>
-      <a href="/login" style="font-size:0.9em;color:rgba(255,255,255,0.45);text-decoration:none;padding:12px 8px;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.75)'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">Already have an account? Sign in</a>
+    <div class="hero-eyebrow">&#129302; Powered by Claude AI</div>
+    <h1>Property Management<br><span class="grad">Reimagined with AI.</span></h1>
+    <p class="hero-sub">One intelligent workspace for your inbox, tasks, maintenance, finances, and residents — with AI that actually gets things done for you.</p>
+    <div class="hero-ctas">
+      <a href="/signup" class="btn-hero-primary">Start for Free &rarr;</a>
+      <a href="#features" class="btn-hero-ghost">See what's inside</a>
     </div>
-    <div class="hero-note">&#10003; Free plan &nbsp;&middot;&nbsp; No credit card required</div>
+    <div class="hero-note"><span>&#10003; Free plan available</span> &nbsp;&middot;&nbsp; No credit card required &nbsp;&middot;&nbsp; <span>Set up in minutes</span></div>
   </section>
 
-  <div class="features">
-    <div class="feature-card">
-      <div class="feature-icon">&#9993;</div>
-      <h3>Smart Inbox</h3>
-      <p>Manage all resident messages by email and SMS in one place, with AI-drafted replies.</p>
+  <!-- Stats bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-num">AI<span class="unit"></span></div>
+      <div class="stat-label">Drafted replies in seconds</div>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#128200;</div>
-      <h3>Budget Tracker</h3>
-      <p>Full income and expense ledger with running balances and category breakdowns.</p>
+    <div class="stat-item">
+      <div class="stat-num">24<span class="unit">/7</span></div>
+      <div class="stat-label">Auto-reply & voicemail</div>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#128101;</div>
-      <h3>Resident Directory</h3>
-      <p>Contact details, lease notes, and unit info for every resident in one place.</p>
+    <div class="stat-item">
+      <div class="stat-num">5<span class="unit">+</span></div>
+      <div class="stat-label">Modules in one workspace</div>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">&#129302;</div>
-      <h3>AI Command Center</h3>
-      <p>Ask anything — add tasks, schedule events, or compose messages with natural language.</p>
+    <div class="stat-item">
+      <div class="stat-num">0<span class="unit">s</span></div>
+      <div class="stat-label">Time to first AI draft</div>
     </div>
   </div>
 
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-label">Everything you need</div>
+    <h2 class="section-title">Built for how you actually work</h2>
+    <p class="section-sub">Stop juggling spreadsheets, email threads, and sticky notes. Modern Management brings it all together — and lets AI handle the repetitive parts.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#9993;</div>
+        <h3>Smart Inbox</h3>
+        <p>Manage email and SMS in one place. AI drafts professional replies to every resident message in seconds — you just review and send.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#129302;</div>
+        <h3>AI Command Bar</h3>
+        <p>Type or speak any instruction. Add events, create tasks, compose messages — AI carries out the action across your whole workspace.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128200;</div>
+        <h3>Budget Tracker</h3>
+        <p>Full income and expense ledger with running balances, category breakdowns, and monthly reporting. Know your numbers at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128295;</div>
+        <h3>Maintenance Management</h3>
+        <p>Log and track every ticket from open to resolved. Emergency keywords automatically alert your maintenance contact via SMS — instantly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128101;</div>
+        <h3>Resident Directory</h3>
+        <p>Every resident, vendor, and contact in one place — with unit info, lease notes, and direct email or SMS access from the app.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128203;</div>
+        <h3>AI Task Suggestions</h3>
+        <p>After every conversation, AI reads what was promised and automatically suggests follow-up tasks. Nothing falls through the cracks.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128222;</div>
+        <h3>Voicemail Transcription</h3>
+        <p>Residents call your number, leave a voicemail, and it appears in your inbox — already transcribed and ready for an AI reply.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128202;</div>
+        <h3>Property Reports</h3>
+        <p>On-demand AI reports that pull from your live data — open tasks, finances, inbox activity — and give you real, actionable insights.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128197;</div>
+        <h3>Calendar</h3>
+        <p>Keep inspections, renewals, and deadlines organized. Add events by typing or voice — AI understands natural language dates.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="section" id="pricing" style="padding-top:0;">
+    <div class="section-label">Simple pricing</div>
+    <h2 class="section-title">Pick your plan</h2>
+    <p class="section-sub">Start free and upgrade as you grow. No hidden fees, no per-unit pricing, no surprises.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Starter -->
+      <div class="pricing-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-price"><span class="dollar">$</span>0<span class="period">/month</span></div>
+        <div class="plan-desc">For individual managers getting started. No credit card needed.</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>1 workspace</li>
+          <li>Up to 25 contacts</li>
+          <li>Inbox (email &amp; SMS)</li>
+          <li>Task management</li>
+          <li>Calendar</li>
+          <li>30 AI-drafted replies / month</li>
+          <li class="muted">AI Command Bar</li>
+          <li class="muted">Property reports</li>
+          <li class="muted">Voicemail transcription</li>
+          <li class="muted">Maintenance management</li>
+          <li class="muted">Budget tracker</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-ghost">Get started free</a>
+      </div>
+
+      <!-- Pro (featured) -->
+      <div class="pricing-card featured">
+        <div class="popular-badge">&#11088; Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price"><span class="dollar">$</span>49<span class="period">/month</span></div>
+        <div class="plan-desc">For active property managers who want AI working for them around the clock.</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>1 workspace</li>
+          <li>Unlimited contacts</li>
+          <li>Inbox (email &amp; SMS)</li>
+          <li>Task management</li>
+          <li>Calendar</li>
+          <li>Unlimited AI-drafted replies</li>
+          <li>AI Command Bar (type or voice)</li>
+          <li>AI property reports</li>
+          <li>Voicemail transcription</li>
+          <li>Maintenance management + emergency SMS</li>
+          <li>Budget tracker &amp; ledger</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-primary">Start Pro free trial &rarr;</a>
+      </div>
+
+      <!-- Team -->
+      <div class="pricing-card">
+        <div class="plan-name">Team</div>
+        <div class="plan-price"><span class="dollar">$</span>129<span class="period">/month</span></div>
+        <div class="plan-desc">For property management companies with multiple managers or portfolios.</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>Up to 5 workspaces</li>
+          <li>Unlimited contacts per workspace</li>
+          <li>Everything in Pro</li>
+          <li>Priority support</li>
+          <li>Usage analytics <em style="color:rgba(255,255,255,0.3);font-style:normal;">(coming soon)</em></li>
+          <li>Team activity log <em style="color:rgba(255,255,255,0.3);font-style:normal;">(coming soon)</em></li>
+          <li class="muted">White-label branding (coming soon)</li>
+          <li class="muted">API access (coming soon)</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-outline">Contact us</a>
+      </div>
+
+    </div>
+
+    <p style="text-align:center;font-size:0.8em;color:rgba(255,255,255,0.2);margin-top:28px;">
+      All plans include a 14-day free trial of Pro features. Cancel anytime.
+    </p>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section" style="padding-top:0;padding-bottom:100px;">
+    <div class="section-label">Questions</div>
+    <h2 class="section-title" style="margin-bottom:40px;">Frequently asked</h2>
+
+    <div class="faq-list">
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Do I need to set up Twilio or SendGrid myself? <span class="faq-toggle">+</span></div>
+        <div class="faq-a">For the Pro plan, you'll connect your own Twilio account (for SMS and voicemail) and a SendGrid account (for inbound email). It takes about 10 minutes to configure and we walk you through it step by step. The free plan doesn't require either.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">What AI model powers Modern Management? <span class="faq-toggle">+</span></div>
+        <div class="faq-a">All AI features run on Claude by Anthropic — one of the most capable and safest AI models available. It powers your inbox replies, command bar, property reports, and task suggestions.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Can I import my existing residents and data? <span class="faq-toggle">+</span></div>
+        <div class="faq-a">Right now contacts and data are entered manually or come in through inbound messages. CSV import is on the roadmap and coming soon to all Pro and Team accounts.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Is my data private and secure? <span class="faq-toggle">+</span></div>
+        <div class="faq-a">Yes. Every account is fully isolated — no one can see your residents, messages, or financials. Data is stored on a managed PostgreSQL database with SSL encryption. We don't sell or share your data with third parties.</div>
+      </div>
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-q">Can I use this for industries other than property management? <span class="faq-toggle">+</span></div>
+        <div class="faq-a">The AI is flexible enough to be useful in any client-facing business. While the current interface is tailored for property managers, industry-specific versions for legal, healthcare, and other fields are on our roadmap.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <div class="cta-section">
+    <h2>Ready to work smarter?</h2>
+    <p>Join Modern Management and let AI handle the busywork — so you can focus on what matters.</p>
+    <a href="/signup" class="btn-hero-primary" style="display:inline-block;">Create your free account &rarr;</a>
+  </div>
+
+  <!-- Footer -->
   <footer>
-    &copy; 2026 Modern Management &nbsp;&middot;&nbsp; Private &amp; Confidential
+    <div class="foot-logo">
+      <div style="width:30px;height:30px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.8em;">MM</div>
+      Modern Management &copy; 2026
+    </div>
+    <div class="foot-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+    </div>
   </footer>
+
+  <script>
+    function toggleFaq(el) {
+      el.classList.toggle('open');
+    }
+  </script>
 
 </body>
 </html>
