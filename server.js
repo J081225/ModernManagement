@@ -1229,6 +1229,148 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
   }
 });
 
+// --- Rent Payments ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS rent_payments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    resident TEXT NOT NULL,
+    unit TEXT DEFAULT '',
+    amount NUMERIC(10,2) NOT NULL,
+    due_date TEXT,
+    status TEXT DEFAULT 'pending',
+    notes TEXT DEFAULT '',
+    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(async () => {
+  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+}).catch(err => console.error('Rent DB init error:', err.message));
+
+app.get('/api/rent', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM rent_payments WHERE user_id=$1 ORDER BY due_date ASC, resident ASC',
+    [req.session.userId]
+  );
+  res.json(rows);
+});
+
+app.post('/api/rent', requireAuth, async (req, res) => {
+  const { resident, unit, amount, due_date, notes } = req.body;
+  if (!resident || !amount) return res.status(400).json({ error: 'resident and amount required' });
+  const { rows } = await pool.query(
+    'INSERT INTO rent_payments (user_id, resident, unit, amount, due_date, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [req.session.userId, resident, unit || '', Number(amount), due_date || '', notes || '']
+  );
+  res.status(201).json(rows[0]);
+});
+
+app.put('/api/rent/:id', requireAuth, async (req, res) => {
+  const { status, notes, amount, due_date } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE rent_payments SET status=$1, notes=$2, amount=$3, due_date=$4 WHERE id=$5 AND user_id=$6 RETURNING *',
+    [status, notes || '', Number(amount), due_date || '', Number(req.params.id), req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
+});
+
+app.delete('/api/rent/:id', requireAuth, async (req, res) => {
+  await pool.query('DELETE FROM rent_payments WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  res.json({ success: true });
+});
+
+// Send late notice to resident — looks them up in contacts by name
+app.post('/api/rent/:id/late-notice', requireAuth, async (req, res) => {
+  const { rows: rentRows } = await pool.query('SELECT * FROM rent_payments WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  if (!rentRows.length) return res.status(404).json({ error: 'Rent record not found' });
+  const rent = rentRows[0];
+
+  // Try to find contact by resident name or unit
+  const { rows: contacts } = await pool.query(
+    `SELECT * FROM contacts WHERE user_id=$1 AND (LOWER(name) LIKE LOWER($2) OR unit=$3) LIMIT 1`,
+    [req.session.userId, `%${rent.resident}%`, rent.unit]
+  );
+  const contact = contacts[0];
+
+  const noticeText = `Hi ${rent.resident},\n\nThis is a friendly reminder that your rent payment of $${Number(rent.amount).toFixed(2)} was due on ${rent.due_date} and has not been received.\n\nPlease submit your payment as soon as possible to avoid any late fees.\n\nIf you have already sent payment, please disregard this notice.\n\nThank you,\nThe Property Management Team`;
+
+  let sent = false;
+  try {
+    if (contact?.email) {
+      await sgMail.send({
+        to: contact.email,
+        from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: `Rent Payment Reminder — Unit ${rent.unit}`,
+        text: noticeText
+      });
+      sent = true;
+    } else if (contact?.phone) {
+      const smsText = `Hi ${rent.resident}, your rent of $${Number(rent.amount).toFixed(2)} due ${rent.due_date} has not been received. Please pay ASAP. — Property Management`;
+      await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to: contact.phone, body: smsText });
+      sent = true;
+    }
+    // Mark as 'late' if not already
+    if (rentRows[0].status !== 'late') {
+      await pool.query('UPDATE rent_payments SET status=$1 WHERE id=$2', ['late', rent.id]);
+    }
+    res.json({ success: true, sent, channel: contact?.email ? 'email' : contact?.phone ? 'sms' : 'none', contactFound: !!contact });
+  } catch (err) {
+    console.error('Late notice error:', err.message);
+    res.status(500).json({ error: 'Failed to send notice', details: err.message });
+  }
+});
+
+// --- Invoices ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS invoices (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    vendor TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    amount NUMERIC(10,2) NOT NULL,
+    date TEXT,
+    status TEXT DEFAULT 'pending',
+    notes TEXT DEFAULT '',
+    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).then(async () => {
+  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+}).catch(err => console.error('Invoices DB init error:', err.message));
+
+app.get('/api/invoices', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM invoices WHERE user_id=$1 ORDER BY date DESC',
+    [req.session.userId]
+  );
+  res.json(rows);
+});
+
+app.post('/api/invoices', requireAuth, async (req, res) => {
+  const { vendor, description, amount, date, notes } = req.body;
+  if (!vendor || !amount) return res.status(400).json({ error: 'vendor and amount required' });
+  const { rows } = await pool.query(
+    'INSERT INTO invoices (user_id, vendor, description, amount, date, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+    [req.session.userId, vendor, description || '', Number(amount), date || '', notes || '']
+  );
+  res.status(201).json(rows[0]);
+});
+
+app.put('/api/invoices/:id', requireAuth, async (req, res) => {
+  const { status, notes } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE invoices SET status=$1, notes=$2 WHERE id=$3 AND user_id=$4 RETURNING *',
+    [status, notes || '', Number(req.params.id), req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
+});
+
+app.delete('/api/invoices/:id', requireAuth, async (req, res) => {
+  await pool.query('DELETE FROM invoices WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  res.json({ success: true });
+});
+
 // --- Broadcasts ---
 pool.query(`
   CREATE TABLE IF NOT EXISTS broadcasts (

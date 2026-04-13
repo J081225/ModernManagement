@@ -1682,92 +1682,151 @@
         closeEventModal();
       }
 
-      // --- Admin Data ---
-      let rentPayments = [
-        { id: 1, resident: 'Alex Rivera', unit: '101', amount: 1500, dueDate: '2026-04-01', status: 'paid' },
-        { id: 2, resident: 'Mira Chen', unit: '204', amount: 1750, dueDate: '2026-04-01', status: 'late' },
-        { id: 3, resident: 'Jordan Lee', unit: '305', amount: 1600, dueDate: '2026-04-01', status: 'pending' },
-      ];
-      let invoices = [
-        { id: 1, vendor: 'AcePlumbing Co.', description: 'Fix leaky pipe unit 101', amount: 320, date: '2026-04-02', status: 'pending' },
-        { id: 2, vendor: 'GreenLawn Services', description: 'Monthly landscaping', amount: 450, date: '2026-04-01', status: 'approved' },
-      ];
+      // --- Rent Roll ---
       let budgetTransactions = [];
 
-      function renderRentTable() {
+      async function loadRentTable() {
+        const rows = await api('rent') || [];
         const tbody = document.getElementById('rentTable');
-        tbody.innerHTML = rentPayments.map(r => {
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="6" style="padding:22px;text-align:center;color:#94a3b8;font-size:0.88em;">No rent records yet. Add a resident to get started.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = rows.map(r => {
           const statusColor = r.status === 'paid' ? '#27ae60' : r.status === 'late' ? '#e74c3c' : '#e67e22';
-          return `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:8px 10px;">${r.resident}</td>
-            <td style="padding:8px 10px;">${r.unit}</td>
-            <td style="padding:8px 10px;">$${r.amount}</td>
-            <td style="padding:8px 10px;">${r.dueDate}</td>
-            <td style="padding:8px 10px;"><span style="color:white;background:${statusColor};border-radius:4px;padding:2px 8px;font-size:0.82em;">${r.status}</span></td>
-            <td style="padding:8px 10px;">
-              ${r.status !== 'paid' ? `<button class="btn-success" style="font-size:0.8em;padding:4px 8px;" onclick="markRentPaid(${r.id})">Mark Paid</button>` : ''}
-              ${r.status === 'late' ? `<button class="btn-secondary" style="font-size:0.8em;padding:4px 8px;" onclick="sendLateNotice(${r.id})">Send Notice</button>` : ''}
+          const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+          const amt = Number(r.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+          return `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px 10px;font-weight:600;">${r.resident}</td>
+            <td style="padding:10px 10px;color:#64748b;">${r.unit || '—'}</td>
+            <td style="padding:10px 10px;">$${amt}</td>
+            <td style="padding:10px 10px;color:#64748b;">${r.due_date || '—'}</td>
+            <td style="padding:10px 10px;">
+              <select onchange="updateRentStatus(${r.id}, this.value, ${r.amount}, '${r.due_date || ''}')"
+                style="border:1px solid ${statusColor};border-radius:6px;padding:3px 8px;font-size:0.82em;font-weight:600;color:${statusColor};background:white;cursor:pointer;">
+                <option value="pending" ${r.status==='pending'?'selected':''}>Pending</option>
+                <option value="paid" ${r.status==='paid'?'selected':''}>Paid</option>
+                <option value="late" ${r.status==='late'?'selected':''}>Late</option>
+              </select>
+            </td>
+            <td style="padding:10px 10px;display:flex;gap:6px;flex-wrap:wrap;">
+              ${r.status !== 'paid' ? `<button class="btn-success" style="font-size:0.78em;padding:4px 10px;" onclick="markRentPaid(${r.id},${r.amount},'${r.due_date||''}')">&#10003; Mark Paid</button>` : ''}
+              ${r.status !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="sendLateNotice(${r.id})">&#128232; Notice</button>` : ''}
+              <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
             </td>
           </tr>`;
         }).join('');
       }
 
-      function markRentPaid(id) {
-        const r = rentPayments.find(r => r.id === id);
-        if (r) { r.status = 'paid'; renderRentTable(); }
+      async function markRentPaid(id, amount, dueDate) {
+        await api(`rent/${id}`, 'PUT', { status: 'paid', amount, due_date: dueDate });
+        loadRentTable();
       }
 
-      function sendLateNotice(id) {
-        const r = rentPayments.find(r => r.id === id);
-        if (r) alert(`Late notice sent to ${r.resident} for unit ${r.unit}.\n\nAmount due: $${r.amount}`);
+      async function updateRentStatus(id, status, amount, dueDate) {
+        await api(`rent/${id}`, 'PUT', { status, amount, due_date: dueDate });
+        loadRentTable();
+      }
+
+      async function sendLateNotice(id) {
+        const btn = event.target;
+        btn.disabled = true; btn.textContent = 'Sending…';
+        const result = await api(`rent/${id}/late-notice`, 'POST', {});
+        if (result) {
+          const msg = result.sent
+            ? `✓ Late notice sent via ${result.channel} to ${result.contactFound ? 'resident contact' : 'unknown contact'}.`
+            : `Notice logged. No email or phone found in contacts — add contact info to send automatically.`;
+          alert(msg);
+          loadRentTable();
+        }
+        btn.disabled = false; btn.textContent = '📨 Notice';
+      }
+
+      async function deleteRent(id) {
+        if (!confirm('Remove this rent record?')) return;
+        await api(`rent/${id}`, 'DELETE');
+        loadRentTable();
       }
 
       function openAddRent() {
-        const resident = prompt('Resident name:'); if (!resident) return;
-        const unit = prompt('Unit number:'); if (!unit) return;
-        const amount = prompt('Monthly rent amount:'); if (!amount) return;
-        const dueDate = prompt('Due date (YYYY-MM-DD):'); if (!dueDate) return;
-        const id = rentPayments.length ? Math.max(...rentPayments.map(r => r.id)) + 1 : 1;
-        rentPayments.push({ id, resident, unit, amount: Number(amount), dueDate, status: 'pending' });
-        renderRentTable();
+        document.getElementById('rentModalTitle').textContent = 'Add Rent Record';
+        document.getElementById('rentResidentInput').value = '';
+        document.getElementById('rentUnitInput').value = '';
+        document.getElementById('rentAmountInput').value = '';
+        document.getElementById('rentDueDateInput').value = '';
+        document.getElementById('rentNotesInput').value = '';
+        document.getElementById('rentModal').style.display = 'flex';
       }
 
-      function renderInvoiceTable() {
+      async function submitRent() {
+        const resident = document.getElementById('rentResidentInput').value.trim();
+        const unit = document.getElementById('rentUnitInput').value.trim();
+        const amount = document.getElementById('rentAmountInput').value.trim();
+        const due_date = document.getElementById('rentDueDateInput').value.trim();
+        const notes = document.getElementById('rentNotesInput').value.trim();
+        if (!resident || !amount) { alert('Resident name and amount are required.'); return; }
+        await api('rent', 'POST', { resident, unit, amount, due_date, notes });
+        document.getElementById('rentModal').style.display = 'none';
+        loadRentTable();
+      }
+
+      // --- Invoices ---
+      async function loadInvoiceTable() {
+        const rows = await api('invoices') || [];
         const tbody = document.getElementById('invoiceTable');
-        tbody.innerHTML = invoices.map(inv => {
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="6" style="padding:22px;text-align:center;color:#94a3b8;font-size:0.88em;">No invoices yet. Add one to get started.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = rows.map(inv => {
           const statusColor = inv.status === 'approved' ? '#27ae60' : inv.status === 'rejected' ? '#e74c3c' : '#e67e22';
-          return `<tr style="border-bottom:1px solid #eee;">
-            <td style="padding:8px 10px;">${inv.vendor}</td>
-            <td style="padding:8px 10px;">${inv.description}</td>
-            <td style="padding:8px 10px;">$${inv.amount}</td>
-            <td style="padding:8px 10px;">${inv.date}</td>
-            <td style="padding:8px 10px;"><span style="color:white;background:${statusColor};border-radius:4px;padding:2px 8px;font-size:0.82em;">${inv.status}</span></td>
-            <td style="padding:8px 10px;">
-              ${inv.status === 'pending' ? `<button class="btn-success" style="font-size:0.8em;padding:4px 8px;" onclick="approveInvoice(${inv.id})">Approve</button>` : ''}
-              ${inv.status === 'pending' ? `<button class="btn-secondary" style="font-size:0.8em;padding:4px 8px;color:#e74c3c;" onclick="rejectInvoice(${inv.id})">Reject</button>` : ''}
+          const amt = Number(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+          return `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px 10px;font-weight:600;">${inv.vendor}</td>
+            <td style="padding:10px 10px;color:#64748b;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${inv.description || '—'}</td>
+            <td style="padding:10px 10px;">$${amt}</td>
+            <td style="padding:10px 10px;color:#64748b;">${inv.date || '—'}</td>
+            <td style="padding:10px 10px;"><span style="color:white;background:${statusColor};border-radius:5px;padding:3px 9px;font-size:0.78em;font-weight:600;">${inv.status}</span></td>
+            <td style="padding:10px 10px;display:flex;gap:6px;flex-wrap:wrap;">
+              ${inv.status === 'pending' ? `<button class="btn-success" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'approved')">&#10003; Approve</button>` : ''}
+              ${inv.status === 'pending' ? `<button class="btn-danger" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'rejected')">&#10005; Reject</button>` : ''}
+              ${inv.status !== 'pending' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'pending')">Reset</button>` : ''}
+              <button onclick="deleteInvoice(${inv.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
             </td>
           </tr>`;
         }).join('');
       }
 
-      function approveInvoice(id) {
-        const inv = invoices.find(i => i.id === id);
-        if (inv) { inv.status = 'approved'; renderInvoiceTable(); }
+      async function updateInvoiceStatus(id, status) {
+        await api(`invoices/${id}`, 'PUT', { status });
+        loadInvoiceTable();
       }
 
-      function rejectInvoice(id) {
-        const inv = invoices.find(i => i.id === id);
-        if (inv) { inv.status = 'rejected'; renderInvoiceTable(); }
+      async function deleteInvoice(id) {
+        if (!confirm('Delete this invoice?')) return;
+        await api(`invoices/${id}`, 'DELETE');
+        loadInvoiceTable();
       }
 
       function openAddInvoice() {
-        const vendor = prompt('Vendor name:'); if (!vendor) return;
-        const description = prompt('Description:'); if (!description) return;
-        const amount = prompt('Amount:'); if (!amount) return;
-        const date = prompt('Date (YYYY-MM-DD):'); if (!date) return;
-        const id = invoices.length ? Math.max(...invoices.map(i => i.id)) + 1 : 1;
-        invoices.push({ id, vendor, description, amount: Number(amount), date, status: 'pending' });
-        renderInvoiceTable();
+        document.getElementById('invoiceVendorInput').value = '';
+        document.getElementById('invoiceDescInput').value = '';
+        document.getElementById('invoiceAmountInput').value = '';
+        document.getElementById('invoiceDateInput').value = new Date().toISOString().split('T')[0];
+        document.getElementById('invoiceNotesInput').value = '';
+        document.getElementById('invoiceModal').style.display = 'flex';
+      }
+
+      async function submitInvoice() {
+        const vendor = document.getElementById('invoiceVendorInput').value.trim();
+        const description = document.getElementById('invoiceDescInput').value.trim();
+        const amount = document.getElementById('invoiceAmountInput').value.trim();
+        const date = document.getElementById('invoiceDateInput').value.trim();
+        const notes = document.getElementById('invoiceNotesInput').value.trim();
+        if (!vendor || !amount) { alert('Vendor name and amount are required.'); return; }
+        await api('invoices', 'POST', { vendor, description, amount, date, notes });
+        document.getElementById('invoiceModal').style.display = 'none';
+        loadInvoiceTable();
       }
 
       // --- Budget Tracker ---
@@ -2961,7 +3020,7 @@
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadBillingStatus(); checkOnboarding();
-        initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable();
+        initCalendar(); loadCalEvents(); loadRentTable(); loadInvoiceTable();
         // Init budget month/year to current
         const now = new Date();
         document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
@@ -3154,6 +3213,60 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeEventModal()">Cancel</button>
         <button class="btn-primary" onclick="submitAddEvent()">Add Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Rent Modal -->
+  <div class="modal-overlay" id="rentModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:420px;max-width:96vw;">
+      <h3 id="rentModalTitle">&#128181; Add Rent Record</h3>
+      <label>Resident Name *</label>
+      <input id="rentResidentInput" type="text" placeholder="e.g. Alex Rivera" />
+      <label>Unit</label>
+      <input id="rentUnitInput" type="text" placeholder="e.g. 101" />
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Monthly Rent *</label>
+          <input id="rentAmountInput" type="number" placeholder="1500.00" min="0" step="0.01" />
+        </div>
+        <div style="flex:1;">
+          <label>Due Date</label>
+          <input id="rentDueDateInput" type="date" />
+        </div>
+      </div>
+      <label>Notes</label>
+      <input id="rentNotesInput" type="text" placeholder="Optional notes" />
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="document.getElementById('rentModal').style.display='none'">Cancel</button>
+        <button class="btn-primary" onclick="submitRent()">Save Rent Record</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Invoice Modal -->
+  <div class="modal-overlay" id="invoiceModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:420px;max-width:96vw;">
+      <h3>&#129534; Add Invoice</h3>
+      <label>Vendor Name *</label>
+      <input id="invoiceVendorInput" type="text" placeholder="e.g. AcePlumbing Co." />
+      <label>Description</label>
+      <input id="invoiceDescInput" type="text" placeholder="e.g. Fix leaky pipe unit 101" />
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Amount *</label>
+          <input id="invoiceAmountInput" type="number" placeholder="320.00" min="0" step="0.01" />
+        </div>
+        <div style="flex:1;">
+          <label>Date</label>
+          <input id="invoiceDateInput" type="date" />
+        </div>
+      </div>
+      <label>Notes</label>
+      <input id="invoiceNotesInput" type="text" placeholder="Optional notes" />
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="document.getElementById('invoiceModal').style.display='none'">Cancel</button>
+        <button class="btn-primary" onclick="submitInvoice()">Save Invoice</button>
       </div>
     </div>
   </div>
