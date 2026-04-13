@@ -242,6 +242,10 @@ async function initDB() {
   // Ensure admin row exists
   await pool.query(`INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`);
 
+  // Notification settings columns on users table
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true`);
+
   console.log('DB init complete.');
 }
 
@@ -255,6 +259,104 @@ async function getAutomation(userId) {
   await pool.query('INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, false) ON CONFLICT DO NOTHING', [userId]);
   return { autoReplyEnabled: false };
 }
+
+// --- Notification email helper ---
+async function sendNotificationEmail(userId, message) {
+  try {
+    // Get user's notification settings
+    const { rows } = await pool.query(
+      'SELECT notification_email, notifications_enabled FROM users WHERE id=$1', [userId]
+    );
+    if (!rows.length) return;
+    const user = rows[0];
+    if (!user.notifications_enabled) return;
+
+    // Fall back to env var for admin if no email set
+    const toEmail = user.notification_email ||
+      (userId === 1 ? (process.env.NOTIFICATION_EMAIL || process.env.SENDGRID_FROM_EMAIL) : null);
+    if (!toEmail) return;
+
+    const categoryLabel = {
+      email: '📧 Email', sms: '💬 SMS', voicemail: '📞 Voicemail',
+      maintenance: '🔧 Maintenance', renewal: '📋 Renewal'
+    }[message.category] || '📩 Message';
+
+    const preview = (message.text || '').replace(/📞 Voicemail: ?/, '').replace(/"/g, '').slice(0, 220);
+    const appUrl = process.env.APP_URL || 'https://modernmanagement.onrender.com';
+
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Inter',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+
+        <!-- Header -->
+        <tr><td style="background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:14px 14px 0 0;padding:28px 32px;text-align:center;">
+          <div style="display:inline-block;background:rgba(255,255,255,0.2);border-radius:10px;padding:8px 16px;font-size:18px;font-weight:800;color:white;letter-spacing:-0.5px;">MM</div>
+          <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:6px;letter-spacing:1px;text-transform:uppercase;font-weight:600;">Modern Management</div>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="background:white;padding:32px;border-radius:0 0 14px 14px;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+          <p style="margin:0 0 6px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#ff6b6b;">${categoryLabel}</p>
+          <h2 style="margin:0 0 20px;font-size:20px;font-weight:800;color:#0f172a;line-height:1.2;">${message.subject || 'New message'}</h2>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:24px;">
+            <tr><td style="padding:18px 20px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">From</p>
+              <p style="margin:0 0 14px;font-size:15px;font-weight:700;color:#0f172a;">${message.resident || 'Unknown'}</p>
+              ${preview ? `<p style="margin:0;font-size:14px;color:#475569;line-height:1.6;">${preview}${(message.text || '').length > 220 ? '…' : ''}</p>` : ''}
+            </td></tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a href="${appUrl}/workspace" style="display:inline-block;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;text-decoration:none;padding:13px 32px;border-radius:9px;font-size:15px;font-weight:700;letter-spacing:0.2px;">Open Workspace →</a>
+            </td></tr>
+          </table>
+
+          <p style="margin:24px 0 0;font-size:12px;color:#cbd5e1;text-align:center;">You're receiving this because notifications are enabled in your Modern Management account.</p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    await sgMail.send({
+      to: toEmail,
+      from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+      subject: `New ${categoryLabel} from ${message.resident || 'Unknown'} — Modern Management`,
+      html: htmlBody,
+      text: `New message from ${message.resident}\n\n${message.subject}\n\n${preview}\n\nOpen your workspace: ${appUrl}/workspace`
+    });
+    console.log(`Notification email sent to ${toEmail} for message ${message.id}`);
+  } catch (err) {
+    console.error('Notification email error:', err.message);
+  }
+}
+
+// --- Settings routes ---
+app.get('/api/settings', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT notification_email, notifications_enabled FROM users WHERE id=$1', [req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'User not found' });
+  res.json(rows[0]);
+});
+
+app.put('/api/settings', requireAuth, async (req, res) => {
+  const { notification_email, notifications_enabled } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE users SET notification_email=$1, notifications_enabled=$2 WHERE id=$3 RETURNING notification_email, notifications_enabled',
+    [notification_email || '', notifications_enabled !== false, req.session.userId]
+  );
+  res.json(rows[0]);
+});
 
 // --- Login / Logout / Signup ---
 app.post('/api/login', async (req, res) => {
@@ -926,6 +1028,7 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
   res.sendStatus(200);
 
   if (rows[0]) {
+    sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
     const autoData = await getAutomation(WEBHOOK_USER_ID);
     if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
     else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
@@ -964,6 +1067,7 @@ app.post('/api/sms/incoming', async (req, res) => {
   ).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
 
   if (rows[0]) {
+    sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
     const autoData = await getAutomation(WEBHOOK_USER_ID);
     if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
     else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
@@ -1024,6 +1128,7 @@ app.post('/api/voice/transcription', async (req, res) => {
       [text, `Voicemail from ${phone}`, WEBHOOK_USER_ID, `[CALLSID:${CallSid}]%`]
     );
     if (rows.length) {
+      sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
       const autoData = await getAutomation(WEBHOOK_USER_ID);
       if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
       else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);

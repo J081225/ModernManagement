@@ -982,6 +982,31 @@
         <!-- ADMIN PAGE -->
         <div class="page" id="page-admin">
 
+          <!-- Notification Settings -->
+          <div class="card" style="margin-bottom:22px;">
+            <h2>&#128276; Notification Settings</h2>
+            <p style="font-size:0.88em;color:#64748b;margin-bottom:18px;">Get an email whenever a new message arrives in your inbox — whether it's an email, SMS, or voicemail.</p>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+              <div>
+                <div style="font-size:0.92em;font-weight:600;color:#0f172a;">Email notifications</div>
+                <div style="font-size:0.78em;color:#94a3b8;margin-top:2px;">Send me an alert when a new message arrives</div>
+              </div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;">
+                <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
+                <span id="notifToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
+                <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
+              </label>
+            </div>
+
+            <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Notification email address</label>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input type="email" id="notifEmail" placeholder="you@example.com" style="flex:1;margin:0;" oninput="notifEmailDirty=true" />
+              <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
+            </div>
+            <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#27ae60;margin-top:8px;font-weight:500;">&#10003; Settings saved</div>
+          </div>
+
           <!-- Rent Payments -->
           <div class="card">
             <h2>Rent Payments</h2>
@@ -1380,6 +1405,43 @@
         document.getElementById('label-auto').style.background = isAuto ? '#fff8f8' : '';
         document.getElementById('label-review').style.borderColor = isAuto ? '#eee' : '#ff6b6b';
         document.getElementById('label-review').style.background = isAuto ? '' : '#fff8f8';
+      }
+
+      // --- Notification settings ---
+      let notifEmailDirty = false;
+
+      async function loadNotifSettings() {
+        const data = await api('settings');
+        if (!data) return;
+        const toggle = document.getElementById('notifToggle');
+        const track = document.getElementById('notifToggleTrack');
+        const thumb = document.getElementById('notifToggleThumb');
+        toggle.checked = data.notifications_enabled !== false;
+        document.getElementById('notifEmail').value = data.notification_email || '';
+        updateNotifToggleUI(toggle.checked, track, thumb);
+      }
+
+      function updateNotifToggleUI(on, track, thumb) {
+        track.style.background = on ? 'linear-gradient(135deg,#ff6b6b,#ff8e53)' : '#e2e8f0';
+        thumb.style.transform = on ? 'translateX(20px)' : 'translateX(0)';
+      }
+
+      document.getElementById('notifToggle').addEventListener('change', function() {
+        updateNotifToggleUI(this.checked,
+          document.getElementById('notifToggleTrack'),
+          document.getElementById('notifToggleThumb'));
+      });
+
+      async function saveNotifSettings() {
+        const notification_email = document.getElementById('notifEmail').value.trim();
+        const notifications_enabled = document.getElementById('notifToggle').checked;
+        const result = await api('settings', 'PUT', { notification_email, notifications_enabled });
+        if (result) {
+          const msg = document.getElementById('notifSaveMsg');
+          msg.style.display = 'block';
+          setTimeout(() => msg.style.display = 'none', 3000);
+          notifEmailDirty = false;
+        }
       }
 
       async function loadAutomation() {
@@ -2565,7 +2627,7 @@
       setInterval(pollInbox, 10000);
 
       window.onload = () => {
-        restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge();
+        restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         initCalendar(); loadCalEvents(); renderRentTable(); renderInvoiceTable();
         // Init budget month/year to current
         const now = new Date();
