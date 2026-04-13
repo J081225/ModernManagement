@@ -1229,6 +1229,102 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
   }
 });
 
+// --- Broadcasts ---
+pool.query(`
+  CREATE TABLE IF NOT EXISTS broadcasts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL DEFAULT 1,
+    channel TEXT NOT NULL,
+    subject TEXT DEFAULT '',
+    body TEXT NOT NULL,
+    recipient_filter TEXT DEFAULT 'all',
+    recipient_count INTEGER DEFAULT 0,
+    sent_count INTEGER DEFAULT 0,
+    failed_count INTEGER DEFAULT 0,
+    "createdAt" TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(err => console.error('Broadcasts DB init error:', err.message));
+
+app.get('/api/broadcasts', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM broadcasts WHERE user_id=$1 ORDER BY "createdAt" DESC LIMIT 50',
+    [req.session.userId]
+  );
+  res.json(rows);
+});
+
+app.post('/api/broadcast', requireAuth, async (req, res) => {
+  const { channel, subject, body, recipientFilter, contactIds } = req.body;
+  if (!channel || !body) return res.status(400).json({ error: 'channel and body are required' });
+
+  // Build recipient list from contacts
+  let query = 'SELECT * FROM contacts WHERE user_id=$1';
+  const params = [req.session.userId];
+  if (contactIds && contactIds.length) {
+    query += ` AND id = ANY($2::int[])`;
+    params.push(contactIds);
+  } else if (recipientFilter && recipientFilter !== 'all') {
+    query += ` AND type=$2`;
+    params.push(recipientFilter);
+  }
+  const { rows: contacts } = await pool.query(query, params);
+
+  // Filter to contacts that have the right channel info
+  const eligible = channel === 'email'
+    ? contacts.filter(c => c.email && c.email.includes('@'))
+    : contacts.filter(c => c.phone && c.phone.trim());
+
+  if (!eligible.length) {
+    return res.status(400).json({ error: `No contacts found with a valid ${channel === 'email' ? 'email address' : 'phone number'}.` });
+  }
+
+  // Save broadcast record
+  const { rows: bRows } = await pool.query(
+    `INSERT INTO broadcasts (user_id, channel, subject, body, recipient_filter, recipient_count)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [req.session.userId, channel, subject || '', body, recipientFilter || 'custom', eligible.length]
+  );
+  const broadcast = bRows[0];
+
+  // Respond immediately — send async
+  res.json({ broadcastId: broadcast.id, recipientCount: eligible.length, status: 'sending' });
+
+  // Fire sends in background
+  let sent = 0, failed = 0;
+  for (const contact of eligible) {
+    try {
+      if (channel === 'email') {
+        await sgMail.send({
+          to: contact.email,
+          from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+          replyTo: process.env.SENDGRID_FROM_EMAIL,
+          subject: subject || 'Message from your property manager',
+          text: body,
+          html: body.replace(/\n/g, '<br>')
+        });
+      } else {
+        await twilioClient.messages.create({
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: contact.phone,
+          body
+        });
+      }
+      sent++;
+    } catch (err) {
+      console.error(`Broadcast send failed for contact ${contact.id}:`, err.message);
+      failed++;
+    }
+    // Small delay to avoid rate limits
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  await pool.query(
+    'UPDATE broadcasts SET sent_count=$1, failed_count=$2 WHERE id=$3',
+    [sent, failed, broadcast.id]
+  );
+  console.log(`Broadcast ${broadcast.id}: ${sent} sent, ${failed} failed`);
+});
+
 // --- CSV Contact Import ---
 app.post('/api/contacts/import', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });

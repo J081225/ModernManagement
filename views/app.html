@@ -860,6 +860,7 @@
               &#128196; Import CSV
               <input type="file" accept=".csv" style="display:none;" onchange="importContactsCSV(this)" />
             </label>
+            <button class="btn-secondary" onclick="openBroadcast()" style="display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;">&#128226; Broadcast</button>
             <button class="btn-primary" onclick="openAddContact()">+ Add Contact</button>
           </div>
 
@@ -877,6 +878,15 @@
               </div>
             </div>
           </div>
+
+          <!-- Broadcast history -->
+          <div class="card" style="margin-top:22px;">
+            <h2>&#128226; Broadcast History</h2>
+            <div id="broadcastHistory" style="display:flex;flex-direction:column;gap:10px;">
+              <div style="font-size:0.87em;color:#94a3b8;text-align:center;padding:20px 0;">No broadcasts sent yet.</div>
+            </div>
+          </div>
+
         </div>
 
         <!-- TASKS PAGE -->
@@ -2235,6 +2245,7 @@
 
       async function loadContacts() {
         contacts = await api('contacts') || [];
+        window._contacts = contacts; // make available to broadcast modal
         renderContacts();
       }
       let selectedContact = null;
@@ -2445,6 +2456,164 @@
           document.body.appendChild(toast);
           setTimeout(() => toast.remove(), 5000);
         }, 800);
+      }
+
+      // --- Broadcast ---
+      let bcChannel = 'email';
+      let allContacts = [];
+
+      function openBroadcast() {
+        // Use already-loaded contacts list
+        allContacts = window._contacts || [];
+        bcChannel = 'email';
+        document.getElementById('bc-filter').value = 'all';
+        document.getElementById('bc-subject').value = '';
+        document.getElementById('bc-body').value = '';
+        document.getElementById('bc-result').style.display = 'none';
+        document.getElementById('bc-send-btn').disabled = false;
+        document.getElementById('bc-send-label').innerHTML = '&#128226; Send to <span id="bc-count">0</span> contacts';
+        setBroadcastChannel('email');
+        updateBroadcastPreview();
+        const modal = document.getElementById('broadcastModal');
+        modal.style.display = 'flex';
+      }
+
+      function closeBroadcast() {
+        document.getElementById('broadcastModal').style.display = 'none';
+      }
+
+      function setBroadcastChannel(ch) {
+        bcChannel = ch;
+        const emailBtn = document.getElementById('bc-ch-email');
+        const smsBtn = document.getElementById('bc-ch-sms');
+        const subjectRow = document.getElementById('bc-subject-row');
+        const counter = document.getElementById('bc-sms-counter');
+
+        emailBtn.style.borderColor = ch === 'email' ? '#ff6b6b' : '#e2e8f0';
+        emailBtn.style.background = ch === 'email' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
+        emailBtn.style.color = ch === 'email' ? '#ff6b6b' : '#64748b';
+        smsBtn.style.borderColor = ch === 'sms' ? '#ff6b6b' : '#e2e8f0';
+        smsBtn.style.background = ch === 'sms' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
+        smsBtn.style.color = ch === 'sms' ? '#ff6b6b' : '#64748b';
+        subjectRow.style.display = ch === 'email' ? '' : 'none';
+        counter.style.display = ch === 'sms' ? 'block' : 'none';
+        updateBroadcastPreview();
+        updateSmsCounter();
+      }
+
+      function updateSmsCounter() {
+        const body = document.getElementById('bc-body').value;
+        const len = body.length;
+        const msgs = len === 0 ? 1 : Math.ceil(len / 160);
+        document.getElementById('bc-sms-counter').textContent =
+          `${len} characters · ${msgs} SMS segment${msgs !== 1 ? 's' : ''} per recipient`;
+      }
+
+      function updateBroadcastPreview() {
+        const filter = document.getElementById('bc-filter').value;
+        const contacts = window._contacts || [];
+        const filtered = filter === 'all' ? contacts : contacts.filter(c => c.type === filter);
+        const eligible = bcChannel === 'email'
+          ? filtered.filter(c => c.email && c.email.includes('@'))
+          : filtered.filter(c => c.phone && c.phone.trim());
+
+        const preview = document.getElementById('bc-preview');
+        const countEl = document.getElementById('bc-count');
+        if (countEl) countEl.textContent = eligible.length;
+
+        preview.innerHTML = eligible.length === 0
+          ? `<span style="font-size:0.8em;color:#94a3b8;">No contacts with a valid ${bcChannel === 'email' ? 'email' : 'phone number'} in this group.</span>`
+          : eligible.slice(0, 12).map(c =>
+              `<span style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:3px 10px;font-size:0.76em;color:#475569;white-space:nowrap;">${c.name}</span>`
+            ).join('') + (eligible.length > 12 ? `<span style="font-size:0.76em;color:#94a3b8;padding:3px 6px;">+${eligible.length - 12} more</span>` : '');
+      }
+
+      async function sendBroadcast() {
+        const filter = document.getElementById('bc-filter').value;
+        const subject = document.getElementById('bc-subject').value.trim();
+        const body = document.getElementById('bc-body').value.trim();
+        const resultEl = document.getElementById('bc-result');
+        const sendBtn = document.getElementById('bc-send-btn');
+
+        if (!body) { alert('Please write a message before sending.'); return; }
+        if (bcChannel === 'email' && !subject) { alert('Please enter a subject line for the email.'); return; }
+
+        const contacts = window._contacts || [];
+        const filtered = filter === 'all' ? contacts : contacts.filter(c => c.type === filter);
+        const eligible = bcChannel === 'email'
+          ? filtered.filter(c => c.email && c.email.includes('@'))
+          : filtered.filter(c => c.phone && c.phone.trim());
+
+        if (!eligible.length) { alert(`No contacts with a valid ${bcChannel === 'email' ? 'email' : 'phone number'}.`); return; }
+
+        const word = bcChannel === 'email' ? 'email' : 'SMS';
+        if (!confirm(`Send this ${word} to ${eligible.length} contact${eligible.length !== 1 ? 's' : ''}?`)) return;
+
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<span>&#8987; Sending…</span>';
+        resultEl.style.display = 'none';
+
+        const data = await api('broadcast', 'POST', {
+          channel: bcChannel,
+          subject,
+          body,
+          recipientFilter: filter
+        });
+
+        if (data) {
+          resultEl.style.display = 'block';
+          resultEl.style.background = '#f0fdf4';
+          resultEl.style.border = '1px solid #86efac';
+          resultEl.style.color = '#166534';
+          resultEl.innerHTML = `&#10003; Broadcast queued — sending to <strong>${data.recipientCount}</strong> contact${data.recipientCount !== 1 ? 's' : ''}. You'll see results in the broadcast log shortly.`;
+          sendBtn.innerHTML = '<span>&#10003; Sent!</span>';
+          setTimeout(closeBroadcast, 2200);
+        } else {
+          resultEl.style.display = 'block';
+          resultEl.style.background = '#fef2f2';
+          resultEl.style.border = '1px solid #fca5a5';
+          resultEl.style.color = '#991b1b';
+          resultEl.textContent = 'Something went wrong. Please try again.';
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '&#128226; Send to <span id="bc-count">' + eligible.length + '</span> contacts';
+        }
+      }
+
+      async function loadBroadcastHistory() {
+        const list = await api('broadcasts') || [];
+        const el = document.getElementById('broadcastHistory');
+        if (!list.length) {
+          el.innerHTML = '<div style="font-size:0.87em;color:#94a3b8;text-align:center;padding:20px 0;">No broadcasts sent yet.</div>';
+          return;
+        }
+        el.innerHTML = list.map(b => {
+          const d = new Date(b.createdAt);
+          const dateStr = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+          const timeStr = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+          const chIcon = b.channel === 'email' ? '&#9993;' : '&#128172;';
+          const successRate = b.recipient_count > 0
+            ? Math.round((b.sent_count / b.recipient_count) * 100) : 0;
+          const statusColor = b.failed_count === 0 ? '#27ae60' : b.sent_count === 0 ? '#e74c3c' : '#f39c12';
+          return `
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;flex-wrap:wrap;gap:10px;">
+              <div style="font-size:1.2em;">${chIcon}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.9em;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${b.subject || b.body.slice(0, 60) + (b.body.length > 60 ? '…' : '')}
+                </div>
+                <div style="font-size:0.76em;color:#94a3b8;margin-top:2px;">
+                  ${dateStr} at ${timeStr} &nbsp;·&nbsp;
+                  <span style="text-transform:capitalize;">${b.recipient_filter === 'all' ? 'All contacts' : b.recipient_filter + 's'}</span>
+                </div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:0.88em;font-weight:700;color:${statusColor};">
+                  ${b.sent_count}/${b.recipient_count} sent
+                </div>
+                ${b.failed_count > 0 ? `<div style="font-size:0.72em;color:#e74c3c;">${b.failed_count} failed</div>` : ''}
+              </div>
+            </div>`;
+        }).join('');
       }
 
       // --- CSV Contact Import ---
@@ -2798,7 +2967,7 @@
         document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
         document.getElementById('budgetYearSel').value = String(now.getFullYear());
         loadBudget();
-        loadTasks(); loadContacts(); loadMaintenance();
+        loadTasks(); loadContacts(); loadMaintenance(); loadBroadcastHistory();
       };
     </script>
   <!-- Maintenance Ticket Modal -->
@@ -2985,6 +3154,65 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeEventModal()">Cancel</button>
         <button class="btn-primary" onclick="submitAddEvent()">Add Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Broadcast Modal -->
+  <div class="modal-overlay" id="broadcastModal" onclick="if(event.target===this)closeBroadcast()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:520px;max-width:96vw;">
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
+        <div style="width:38px;height:38px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1em;flex-shrink:0;">&#128226;</div>
+        <div>
+          <h3 style="margin:0;font-size:1.05em;">Send Broadcast</h3>
+          <div style="font-size:0.78em;color:#94a3b8;margin-top:2px;">Send an email or SMS to a group of contacts at once</div>
+        </div>
+      </div>
+
+      <!-- Channel selector -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button id="bc-ch-email" onclick="setBroadcastChannel('email')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid #ff6b6b;background:rgba(255,107,107,0.08);color:#ff6b6b;font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
+          &#9993; Email
+        </button>
+        <button id="bc-ch-sms" onclick="setBroadcastChannel('sms')"
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
+          &#128172; SMS
+        </button>
+      </div>
+
+      <!-- Recipients -->
+      <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Recipients</label>
+      <select id="bc-filter" onchange="updateBroadcastPreview()" style="margin-bottom:14px;">
+        <option value="all">All contacts</option>
+        <option value="resident">Residents only</option>
+        <option value="vendor">Vendors only</option>
+        <option value="important">Important contacts only</option>
+      </select>
+
+      <!-- Recipient preview chips -->
+      <div id="bc-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;max-height:80px;overflow-y:auto;"></div>
+
+      <!-- Subject (email only) -->
+      <div id="bc-subject-row" style="margin-bottom:0;">
+        <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Subject</label>
+        <input id="bc-subject" type="text" placeholder="e.g. Building update — April 2026" style="margin-bottom:14px;" />
+      </div>
+
+      <!-- Message body -->
+      <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Message</label>
+      <textarea id="bc-body" rows="5" placeholder="Write your message here..." style="resize:vertical;margin-bottom:6px;" oninput="updateSmsCounter()"></textarea>
+      <div id="bc-sms-counter" style="display:none;font-size:0.75em;color:#94a3b8;text-align:right;margin-bottom:10px;"></div>
+
+      <!-- Send result -->
+      <div id="bc-result" style="display:none;font-size:0.85em;padding:10px 14px;border-radius:8px;margin-bottom:14px;"></div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeBroadcast()">Cancel</button>
+        <button class="btn-primary" id="bc-send-btn" onclick="sendBroadcast()">
+          <span id="bc-send-label">&#128226; Send to <span id="bc-count">0</span> contacts</span>
+        </button>
       </div>
     </div>
   </div>
