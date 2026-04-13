@@ -76,7 +76,7 @@ app.get('/api/logout', (req, res) => {
 
 // Protect all /api/* routes except login and inbound webhooks
 app.use('/api', (req, res, next) => {
-  const open = ['/login', '/sms/incoming', '/email/incoming'];
+  const open = ['/login', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -680,6 +680,61 @@ app.post('/api/sms/send', async (req, res) => {
     console.error('Twilio send error:', err.message);
     res.status(500).json({ error: 'Failed to send SMS', details: err.message });
   }
+});
+
+// --- Voice / Voicemail ---
+
+// Step 1: Twilio calls this when someone dials your number
+app.post('/api/voice/incoming', (req, res) => {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const base = `${proto}://${req.headers.host}`;
+  res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Thank you for calling Modern Management. Please leave your message after the beep and we will get back to you shortly.</Say>
+  <Record maxLength="120" playBeep="true" transcribe="true" transcribeCallback="${base}/api/voice/transcription" action="${base}/api/voice/recording" />
+</Response>`);
+});
+
+// Step 2: Called immediately when recording ends — save placeholder to inbox
+app.post('/api/voice/recording', async (req, res) => {
+  const { From, CallSid } = req.body;
+  const phone = From || 'Unknown';
+  try {
+    await pool.query(
+      `INSERT INTO messages (resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,'new','inbox',$5)`,
+      [`Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
+    );
+  } catch (err) {
+    console.error('Voice recording save error:', err.message);
+  }
+  res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="alice">Thank you for your message. We will get back to you shortly. Goodbye!</Say>
+</Response>`);
+});
+
+// Step 3: Called ~1-2 min later when Twilio finishes transcribing
+app.post('/api/voice/transcription', async (req, res) => {
+  const { TranscriptionText, TranscriptionStatus, CallSid, From } = req.body;
+  const phone = From || 'Unknown';
+  const text = TranscriptionStatus === 'completed' && TranscriptionText
+    ? `📞 Voicemail: "${TranscriptionText}"`
+    : '📞 Voicemail received (transcription unavailable — check your Twilio recordings)';
+
+  try {
+    // Update the placeholder message saved in step 2
+    const { rows } = await pool.query(
+      `UPDATE messages SET text=$1, subject=$2 WHERE subject LIKE $3 RETURNING *`,
+      [text, `Voicemail from ${phone}`, `[CALLSID:${CallSid}]%`]
+    );
+    // If auto-reply is on, SMS the caller back
+    if (rows.length && automation.autoReplyEnabled) {
+      await autoReplyToMessage(rows[0]);
+    }
+  } catch (err) {
+    console.error('Transcription update error:', err.message);
+  }
+  res.sendStatus(200);
 });
 
 // --- Property Report ---

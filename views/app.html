@@ -995,7 +995,7 @@
           line.className = 'list-item';
           line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;';
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
-          const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : '&#128172;';
+          const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : msg.category === 'voicemail' ? '&#128222;' : '&#128172;';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
               <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${catIcon} ${msg.subject}</div>
@@ -1117,7 +1117,7 @@
           const data = await res.json();
           if (data.success) { alert('Email sent!'); setStatus('sent'); }
           else alert('Failed to send: ' + (data.error || 'Unknown error'));
-        } else if (selectedMessage.phone && selectedMessage.category === 'sms') {
+        } else if (selectedMessage.phone && (selectedMessage.category === 'sms' || selectedMessage.category === 'voicemail')) {
           const res = await fetch('/api/sms/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
