@@ -891,13 +891,13 @@ Guidelines:
 
 // --- AI: Command center ---
 app.post('/api/command', async (req, res) => {
-  const { prompt, contacts, calEvents, tasks, messages: msgList } = req.body;
+  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets } = req.body;
 
   const contextSummary = `
 ## Current App State
 
-### Contacts
-${contacts && contacts.length ? contacts.map(c => `- ${c.name} (${c.type})${c.unit ? `, Unit ${c.unit}` : ''}${c.email ? `, ${c.email}` : ''}${c.phone ? `, ${c.phone}` : ''}`).join('\n') : 'No contacts.'}
+### Contacts (Residents, Vendors, Important)
+${contacts && contacts.length ? contacts.map(c => `- ${c.name} (${c.type})${c.unit ? `, Unit ${c.unit}` : ''}${c.email ? `, ${c.email}` : ''}${c.phone ? `, ${c.phone}` : ''}${c.monthly_rent > 0 ? `, $${c.monthly_rent}/mo` : ''}${c.lease_end ? `, lease ends ${c.lease_end}` : ''}`).join('\n') : 'No contacts.'}
 
 ### Calendar Events
 ${calEvents && calEvents.length ? calEvents.map(e => `- ${e.date}: ${e.title}`).join('\n') : 'No events.'}
@@ -907,6 +907,12 @@ ${tasks && tasks.length ? tasks.map(t => `- [${t.done ? 'done' : 'pending'}] ${t
 
 ### Inbox Messages
 ${msgList && msgList.length ? msgList.map(m => `- #${m.id}: From ${m.resident} — "${m.subject}" [${m.status}]`).join('\n') : 'No messages.'}
+
+### Rent Records (this month)
+${rentRecords && rentRecords.length ? rentRecords.map(r => `- ${r.resident}${r.unit ? ` Unit ${r.unit}` : ''}: $${r.amount} due ${r.due_date} [${r.status}]`).join('\n') : 'No rent records loaded.'}
+
+### Open Maintenance Tickets
+${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t => t.status === 'open').map(t => `- #${t.id}: ${t.title}${t.unit ? ` (Unit ${t.unit})` : ''} [${t.priority}]`).join('\n') : 'No open tickets.'}
 `.trim();
 
   const tools = [
@@ -938,15 +944,102 @@ ${msgList && msgList.length ? msgList.map(m => `- #${m.id}: From ${m.resident} �
     },
     {
       name: 'compose_message',
-      description: 'Compose and send a message to a resident or contact',
+      description: 'Compose and save a message to a resident or contact in the inbox',
       input_schema: {
         type: 'object',
         properties: {
-          to: { type: 'string', description: 'Recipient name' },
+          to: { type: 'string', description: 'Recipient name (must match a contact name)' },
           subject: { type: 'string', description: 'Message subject' },
-          body: { type: 'string', description: 'Full message body' }
+          body: { type: 'string', description: 'Full message body — write a complete, professional message' }
         },
         required: ['to', 'subject', 'body']
+      }
+    },
+    {
+      name: 'add_contact',
+      description: 'Add a new contact (resident, vendor, or important person)',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Full name' },
+          contact_type: { type: 'string', enum: ['resident', 'vendor', 'important'], description: 'Contact type' },
+          unit: { type: 'string', description: 'Unit number (residents only)' },
+          email: { type: 'string', description: 'Email address' },
+          phone: { type: 'string', description: 'Phone number' },
+          monthly_rent: { type: 'number', description: 'Monthly rent amount in dollars (residents only)' },
+          lease_start: { type: 'string', description: 'Lease start date YYYY-MM-DD (residents only)' },
+          lease_end: { type: 'string', description: 'Lease end date YYYY-MM-DD (residents only)' },
+          notes: { type: 'string', description: 'Optional notes' }
+        },
+        required: ['name', 'contact_type']
+      }
+    },
+    {
+      name: 'mark_rent_paid',
+      description: 'Mark a resident\'s rent as paid. Use the resident name and/or unit from the rent records.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          resident: { type: 'string', description: 'Resident name (partial match ok)' },
+          unit: { type: 'string', description: 'Unit number (optional, helps narrow down)' }
+        },
+        required: ['resident']
+      }
+    },
+    {
+      name: 'send_late_notice',
+      description: 'Send a late payment notice to a resident who has not paid rent',
+      input_schema: {
+        type: 'object',
+        properties: {
+          resident: { type: 'string', description: 'Resident name (partial match ok)' },
+          unit: { type: 'string', description: 'Unit number (optional)' }
+        },
+        required: ['resident']
+      }
+    },
+    {
+      name: 'add_budget_transaction',
+      description: 'Log an income or expense transaction in the budget tracker',
+      input_schema: {
+        type: 'object',
+        properties: {
+          transaction_type: { type: 'string', enum: ['income', 'expense'], description: 'Income or expense' },
+          category: { type: 'string', description: 'Category, e.g. Rent, Repairs, Utilities, Insurance, Landscaping' },
+          description: { type: 'string', description: 'What the transaction is for' },
+          amount: { type: 'number', description: 'Dollar amount (positive number)' },
+          date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
+          notes: { type: 'string', description: 'Optional notes' }
+        },
+        required: ['transaction_type', 'category', 'description', 'amount', 'date']
+      }
+    },
+    {
+      name: 'add_maintenance_ticket',
+      description: 'Create a maintenance ticket for a repair or issue at the property',
+      input_schema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Brief title of the issue' },
+          description: { type: 'string', description: 'Full description of the problem' },
+          unit: { type: 'string', description: 'Unit number where the issue is' },
+          resident: { type: 'string', description: 'Resident name reporting the issue' },
+          category: { type: 'string', enum: ['plumbing', 'electrical', 'hvac', 'appliance', 'structural', 'pest', 'general'], description: 'Issue category' }
+        },
+        required: ['title']
+      }
+    },
+    {
+      name: 'generate_rent',
+      description: 'Generate monthly rent records for all residents who have a monthly rent amount set on their contact. Creates one pending record per resident.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          month: { type: 'number', description: 'Month number 1-12' },
+          year: { type: 'number', description: 'Four-digit year' },
+          due_day: { type: 'number', description: 'Day of month rent is due (1-28, default 1)' }
+        },
+        required: ['month', 'year']
       }
     }
   ];
@@ -962,7 +1055,19 @@ ${contextSummary}
 
 Today's date is ${new Date().toISOString().split('T')[0]}.
 
-When the user asks you to do something, use the available tools to carry out the action. Always explain what you did in a friendly, concise way. If you need to compose a message, write the full professional message body. If they ask a question, answer it directly using the context above.`,
+You have access to the following tools. Use them proactively when the user's intent is clear:
+- add_calendar_event: schedule events and appointments
+- add_task: create tasks with categories and due dates
+- compose_message: draft and save messages to residents or contacts
+- add_contact: add residents, vendors, or important contacts (including lease dates and monthly rent)
+- mark_rent_paid: mark a resident's rent as paid — match by name from the rent records
+- send_late_notice: send a payment reminder to an unpaid resident
+- add_budget_transaction: log income or expenses to the budget tracker
+- add_maintenance_ticket: create maintenance/repair tickets
+- generate_rent: create pending rent records for all residents for a given month
+
+You can use multiple tools in one response if needed (e.g. "add Maria and generate May rent" → add_contact + generate_rent).
+Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.`,
       tools,
       messages: [{ role: 'user', content: prompt }]
     });

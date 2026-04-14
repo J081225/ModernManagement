@@ -692,7 +692,10 @@
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128197; Add calendar event</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#10003; Create a task</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#9993; Compose a message</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; What contacts do I have?</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128181; Generate rent for this month</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128295; Create a maintenance ticket</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128200; Log an expense</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; Who hasn't paid rent?</button>
             </div>
             <!-- Response area -->
             <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
@@ -3051,19 +3054,100 @@
       async function applyActions(actions, actionLog) {
         if (!actions || !actions.length) return;
         for (const action of actions) {
+
           if (action.type === 'add_calendar_event') {
             await api('calevents', 'POST', { date: action.date, title: action.title });
             await loadCalEvents();
             renderCalendar();
             actionLog.push(`&#128197; Added event: "${action.title}" on ${action.date}`);
+
           } else if (action.type === 'add_task') {
             await api('tasks', 'POST', { title: action.title, category: action.category || 'other', dueDate: action.dueDate, notes: action.notes || '' });
             await loadTasks();
             actionLog.push(`&#10003; Created task: "${action.title}"`);
+
           } else if (action.type === 'compose_message') {
             await api('messages', 'POST', { resident: action.to, subject: action.subject, category: 'general', text: action.body });
             await loadInbox();
             actionLog.push(`&#9993; Composed message to ${action.to}`);
+
+          } else if (action.type === 'add_contact') {
+            await api('contacts', 'POST', {
+              name: action.name, type: action.contact_type || 'resident',
+              unit: action.unit || '', email: action.email || '', phone: action.phone || '',
+              notes: action.notes || '', lease_start: action.lease_start || '',
+              lease_end: action.lease_end || '', monthly_rent: action.monthly_rent || 0
+            });
+            await loadContacts();
+            loadLeases();
+            actionLog.push(`&#128100; Added contact: ${action.name} (${action.type || 'resident'})`);
+
+          } else if (action.type === 'mark_rent_paid') {
+            // Find matching rent record by resident name
+            const rentRows = await fetch('/api/rent').then(r => r.json()).catch(() => []);
+            const match = rentRows.find(r =>
+              r.status !== 'paid' &&
+              r.resident.toLowerCase().includes(action.resident.toLowerCase()) ||
+              (action.unit && r.unit === action.unit)
+            );
+            if (match) {
+              await api(`rent/${match.id}`, 'PUT', { status: 'paid', amount: match.amount, due_date: match.due_date });
+              loadRentTable();
+              actionLog.push(`&#10003; Marked ${match.resident} (Unit ${match.unit || '—'}) rent as paid`);
+            } else {
+              actionLog.push(`&#9888; Could not find unpaid rent record for "${action.resident}"`);
+            }
+
+          } else if (action.type === 'send_late_notice') {
+            const rentRows = await fetch('/api/rent').then(r => r.json()).catch(() => []);
+            const match = rentRows.find(r =>
+              r.status !== 'paid' &&
+              r.resident.toLowerCase().includes(action.resident.toLowerCase())
+            );
+            if (match) {
+              const result = await api(`rent/${match.id}/late-notice`, 'POST', {});
+              loadRentTable();
+              const channel = result?.channel || 'unknown';
+              actionLog.push(`&#128232; Late notice sent to ${match.resident} via ${channel}`);
+            } else {
+              actionLog.push(`&#9888; No unpaid rent record found for "${action.resident}"`);
+            }
+
+          } else if (action.type === 'add_budget_transaction') {
+            const txType = action.transaction_type || 'expense';
+            await api('budget', 'POST', {
+              type: txType,
+              category: action.category || 'Other',
+              description: action.description,
+              amount: action.amount,
+              date: action.date,
+              notes: action.notes || ''
+            });
+            loadBudget();
+            const sign = txType === 'income' ? '+' : '-';
+            actionLog.push(`&#128200; Logged ${txType}: ${action.description} (${sign}$${Number(action.amount).toLocaleString()})`);
+
+          } else if (action.type === 'add_maintenance_ticket') {
+            await api('maintenance', 'POST', {
+              title: action.title,
+              description: action.description || '',
+              unit: action.unit || '',
+              resident: action.resident || '',
+              category: action.category || 'general'
+            });
+            loadMaintenance();
+            actionLog.push(`&#128295; Created maintenance ticket: "${action.title}"${action.unit ? ' (Unit ' + action.unit + ')' : ''}`);
+
+          } else if (action.type === 'generate_rent') {
+            const result = await api('rent/generate-month', 'POST', {
+              month: action.month,
+              year: action.year,
+              due_day: action.due_day || 1
+            });
+            loadRentTable();
+            if (result) {
+              actionLog.push(`&#128181; Generated rent: ${result.created} record${result.created !== 1 ? 's' : ''} created${result.skipped ? `, ${result.skipped} already existed` : ''}`);
+            }
           }
         }
       }
@@ -3080,6 +3164,11 @@
         responseBox.innerHTML = '<span style="color:#94a3b8;">&#129302; Thinking...</span>';
 
         try {
+          // Fetch fresh rent + maintenance for context
+          const [freshRent, freshMaint] = await Promise.all([
+            fetch('/api/rent').then(r => r.json()).catch(() => []),
+            fetch('/api/maintenance').then(r => r.json()).catch(() => [])
+          ]);
           const res = await fetch('/api/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3088,7 +3177,9 @@
               contacts,
               calEvents,
               tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
-              messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status }))
+              messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status })),
+              rentRecords: freshRent.map(r => ({ id: r.id, resident: r.resident, unit: r.unit, amount: r.amount, due_date: r.due_date, status: r.status })),
+              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status }))
             })
           });
           const data = await res.json();
