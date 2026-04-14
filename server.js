@@ -1318,13 +1318,20 @@ pool.query(`
   )
 `).then(async () => {
   await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS paid_date TEXT DEFAULT ''`);
 }).catch(err => console.error('Rent DB init error:', err.message));
 
 app.get('/api/rent', requireAuth, async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT * FROM rent_payments WHERE user_id=$1 ORDER BY due_date ASC, resident ASC',
-    [req.session.userId]
-  );
+  const { month, year } = req.query;
+  let query = 'SELECT * FROM rent_payments WHERE user_id=$1';
+  const params = [req.session.userId];
+  if (month && year) {
+    const prefix = `${year}-${String(month).padStart(2, '0')}`;
+    params.push(`${prefix}%`);
+    query += ` AND due_date LIKE $${params.length}`;
+  }
+  query += ' ORDER BY due_date ASC, resident ASC';
+  const { rows } = await pool.query(query, params);
   res.json(rows);
 });
 
@@ -1340,12 +1347,45 @@ app.post('/api/rent', requireAuth, async (req, res) => {
 
 app.put('/api/rent/:id', requireAuth, async (req, res) => {
   const { status, notes, amount, due_date } = req.body;
+  const paid_date = status === 'paid' ? new Date().toISOString().split('T')[0] : '';
   const { rows } = await pool.query(
-    'UPDATE rent_payments SET status=$1, notes=$2, amount=$3, due_date=$4 WHERE id=$5 AND user_id=$6 RETURNING *',
-    [status, notes || '', Number(amount), due_date || '', Number(req.params.id), req.session.userId]
+    'UPDATE rent_payments SET status=$1, notes=$2, amount=$3, due_date=$4, paid_date=$5 WHERE id=$6 AND user_id=$7 RETURNING *',
+    [status, notes || '', Number(amount), due_date || '', paid_date, Number(req.params.id), req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'Not found' });
   res.json(rows[0]);
+});
+
+// Generate monthly rent records from resident contacts
+app.post('/api/rent/generate-month', requireAuth, async (req, res) => {
+  const { month, year, due_day } = req.body; // month 1-12, year YYYY, due_day 1-28
+  if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+  const day = String(due_day || 1).padStart(2, '0');
+  const due_date = `${year}-${String(month).padStart(2, '0')}-${day}`;
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+
+  // Get all resident contacts with a monthly_rent set
+  const { rows: residents } = await pool.query(
+    `SELECT * FROM contacts WHERE user_id=$1 AND type='resident' AND monthly_rent > 0`,
+    [req.session.userId]
+  );
+
+  let created = 0, skipped = 0;
+  for (const r of residents) {
+    // Skip if a record for this resident already exists in this month
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM rent_payments WHERE user_id=$1 AND resident=$2 AND due_date LIKE $3`,
+      [req.session.userId, r.name, `${monthPrefix}%`]
+    );
+    if (existing.length) { skipped++; continue; }
+    await pool.query(
+      `INSERT INTO rent_payments (user_id, resident, unit, amount, due_date, status, notes)
+       VALUES ($1,$2,$3,$4,$5,'pending','')`,
+      [req.session.userId, r.name, r.unit || '', r.monthly_rent, due_date]
+    );
+    created++;
+  }
+  res.json({ created, skipped, total: residents.length });
 });
 
 app.delete('/api/rent/:id', requireAuth, async (req, res) => {

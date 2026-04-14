@@ -1066,10 +1066,29 @@
           <!-- Rent Payments -->
           <div class="card">
             <h2>Rent Payments</h2>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <span style="font-size:0.9em;color:#888;">Track resident rent status and send late notices.</span>
-              <button class="btn-primary" onclick="openAddRent()">+ Add Resident</button>
+
+            <!-- Controls row -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <select id="rentMonthSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88em;color:#2d3748;">
+                  <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+                  <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+                  <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+                  <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+                </select>
+                <select id="rentYearSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88em;color:#2d3748;">
+                  <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-secondary" onclick="openGenerateRent()" style="font-size:0.85em;">&#9889; Generate Month</button>
+                <button class="btn-primary" onclick="openAddRent()">+ Add Manually</button>
+              </div>
             </div>
+
+            <!-- Summary chips -->
+            <div id="rentSummary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;"></div>
+
             <div class="table-scroll-wrap">
             <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
               <thead>
@@ -1714,33 +1733,67 @@
       let budgetTransactions = [];
 
       async function loadRentTable() {
-        const rows = await api('rent') || [];
+        const month = document.getElementById('rentMonthSel')?.value;
+        const year = document.getElementById('rentYearSel')?.value;
+        const qs = (month && year) ? `?month=${month}&year=${year}` : '';
+        const rows = await fetch('/api/rent' + qs).then(r => r.json()).catch(() => []);
         const tbody = document.getElementById('rentTable');
+        const today = new Date().toISOString().split('T')[0];
+
         if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="6" style="padding:22px;text-align:center;color:#94a3b8;font-size:0.88em;">No rent records yet. Add a resident to get started.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="6" style="padding:22px;text-align:center;color:#94a3b8;font-size:0.88em;">No rent records for this month. Click "Generate Month" to create them automatically.</td></tr>`;
+          document.getElementById('rentSummary').innerHTML = '';
           return;
         }
-        tbody.innerHTML = rows.map(r => {
-          const statusColor = r.status === 'paid' ? '#27ae60' : r.status === 'late' ? '#e74c3c' : '#e67e22';
-          const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+
+        // Compute effective status (auto-overdue if past due and not paid)
+        const enriched = rows.map(r => {
+          let status = r.status;
+          if (status === 'pending' && r.due_date && r.due_date < today) status = 'overdue';
+          return { ...r, effectiveStatus: status };
+        });
+
+        // Summary bar
+        const paid    = enriched.filter(r => r.effectiveStatus === 'paid');
+        const pending = enriched.filter(r => r.effectiveStatus === 'pending');
+        const overdue = enriched.filter(r => r.effectiveStatus === 'overdue' || r.effectiveStatus === 'late');
+        const totalCollected = paid.reduce((s, r) => s + Number(r.amount), 0);
+        const totalOutstanding = [...pending, ...overdue].reduce((s, r) => s + Number(r.amount), 0);
+        document.getElementById('rentSummary').innerHTML = `
+          <div style="flex:1;min-width:130px;padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
+            <div style="font-size:0.72em;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;">Collected</div>
+            <div style="font-size:1.3em;font-weight:700;color:#15803d;margin-top:4px;">$${totalCollected.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
+            <div style="font-size:0.75em;color:#86efac;margin-top:2px;">${paid.length} of ${enriched.length} paid</div>
+          </div>
+          <div style="flex:1;min-width:130px;padding:12px 16px;background:${overdue.length ? '#fff1f0' : '#fffbeb'};border:1px solid ${overdue.length ? '#fecaca' : '#fde68a'};border-radius:10px;">
+            <div style="font-size:0.72em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};text-transform:uppercase;letter-spacing:0.5px;">Outstanding</div>
+            <div style="font-size:1.3em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};margin-top:4px;">$${totalOutstanding.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
+            <div style="font-size:0.75em;color:#fca5a5;margin-top:2px;">${overdue.length ? overdue.length + ' overdue' : pending.length + ' pending'}</div>
+          </div>`;
+
+        tbody.innerHTML = enriched.map(r => {
+          const s = r.effectiveStatus;
+          const rowBg = s === 'overdue' || s === 'late' ? 'background:#fff8f8;' : '';
+          const statusColor = s === 'paid' ? '#27ae60' : (s === 'overdue' || s === 'late') ? '#e74c3c' : '#e67e22';
+          const statusBg    = s === 'paid' ? '#f0fdf4' : (s === 'overdue' || s === 'late') ? '#fff1f0' : '#fffbeb';
+          const statusLabel = s === 'overdue' ? '⚠ Overdue' : s.charAt(0).toUpperCase() + s.slice(1);
           const amt = Number(r.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
-          return `<tr style="border-bottom:1px solid #f1f5f9;">
+          const paidOn = r.paid_date ? `<div style="font-size:0.72em;color:#86efac;margin-top:2px;">Paid ${r.paid_date}</div>` : '';
+          return `<tr style="border-bottom:1px solid #f1f5f9;${rowBg}">
             <td style="padding:10px 10px;font-weight:600;">${r.resident}</td>
             <td style="padding:10px 10px;color:#64748b;">${r.unit || '—'}</td>
-            <td style="padding:10px 10px;">$${amt}</td>
+            <td style="padding:10px 10px;font-weight:600;">$${amt}</td>
             <td style="padding:10px 10px;color:#64748b;">${r.due_date || '—'}</td>
             <td style="padding:10px 10px;">
-              <select onchange="updateRentStatus(${r.id}, this.value, ${r.amount}, '${r.due_date || ''}')"
-                style="border:1px solid ${statusColor};border-radius:6px;padding:3px 8px;font-size:0.82em;font-weight:600;color:${statusColor};background:white;cursor:pointer;">
-                <option value="pending" ${r.status==='pending'?'selected':''}>Pending</option>
-                <option value="paid" ${r.status==='paid'?'selected':''}>Paid</option>
-                <option value="late" ${r.status==='late'?'selected':''}>Late</option>
-              </select>
+              <div style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.8em;font-weight:700;background:${statusBg};color:${statusColor};">${statusLabel}</div>
+              ${paidOn}
             </td>
-            <td style="padding:10px 10px;display:flex;gap:6px;flex-wrap:wrap;">
-              ${r.status !== 'paid' ? `<button class="btn-success" style="font-size:0.78em;padding:4px 10px;" onclick="markRentPaid(${r.id},${r.amount},'${r.due_date||''}')">&#10003; Mark Paid</button>` : ''}
-              ${r.status !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="sendLateNotice(${r.id})">&#128232; Notice</button>` : ''}
-              <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
+            <td style="padding:10px 10px;">
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${s !== 'paid' ? `<button class="btn-primary" style="font-size:0.78em;padding:5px 12px;" onclick="markRentPaid(${r.id},${r.amount},'${r.due_date||''}')">&#10003; Mark Paid</button>` : ''}
+                ${s !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:5px 10px;" onclick="sendLateNotice(${r.id})">&#128232; Notice</button>` : ''}
+                <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
+              </div>
             </td>
           </tr>`;
         }).join('');
@@ -1784,6 +1837,40 @@
         document.getElementById('rentDueDateInput').value = '';
         document.getElementById('rentNotesInput').value = '';
         document.getElementById('rentModal').style.display = 'flex';
+      }
+
+      function openGenerateRent() {
+        document.getElementById('generateRentModal').style.display = 'flex';
+        // Pre-fill to current filter month/year
+        const m = document.getElementById('rentMonthSel').value;
+        const y = document.getElementById('rentYearSel').value;
+        document.getElementById('genMonth').value = m;
+        document.getElementById('genYear').value = y;
+        document.getElementById('genDueDay').value = '1';
+        document.getElementById('genResult').textContent = '';
+      }
+
+      async function submitGenerateRent() {
+        const month = document.getElementById('genMonth').value;
+        const year = document.getElementById('genYear').value;
+        const due_day = document.getElementById('genDueDay').value;
+        const btn = document.getElementById('genRentBtn');
+        btn.disabled = true; btn.textContent = 'Generating…';
+        const result = await api('rent/generate-month', 'POST', { month: Number(month), year: Number(year), due_day: Number(due_day) });
+        btn.disabled = false; btn.textContent = 'Generate';
+        if (result) {
+          if (result.created === 0 && result.skipped > 0) {
+            document.getElementById('genResult').textContent = `All ${result.skipped} residents already have records for this month.`;
+          } else {
+            document.getElementById('genResult').textContent = `Created ${result.created} record${result.created !== 1 ? 's' : ''}${result.skipped ? ` (${result.skipped} already existed)` : ''}.`;
+            document.getElementById('rentMonthSel').value = month;
+            document.getElementById('rentYearSel').value = year;
+            setTimeout(() => {
+              document.getElementById('generateRentModal').style.display = 'none';
+              loadRentTable();
+            }, 1200);
+          }
+        }
       }
 
       async function submitRent() {
@@ -3177,11 +3264,16 @@
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadBillingStatus(); checkOnboarding();
-        initCalendar(); loadCalEvents(); loadRentTable(); loadInvoiceTable();
-        // Init budget month/year to current
+        initCalendar(); loadCalEvents(); loadInvoiceTable();
+        // Init month/year selectors to current month
         const now = new Date();
-        document.getElementById('budgetMonthSel').value = String(now.getMonth() + 1).padStart(2,'0');
-        document.getElementById('budgetYearSel').value = String(now.getFullYear());
+        const curMonth = String(now.getMonth() + 1);
+        const curYear  = String(now.getFullYear());
+        document.getElementById('rentMonthSel').value = curMonth;
+        document.getElementById('rentYearSel').value  = curYear;
+        loadRentTable();
+        document.getElementById('budgetMonthSel').value = curMonth.padStart(2,'0');
+        document.getElementById('budgetYearSel').value = curYear;
         loadBudget();
         loadTasks(); loadContacts(); loadMaintenance(); loadBroadcastHistory();
         loadLeases();
@@ -3440,6 +3532,44 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeEventModal()">Cancel</button>
         <button class="btn-primary" onclick="submitAddEvent()">Add Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Monthly Rent Modal -->
+  <div class="modal-overlay" id="generateRentModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:400px;max-width:96vw;">
+      <h3>&#9889; Generate Monthly Rent</h3>
+      <p style="font-size:0.85em;color:#64748b;margin-bottom:18px;">Creates one unpaid rent record for each resident contact who has a monthly rent amount set. Skips residents who already have a record this month.</p>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Month</label>
+          <select id="genMonth" style="width:100%;">
+            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+          </select>
+        </div>
+        <div style="width:100px;">
+          <label>Year</label>
+          <select id="genYear" style="width:100%;">
+            <option value="2024">2024</option><option value="2025">2025</option>
+            <option value="2026">2026</option><option value="2027">2027</option>
+          </select>
+        </div>
+        <div style="width:90px;">
+          <label>Due Day</label>
+          <input id="genDueDay" type="number" min="1" max="28" value="1" placeholder="1" />
+        </div>
+      </div>
+
+      <div id="genResult" style="margin-top:12px;font-size:0.85em;color:#059669;min-height:20px;"></div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="document.getElementById('generateRentModal').style.display='none'">Cancel</button>
+        <button class="btn-primary" id="genRentBtn" onclick="submitGenerateRent()">Generate</button>
       </div>
     </div>
   </div>
