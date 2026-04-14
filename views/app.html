@@ -799,24 +799,24 @@
         <div class="page" id="page-operations">
           <div class="card">
             <h2>Automation Settings</h2>
-            <p style="color:#666;font-size:0.9em;margin-bottom:12px;">Choose how incoming messages are handled:</p>
-            <div style="display:flex;gap:10px;margin-bottom:16px;">
-              <label style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:2px solid #eee;border-radius:8px;cursor:pointer;width:180px;" id="label-auto">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" />
-                  <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#9889; Auto Response</span>
+            <p style="color:#94a3b8;font-size:0.85em;margin-bottom:16px;">Choose how incoming messages are handled:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+              <label id="label-auto" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:#ff6b6b;width:16px;height:16px;" />
+                <div>
+                  <div style="font-weight:600;font-size:0.88em;color:#1a2e4a;">&#9889; Auto Response</div>
+                  <div style="font-size:0.76em;color:#94a3b8;margin-top:2px;">AI replies instantly</div>
                 </div>
-                <span style="font-size:0.75em;color:#94a3b8;padding-left:18px;">AI replies instantly</span>
               </label>
-              <label style="display:flex;flex-direction:column;gap:4px;padding:10px 14px;border:2px solid #ff6b6b;border-radius:8px;cursor:pointer;background:#fff8f8;width:180px;" id="label-review">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked />
-                  <span style="font-weight:600;font-size:0.9em;color:#2d3748;">&#128065; Manager Review</span>
+              <label id="label-review" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
+                <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:#ff6b6b;width:16px;height:16px;" />
+                <div>
+                  <div style="font-weight:600;font-size:0.88em;color:#1a2e4a;">&#128065; Manager Review</div>
+                  <div style="font-size:0.76em;color:#94a3b8;margin-top:2px;">You review before sending</div>
                 </div>
-                <span style="font-size:0.75em;color:#94a3b8;padding-left:18px;">You review before sending</span>
               </label>
             </div>
-            <button class="btn-primary" onclick="saveAutomation()">Save Settings</button>
+            <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save Settings</button>
           </div>
 
           <div class="card">
