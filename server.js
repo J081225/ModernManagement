@@ -260,10 +260,58 @@ async function initDB() {
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`);
 
+  // Rent payments table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rent_payments (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      resident TEXT NOT NULL,
+      unit TEXT DEFAULT '',
+      amount NUMERIC(10,2) NOT NULL,
+      due_date TEXT,
+      status TEXT DEFAULT 'pending',
+      notes TEXT DEFAULT '',
+      paid_date TEXT DEFAULT '',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS paid_date TEXT DEFAULT ''`);
+
+  // Invoices table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      vendor TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      amount NUMERIC(10,2) NOT NULL,
+      date TEXT,
+      status TEXT DEFAULT 'pending',
+      notes TEXT DEFAULT '',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+
+  // Broadcasts table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS broadcasts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      channel TEXT NOT NULL,
+      subject TEXT DEFAULT '',
+      body TEXT NOT NULL,
+      recipient_filter TEXT DEFAULT 'all',
+      recipient_count INTEGER DEFAULT 0,
+      sent_count INTEGER DEFAULT 0,
+      failed_count INTEGER DEFAULT 0,
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   console.log('DB init complete.');
 }
-
-initDB().catch(err => console.error('DB init error:', err.message));
 
 // --- Automation helpers ---
 async function getAutomation(userId) {
@@ -1409,22 +1457,6 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
 });
 
 // --- Rent Payments ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS rent_payments (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL DEFAULT 1,
-    resident TEXT NOT NULL,
-    unit TEXT DEFAULT '',
-    amount NUMERIC(10,2) NOT NULL,
-    due_date TEXT,
-    status TEXT DEFAULT 'pending',
-    notes TEXT DEFAULT '',
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).then(async () => {
-  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
-  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS paid_date TEXT DEFAULT ''`);
-}).catch(err => console.error('Rent DB init error:', err.message));
 
 app.get('/api/rent', requireAuth, async (req, res) => {
   const { month, year } = req.query;
@@ -1541,21 +1573,6 @@ app.post('/api/rent/:id/late-notice', requireAuth, async (req, res) => {
 });
 
 // --- Invoices ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS invoices (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL DEFAULT 1,
-    vendor TEXT NOT NULL,
-    description TEXT DEFAULT '',
-    amount NUMERIC(10,2) NOT NULL,
-    date TEXT,
-    status TEXT DEFAULT 'pending',
-    notes TEXT DEFAULT '',
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).then(async () => {
-  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
-}).catch(err => console.error('Invoices DB init error:', err.message));
 
 app.get('/api/invoices', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
@@ -1591,20 +1608,6 @@ app.delete('/api/invoices/:id', requireAuth, async (req, res) => {
 });
 
 // --- Broadcasts ---
-pool.query(`
-  CREATE TABLE IF NOT EXISTS broadcasts (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL DEFAULT 1,
-    channel TEXT NOT NULL,
-    subject TEXT DEFAULT '',
-    body TEXT NOT NULL,
-    recipient_filter TEXT DEFAULT 'all',
-    recipient_count INTEGER DEFAULT 0,
-    sent_count INTEGER DEFAULT 0,
-    failed_count INTEGER DEFAULT 0,
-    "createdAt" TIMESTAMPTZ DEFAULT NOW()
-  )
-`).catch(err => console.error('Broadcasts DB init error:', err.message));
 
 app.get('/api/broadcasts', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
@@ -1846,4 +1849,27 @@ app.post('/api/billing/webhook',
   }
 );
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// --- Global async error handler — wraps all async route handlers ---
+// Catches any unhandled thrown error and returns a 500 instead of crashing the process
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled route error:', err.message);
+  if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+});
+
+// --- Catch unhandled promise rejections so the process never crashes ---
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err.message);
+});
+
+// --- Start server only after DB is ready ---
+initDB()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+  })
+  .catch(err => {
+    console.error('Fatal: DB init failed, server not started:', err.message);
+    process.exit(1);
+  });
