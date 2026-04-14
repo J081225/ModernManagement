@@ -392,6 +392,19 @@
       .tag-resident { background: #fff5f5; color: #ff6b6b; }
       .tag-vendor { background: #f0ecff; color: #764ba2; }
       .tag-important { background: #fdf0ff; color: #c026d3; }
+      .lease-badge {
+        font-size: 0.68em; font-weight: 700; padding: 2px 7px; border-radius: 20px;
+        margin-left: 4px; flex-shrink: 0;
+      }
+      .lease-red   { background: #fff1f0; color: #e74c3c; border: 1px solid rgba(231,76,60,0.2); }
+      .lease-yellow{ background: #fffbeb; color: #d97706; border: 1px solid rgba(217,119,6,0.2); }
+      .lease-green { background: #f0fdf4; color: #059669; border: 1px solid rgba(5,150,105,0.2); }
+      .lease-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
+        background: white; border: 1px solid #e2e8f0; font-size: 0.88em;
+      }
+      .lease-row:last-child { margin-bottom: 0; }
 
       /* Tasks */
       .task-item {
@@ -701,6 +714,21 @@
             </div>
             <!-- Report output -->
             <div id="reportOutput" style="display:none;margin-top:20px;"></div>
+          </div>
+
+          <!-- Lease Expirations Card -->
+          <div class="card" id="leaseCard" style="margin-bottom:24px;padding:22px 24px;display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#128196;</div>
+                <div>
+                  <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Lease Expirations</div>
+                  <div style="font-size:0.77em;color:#94a3b8;">Residents expiring in the next 90 days</div>
+                </div>
+              </div>
+              <button onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" class="btn-secondary" style="font-size:0.82em;padding:7px 14px;">View All</button>
+            </div>
+            <div id="leaseExpirationsList"></div>
           </div>
 
           <!-- Quick Access Grid -->
@@ -1154,7 +1182,7 @@
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
         const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts' };
-        if (name === 'home') loadHomeStats();
+        if (name === 'home') { loadHomeStats(); loadLeases(); }
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
       }
@@ -2333,13 +2361,24 @@
         grid.innerHTML = filtered.map(c => {
           const initials = c.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
           const isSelected = selectedContact && selectedContact.id === c.id;
+          let leaseBadge = '';
+          if (c.type === 'resident' && c.lease_end) {
+            const days = Math.round((new Date(c.lease_end) - new Date()) / 86400000);
+            if (days <= 90) {
+              const cls = days <= 30 ? 'lease-red' : days <= 60 ? 'lease-yellow' : 'lease-green';
+              leaseBadge = `<span class="lease-badge ${cls}">${days <= 0 ? 'Expired' : days + 'd'}</span>`;
+            }
+          }
           return `<div class="contact-card ${isSelected ? 'selected' : ''}" onclick="selectContact(${c.id})">
             <div class="contact-avatar avatar-${c.type}">${initials}</div>
             <div class="contact-info">
               <div class="contact-name">${c.name}</div>
-              <div class="contact-sub">${c.email || c.phone || ''}</div>
+              <div class="contact-sub">${c.unit ? 'Unit ' + c.unit + (c.email ? ' · ' + c.email : '') : (c.email || c.phone || '')}</div>
             </div>
-            <span class="contact-type-tag tag-${c.type}">${c.type}</span>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+              <span class="contact-type-tag tag-${c.type}">${c.type}</span>
+              ${leaseBadge}
+            </div>
           </div>`;
         }).join('');
       }
@@ -2349,6 +2388,30 @@
         renderContacts();
         const c = selectedContact;
         const initials = c.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+
+        // Build lease section for residents
+        let leaseHtml = '';
+        if (c.type === 'resident') {
+          const hasLease = c.lease_end && c.lease_end.trim();
+          if (hasLease) {
+            const days = Math.round((new Date(c.lease_end) - new Date()) / 86400000);
+            const urgencyColor = days <= 0 ? '#e74c3c' : days <= 30 ? '#e74c3c' : days <= 60 ? '#d97706' : '#059669';
+            const urgencyText = days <= 0 ? 'Expired' : days === 1 ? '1 day left' : `${days} days left`;
+            leaseHtml = `
+              <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+                <div style="font-size:0.75em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Lease</div>
+                <div style="display:flex;flex-direction:column;gap:8px;font-size:0.86em;">
+                  ${c.lease_start ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Start</span><span style="color:#2d3748;font-weight:600;">${c.lease_start}</span></div>` : ''}
+                  <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">End</span><span style="color:#2d3748;font-weight:600;">${c.lease_end}</span></div>
+                  <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Status</span><span style="color:${urgencyColor};font-weight:700;">${urgencyText}</span></div>
+                  ${c.monthly_rent > 0 ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Monthly Rent</span><span style="color:#2d3748;font-weight:600;">$${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}</span></div>` : ''}
+                </div>
+              </div>`;
+          } else {
+            leaseHtml = `<div style="margin:16px 0;padding:12px 14px;background:#fffbeb;border:1px dashed #fbbf24;border-radius:10px;font-size:0.82em;color:#92400e;">No lease dates on file. Click Edit to add.</div>`;
+          }
+        }
+
         document.getElementById('contactDetailPanel').innerHTML = `
           <div class="card" style="padding:28px 24px;">
             <div style="text-align:center;margin-bottom:20px;">
@@ -2362,9 +2425,11 @@
               ${c.phone ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Phone</span><div style="margin-top:3px;color:#2d3748;">${c.phone}</div></div>` : ''}
               ${c.notes ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Notes</span><div style="margin-top:3px;color:#2d3748;">${c.notes}</div></div>` : ''}
             </div>
+            ${leaseHtml}
             <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
               <button class="btn-primary" style="width:100%;" onclick="composeToContact(${c.id})">&#9993; Compose Message</button>
-              <button class="btn-secondary" style="width:100%;" onclick="deleteContact(${c.id})">Remove Contact</button>
+              <button class="btn-secondary" style="width:100%;" onclick="openEditContact(${c.id})">&#9998; Edit Contact</button>
+              <button class="btn-secondary" style="width:100%;color:#e74c3c;border-color:#fecaca;" onclick="deleteContact(${c.id})">Remove Contact</button>
             </div>
           </div>`;
       }
@@ -2390,15 +2455,107 @@
         setTimeout(() => showMessage(newMsg.id), 200);
       }
 
-      async function openAddContact() {
-        const name = prompt('Full name:'); if (!name) return;
-        const type = prompt('Type (resident / vendor / important):', 'resident'); if (!type) return;
-        const email = prompt('Email (optional):', '') || '';
-        const phone = prompt('Phone (optional):', '') || '';
-        const unit = type === 'resident' ? (prompt('Unit number (optional):', '') || '') : '';
-        const notes = prompt('Notes (optional):', '') || '';
-        await api('contacts', 'POST', { name, type, email, phone, unit, notes });
-        loadContacts();
+      let _editingContactId = null;
+
+      function toggleLeaseFields() {
+        const type = document.getElementById('cType').value;
+        document.getElementById('leaseFields').style.display = type === 'resident' ? '' : 'none';
+      }
+
+      function openAddContact() {
+        _editingContactId = null;
+        document.getElementById('contactModalTitle').textContent = '👤 Add Contact';
+        document.getElementById('contactModalSaveBtn').textContent = 'Add Contact';
+        document.getElementById('cName').value = '';
+        document.getElementById('cType').value = 'resident';
+        document.getElementById('cEmail').value = '';
+        document.getElementById('cPhone').value = '';
+        document.getElementById('cUnit').value = '';
+        document.getElementById('cNotes').value = '';
+        document.getElementById('cLeaseStart').value = '';
+        document.getElementById('cLeaseEnd').value = '';
+        document.getElementById('cMonthlyRent').value = '';
+        toggleLeaseFields();
+        document.getElementById('contactModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('cName').focus(), 50);
+      }
+
+      function openEditContact(id) {
+        const c = contacts.find(x => x.id === id);
+        if (!c) return;
+        _editingContactId = id;
+        document.getElementById('contactModalTitle').textContent = '✏️ Edit Contact';
+        document.getElementById('contactModalSaveBtn').textContent = 'Save Changes';
+        document.getElementById('cName').value = c.name || '';
+        document.getElementById('cType').value = c.type || 'resident';
+        document.getElementById('cEmail').value = c.email || '';
+        document.getElementById('cPhone').value = c.phone || '';
+        document.getElementById('cUnit').value = c.unit || '';
+        document.getElementById('cNotes').value = c.notes || '';
+        document.getElementById('cLeaseStart').value = c.lease_start || '';
+        document.getElementById('cLeaseEnd').value = c.lease_end || '';
+        document.getElementById('cMonthlyRent').value = c.monthly_rent > 0 ? c.monthly_rent : '';
+        toggleLeaseFields();
+        document.getElementById('contactModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('cName').focus(), 50);
+      }
+
+      function closeContactModal() {
+        document.getElementById('contactModal').style.display = 'none';
+      }
+
+      async function submitContactModal() {
+        const name = document.getElementById('cName').value.trim();
+        if (!name) { alert('Please enter a name.'); return; }
+        const type = document.getElementById('cType').value;
+        const payload = {
+          name, type,
+          email: document.getElementById('cEmail').value.trim(),
+          phone: document.getElementById('cPhone').value.trim(),
+          unit: document.getElementById('cUnit').value.trim(),
+          notes: document.getElementById('cNotes').value.trim(),
+          lease_start: type === 'resident' ? document.getElementById('cLeaseStart').value : '',
+          lease_end: type === 'resident' ? document.getElementById('cLeaseEnd').value : '',
+          monthly_rent: type === 'resident' ? (parseFloat(document.getElementById('cMonthlyRent').value) || 0) : 0,
+        };
+        const btn = document.getElementById('contactModalSaveBtn');
+        btn.disabled = true;
+        if (_editingContactId) {
+          await fetch('/api/contacts/' + _editingContactId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        } else {
+          await api('contacts', 'POST', payload);
+        }
+        btn.disabled = false;
+        closeContactModal();
+        await loadContacts();
+        if (_editingContactId) selectContact(_editingContactId);
+        loadLeases();
+      }
+
+      async function loadLeases() {
+        const leases = await api('leases') || [];
+        const card = document.getElementById('leaseCard');
+        const list = document.getElementById('leaseExpirationsList');
+        if (!leases.length) { card.style.display = 'none'; return; }
+        card.style.display = '';
+        const html = leases.map(c => {
+          const days = parseInt(c.days_until);
+          const cls = days <= 0 ? 'lease-red' : days <= 30 ? 'lease-red' : days <= 60 ? 'lease-yellow' : 'lease-green';
+          const label = days <= 0 ? 'Expired' : days === 1 ? '1 day' : `${days} days`;
+          const rent = c.monthly_rent > 0 ? ` · $${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}/mo` : '';
+          return `<div class="lease-row" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'));setTimeout(()=>selectContact(${c.id}),200);" style="cursor:pointer;">
+            <div>
+              <div style="font-weight:600;color:#2d3748;font-size:0.9em;">${c.name}${c.unit ? ' <span style="color:#94a3b8;">· Unit ' + c.unit + '</span>' : ''}</div>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:2px;">Expires ${c.lease_end}${rent}</div>
+            </div>
+            <span class="lease-badge ${cls}">${label}</span>
+          </div>`;
+        }).join('');
+        list.innerHTML = html;
       }
 
       async function deleteContact(id) {
@@ -3027,6 +3184,8 @@
         document.getElementById('budgetYearSel').value = String(now.getFullYear());
         loadBudget();
         loadTasks(); loadContacts(); loadMaintenance(); loadBroadcastHistory();
+        loadLeases();
+        api('leases/check-renewals', 'POST', {}).catch(() => {});
       };
     </script>
   <!-- Maintenance Ticket Modal -->
@@ -3180,6 +3339,74 @@
           <button type="submit" class="btn-primary">Add Transaction</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Add / Edit Contact Modal -->
+  <div class="modal-overlay" id="contactModal" onclick="if(event.target===this)closeContactModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:480px;max-width:96vw;">
+      <h3 id="contactModalTitle">&#128100; Add Contact</h3>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Full Name *</label>
+          <input id="cName" type="text" placeholder="e.g. Maria Santos" />
+        </div>
+        <div style="width:140px;">
+          <label>Type *</label>
+          <select id="cType" onchange="toggleLeaseFields()">
+            <option value="resident">Resident</option>
+            <option value="vendor">Vendor</option>
+            <option value="important">Important</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Email</label>
+          <input id="cEmail" type="email" placeholder="email@example.com" />
+        </div>
+        <div style="flex:1;">
+          <label>Phone</label>
+          <input id="cPhone" type="tel" placeholder="(555) 000-0000" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Unit</label>
+          <input id="cUnit" type="text" placeholder="e.g. 4B" />
+        </div>
+        <div style="flex:1;">
+          <label>Notes</label>
+          <input id="cNotes" type="text" placeholder="Optional notes" />
+        </div>
+      </div>
+
+      <!-- Lease fields — shown only for residents -->
+      <div id="leaseFields" style="margin-top:6px;">
+        <div style="font-size:0.78em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;padding-top:10px;border-top:1px solid #f1f5f9;">Lease Details</div>
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label>Lease Start</label>
+            <input id="cLeaseStart" type="date" />
+          </div>
+          <div style="flex:1;">
+            <label>Lease End</label>
+            <input id="cLeaseEnd" type="date" />
+          </div>
+          <div style="flex:1;">
+            <label>Monthly Rent ($)</label>
+            <input id="cMonthlyRent" type="number" min="0" step="0.01" placeholder="1500" />
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeContactModal()">Cancel</button>
+        <button class="btn-primary" id="contactModalSaveBtn" onclick="submitContactModal()">Add Contact</button>
+      </div>
     </div>
   </div>
 

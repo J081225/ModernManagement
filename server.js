@@ -246,6 +246,11 @@ async function initDB() {
   // Ensure admin row exists
   await pool.query(`INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`);
 
+  // Lease tracking columns on contacts
+  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_start TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_end TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS monthly_rent NUMERIC(10,2) DEFAULT 0`);
+
   // Notification settings columns on users table
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true`);
@@ -451,10 +456,79 @@ app.post('/api/contacts', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
+app.put('/api/contacts/:id', async (req, res) => {
+  const { name, type, unit, email, phone, notes, lease_start, lease_end, monthly_rent } = req.body;
+  const { rows } = await pool.query(
+    `UPDATE contacts SET name=$1, type=$2, unit=$3, email=$4, phone=$5, notes=$6,
+     lease_start=$7, lease_end=$8, monthly_rent=$9 WHERE id=$10 AND user_id=$11 RETURNING *`,
+    [name, type, unit || '', email || '', phone || '', notes || '',
+     lease_start || '', lease_end || '', Number(monthly_rent) || 0,
+     Number(req.params.id), req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Contact not found' });
+  res.json(rows[0]);
+});
+
 app.delete('/api/contacts/:id', async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM contacts WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Contact not found' });
   res.json({ success: true });
+});
+
+// Leases — residents with upcoming expirations
+app.get('/api/leases', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT *, lease_end::date - CURRENT_DATE AS days_until
+     FROM contacts
+     WHERE user_id=$1 AND type='resident' AND lease_end != '' AND lease_end IS NOT NULL
+     ORDER BY lease_end ASC`,
+    [req.session.userId]
+  );
+  res.json(rows);
+});
+
+// Auto-create renewal tasks for leases expiring within 90 days
+app.post('/api/leases/check-renewals', requireAuth, async (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const in90 = new Date(Date.now() + 90 * 86400000).toISOString().split('T')[0];
+
+  const { rows: expiring } = await pool.query(
+    `SELECT * FROM contacts WHERE user_id=$1 AND type='resident'
+     AND lease_end != '' AND lease_end IS NOT NULL
+     AND lease_end BETWEEN $2 AND $3`,
+    [req.session.userId, today, in90]
+  );
+
+  let created = 0;
+  for (const c of expiring) {
+    // Only suggest if no existing open renewal task for this resident
+    const { rows: existing } = await pool.query(
+      `SELECT id FROM tasks WHERE user_id=$1 AND done=false AND suggested=true
+       AND title ILIKE $2`,
+      [req.session.userId, `%renewal%${c.name}%`]
+    );
+    if (existing.length) continue;
+
+    const daysUntil = Math.round((new Date(c.lease_end) - new Date(today)) / 86400000);
+    const urgency = daysUntil <= 30 ? 'URGENT' : daysUntil <= 60 ? 'Soon' : 'Upcoming';
+    const dueDate = new Date(Math.max(Date.now(), new Date(c.lease_end) - 30 * 86400000))
+      .toISOString().split('T')[0];
+
+    await pool.query(
+      `INSERT INTO tasks (user_id, title, category, "dueDate", notes, done, suggested, "aiReason")
+       VALUES ($1,$2,$3,$4,$5,false,true,$6)`,
+      [
+        req.session.userId,
+        `[${urgency}] Lease renewal — ${c.name}${c.unit ? ` (Unit ${c.unit})` : ''}`,
+        'lease',
+        dueDate,
+        `Lease expires ${c.lease_end} (${daysUntil} days). Contact resident to discuss renewal terms or non-renewal notice.`,
+        `Lease ends in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} — renewal decision needed before expiry.`
+      ]
+    );
+    created++;
+  }
+  res.json({ checked: expiring.length, tasksCreated: created });
 });
 
 // --- Tasks ---
