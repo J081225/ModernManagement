@@ -70,7 +70,19 @@ app.get('/workspace', requireAuthPage, (req, res) => {
 });
 
 // --- Database setup & migrations ---
+// Safe migration helper — logs errors but never crashes the server
+async function migrate(sql, label) {
+  try {
+    await pool.query(sql);
+  } catch (err) {
+    console.warn(`Migration skipped [${label}]:`, err.message);
+  }
+}
+
 async function initDB() {
+  // Verify DB connection is alive before doing anything
+  await pool.query('SELECT 1');
+
   // Users table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -112,7 +124,7 @@ async function initDB() {
       "createdAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'messages.user_id');
 
   const { rows: msgRows } = await pool.query('SELECT COUNT(*) FROM messages WHERE user_id=1');
   if (msgRows[0].count === '0') {
@@ -134,7 +146,7 @@ async function initDB() {
       notes TEXT
     )
   `);
-  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'contacts.user_id');
 
   const { rows: conRows } = await pool.query('SELECT COUNT(*) FROM contacts WHERE user_id=1');
   if (conRows[0].count === '0') {
@@ -158,9 +170,9 @@ async function initDB() {
       "aiReason" TEXT DEFAULT ''
     )
   `);
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`);
-  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`);
+  await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'tasks.user_id');
+  await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`, 'tasks.suggested');
+  await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`, 'tasks.aiReason');
 
   const { rows: taskRows } = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=1');
   if (taskRows[0].count === '0') {
@@ -189,7 +201,7 @@ async function initDB() {
       "updatedAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  await pool.query(`ALTER TABLE maintenance_tickets ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE maintenance_tickets ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'maintenance_tickets.user_id');
 
   // Calendar events table
   await pool.query(`
@@ -200,7 +212,7 @@ async function initDB() {
       title TEXT
     )
   `);
-  await pool.query(`ALTER TABLE cal_events ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE cal_events ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'cal_events.user_id');
 
   const { rows: evtRows } = await pool.query('SELECT COUNT(*) FROM cal_events WHERE user_id=1');
   if (evtRows[0].count === '0') {
@@ -221,7 +233,7 @@ async function initDB() {
       "createdAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  await pool.query(`ALTER TABLE budget_transactions ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE budget_transactions ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'budget_transactions.user_id');
 
   const { rows: budRows } = await pool.query('SELECT COUNT(*) FROM budget_transactions WHERE user_id=1');
   if (budRows[0].count === '0') {
@@ -247,18 +259,18 @@ async function initDB() {
   await pool.query(`INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`);
 
   // Lease tracking columns on contacts
-  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_start TEXT DEFAULT ''`);
-  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_end TEXT DEFAULT ''`);
-  await pool.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS monthly_rent NUMERIC(10,2) DEFAULT 0`);
+  await migrate(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_start TEXT DEFAULT ''`, 'contacts.lease_start');
+  await migrate(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_end TEXT DEFAULT ''`, 'contacts.lease_end');
+  await migrate(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS monthly_rent NUMERIC(10,2) DEFAULT 0`, 'contacts.monthly_rent');
 
   // Notification settings columns on users table
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email TEXT DEFAULT ''`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true`);
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email TEXT DEFAULT ''`, 'users.notification_email');
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT true`, 'users.notifications_enabled');
 
   // Onboarding + Stripe columns
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`);
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`);
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false`, 'users.onboarding_completed');
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`, 'users.stripe_customer_id');
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`, 'users.stripe_subscription_id');
 
   // Rent payments table
   await pool.query(`
@@ -275,8 +287,8 @@ async function initDB() {
       "createdAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
-  await pool.query(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS paid_date TEXT DEFAULT ''`);
+  await migrate(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'rent_payments.user_id');
+  await migrate(`ALTER TABLE rent_payments ADD COLUMN IF NOT EXISTS paid_date TEXT DEFAULT ''`, 'rent_payments.paid_date');
 
   // Invoices table
   await pool.query(`
@@ -292,7 +304,7 @@ async function initDB() {
       "createdAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`);
+  await migrate(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'invoices.user_id');
 
   // Broadcasts table
   await pool.query(`
