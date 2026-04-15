@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calendar — Modern Management</title>
+  <meta name="description" content="Every date that matters — events, tasks, renewals, and inspections — on a single calendar, with natural-language event creation." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;padding-top:4px;"></div>
+          <a href="/features/maintenance"><span class="item-title">🔧 Maintenance</span><span class="item-desc">Tickets, emergencies, vendors</span></a>
+          <a href="/features/budget"><span class="item-title">📊 Budget Tracker</span><span class="item-desc">Income, expenses, monthly reports</span></a>
+          <a href="/features/tasks"><span class="item-title">✓ AI Task Suggestions</span><span class="item-desc">To-dos that write themselves</span></a>
+          <a href="/features/reports"><span class="item-title">📋 Property Reports</span><span class="item-desc">AI-generated weekly briefs</span></a>
+          <a href="/features/calendar"><span class="item-title">📅 Calendar</span><span class="item-desc">Events, tasks, renewals</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">📅 Calendar</div>
+    <h1 class="hero-title">Every date that matters. <span class="grad">One calendar.</span></h1>
+    <p class="hero-sub">
+      Inspections on Tuesday. Lease renewals at the end of the month. A vendor coming Thursday morning. An HOA meeting in three weeks. Modern Management's built-in calendar consolidates every date that touches your property — events you create, tasks with due dates, automatic lease expirations — into a single, visual monthly view. And because it's connected to the AI Command Bar, you can add anything to your calendar by typing a single sentence. No forms. No drop-downs. Just natural language.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/ai" class="btn-ghost">See AI controls</a>
+    </div>
+
+    <!-- Mock calendar -->
+    <div class="ui-mock" style="max-width:820px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div style="font-weight:700;color:white;font-size:1.1em;">May 2026</div>
+        <div style="display:flex;gap:6px;">
+          <button style="width:30px;height:30px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border-radius:6px;font-size:0.88em;">◀</button>
+          <button style="width:30px;height:30px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border-radius:6px;font-size:0.88em;">▶</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:0.78em;">
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">S</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">M</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">T</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">W</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">T</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">F</div>
+        <div style="color:rgba(255,255,255,0.4);text-align:center;padding:6px 0;">S</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);position:relative;">1<div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#6ee7b7;"></div></div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">2</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">3</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">4</div>
+        <div style="padding:10px 0;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.3);border-radius:6px;text-align:center;color:#ff8e53;font-weight:700;position:relative;">5<div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);display:flex;gap:3px;"><span style="width:5px;height:5px;border-radius:50%;background:#ff8e53;"></span><span style="width:5px;height:5px;border-radius:50%;background:#a5b4fc;"></span></div></div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">6</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">7</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">8</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);position:relative;">9<div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#fcd34d;"></div></div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">10</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">11</div>
+        <div style="padding:10px 0;background:rgba(255,142,83,0.2);border:1.5px solid rgba(255,107,107,0.5);border-radius:6px;text-align:center;color:white;font-weight:700;">12</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">13</div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);position:relative;">14<div style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#a5b4fc;"></div></div>
+        <div style="padding:10px 0;background:rgba(255,255,255,0.03);border-radius:6px;text-align:center;color:rgba(255,255,255,0.7);">15</div>
+      </div>
+      <div style="margin-top:14px;padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:8px;">
+        <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">Tuesday, May 5</div>
+        <div style="font-size:0.88em;color:rgba(255,255,255,0.85);margin-bottom:6px;">📅 Property inspection — 10:00 AM</div>
+        <div style="font-size:0.88em;color:rgba(255,255,255,0.85);">✓ Insurance renewal due</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Unified -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">ONE CALENDAR, THREE LAYERS</div>
+        <h2 class="section-title">Events + tasks + leases, all at once.</h2>
+        <p class="big">
+          Most property managers keep three separate calendars in their head: the calendar of scheduled events (inspections, vendor visits, meetings), the calendar of task due dates (insurance renewal, permit filings, deadlines), and the implicit calendar of lease expirations. Modern Management collapses all three into a single view.
+        </p>
+        <p class="big">
+          Calendar events you create manually appear in red. Tasks with due dates appear in blue — you see at a glance which days have deadlines hitting. And lease expirations appear as amber dots on the day each lease ends, giving you continuous awareness of renewal timelines without having to cross-reference a separate report.
+        </p>
+        <p class="big">
+          Click any day and the sidebar shows you exactly what's happening — every event, every task, every lease event for that specific date. You can also add a new event or task directly from the day view without leaving the calendar.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=900&q=80&auto=format" alt="Calendar and planner on desk" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Natural language -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">NATURAL-LANGUAGE EVENT CREATION</div>
+        <h2 class="section-title">Add events by talking.</h2>
+        <p class="big">
+          Adding an event to most calendar apps is a small-but-real workflow interruption: open the form, type a title, click the date picker, pick the day, click done. Multiply that by the dozens of things you schedule every month and it adds up to real time lost.
+        </p>
+        <p class="big">
+          Modern Management's AI Command Bar understands dates the way humans describe them. Say — or type — <em>"Add a board meeting next Tuesday"</em> or <em>"Schedule a property inspection on May 20th"</em> or <em>"Remind me to renew insurance by end of May"</em> and the event lands on the right day with the right title, no form involved.
+        </p>
+        <p class="big">
+          The AI understands all the forms of date phrasing humans actually use: <em>"tomorrow at 2pm," "next Friday," "the 15th of next month," "in three weeks," "May 20 at 10 in the morning."</em> It handles ambiguity gracefully — if you say something that could mean two different dates, it asks for clarification before creating the event.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div class="cmd-bar" style="background:rgba(255,107,107,0.06);border-color:rgba(255,107,107,0.25);">
+            <div class="cmd-icon">🎤</div>
+            <span>Add a property inspection next Tuesday at 10am</span>
+          </div>
+          <div class="cmd-reply">
+            Added "Property inspection" to your calendar for Tuesday, May 12, 2026 at 10:00 AM.
+          </div>
+          <div><span class="cmd-chip">📅 Event created</span><span class="cmd-chip">May 12 · 10:00 AM</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tasks on calendar -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">TASKS = CALENDAR</div>
+        <h2 class="section-title">Deadlines you can't miss.</h2>
+        <p class="big">
+          Every task you create with a due date automatically appears on the calendar for that day. There's no separate "add this task to calendar" action — your task list and your calendar are the same underlying data, just visualized two different ways.
+        </p>
+        <p class="big">
+          This matters because the calendar view is often where you first <em>notice</em> a crunch. Looking at next week, you might see six tasks stacked on Wednesday and decide to re-distribute them across the week. You might see that Friday is completely empty and decide to schedule a maintenance catch-up day. The visual calendar makes this kind of planning instinctive instead of effortful.
+        </p>
+        <p class="big">
+          Overdue tasks highlight in red. Completed tasks cross out. Upcoming tasks show their title right on the day. You always know what's coming without having to open any other view.
+        </p>
+        <ul class="checks">
+          <li>Every dated task automatically shows on the calendar</li>
+          <li>Color coded by status (overdue, upcoming, completed)</li>
+          <li>Click a day to see every event and task on that date</li>
+          <li>Edit or delete events directly from the day view</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Wednesday, May 14</div>
+          <div class="mock-row"><div><div class="r-name">📅 Vendor visit — AcePlumbing</div><div class="r-sub">10:00 AM · Unit 2A heater</div></div></div>
+          <div class="mock-row"><div><div class="r-name">✓ Quarterly pest inspection</div><div class="r-sub">Due today · Maintenance</div></div><span class="mock-tag tag-pending">TASK</span></div>
+          <div class="mock-row"><div><div class="r-name">✓ Review insurance renewal quotes</div><div class="r-sub">Due today · Finance</div></div><span class="mock-tag tag-pending">TASK</span></div>
+          <div class="mock-row"><div><div class="r-name">📄 Jordan Lee lease expires</div><div class="r-sub">Unit 305 · requires renewal</div></div><span class="mock-tag tag-yellow">LEASE</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Auto-scheduling -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">AUTOMATIC EVENT CREATION</div>
+        <h2 class="section-title">Events the AI adds for you.</h2>
+        <p class="big">
+          Some events don't need you to remember them — they're derivable from data the system already has. Every lease in Modern Management has an end date stored on the resident's contact record; the calendar automatically marks those dates so you always see renewals coming.
+        </p>
+        <p class="big">
+          Similarly, when the AI creates a maintenance ticket with a vendor scheduled visit, it can also create a calendar event for that visit so it's on your radar. When the AI sets up a lease renewal task with a specific due date, that due date appears on the calendar too.
+        </p>
+        <p class="big">
+          You can also have the AI create events from inbound messages. If a resident writes <em>"I'll be out of town May 12-15, so please don't schedule the inspection that week,"</em> the AI can mark those dates as unavailable for that unit. Your calendar becomes a living document of everything happening on the property, populated by a combination of your manual entries and AI-driven automation.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=900&q=80&auto=format" alt="Modern calendar on laptop" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="callout">
+      <div class="callout-label">VISUAL PLANNING</div>
+      <blockquote>"Before, my calendar lived on a paper planner and my task list lived in a notes app. Now I open one page and see the whole month — events, deadlines, renewals. Planning a week takes five minutes instead of an hour."</blockquote>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>Your month, in one view.</h2>
+      <p>Events, tasks, and lease events unified. Add anything by voice or text. Free to start.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/tasks" class="related-card">
+          <h4>✓ AI Task Suggestions <span class="arrow">→</span></h4>
+          <p>Every dated task shows up on the calendar automatically.</p>
+        </a>
+        <a href="/features/ai" class="related-card">
+          <h4>🤖 AI Command Bar <span class="arrow">→</span></h4>
+          <p>Add events by typing or speaking — AI parses natural-language dates.</p>
+        </a>
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>Lease expirations appear as milestones on every month's view.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Maintenance Management — Modern Management</title>
+  <meta name="description" content="Every repair, every vendor, every emergency — tracked from the moment a resident reports it to the moment it's resolved." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;padding-top:4px;"></div>
+          <a href="/features/maintenance"><span class="item-title">🔧 Maintenance</span><span class="item-desc">Tickets, emergencies, vendors</span></a>
+          <a href="/features/budget"><span class="item-title">📊 Budget Tracker</span><span class="item-desc">Income, expenses, monthly reports</span></a>
+          <a href="/features/tasks"><span class="item-title">✓ AI Task Suggestions</span><span class="item-desc">To-dos that write themselves</span></a>
+          <a href="/features/reports"><span class="item-title">📋 Property Reports</span><span class="item-desc">AI-generated weekly briefs</span></a>
+          <a href="/features/calendar"><span class="item-title">📅 Calendar</span><span class="item-desc">Events, tasks, renewals</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">🔧 Maintenance Management</div>
+    <h1 class="hero-title">Every repair, <span class="grad">tracked cleanly</span> — from report to resolved.</h1>
+    <p class="hero-sub">
+      Maintenance is where property management lives or dies. A broken heater in January isn't just a ticket — it's a displaced family, a frustrated review, and potentially a liability exposure. Modern Management gives you a complete maintenance workflow that catches every issue the moment it's reported, flags emergencies automatically, routes them to the right vendors, and keeps residents informed at every step. Nothing sits in limbo. Nothing gets forgotten.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/ai" class="btn-ghost">See AI controls</a>
+    </div>
+
+    <!-- Mock ticket board -->
+    <div class="ui-mock" style="max-width:900px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700;">Open (2)</div>
+          <div style="padding:12px 14px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.25);border-radius:10px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+              <div style="font-weight:600;color:white;font-size:0.88em;">Broken heater</div>
+              <span class="mock-tag tag-overdue">🚨 EMERGENCY</span>
+            </div>
+            <div style="font-size:0.8em;color:rgba(255,255,255,0.55);">Unit 2A · Reported today</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+              <div style="font-weight:600;color:white;font-size:0.88em;">Leaky kitchen faucet</div>
+              <span class="mock-tag tag-pending">NORMAL</span>
+            </div>
+            <div style="font-size:0.8em;color:rgba(255,255,255,0.55);">Unit 101 · Reported yesterday</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700;">In Progress (1)</div>
+          <div style="padding:12px 14px;background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:10px;">
+            <div style="font-weight:600;color:white;font-size:0.88em;margin-bottom:6px;">Dishwasher replacement</div>
+            <div style="font-size:0.8em;color:rgba(255,255,255,0.55);">Unit 204 · AcePlumbing scheduled Tue</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;font-weight:700;">Resolved (5)</div>
+          <div style="padding:12px 14px;background:rgba(39,174,96,0.06);border:1px solid rgba(39,174,96,0.15);border-radius:10px;">
+            <div style="font-weight:600;color:white;font-size:0.88em;margin-bottom:6px;">Lightbulb · Unit 305</div>
+            <div style="font-size:0.8em;color:rgba(255,255,255,0.55);">Closed · resident self-resolved</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Emergency detection -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">EMERGENCY DETECTION</div>
+        <h2 class="section-title">Urgent issues surface themselves.</h2>
+        <p class="big">
+          When a message hits your inbox containing emergency keywords — "flood," "fire," "no heat," "gas smell," "broken window," "locked out" — Modern Management flags it automatically as an emergency. The ticket is created with high-priority status, highlighted in red on your dashboard, and (if you've configured it) an SMS is immediately dispatched to your on-call maintenance contact.
+        </p>
+        <p class="big">
+          This is the difference between finding out about a gas leak at 9am when you check your email and finding out at 11pm when the alert pings your phone. Residents don't always know how to properly escalate a problem — they just say what's wrong. The AI catches the urgency signal and routes the problem through the right escalation path without you needing to manually triage.
+        </p>
+        <p class="big">
+          You configure the escalation contact once (typically your emergency plumber, electrician, or facilities manager) and forget about it. From then on, any emergency ticket automatically triggers an immediate SMS dispatch with the resident's name, unit, and description of the problem.
+        </p>
+        <ul class="checks">
+          <li>20+ emergency keywords monitored automatically</li>
+          <li>Immediate SMS dispatch to your on-call contact</li>
+          <li>Ticket flagged with emergency priority in the dashboard</li>
+          <li>Resident sees acknowledgment within minutes — even at 3am</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=900&q=80&auto=format" alt="Maintenance technician at work" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Ticket lifecycle -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">FULL TICKET LIFECYCLE</div>
+        <h2 class="section-title">From "my sink is leaking" to "all resolved."</h2>
+        <p class="big">
+          Every maintenance ticket flows through three clear states: <strong>Open</strong> (reported, not yet addressed), <strong>In Progress</strong> (vendor scheduled, work underway), and <strong>Resolved</strong> (complete, resident notified). Your ticket board shows all three columns so you always know what's stuck and what's moving.
+        </p>
+        <p class="big">
+          Tickets can be created three ways: <strong>automatically</strong> from an inbound email or SMS where the AI detects a maintenance request, <strong>manually</strong> via the Maintenance page + Add Ticket button, or <strong>conversationally</strong> through the AI Command Bar ("Create a ticket for a broken heater in Unit 2A"). However the ticket starts, it ends up in the same workflow.
+        </p>
+        <p class="big">
+          For each ticket you can record the resident's name, unit, category (plumbing, electrical, HVAC, appliance, structural, pest, general), priority, description, and an outcome field for closing notes. Every update is timestamped. You can reference months of historical tickets to spot patterns — is Unit 305 a repeat problem? Is the dishwasher in Unit 204 due for replacement?
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="padding:14px;background:rgba(255,255,255,0.03);border-radius:10px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+              <div style="font-weight:700;color:white;">Ticket #14 · Broken heater</div>
+              <span class="mock-tag tag-overdue">🚨 EMERGENCY</span>
+            </div>
+            <div style="font-size:0.85em;color:rgba(255,255,255,0.7);margin-bottom:12px;">Unit 2A · Sarah Park · HVAC</div>
+            <div style="font-size:0.85em;color:rgba(255,255,255,0.78);line-height:1.6;margin-bottom:12px;">"The heater just stopped working and it's 34°F outside. Kids are bundled up but this can't wait until Monday."</div>
+            <div style="font-size:0.76em;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">
+              🕒 Reported 11:42 PM · 🚨 Emergency SMS sent to HVAC on-call · 🔧 AcePlumbing ETA 30 min
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button style="flex:1;padding:9px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;border:none;border-radius:8px;font-weight:600;font-size:0.85em;">Mark In Progress</button>
+            <button style="flex:1;padding:9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:white;border-radius:8px;font-weight:500;font-size:0.85em;">Resolve</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vendor coordination -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">VENDOR COORDINATION</div>
+        <h2 class="section-title">Your vendors, on call.</h2>
+        <p class="big">
+          Modern Management's contact list isn't just for residents — it's also where you store your full roster of vendors: plumbers, electricians, HVAC techs, landscapers, pest control, roofers, locksmiths. Each vendor has their own contact record with category, phone, email, and notes (preferred rates, off-hours availability, certifications, insurance expiration).
+        </p>
+        <p class="big">
+          When a maintenance ticket comes in, the AI can suggest the right vendor to dispatch based on the ticket's category. Say "Send this ticket to AcePlumbing" in the command bar and an email or SMS goes to your plumber with the full ticket details, resident contact info, and access instructions. Your vendor has everything they need in one message — no back-and-forth to clarify basics.
+        </p>
+        <p class="big">
+          You can also cross-reference your task list with vendor appointments, so you always know who's been scheduled for what. When a vendor completes work, mark the ticket resolved with an outcome note, and the cost gets logged to your budget tracker automatically.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=900&q=80&auto=format" alt="Vendor at work on a property" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- AI integration -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">AI-POWERED TRIAGE</div>
+        <h2 class="section-title">The AI reads, categorizes, escalates.</h2>
+        <p class="big">
+          Incoming messages about maintenance rarely come in structured form. Residents write: <em>"Hey, my sink has been slow for weeks and now it's totally backed up, there's water on the floor, please help!"</em> — a single sentence containing a category (plumbing), a priority signal (water on the floor suggests urgent), and a description.
+        </p>
+        <p class="big">
+          The AI parses this, creates a ticket with the right metadata, suggests a follow-up task (<em>"Dispatch plumber to Unit 101"</em>), and drafts an acknowledgment message back to the resident — all before you've finished reading the original. You can approve the actions with a click or adjust them as needed.
+        </p>
+        <p class="big">
+          Over time, the AI notices recurring issues — a unit that keeps having plumbing problems might deserve a proactive inspection; a vendor that always shows up late might deserve a chat. These pattern observations appear in your Property Reports, so you can make systemic improvements instead of fighting the same fires over and over.
+        </p>
+        <ul class="checks">
+          <li>Auto-categorize tickets by type (plumbing, electrical, HVAC, etc.)</li>
+          <li>Detect priority from language and context</li>
+          <li>Draft resident acknowledgments automatically</li>
+          <li>Surface repeat issues and vendor performance patterns in reports</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:10px;">
+            <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Inbound from Alex Rivera</div>
+            <div style="font-size:0.85em;color:rgba(255,255,255,0.78);">"My sink has been slow for weeks and now it's totally backed up, water on floor, please help!"</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(79,70,229,0.08);border:1px solid rgba(79,70,229,0.2);border-radius:10px;margin-bottom:10px;">
+            <div style="font-size:0.74em;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">🤖 AI classified</div>
+            <div style="font-size:0.85em;color:rgba(255,255,255,0.82);line-height:1.6;">
+              Category: <strong>Plumbing</strong> · Priority: <strong>Urgent</strong> · Unit: <strong>101</strong><br>
+              Ticket created · Acknowledgment drafted · Plumber suggested
+            </div>
+          </div>
+          <div><span class="cmd-chip">🔧 Ticket #15 opened</span><span class="cmd-chip">✉ Reply drafted</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="callout">
+      <div class="callout-label">WHY THIS MATTERS</div>
+      <blockquote>"A broken heater at 9pm used to mean a midnight scramble for the on-call number. Now the ticket, the SMS to my plumber, and the acknowledgment to the resident all happen in under 90 seconds — often before I've even picked up my phone."</blockquote>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>Nothing broken, forgotten.</h2>
+      <p>Every ticket tracked, every emergency surfaced, every vendor on call. Start free.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/inbox" class="related-card">
+          <h4>✉ Unified Inbox <span class="arrow">→</span></h4>
+          <p>Maintenance requests from residents land here first and become tickets automatically.</p>
+        </a>
+        <a href="/features/tasks" class="related-card">
+          <h4>✓ AI Task Suggestions <span class="arrow">→</span></h4>
+          <p>Every ticket can generate follow-up tasks — vendor scheduling, resident updates, closeout.</p>
+        </a>
+        <a href="/features/budget" class="related-card">
+          <h4>📊 Budget Tracker <span class="arrow">→</span></h4>
+          <p>Vendor costs from resolved tickets feed directly into your expense ledger.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

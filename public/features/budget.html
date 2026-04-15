@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Budget Tracker — Modern Management</title>
+  <meta name="description" content="Your property's full P&L, always current. Income, expenses, category breakdowns, and monthly views — with AI logging entries by voice." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;padding-top:4px;"></div>
+          <a href="/features/maintenance"><span class="item-title">🔧 Maintenance</span><span class="item-desc">Tickets, emergencies, vendors</span></a>
+          <a href="/features/budget"><span class="item-title">📊 Budget Tracker</span><span class="item-desc">Income, expenses, monthly reports</span></a>
+          <a href="/features/tasks"><span class="item-title">✓ AI Task Suggestions</span><span class="item-desc">To-dos that write themselves</span></a>
+          <a href="/features/reports"><span class="item-title">📋 Property Reports</span><span class="item-desc">AI-generated weekly briefs</span></a>
+          <a href="/features/calendar"><span class="item-title">📅 Calendar</span><span class="item-desc">Events, tasks, renewals</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">📊 Budget &amp; Financial Tracking</div>
+    <h1 class="hero-title">Your property's P&amp;L, <span class="grad">always current.</span></h1>
+    <p class="hero-sub">
+      Most property managers find out how their month is going when they sit down at the end of it to total receipts and reconcile accounts. That's backwards. Modern Management's Budget Tracker gives you a real-time, always-current view of every dollar flowing in and out of your property — rent collected, expenses paid, vendor invoices, categorized by type, viewable by month, and powered by an AI that can log entries by voice while you're standing in a hardware store with a receipt in your hand.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/reports" class="btn-ghost">See AI reports</a>
+    </div>
+
+    <!-- Mock budget summary -->
+    <div class="ui-mock" style="max-width:880px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="display:flex;gap:12px;margin-bottom:18px;">
+        <div style="flex:1;padding:16px 18px;background:rgba(39,174,96,0.1);border:1px solid rgba(39,174,96,0.25);border-radius:10px;">
+          <div style="font-size:0.7em;color:#6ee7b7;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Income · May 2026</div>
+          <div style="font-size:1.8em;font-weight:800;color:#6ee7b7;margin-top:4px;">$42,300</div>
+          <div style="font-size:0.76em;color:rgba(110,231,183,0.6);margin-top:2px;">▲ 3% vs Apr</div>
+        </div>
+        <div style="flex:1;padding:16px 18px;background:rgba(231,76,60,0.08);border:1px solid rgba(231,76,60,0.2);border-radius:10px;">
+          <div style="font-size:0.7em;color:#fca5a5;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Expenses · May 2026</div>
+          <div style="font-size:1.8em;font-weight:800;color:#fca5a5;margin-top:4px;">$8,750</div>
+          <div style="font-size:0.76em;color:rgba(252,165,165,0.6);margin-top:2px;">▼ 12% vs Apr</div>
+        </div>
+        <div style="flex:1;padding:16px 18px;background:rgba(102,126,234,0.08);border:1px solid rgba(102,126,234,0.25);border-radius:10px;">
+          <div style="font-size:0.7em;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Net · May 2026</div>
+          <div style="font-size:1.8em;font-weight:800;color:#a5b4fc;margin-top:4px;">$33,550</div>
+          <div style="font-size:0.76em;color:rgba(165,180,252,0.6);margin-top:2px;">79% margin</div>
+        </div>
+      </div>
+      <div class="mock-row"><div><div class="r-name">Rent Received · Unit 101 <span style="color:rgba(255,255,255,0.35);font-weight:400;">(Alex Rivera)</span></div><div class="r-sub">2026-05-01 · Rent</div></div><span style="color:#6ee7b7;font-weight:700;">+$1,800</span></div>
+      <div class="mock-row"><div><div class="r-name">AcePlumbing · Dishwasher install</div><div class="r-sub">2026-05-04 · Maintenance</div></div><span style="color:#fca5a5;font-weight:700;">−$480</span></div>
+      <div class="mock-row"><div><div class="r-name">GreenLawn Services</div><div class="r-sub">2026-05-01 · Landscaping</div></div><span style="color:#fca5a5;font-weight:700;">−$450</span></div>
+      <div class="mock-row"><div><div class="r-name">Property Insurance</div><div class="r-sub">2026-05-01 · Insurance</div></div><span style="color:#fca5a5;font-weight:700;">−$380</span></div>
+    </div>
+  </section>
+
+  <!-- Unified ledger -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">UNIFIED LEDGER</div>
+        <h2 class="section-title">Every dollar in one place.</h2>
+        <p class="big">
+          Income and expenses live in a single unified ledger. Rent payments, late fees, parking fees, and deposit receipts all count as income. Maintenance, landscaping, utilities, insurance, and property taxes all count as expenses. Every entry has a date, category, description, amount, and free-form notes field — enough detail to answer "what was this payment for?" six months later.
+        </p>
+        <p class="big">
+          The ledger is searchable, filterable by category, and sorted chronologically. You can view any specific month or zoom out to a yearly view. The running totals for income, expense, and net update in real time, so at any moment you have a clear answer to "how is May going?" without running calculations yourself.
+        </p>
+        <p class="big">
+          When you mark a rent payment as paid in the Rent Payments section, that payment automatically flows into the budget as an income transaction. No double-entry. No reconciliation. The rent roll and the budget tracker share the same source of truth.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=900&q=80&auto=format" alt="Financial ledger and currency" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Category breakdowns -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">CATEGORY BREAKDOWNS</div>
+        <h2 class="section-title">Where did the money go?</h2>
+        <p class="big">
+          Totals are useful, but "the property spent $8,750 last month" doesn't tell you anything actionable. The Budget Tracker automatically breaks expenses down by category — Maintenance, Landscaping, Utilities, Insurance, Repairs, Supplies, Legal, Other — and shows you exactly which category is driving your costs.
+        </p>
+        <p class="big">
+          You'll quickly see patterns like: <em>"Maintenance spend is up 40% this month because of two emergency plumbing calls."</em> That single insight might prompt you to schedule a preemptive inspection of aging pipes in older units, saving thousands in future emergencies. The AI Property Report surfaces these patterns automatically, but the category data is always there in the budget tracker for you to explore manually.
+        </p>
+        <p class="big">
+          Income splits the same way: rent collected vs. late fees vs. parking vs. miscellaneous. Knowing what percentage of revenue comes from each source helps you understand the health of the property beyond a single top-line number.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Expense Breakdown · May 2026</div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">
+              <span style="color:rgba(255,255,255,0.78);">Maintenance</span>
+              <span style="color:white;font-weight:600;">$3,120</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:55%;height:100%;background:linear-gradient(90deg,#ff6b6b,#ff8e53);"></div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">
+              <span style="color:rgba(255,255,255,0.78);">Landscaping</span>
+              <span style="color:white;font-weight:600;">$1,800</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:32%;height:100%;background:linear-gradient(90deg,#ff6b6b,#ff8e53);"></div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">
+              <span style="color:rgba(255,255,255,0.78);">Utilities</span>
+              <span style="color:white;font-weight:600;">$1,260</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:22%;height:100%;background:linear-gradient(90deg,#ff6b6b,#ff8e53);"></div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">
+              <span style="color:rgba(255,255,255,0.78);">Insurance</span>
+              <span style="color:white;font-weight:600;">$1,140</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:20%;height:100%;background:linear-gradient(90deg,#ff6b6b,#ff8e53);"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.86em;margin-bottom:4px;">
+              <span style="color:rgba(255,255,255,0.78);">Other</span>
+              <span style="color:white;font-weight:600;">$1,430</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div style="width:25%;height:100%;background:linear-gradient(90deg,#ff6b6b,#ff8e53);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI voice logging -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">LOG BY VOICE</div>
+        <h2 class="section-title">Receipts, logged on the fly.</h2>
+        <p class="big">
+          Property management happens everywhere — in hallways, in hardware stores, in your car between showings. The traditional "collect receipts and enter them at the end of the week" workflow is why expenses always feel mysterious: you've forgotten what half of them were for.
+        </p>
+        <p class="big">
+          The AI Command Bar solves this. Standing in Home Depot with a $340 plumbing receipt? Tap the mic and say: <em>"Log a $340 plumbing expense today for Unit 204's dishwasher install."</em> Within seconds, the transaction is in your ledger with the right category, date, and notes. By month-end, you've got an accurate, complete budget without a single receipt-entry marathon.
+        </p>
+        <p class="big">
+          The AI understands flexible phrasing. Say <em>"I just spent $125 on lawn care"</em> or <em>"Paid AcePlumbing $480 for the dishwasher"</em> or <em>"Received rent from Unit 305"</em> and the AI parses the right transaction type, amount, category, and vendor. If any detail is ambiguous, it asks for clarification. Otherwise, it logs and confirms.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div class="cmd-bar" style="background:rgba(255,107,107,0.06);border-color:rgba(255,107,107,0.25);">
+            <div class="cmd-icon">🎤</div>
+            <span>Log a $340 plumbing expense today for Unit 204's dishwasher install</span>
+          </div>
+          <div class="cmd-reply">
+            Logged $340 expense · Category: <strong>Maintenance</strong> · Date: 2026-05-04 · Notes: "Unit 204 dishwasher install"
+          </div>
+          <div>
+            <span class="cmd-chip">📊 Transaction saved</span>
+            <span class="cmd-chip">−$340 · Maintenance</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="callout">
+      <div class="callout-label">THE BIG UNLOCK</div>
+      <blockquote>"Knowing the net on your property is one tap away. Knowing it a week ago required spreadsheet archaeology. That's the difference."</blockquote>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>Your property's finances. In focus.</h2>
+      <p>Free for your first property. Start tracking income and expenses in minutes.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>Rent payments feed directly into the budget tracker as income.</p>
+        </a>
+        <a href="/features/reports" class="related-card">
+          <h4>📋 Property Reports <span class="arrow">→</span></h4>
+          <p>AI reads your budget and surfaces insights you'd never spot manually.</p>
+        </a>
+        <a href="/features/ai" class="related-card">
+          <h4>🤖 AI Command Bar <span class="arrow">→</span></h4>
+          <p>Log expenses by voice from anywhere — AI parses and files them.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

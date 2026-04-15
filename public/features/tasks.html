@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Task Suggestions — Modern Management</title>
+  <meta name="description" content="Your to-do list writes itself. AI reads every conversation and surfaces follow-up tasks automatically." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);margin:4px 0;padding-top:4px;"></div>
+          <a href="/features/maintenance"><span class="item-title">🔧 Maintenance</span><span class="item-desc">Tickets, emergencies, vendors</span></a>
+          <a href="/features/budget"><span class="item-title">📊 Budget Tracker</span><span class="item-desc">Income, expenses, monthly reports</span></a>
+          <a href="/features/tasks"><span class="item-title">✓ AI Task Suggestions</span><span class="item-desc">To-dos that write themselves</span></a>
+          <a href="/features/reports"><span class="item-title">📋 Property Reports</span><span class="item-desc">AI-generated weekly briefs</span></a>
+          <a href="/features/calendar"><span class="item-title">📅 Calendar</span><span class="item-desc">Events, tasks, renewals</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">✓ AI Task Suggestions</div>
+    <h1 class="hero-title">Your to-do list <span class="grad">writes itself.</span></h1>
+    <p class="hero-sub">
+      Property management is death by a thousand small tasks. "Reply to Mira about the renewal." "Schedule the plumber for Unit 305." "Renew the insurance by May 30." "Follow up with the vendor about the invoice." Each one is tiny. The problem is remembering all of them at once. Modern Management's AI reads every incoming message, every ticket, and every lease event — and quietly builds your to-do list as you work. Nothing slips. Nothing gets forgotten. You just approve or dismiss the suggestions as they appear.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/ai" class="btn-ghost">See the AI</a>
+    </div>
+
+    <div class="ui-mock" style="max-width:860px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Tasks · 5 pending, 2 suggested</div>
+
+      <div style="padding:14px;background:rgba(255,107,107,0.06);border:1px dashed rgba(255,107,107,0.3);border-radius:10px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="display:flex;gap:10px;">
+            <div style="width:22px;height:22px;border:2px solid rgba(255,255,255,0.25);border-radius:6px;margin-top:2px;"></div>
+            <div>
+              <div style="font-weight:600;color:white;font-size:0.92em;">Renew property insurance</div>
+              <div style="font-size:0.8em;color:rgba(255,255,255,0.5);margin-top:3px;">Due 2026-05-30 · Finance</div>
+            </div>
+          </div>
+          <span style="font-size:0.7em;font-weight:700;color:#ff8e53;background:rgba(255,107,107,0.15);padding:3px 10px;border-radius:20px;letter-spacing:0.5px;">🤖 AI SUGGESTED</span>
+        </div>
+        <div style="font-size:0.82em;color:rgba(255,255,255,0.6);padding-left:32px;font-style:italic;border-left:2px solid rgba(255,107,107,0.3);margin-left:2px;padding-left:10px;">Extracted from Alex Rivera's renewal message — he mentioned policy expiration.</div>
+        <div style="margin-top:10px;display:flex;gap:6px;padding-left:32px;">
+          <button style="padding:6px 14px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;border:none;border-radius:6px;font-size:0.8em;font-weight:600;">Accept</button>
+          <button style="padding:6px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);border-radius:6px;font-size:0.8em;">Dismiss</button>
+        </div>
+      </div>
+
+      <div class="mock-row"><div style="display:flex;gap:10px;align-items:center;"><div style="width:22px;height:22px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:0.72em;">✓</div><div><div class="r-name" style="text-decoration:line-through;opacity:0.5;">Schedule Unit 305 dishwasher replacement</div><div class="r-sub">Done · 2026-04-30 · Maintenance</div></div></div></div>
+      <div class="mock-row"><div style="display:flex;gap:10px;align-items:center;"><div style="width:22px;height:22px;border:2px solid rgba(255,255,255,0.25);border-radius:6px;"></div><div><div class="r-name">Follow up on lease renewals (90-day window)</div><div class="r-sub">Due 2026-05-15 · Lease</div></div></div></div>
+      <div class="mock-row"><div style="display:flex;gap:10px;align-items:center;"><div style="width:22px;height:22px;border:2px solid rgba(255,255,255,0.25);border-radius:6px;"></div><div><div class="r-name">Send late notice to Unit 305</div><div class="r-sub">Due today · Finance</div></div></div></div>
+    </div>
+  </section>
+
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">AUTOMATIC EXTRACTION</div>
+        <h2 class="section-title">The AI reads. The to-do list grows.</h2>
+        <p class="big">
+          Every time a resident sends a message, the AI asks itself: <em>"Is there a follow-up action implied here?"</em> If a resident mentions their lease ending, that's a task (start the renewal conversation). If they describe a broken appliance, that's a task (schedule the repair). If they ask when rent is due, that's a quick reply — not a task. The AI makes these distinctions automatically and surfaces only real action items as suggestions.
+        </p>
+        <p class="big">
+          Suggested tasks appear in your task list visually distinguished from ones you created manually — a small <strong>AI Suggested</strong> badge lets you know the origin, along with a one-sentence explanation of <em>why</em> the AI thought this was worth doing (<em>"Extracted from Mira's renewal message — her lease is up in 18 days"</em>). You can Accept the task (it moves into your regular task list) or Dismiss it (the AI learns what you don't consider actionable).
+        </p>
+        <p class="big">
+          Over time, the system calibrates to your style. If you consistently dismiss "follow up to say thanks" suggestions, the AI stops suggesting them. If you consistently accept "schedule preventive maintenance" suggestions, it does more of that. The system works smarter for you the longer you use it.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=900&q=80&auto=format" alt="Person working on tasks with laptop" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">SMART CATEGORIZATION</div>
+        <h2 class="section-title">Five categories. One clear picture.</h2>
+        <p class="big">
+          Every task — AI-generated or manually created — is sorted into one of five categories: <strong>Vendor</strong>, <strong>Maintenance</strong>, <strong>Lease</strong>, <strong>Finance</strong>, or <strong>Other</strong>. The AI infers the right category from the task description, though you can override it anytime. Your task board can be filtered by category, so when you're about to call a vendor you can see every vendor-related task at once, or during rent week you can focus on Finance tasks exclusively.
+        </p>
+        <p class="big">
+          Due dates are inferred too. A renewal-related task defaults to the lease's 90-day-out mark. A maintenance task defaults to tomorrow unless the message implied urgency. A finance task related to an insurance renewal defaults to the expiration date. You can always edit the date, but the defaults are sensible enough that most tasks require no adjustment.
+        </p>
+        <p class="big">
+          Overdue tasks automatically highlight in red. Completed tasks cross out and fade. Your task list is a visual, at-a-glance picture of what's done, what's stuck, and what needs attention right now.
+        </p>
+        <ul class="checks">
+          <li>5 categories cover every kind of property-management task</li>
+          <li>Due dates inferred from message and event context</li>
+          <li>Overdue tasks flag visually in red</li>
+          <li>Complete tasks fade out but remain searchable</li>
+          <li>Filter by category, status, or date range</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+            <span style="padding:4px 10px;background:rgba(124,58,237,0.15);color:#c4b5fd;border-radius:20px;font-size:0.76em;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Vendor (3)</span>
+            <span style="padding:4px 10px;background:rgba(234,88,12,0.15);color:#fdba74;border-radius:20px;font-size:0.76em;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Maintenance (5)</span>
+            <span style="padding:4px 10px;background:rgba(5,150,105,0.15);color:#6ee7b7;border-radius:20px;font-size:0.76em;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Lease (2)</span>
+            <span style="padding:4px 10px;background:rgba(37,99,235,0.15);color:#93c5fd;border-radius:20px;font-size:0.76em;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Finance (4)</span>
+            <span style="padding:4px 10px;background:rgba(71,85,105,0.2);color:rgba(255,255,255,0.6);border-radius:20px;font-size:0.76em;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Other (1)</span>
+          </div>
+          <div class="mock-row"><div style="display:flex;gap:10px;"><div style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.25);border-radius:5px;margin-top:2px;"></div><div><div class="r-name" style="color:#fca5a5;">Send late notice to Unit 305</div><div class="r-sub">Overdue by 1 day · Finance</div></div></div></div>
+          <div class="mock-row"><div style="display:flex;gap:10px;"><div style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.25);border-radius:5px;margin-top:2px;"></div><div><div class="r-name">Renewal: Mira Chen (Unit 204)</div><div class="r-sub">Due in 5d · Lease</div></div></div></div>
+          <div class="mock-row"><div style="display:flex;gap:10px;"><div style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.25);border-radius:5px;margin-top:2px;"></div><div><div class="r-name">Schedule HVAC inspection — AcePlumbing</div><div class="r-sub">Due in 8d · Vendor</div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">AUTOMATIC LEASE RENEWAL TASKS</div>
+        <h2 class="section-title">The renewal conversation, started on time.</h2>
+        <p class="big">
+          The most common "thing that fell through the cracks" in property management is a lease renewal. Forgotten tracking means conversations start too late, residents feel rushed, and sometimes a perfectly-good tenant walks because you didn't give them enough time to decide.
+        </p>
+        <p class="big">
+          Modern Management's AI watches every resident's lease end date. When any lease hits the 90-day-out mark, it automatically creates a suggested task: <em>"Start renewal conversation — Mira Chen (Unit 204), lease expires 2026-07-30."</em> The task appears in your task list, tagged Lease, with the renewal due date pre-filled.
+        </p>
+        <p class="big">
+          You never miss a renewal window. And because the task is there waiting for you, the conversation starts when it should — long enough before the lease ends that you can negotiate terms, hear concerns, and ideally close the renewal weeks before any panic sets in.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=900&q=80&auto=format" alt="Calendar and task planning" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="callout">
+      <div class="callout-label">ZERO COGNITIVE OVERHEAD</div>
+      <blockquote>"I stopped keeping a mental list of things I had to do. The app does it for me. Every morning I open the tasks page, triage the AI suggestions for 30 seconds, and I know exactly what today looks like."</blockquote>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>The to-do list, solved.</h2>
+      <p>Free to start. No credit card. AI task suggestions included on every plan.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/inbox" class="related-card">
+          <h4>✉ Unified Inbox <span class="arrow">→</span></h4>
+          <p>Every message is scanned for action items — that's where task suggestions come from.</p>
+        </a>
+        <a href="/features/calendar" class="related-card">
+          <h4>📅 Calendar <span class="arrow">→</span></h4>
+          <p>Tasks with due dates appear on your calendar automatically.</p>
+        </a>
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>Lease expirations trigger automatic renewal tasks 90 days out.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

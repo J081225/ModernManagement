@@ -77,6 +77,11 @@ app.get('/features/ai', (_req, res) => res.sendFile(path.join(__dirname, 'public
 app.get('/features/inbox', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'inbox.html')));
 app.get('/features/rent-and-leases', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'rent-and-leases.html')));
 app.get('/features/broadcasts-and-contacts', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'broadcasts-and-contacts.html')));
+app.get('/features/maintenance', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'maintenance.html')));
+app.get('/features/budget', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'budget.html')));
+app.get('/features/tasks', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'tasks.html')));
+app.get('/features/reports', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'reports.html')));
+app.get('/features/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'calendar.html')));
 
 // --- Database setup & migrations ---
 // Safe migration helper — logs errors but never crashes the server
