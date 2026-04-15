@@ -1603,11 +1603,34 @@
         const title = document.getElementById('kbTitle').value.trim();
         const type = document.getElementById('kbType').value;
         const content = document.getElementById('kbContent').value.trim();
-        if (!title || !content) { alert('Please enter both a title and content.'); return; }
-        const result = await api('knowledge', 'POST', { title, type, content });
-        if (result) {
-          document.getElementById('kbForm').reset();
-          loadKnowledge();
+        const status = document.getElementById('uploadStatus');
+        if (!title || !content) {
+          status.style.color = '#e74c3c';
+          status.textContent = '⚠ Please enter both a title and content.';
+          return;
+        }
+        status.style.color = '#888';
+        status.textContent = 'Saving "' + title + '"...';
+        try {
+          const res = await fetch('/api/knowledge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ title, type, content })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            status.style.color = '#27ae60';
+            status.innerHTML = `✓ <strong>"${title}"</strong> saved. AI will now use it in replies.`;
+            document.getElementById('kbForm').reset();
+            loadKnowledge();
+          } else {
+            status.style.color = '#e74c3c';
+            status.textContent = '⚠ ' + (data.error || `Server returned ${res.status}. Please try again.`);
+          }
+        } catch (err) {
+          status.style.color = '#e74c3c';
+          status.textContent = '⚠ Network error: ' + err.message;
         }
       }
 
