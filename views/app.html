@@ -1066,6 +1066,42 @@
             <div id="billingActions"></div>
           </div>
 
+          <!-- Payment Auto-Match -->
+          <div class="card">
+            <h2>💸 Auto-Match Payments</h2>
+            <p style="color:#94a3b8;font-size:0.9em;margin-bottom:14px;">Forward payment confirmation emails (Zelle, Venmo, Chase, AppFolio, etc.) to your unique address below. AI will read each email, match it to a resident, and auto-mark their rent paid.</p>
+
+            <div id="forwardingInfo" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+              <div style="font-size:0.72em;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Your forwarding address</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid #e2e8f0;border-radius:7px;font-size:0.88em;color:#1e293b;word-break:break-all;">Loading...</code>
+                <button onclick="copyForwardingAddress()" class="btn-secondary" style="font-size:0.82em;">Copy</button>
+              </div>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:10px;line-height:1.6;">
+                <strong style="color:#475569;">Setup:</strong> In Gmail/Outlook, create a forwarding rule: when an email arrives from your payment platform (e.g. no-reply@zellepay.com), forward it to the address above. Takes about 2 minutes.
+              </div>
+            </div>
+
+            <!-- Events list -->
+            <div id="paymentEventsSection">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-size:0.88em;font-weight:600;color:#475569;">Recent payment events</div>
+                <button onclick="loadPaymentEvents()" class="btn-secondary" style="font-size:0.78em;padding:5px 10px;">↻ Refresh</button>
+              </div>
+              <div id="paymentEventsList" style="max-height:300px;overflow-y:auto;"></div>
+            </div>
+
+            <!-- Test area -->
+            <details style="margin-top:14px;">
+              <summary style="cursor:pointer;font-size:0.85em;color:#64748b;">🧪 Test with a sample email</summary>
+              <div style="margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;">
+                <textarea id="testPaymentBody" rows="5" placeholder="Paste the body of a real payment email here..." style="width:100%;font-size:0.85em;margin-bottom:8px;"></textarea>
+                <button onclick="testPaymentEmail()" class="btn-primary" style="font-size:0.85em;">Run AI Match</button>
+                <div id="testPaymentResult" style="margin-top:10px;font-size:0.85em;"></div>
+              </div>
+            </details>
+          </div>
+
           <!-- Rent Payments -->
           <div class="card">
             <h2>Rent Payments</h2>
@@ -3415,10 +3451,102 @@
       }
       setInterval(pollInbox, 10000);
 
+      // --- Payment Auto-Match ---
+      async function loadForwardingInfo() {
+        const info = await api('payments/forwarding-info');
+        if (info && info.address) {
+          document.getElementById('forwardingAddress').textContent = info.address;
+        }
+      }
+
+      function copyForwardingAddress() {
+        const addr = document.getElementById('forwardingAddress').textContent;
+        navigator.clipboard.writeText(addr).then(() => {
+          const btn = event.target;
+          const orig = btn.textContent;
+          btn.textContent = '✓ Copied';
+          setTimeout(() => btn.textContent = orig, 1500);
+        });
+      }
+
+      async function loadPaymentEvents() {
+        const events = await api('payments/events') || [];
+        const list = document.getElementById('paymentEventsList');
+        if (!events.length) {
+          list.innerHTML = '<p style="color:#94a3b8;font-size:0.85em;padding:14px 0;text-align:center;">No payment events yet. Forward a payment email to the address above to test.</p>';
+          return;
+        }
+        list.innerHTML = events.map(e => {
+          const statusStyles = {
+            auto_matched: { bg: '#f0fdf4', bd: '#bbf7d0', c: '#15803d', lbl: '✓ Auto-matched' },
+            needs_review: { bg: '#fffbeb', bd: '#fde68a', c: '#d97706', lbl: '⚠ Needs review' },
+            unmatched:    { bg: '#fff1f0', bd: '#fecaca', c: '#dc2626', lbl: '✗ No match found' },
+            not_payment:  { bg: '#f8fafc', bd: '#e2e8f0', c: '#64748b', lbl: '— Not a payment' },
+            dismissed:    { bg: '#f8fafc', bd: '#e2e8f0', c: '#94a3b8', lbl: '🗑 Dismissed' }
+          };
+          const s = statusStyles[e.status] || statusStyles.unmatched;
+          const amt = e.parsed_amount > 0 ? `$${Number(e.parsed_amount).toLocaleString('en-US',{minimumFractionDigits:0})}` : '';
+          const actions = e.status === 'needs_review' ? `
+            <div style="display:flex;gap:6px;margin-top:8px;">
+              <button onclick="confirmPaymentEvent(${e.id})" class="btn-primary" style="font-size:0.78em;padding:5px 10px;">✓ Confirm match</button>
+              <button onclick="dismissPaymentEvent(${e.id})" class="btn-secondary" style="font-size:0.78em;padding:5px 10px;">Dismiss</button>
+            </div>` : '';
+          const matchLine = e.rent_resident ? `
+            <div style="font-size:0.78em;color:#64748b;margin-top:3px;">Matched → <strong>${e.rent_resident}</strong>${e.rent_unit ? ' · Unit ' + e.rent_unit : ''} · $${Number(e.rent_amount).toLocaleString()}</div>` : '';
+          return `<div style="padding:11px 13px;background:${s.bg};border:1px solid ${s.bd};border-radius:8px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;font-size:0.88em;color:#1e293b;">
+                  ${e.parsed_tenant || '(no tenant)'} ${amt ? '· ' + amt : ''} ${e.parsed_source ? '· ' + e.parsed_source : ''}
+                </div>
+                <div style="font-size:0.77em;color:#94a3b8;margin-top:2px;">${e.raw_subject || ''}</div>
+                ${matchLine}
+              </div>
+              <span style="font-size:0.72em;font-weight:700;color:${s.c};background:white;padding:3px 9px;border-radius:20px;flex-shrink:0;">${s.lbl}</span>
+            </div>
+            ${actions}
+          </div>`;
+        }).join('');
+      }
+
+      async function confirmPaymentEvent(id) {
+        const res = await fetch('/api/payments/events/' + id + '/confirm', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+        });
+        if (res.ok) { loadPaymentEvents(); loadRentTable(); }
+      }
+
+      async function dismissPaymentEvent(id) {
+        await fetch('/api/payments/events/' + id + '/dismiss', { method: 'POST' });
+        loadPaymentEvents();
+      }
+
+      async function testPaymentEmail() {
+        const body = document.getElementById('testPaymentBody').value.trim();
+        if (!body) return alert('Paste a payment email body first.');
+        const out = document.getElementById('testPaymentResult');
+        out.style.color = '#64748b';
+        out.textContent = 'Parsing with AI...';
+        const res = await fetch('/api/payments/test', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body, subject: 'Test payment', from: 'test@example.com' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          out.style.color = '#15803d';
+          out.textContent = '✓ Processed — check the events list below.';
+          loadPaymentEvents(); loadRentTable();
+        } else {
+          out.style.color = '#dc2626';
+          out.textContent = '⚠ ' + (data.error || 'Test failed');
+        }
+      }
+
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadBillingStatus(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
+        loadForwardingInfo(); loadPaymentEvents();
         // Init month/year selectors to current month
         const now = new Date();
         const curMonth = String(now.getMonth() + 1);

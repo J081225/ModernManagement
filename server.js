@@ -93,6 +93,15 @@ async function migrate(sql, label) {
   }
 }
 
+// --- Payment forwarding helpers ---
+// Short URL-safe random token (no ambiguous chars)
+function generateForwardToken() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789'; // no 0,o,i,l,1
+  let s = '';
+  for (let i = 0; i < 12; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
 async function initDB() {
   // Verify DB connection is alive before doing anything
   await pool.query('SELECT 1');
@@ -285,6 +294,37 @@ async function initDB() {
   await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false`, 'users.onboarding_completed');
   await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT DEFAULT ''`, 'users.stripe_customer_id');
   await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT DEFAULT ''`, 'users.stripe_subscription_id');
+
+  // Payment forwarding token (Option 1: email parsing)
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_forward_token TEXT DEFAULT ''`, 'users.payment_forward_token');
+
+  // Payment events table — incoming emails parsed by AI, matched or queued
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_events (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      raw_from TEXT DEFAULT '',
+      raw_subject TEXT DEFAULT '',
+      raw_body TEXT DEFAULT '',
+      parsed_tenant TEXT DEFAULT '',
+      parsed_amount NUMERIC(10,2) DEFAULT 0,
+      parsed_date TEXT DEFAULT '',
+      parsed_source TEXT DEFAULT '',
+      confidence TEXT DEFAULT 'low',
+      matched_rent_id INTEGER,
+      status TEXT DEFAULT 'needs_review',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Backfill forward tokens for existing users who don't have one
+  const { rows: noTokenUsers } = await pool.query(
+    `SELECT id FROM users WHERE payment_forward_token IS NULL OR payment_forward_token=''`
+  );
+  for (const u of noTokenUsers) {
+    const token = generateForwardToken();
+    await pool.query(`UPDATE users SET payment_forward_token=$1 WHERE id=$2`, [token, u.id]);
+  }
 
   // Rent payments table
   await pool.query(`
@@ -490,9 +530,10 @@ app.post('/api/signup', async (req, res) => {
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
   try {
     const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    const forwardToken = generateForwardToken();
     const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, email, plan) VALUES ($1,$2,$3,$4) RETURNING *',
-      [username.trim().toLowerCase(), hash, email || '', 'free']
+      'INSERT INTO users (username, password_hash, email, plan, payment_forward_token) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [username.trim().toLowerCase(), hash, email || '', 'free', forwardToken]
     );
     const user = rows[0];
     // Ensure automation row exists
@@ -524,6 +565,109 @@ app.get('/api/me', requireAuth, async (req, res) => {
 app.put('/api/me/onboarding', requireAuth, async (req, res) => {
   await pool.query('UPDATE users SET onboarding_completed=true WHERE id=$1', [req.session.userId]);
   res.json({ success: true });
+});
+
+// --- Payment Forwarding ---
+app.get('/api/payments/forwarding-info', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT payment_forward_token FROM users WHERE id=$1',
+      [req.session.userId]
+    );
+    let token = rows[0]?.payment_forward_token;
+    if (!token) {
+      token = generateForwardToken();
+      await pool.query('UPDATE users SET payment_forward_token=$1 WHERE id=$2', [token, req.session.userId]);
+    }
+    const domain = 'modernmanagementapp.com';
+    res.json({ token, address: `payments+${token}@${domain}` });
+  } catch (err) {
+    console.error('forwarding-info error:', err.message);
+    res.status(500).json({ error: 'Failed to load forwarding info' });
+  }
+});
+
+app.post('/api/payments/rotate-token', requireAuth, async (req, res) => {
+  try {
+    const token = generateForwardToken();
+    await pool.query('UPDATE users SET payment_forward_token=$1 WHERE id=$2', [token, req.session.userId]);
+    res.json({ token, address: `payments+${token}@modernmanagementapp.com` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to rotate token' });
+  }
+});
+
+// List payment events (all + optional status filter)
+app.get('/api/payments/events', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.query;
+    let q = `SELECT pe.*, rp.resident AS rent_resident, rp.unit AS rent_unit, rp.amount AS rent_amount, rp.due_date AS rent_due_date
+             FROM payment_events pe
+             LEFT JOIN rent_payments rp ON rp.id = pe.matched_rent_id
+             WHERE pe.user_id=$1`;
+    const params = [req.session.userId];
+    if (status) { params.push(status); q += ` AND pe.status=$${params.length}`; }
+    q += ` ORDER BY pe."createdAt" DESC LIMIT 100`;
+    const { rows } = await pool.query(q, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('events error:', err.message);
+    res.status(500).json({ error: 'Failed to load events' });
+  }
+});
+
+// Confirm a needs_review event (apply the match, mark rent paid)
+app.post('/api/payments/events/:id/confirm', requireAuth, async (req, res) => {
+  try {
+    const { rentId } = req.body; // optional — override match
+    const { rows } = await pool.query(
+      'SELECT * FROM payment_events WHERE id=$1 AND user_id=$2',
+      [Number(req.params.id), req.session.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Event not found' });
+    const event = rows[0];
+    const finalRentId = rentId || event.matched_rent_id;
+    if (!finalRentId) return res.status(400).json({ error: 'No rent record to match' });
+    await markRentPaidFromEvent(req.session.userId, finalRentId, event.parsed_date);
+    await pool.query(
+      `UPDATE payment_events SET status='auto_matched', matched_rent_id=$1 WHERE id=$2`,
+      [finalRentId, event.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('confirm error:', err.message);
+    res.status(500).json({ error: 'Failed to confirm' });
+  }
+});
+
+// Dismiss an event (ignore without matching)
+app.post('/api/payments/events/:id/dismiss', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE payment_events SET status='dismissed' WHERE id=$1 AND user_id=$2`,
+      [Number(req.params.id), req.session.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to dismiss' });
+  }
+});
+
+// Test endpoint — feed a fake payment email to test matching
+app.post('/api/payments/test', requireAuth, async (req, res) => {
+  try {
+    const { from, subject, body } = req.body;
+    if (!body) return res.status(400).json({ error: 'body is required' });
+    const event = await processPaymentEmail(req.session.userId, {
+      from: from || 'test@example.com',
+      subject: subject || 'Test payment',
+      body
+    });
+    res.json(event);
+  } catch (err) {
+    console.error('test error:', err.message);
+    res.status(500).json({ error: 'Test failed', details: err.message });
+  }
 });
 
 // Protect all /api/* routes except login/signup and inbound webhooks
@@ -1380,8 +1524,103 @@ async function autoReplyToMessage(message, userId) {
 }
 
 // --- SendGrid: Incoming Email ---
+// --- Payment email parser ---
+// Uses Claude to extract tenant + amount + date + source from payment confirmation emails
+async function parsePaymentEmail({ from, subject, body }) {
+  const systemPrompt = `You extract structured payment information from payment confirmation emails (Zelle, Venmo, Chase QuickPay, bank deposit alerts, Stripe, PayPal, Square, AppFolio, Buildium, etc.).
+
+Return ONLY a JSON object with these exact keys:
+- tenant: string — the payer's name as it appears in the email (just name, no email/phone)
+- amount: number — the payment amount in USD, as a plain number (e.g. 1800, not "$1,800.00")
+- date: string — the payment date in YYYY-MM-DD format; if unclear, use today
+- source: string — the payment platform (e.g. "Zelle", "Venmo", "Chase", "Bank deposit", "Stripe")
+- confidence: "high" | "medium" | "low" — your confidence in the extraction
+
+Rules:
+- If the email is NOT a payment confirmation (e.g. it's spam, marketing, unrelated), return {"confidence": "none"} only.
+- If amount is ambiguous, use the largest dollar figure in the email.
+- Never invent data. If a field is missing, use empty string for strings or 0 for amount.
+
+Today's date is ${new Date().toISOString().split('T')[0]}. Return ONLY the JSON, no other text.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 300,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `FROM: ${from}\nSUBJECT: ${subject}\n\nBODY:\n${body}` }]
+    });
+    const text = response.content.find(b => b.type === 'text')?.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.error('parsePaymentEmail error:', err.message);
+    return null;
+  }
+}
+
+// --- Match parsed payment to a rent record ---
+// Returns { rentId, confidence } or { rentId: null, reason } if no confident match
+async function matchPaymentToRent(userId, parsed) {
+  const today = new Date().toISOString().split('T')[0];
+  const in30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+  // Look at all unpaid rent records from recent months (last 60 days window)
+  const { rows: rents } = await pool.query(
+    `SELECT r.*, c.name AS contact_name, c.unit AS contact_unit
+     FROM rent_payments r
+     LEFT JOIN contacts c ON c.user_id = r.user_id AND LOWER(c.name) = LOWER(r.resident)
+     WHERE r.user_id=$1 AND r.status != 'paid' AND r.due_date >= $2
+     ORDER BY r.due_date DESC`,
+    [userId, in30]
+  );
+
+  if (!rents.length) return { rentId: null, reason: 'no_unpaid_records' };
+
+  const tenantLower = (parsed.tenant || '').toLowerCase();
+  const parsedAmount = Number(parsed.amount) || 0;
+
+  // Score each candidate: name similarity + amount match
+  const scored = rents.map(r => {
+    const nameLower = (r.resident || '').toLowerCase();
+    let nameScore = 0;
+    if (nameLower === tenantLower) nameScore = 100;
+    else if (nameLower.includes(tenantLower) || tenantLower.includes(nameLower)) nameScore = 70;
+    else {
+      // first-name or last-name match
+      const tParts = tenantLower.split(/\s+/);
+      const rParts = nameLower.split(/\s+/);
+      const overlap = tParts.filter(t => t && rParts.includes(t)).length;
+      if (overlap) nameScore = 50;
+    }
+    // Amount match (within $1 tolerance)
+    const amountMatch = Math.abs(Number(r.amount) - parsedAmount) <= 1 ? 100 : 0;
+    return { rent: r, score: nameScore + amountMatch };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored[0];
+
+  // High confidence: name + amount both match
+  if (top.score >= 170) return { rentId: top.rent.id, confidence: 'high' };
+  // Medium: name matches well, amount off, OR exact amount but weak name
+  if (top.score >= 100) return { rentId: top.rent.id, confidence: 'medium' };
+  // Low: weak match, queue for review
+  return { rentId: null, reason: 'no_confident_match' };
+}
+
+// --- Mark rent paid from a payment event (shared logic) ---
+async function markRentPaidFromEvent(userId, rentId, paidDate) {
+  await pool.query(
+    `UPDATE rent_payments SET status='paid', paid_date=$1 WHERE id=$2 AND user_id=$3`,
+    [paidDate || new Date().toISOString().split('T')[0], rentId, userId]
+  );
+}
+
 app.post('/api/email/incoming', upload.none(), async (req, res) => {
   const fromRaw = req.body.from || req.body.sender || 'Unknown';
+  const toRaw = req.body.to || req.body.envelope || '';
   const emailMatch = fromRaw.match(/<([^>]+)>/);
   const email = emailMatch ? emailMatch[1] : fromRaw;
   const nameMatch = fromRaw.match(/^([^<]+)</);
@@ -1389,19 +1628,83 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
   const subject = req.body.subject || '(No subject)';
   const text = (req.body.text || req.body.html || '').replace(/<[^>]*>/g, '').trim();
 
-  const { rows } = await pool.query(
-    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-    [WEBHOOK_USER_ID, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
-  );
+  // Respond immediately to SendGrid so it doesn't retry
   res.sendStatus(200);
 
-  if (rows[0]) {
-    sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
-    const autoData = await getAutomation(WEBHOOK_USER_ID);
-    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
-    else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
+  // Check if this is a payment-forwarding email: payments+TOKEN@...
+  const paymentMatch = String(toRaw).match(/payments\+([a-z0-9]+)@/i);
+  if (paymentMatch) {
+    const token = paymentMatch[1].toLowerCase();
+    try {
+      const { rows: userRows } = await pool.query(
+        'SELECT id FROM users WHERE payment_forward_token=$1 LIMIT 1',
+        [token]
+      );
+      if (!userRows.length) {
+        console.warn(`Unknown payment forward token: ${token}`);
+        return;
+      }
+      const userId = userRows[0].id;
+      await processPaymentEmail(userId, { from: email, subject, body: text });
+    } catch (err) {
+      console.error('Payment email processing error:', err.message);
+    }
+    return;
+  }
+
+  // Regular resident message handling
+  try {
+    const { rows } = await pool.query(
+      'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [WEBHOOK_USER_ID, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
+    );
+    if (rows[0]) {
+      sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
+      const autoData = await getAutomation(WEBHOOK_USER_ID);
+      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
+      else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
+    }
+  } catch (err) {
+    console.error('Inbound email error:', err.message);
   }
 });
+
+// Process a forwarded payment email: parse with AI, match, auto-mark or queue for review
+async function processPaymentEmail(userId, { from, subject, body }) {
+  const parsed = await parsePaymentEmail({ from, subject, body });
+
+  // Not a payment confirmation — store with 'none' status so it's visible but not actionable
+  if (!parsed || parsed.confidence === 'none') {
+    await pool.query(
+      `INSERT INTO payment_events (user_id, raw_from, raw_subject, raw_body, status, confidence)
+       VALUES ($1, $2, $3, $4, 'not_payment', 'none')`,
+      [userId, from, subject, body.slice(0, 4000)]
+    );
+    return;
+  }
+
+  const match = await matchPaymentToRent(userId, parsed);
+  const status = match.rentId && match.confidence === 'high' ? 'auto_matched'
+               : match.rentId && match.confidence === 'medium' ? 'needs_review'
+               : 'unmatched';
+
+  const { rows } = await pool.query(
+    `INSERT INTO payment_events
+       (user_id, raw_from, raw_subject, raw_body, parsed_tenant, parsed_amount, parsed_date, parsed_source, confidence, matched_rent_id, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+    [userId, from, subject, body.slice(0, 4000),
+     parsed.tenant || '', Number(parsed.amount) || 0, parsed.date || '',
+     parsed.source || '', parsed.confidence || 'low',
+     match.rentId, status]
+  );
+
+  // Auto-mark paid only if confidence is high
+  if (status === 'auto_matched' && match.rentId) {
+    await markRentPaidFromEvent(userId, match.rentId, parsed.date);
+  }
+
+  return rows[0];
+}
 
 // --- SendGrid: Send Email ---
 app.post('/api/email/send', async (req, res) => {
