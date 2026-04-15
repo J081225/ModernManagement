@@ -1876,12 +1876,26 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err.message);
 });
 
-// --- Start server only after DB is ready ---
-initDB()
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-  })
-  .catch(err => {
-    console.error('Fatal: DB init failed, server not started:', err.message);
-    process.exit(1);
-  });
+// --- Health check endpoint so Render can verify the service is up ---
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+
+// --- Start server immediately; run DB init in background with retry ---
+// Render must see an open port quickly, and Neon's serverless DB can take a
+// few seconds to warm up on cold starts. Retry the DB init rather than exit.
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
+async function initDBWithRetry(attempt = 1) {
+  try {
+    await initDB();
+  } catch (err) {
+    console.error(`DB init attempt ${attempt} failed:`, err.message);
+    if (attempt < 5) {
+      const delay = Math.min(2000 * attempt, 10000);
+      console.log(`Retrying DB init in ${delay}ms...`);
+      setTimeout(() => initDBWithRetry(attempt + 1), delay);
+    } else {
+      console.error('DB init failed after 5 attempts. Routes that need the DB will return 500 until the DB is reachable.');
+    }
+  }
+}
+initDBWithRetry();
