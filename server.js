@@ -320,6 +320,25 @@ async function initDB() {
   `);
   await migrate(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'invoices.user_id');
 
+  // Knowledge base table (per-user policies, procedures, uploaded docs)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS knowledge (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      title TEXT NOT NULL,
+      type TEXT DEFAULT 'policy',
+      content TEXT DEFAULT '',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  // Seed default policies for admin if empty
+  const { rows: kbRows } = await pool.query('SELECT COUNT(*) FROM knowledge WHERE user_id=1');
+  if (kbRows[0].count === '0') {
+    await pool.query(`INSERT INTO knowledge (user_id, title, type, content) VALUES
+      (1, 'Renewal Guidelines', 'policy', 'Send 90-day renewal reminders; verify 30-day notice for rent increases.'),
+      (1, 'Maintenance Escalation', 'procedure', 'For emergency leaks, dispatch within 2 hours and notify resident within 30 min.')`);
+  }
+
   // Broadcasts table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS broadcasts (
@@ -851,12 +870,8 @@ app.put('/api/messages/:id/status', async (req, res) => {
   res.json(rows[0]);
 });
 
-// --- In-memory drafts & knowledge (not user-scoped, ephemeral) ---
+// --- In-memory drafts (ephemeral, per-session) ---
 let drafts = [];
-let docs = [
-  { id: 1, title: 'Renewal Guidelines', type: 'policy', content: 'Send 90-day renewal reminders; verify 30-day notice for rent increases.' },
-  { id: 2, title: 'Maintenance Escalation', type: 'procedure', content: 'For emergency leaks, dispatch within 2 hours and notify resident within 30 min.' }
-];
 
 app.get('/api/drafts', (_req, res) => res.json(drafts));
 
@@ -874,22 +889,62 @@ app.put('/api/drafts/:id', (req, res) => {
   res.json(draft);
 });
 
-app.get('/api/knowledge', (_req, res) => res.json(docs));
-app.post('/api/knowledge', (req, res) => {
-  const { title, type, content } = req.body;
-  const id = docs.length ? Math.max(...docs.map(d => d.id)) + 1 : 1;
-  const doc = { id, title, type, content };
-  docs.push(doc);
-  res.status(201).json(doc);
-});
-app.put('/api/knowledge/:id', (req, res) => {
-  const doc = docs.find(d => d.id === Number(req.params.id));
-  if (!doc) return res.status(404).json({ error: 'Knowledge doc not found' });
-  Object.assign(doc, req.body);
-  res.json(doc);
+// --- Knowledge base (DB-backed, per-user) ---
+// Helper: fetch knowledge docs for a user (used by AI endpoints)
+async function getKnowledge(userId) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, title, type, content FROM knowledge WHERE user_id=$1 ORDER BY id ASC',
+      [userId]
+    );
+    return rows;
+  } catch (err) {
+    console.error('getKnowledge error:', err.message);
+    return [];
+  }
+}
+
+// Format knowledge docs into a context block for AI prompts
+function formatKnowledgeContext(docs) {
+  if (!docs || !docs.length) return 'No company policies or procedures have been uploaded yet.';
+  return docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n');
+}
+
+app.get('/api/knowledge', requireAuth, async (req, res) => {
+  const rows = await getKnowledge(req.session.userId);
+  res.json(rows);
 });
 
-app.post('/api/knowledge/upload', upload.single('file'), async (req, res) => {
+app.post('/api/knowledge', requireAuth, async (req, res) => {
+  const { title, type, content } = req.body;
+  if (!title) return res.status(400).json({ error: 'title is required' });
+  const { rows } = await pool.query(
+    'INSERT INTO knowledge (user_id, title, type, content) VALUES ($1, $2, $3, $4) RETURNING *',
+    [req.session.userId, title, type || 'policy', content || '']
+  );
+  res.status(201).json(rows[0]);
+});
+
+app.put('/api/knowledge/:id', requireAuth, async (req, res) => {
+  const { title, type, content } = req.body;
+  const { rows } = await pool.query(
+    'UPDATE knowledge SET title=$1, type=$2, content=$3 WHERE id=$4 AND user_id=$5 RETURNING *',
+    [title, type, content, Number(req.params.id), req.session.userId]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Knowledge doc not found' });
+  res.json(rows[0]);
+});
+
+app.delete('/api/knowledge/:id', requireAuth, async (req, res) => {
+  const { rowCount } = await pool.query(
+    'DELETE FROM knowledge WHERE id=$1 AND user_id=$2',
+    [Number(req.params.id), req.session.userId]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Knowledge doc not found' });
+  res.json({ success: true });
+});
+
+app.post('/api/knowledge/upload', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const filename = req.file.originalname;
   const ext = path.extname(filename).toLowerCase();
@@ -897,17 +952,19 @@ app.post('/api/knowledge/upload', upload.single('file'), async (req, res) => {
   try {
     if (ext === '.pdf') {
       const parsed = await pdfParse(req.file.buffer);
-      content = parsed.text.trim();
+      content = (parsed.text || '').trim();
+      if (!content) return res.status(400).json({ error: 'Could not extract any text from this PDF. It may be scanned/image-based.' });
     } else if (ext === '.txt') {
       content = req.file.buffer.toString('utf-8').trim();
     } else {
       return res.status(400).json({ error: 'Only PDF and TXT files are supported' });
     }
     const title = path.basename(filename, ext);
-    const id = docs.length ? Math.max(...docs.map(d => d.id)) + 1 : 1;
-    const doc = { id, title, type: 'uploaded', content };
-    docs.push(doc);
-    res.status(201).json(doc);
+    const { rows } = await pool.query(
+      'INSERT INTO knowledge (user_id, title, type, content) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.session.userId, title, 'uploaded', content]
+    );
+    res.status(201).json(rows[0]);
   } catch (err) {
     console.error('File parse error:', err.message);
     res.status(500).json({ error: 'Failed to read file', details: err.message });
@@ -921,9 +978,8 @@ app.post('/api/generate', async (req, res) => {
   const message = rows[0];
   if (!message) return res.status(404).json({ error: 'Message not found' });
 
-  const knowledgeContext = docs.length
-    ? docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n')
-    : 'No company policies or procedures have been uploaded yet.';
+  const knowledgeDocs = await getKnowledge(req.session.userId);
+  const knowledgeContext = formatKnowledgeContext(knowledgeDocs);
 
   const contactContext = contacts && contacts.length
     ? '\n\n## Contact Directory\n' + contacts.map(c =>
@@ -964,12 +1020,17 @@ Guidelines:
 });
 
 // --- AI: Command center ---
-app.post('/api/command', async (req, res) => {
+app.post('/api/command', requireAuth, async (req, res) => {
   const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets } = req.body;
+
+  const knowledgeDocs = await getKnowledge(req.session.userId);
+  const knowledgeSection = knowledgeDocs.length
+    ? `\n## Property Policies & Procedures (Knowledge Base)\nThe property manager has provided the following policies, procedures, and reference documents. Treat these as authoritative. When drafting messages, answering questions, or taking actions, always follow the guidance here:\n\n${knowledgeDocs.map(d => `### ${d.title} (${d.type})\n${d.content}`).join('\n\n')}\n`
+    : '';
 
   const contextSummary = `
 ## Current App State
-
+${knowledgeSection}
 ### Contacts (Residents, Vendors, Important)
 ${contacts && contacts.length ? contacts.map(c => `- ${c.name} (${c.type})${c.unit ? `, Unit ${c.unit}` : ''}${c.email ? `, ${c.email}` : ''}${c.phone ? `, ${c.phone}` : ''}${c.monthly_rent > 0 ? `, $${c.monthly_rent}/mo` : ''}${c.lease_end ? `, lease ends ${c.lease_end}` : ''}`).join('\n') : 'No contacts.'}
 
@@ -1240,9 +1301,8 @@ Return only the JSON array, no other text.`
 // --- Auto-reply helper ---
 async function autoReplyToMessage(message, userId) {
   try {
-    const knowledgeContext = docs.length
-      ? docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n')
-      : 'No company policies uploaded.';
+    const knowledgeDocs = await getKnowledge(userId);
+    const knowledgeContext = formatKnowledgeContext(knowledgeDocs);
 
     const isVoicemail = message.category === 'voicemail';
     const systemPrompt = isVoicemail

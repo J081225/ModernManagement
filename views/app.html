@@ -1540,14 +1540,32 @@
       }
 
       async function loadKnowledge() {
-        const docs = await api('knowledge');
+        const docs = await api('knowledge') || [];
         const list = document.getElementById('knowledgeList');
-        list.innerHTML = docs.map(d =>
-          `<div style="border-bottom:1px solid #eee;padding:10px 0;">
-            <strong>${d.title}</strong> <span style="font-size:0.8em;color:#888;">(${d.type})</span>
-            <p style="margin-top:4px;font-size:0.9em;color:#555;">${d.content}</p>
-          </div>`
-        ).join('');
+        if (!docs.length) {
+          list.innerHTML = '<p style="color:#94a3b8;font-size:0.88em;padding:12px 0;">No knowledge base documents yet. Upload a PDF/TXT or add one manually below — the AI will use it for every reply.</p>';
+          return;
+        }
+        list.innerHTML = docs.map(d => {
+          const preview = (d.content || '').slice(0, 180).replace(/</g, '&lt;');
+          const more = (d.content || '').length > 180 ? '…' : '';
+          const typeColor = d.type === 'uploaded' ? '#667eea' : d.type === 'procedure' ? '#f59e0b' : '#ff6b6b';
+          return `<div style="border-bottom:1px solid #eee;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;color:#2d3748;font-size:0.95em;">${d.title}
+                <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;background:${typeColor}18;color:${typeColor};font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;vertical-align:1px;">${d.type}</span>
+              </div>
+              <p style="margin-top:6px;font-size:0.86em;color:#64748b;line-height:1.55;">${preview}${more}</p>
+            </div>
+            <button onclick="deleteKnowledge(${d.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.05em;padding:4px 6px;flex-shrink:0;" title="Remove">🗑</button>
+          </div>`;
+        }).join('');
+      }
+
+      async function deleteKnowledge(id) {
+        if (!confirm('Remove this knowledge base entry? The AI will stop using it on future replies.')) return;
+        await fetch('/api/knowledge/' + id, { method: 'DELETE', credentials: 'same-origin' });
+        loadKnowledge();
       }
 
       async function uploadFile(input) {
@@ -1555,29 +1573,42 @@
         if (!file) return;
         const status = document.getElementById('uploadStatus');
         status.style.color = '#888';
-        status.textContent = 'Uploading ' + file.name + '...';
+        status.textContent = 'Uploading "' + file.name + '"...';
         const formData = new FormData();
         formData.append('file', file);
-        const res = await fetch('/api/knowledge/upload', { method: 'POST', body: formData });
-        if (res.ok) {
-          status.style.color = '#27ae60';
-          status.textContent = '✓ "' + file.name + '" uploaded successfully.';
-          input.value = '';
-          loadKnowledge();
-        } else {
-          const err = await res.json();
+        try {
+          const res = await fetch('/api/knowledge/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            status.style.color = '#27ae60';
+            const snippet = (data.content || '').slice(0, 80);
+            status.innerHTML = `✓ <strong>"${file.name}"</strong> uploaded and indexed. AI will now use it in replies.`;
+            input.value = '';
+            loadKnowledge();
+          } else {
+            status.style.color = '#e74c3c';
+            status.textContent = '⚠ ' + (data.error || 'Upload failed. Try a different file or paste the content manually below.');
+          }
+        } catch (err) {
           status.style.color = '#e74c3c';
-          status.textContent = 'Error: ' + (err.error || 'Upload failed');
+          status.textContent = '⚠ Network error. Please try again.';
         }
       }
 
       async function addKnowledge() {
-        const title = document.getElementById('kbTitle').value;
+        const title = document.getElementById('kbTitle').value.trim();
         const type = document.getElementById('kbType').value;
-        const content = document.getElementById('kbContent').value;
-        await api('knowledge', 'POST', { title, type, content });
-        document.getElementById('kbForm').reset();
-        loadKnowledge();
+        const content = document.getElementById('kbContent').value.trim();
+        if (!title || !content) { alert('Please enter both a title and content.'); return; }
+        const result = await api('knowledge', 'POST', { title, type, content });
+        if (result) {
+          document.getElementById('kbForm').reset();
+          loadKnowledge();
+        }
       }
 
       // --- Calendar ---
