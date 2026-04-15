@@ -910,46 +910,83 @@ function formatKnowledgeContext(docs) {
   return docs.map(d => `## ${d.title} (${d.type})\n${d.content}`).join('\n\n');
 }
 
+// Ensure knowledge table exists before any query — defensive in case initDB is mid-retry
+async function ensureKnowledgeTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS knowledge (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL DEFAULT 1,
+      title TEXT NOT NULL,
+      type TEXT DEFAULT 'policy',
+      content TEXT DEFAULT '',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+}
+
 app.get('/api/knowledge', requireAuth, async (req, res) => {
-  const rows = await getKnowledge(req.session.userId);
-  res.json(rows);
+  try {
+    await ensureKnowledgeTable();
+    const rows = await getKnowledge(req.session.userId);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/knowledge error:', err.message);
+    res.status(500).json({ error: 'Failed to load knowledge base', details: err.message });
+  }
 });
 
 app.post('/api/knowledge', requireAuth, async (req, res) => {
-  const { title, type, content } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required' });
-  const { rows } = await pool.query(
-    'INSERT INTO knowledge (user_id, title, type, content) VALUES ($1, $2, $3, $4) RETURNING *',
-    [req.session.userId, title, type || 'policy', content || '']
-  );
-  res.status(201).json(rows[0]);
+  try {
+    await ensureKnowledgeTable();
+    const { title, type, content } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+    const { rows } = await pool.query(
+      'INSERT INTO knowledge (user_id, title, type, content) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.session.userId, title, type || 'policy', content || '']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/knowledge error:', err.message);
+    res.status(500).json({ error: 'Failed to save knowledge doc', details: err.message });
+  }
 });
 
 app.put('/api/knowledge/:id', requireAuth, async (req, res) => {
-  const { title, type, content } = req.body;
-  const { rows } = await pool.query(
-    'UPDATE knowledge SET title=$1, type=$2, content=$3 WHERE id=$4 AND user_id=$5 RETURNING *',
-    [title, type, content, Number(req.params.id), req.session.userId]
-  );
-  if (!rows.length) return res.status(404).json({ error: 'Knowledge doc not found' });
-  res.json(rows[0]);
+  try {
+    const { title, type, content } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE knowledge SET title=$1, type=$2, content=$3 WHERE id=$4 AND user_id=$5 RETURNING *',
+      [title, type, content, Number(req.params.id), req.session.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Knowledge doc not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PUT /api/knowledge error:', err.message);
+    res.status(500).json({ error: 'Failed to update knowledge doc', details: err.message });
+  }
 });
 
 app.delete('/api/knowledge/:id', requireAuth, async (req, res) => {
-  const { rowCount } = await pool.query(
-    'DELETE FROM knowledge WHERE id=$1 AND user_id=$2',
-    [Number(req.params.id), req.session.userId]
-  );
-  if (!rowCount) return res.status(404).json({ error: 'Knowledge doc not found' });
-  res.json({ success: true });
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM knowledge WHERE id=$1 AND user_id=$2',
+      [Number(req.params.id), req.session.userId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Knowledge doc not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/knowledge error:', err.message);
+    res.status(500).json({ error: 'Failed to delete knowledge doc', details: err.message });
+  }
 });
 
 app.post('/api/knowledge/upload', requireAuth, upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const filename = req.file.originalname;
-  const ext = path.extname(filename).toLowerCase();
-  let content = '';
   try {
+    await ensureKnowledgeTable();
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const filename = req.file.originalname;
+    const ext = path.extname(filename).toLowerCase();
+    let content = '';
     if (ext === '.pdf') {
       const parsed = await pdfParse(req.file.buffer);
       content = (parsed.text || '').trim();

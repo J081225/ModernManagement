@@ -1611,13 +1611,17 @@
         }
         status.style.color = '#888';
         status.textContent = 'Saving "' + title + '"...';
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         try {
           const res = await fetch('/api/knowledge', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ title, type, content })
+            body: JSON.stringify({ title, type, content }),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
             status.style.color = '#27ae60';
@@ -1629,8 +1633,13 @@
             status.textContent = '⚠ ' + (data.error || `Server returned ${res.status}. Please try again.`);
           }
         } catch (err) {
+          clearTimeout(timeoutId);
           status.style.color = '#e74c3c';
-          status.textContent = '⚠ Network error: ' + err.message;
+          if (err.name === 'AbortError') {
+            status.textContent = '⚠ Server did not respond in 15 seconds. Deploy may still be in progress — wait a minute and try again.';
+          } else {
+            status.textContent = '⚠ Network error: ' + err.message;
+          }
         }
       }
 
