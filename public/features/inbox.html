@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Unified Inbox — Modern Management</title>
+  <meta name="description" content="Every resident conversation in one place. Email and SMS unified, AI-suggested replies, knowledge-base-aware automation." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <!-- NAV -->
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero container">
+    <div class="eyebrow">✉ Unified Communications</div>
+    <h1 class="hero-title">Every resident conversation. <span class="grad">One inbox.</span></h1>
+    <p class="hero-sub">
+      Email. Text messages. Maintenance requests. Renewal questions. For most property managers, these live in five different places — your personal inbox, your phone's SMS app, a paper form taped to the office wall, and a voicemail you keep meaning to listen to. Modern Management puts every single one of them in a single, AI-powered inbox — so nothing gets missed, and every response goes out faster than the question came in.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/ai" class="btn-ghost">Learn about the AI</a>
+    </div>
+
+    <div class="ui-mock" style="max-width:880px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;">
+        <div>
+          <div style="font-size:0.7em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Folders</div>
+          <div style="padding:8px 10px;background:rgba(255,107,107,0.12);border-radius:7px;font-size:0.85em;color:#ff8e53;margin-bottom:4px;">✉ Inbox <span style="float:right;background:#ff6b6b;color:white;padding:0 6px;border-radius:10px;font-size:0.78em;">7</span></div>
+          <div style="padding:8px 10px;font-size:0.85em;color:rgba(255,255,255,0.55);margin-bottom:4px;">📁 Archive</div>
+          <div style="padding:8px 10px;font-size:0.85em;color:rgba(255,255,255,0.55);">🗑 Deleted</div>
+        </div>
+        <div>
+          <div class="mock-row">
+            <div>
+              <div class="r-name">Alex Rivera · Unit 101</div>
+              <div class="r-sub">Maintenance: Leaky faucet 💧</div>
+            </div>
+            <span class="mock-tag tag-overdue">NEW</span>
+          </div>
+          <div class="mock-row">
+            <div>
+              <div class="r-name">Mira Chen · Unit 204</div>
+              <div class="r-sub">Renewal question — lease ends May</div>
+            </div>
+            <span class="mock-tag tag-overdue">NEW</span>
+          </div>
+          <div class="mock-row">
+            <div>
+              <div class="r-name">Jordan Lee · Unit 305</div>
+              <div class="r-sub">Payment — via SMS 📱</div>
+            </div>
+            <span class="mock-tag tag-pending">REVIEW</span>
+          </div>
+          <div class="mock-row">
+            <div>
+              <div class="r-name">Carmen Ortiz · Unit 402</div>
+              <div class="r-sub">Thanks for fast response — via email ✉</div>
+            </div>
+            <span class="mock-tag tag-paid">REPLIED</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Email + SMS unified -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">UNIFIED CHANNELS</div>
+        <h2 class="section-title">Email and SMS, side by side.</h2>
+        <p class="big">
+          Residents reach out in whatever way is easiest for them. Some text. Some email. Some still prefer to leave a voicemail. Legacy property management software forces you to check three different places for messages — and worse, forces you to remember which channel each resident prefers.
+        </p>
+        <p class="big">
+          Modern Management routes every inbound channel into the same unified inbox. A text message from your tenant about a leaky sink shows up right next to an email from a vendor about a missed invoice. Voicemails are transcribed and logged. Each message tags its source automatically, so you always know how the resident wants to be reached back.
+        </p>
+        <p class="big">
+          And because the inbox is aware of who each message comes from (it cross-references against your contacts), you see full context next to every thread — the unit number, lease expiration date, outstanding rent, open maintenance tickets — without clicking away from the message.
+        </p>
+        <ul class="checks">
+          <li>Inbound email via a dedicated address for your account</li>
+          <li>Inbound SMS via your Twilio-provisioned toll-free number</li>
+          <li>Voicemail transcription for missed calls</li>
+          <li>Reply from the inbox in the same channel the message came in on</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1557804506-669a67965ba0?w=900&q=80&auto=format" alt="Property manager reviewing inbox on laptop" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- AI auto-reply -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">TWO MODES. ONE INBOX.</div>
+        <h2 class="section-title">Auto-reply — or review first.</h2>
+        <p class="big">
+          Every incoming message can trigger an AI-drafted reply. You decide whether the AI sends it automatically or whether it lands in your review queue first. Most property managers start with Manager Review mode — the AI drafts, you approve. Once you see the quality of the drafts, you can flip specific channels or message categories into full Auto-Response and let the AI handle low-stakes inquiries on its own.
+        </p>
+        <p class="big">
+          <strong>Manager Review mode</strong> gives you control over tone and content. The AI drafts a response using your property's knowledge base (renewal policies, maintenance procedures, office hours, whatever you upload), and you edit or approve it with one click.
+        </p>
+        <p class="big">
+          <strong>Auto-Response mode</strong> sends AI-drafted replies instantly — perfect for 24/7 responsiveness without 24/7 work. Residents hear back within seconds of asking a question, even at 2am. The AI handles the easy stuff; you handle the exceptions.
+        </p>
+        <p class="big">
+          You can switch between modes in a single click, per-account, on the Operations page.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="padding:14px;background:rgba(255,255,255,0.03);border-radius:10px;font-size:0.88em;margin-bottom:12px;">
+            <div style="font-weight:600;color:white;margin-bottom:4px;">Alex Rivera — Unit 101</div>
+            <div style="color:rgba(255,255,255,0.65);font-size:0.85em;">"Hi, my kitchen faucet is leaking and spraying water. What should I do?"</div>
+          </div>
+          <div style="padding:14px;background:rgba(79, 70, 229, 0.08);border:1px solid rgba(79, 70, 229, 0.2);border-radius:10px;font-size:0.86em;margin-bottom:14px;">
+            <div style="display:flex;gap:8px;align-items:center;font-size:0.74em;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;font-weight:700;">🤖 AI Draft · Based on your knowledge base</div>
+            <div style="color:rgba(255,255,255,0.82);line-height:1.6;">Hi Alex, sorry to hear about the leak. Please shut off the water supply valve under the sink and I'll dispatch a plumber today. Our on-call plumber is AcePlumbing — I'll confirm an ETA within the hour.</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button style="flex:1;padding:9px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;border:none;border-radius:8px;font-weight:600;font-size:0.85em;cursor:pointer;">Send</button>
+            <button style="flex:1;padding:9px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);color:white;border-radius:8px;font-weight:500;font-size:0.85em;cursor:pointer;">Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Knowledge Base -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">KNOWLEDGE BASE</div>
+        <h2 class="section-title">AI replies that sound like you.</h2>
+        <p class="big">
+          Generic chatbot replies make residents feel like they're talking to a machine. Modern Management solves that by letting you upload your actual property documents — lease terms, renewal policies, rules and regulations, vendor contact info, emergency procedures, pet policies, parking rules — into your private knowledge base.
+        </p>
+        <p class="big">
+          When a resident asks a question, the AI reads your knowledge base before drafting a response. If someone asks about the late fee, it quotes your actual late fee policy. If they ask about a lease renewal, it references your actual renewal terms. The AI doesn't make things up — it pulls from the documents you've uploaded.
+        </p>
+        <p class="big">
+          Upload as PDF or paste as plain text. The knowledge base is per-workspace, so each property or management company gets its own ruleset. You can edit or remove entries anytime, and every AI reply is grounded in what you've actually told it.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Knowledge Base</div>
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:10px;">
+            <div style="font-weight:600;color:white;font-size:0.88em;margin-bottom:4px;">📄 Renewal Guidelines <span style="color:#fcd34d;font-size:0.7em;font-weight:500;margin-left:6px;">policy</span></div>
+            <div style="font-size:0.82em;color:rgba(255,255,255,0.55);">Send 90-day renewal reminders; verify 30-day notice for rent increases.</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:10px;">
+            <div style="font-weight:600;color:white;font-size:0.88em;margin-bottom:4px;">📄 Maintenance Escalation <span style="color:#6ee7b7;font-size:0.7em;font-weight:500;margin-left:6px;">procedure</span></div>
+            <div style="font-size:0.82em;color:rgba(255,255,255,0.55);">For emergency leaks, dispatch within 2 hours and notify resident within 30 min.</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;">
+            <div style="font-weight:600;color:white;font-size:0.88em;margin-bottom:4px;">📄 Pet Policy <span style="color:#a5b4fc;font-size:0.7em;font-weight:500;margin-left:6px;">policy</span></div>
+            <div style="font-size:0.82em;color:rgba(255,255,255,0.55);">Up to 2 pets, $300 pet deposit, no breed restrictions. Registration required.</div>
+          </div>
+          <div style="margin-top:14px;padding:10px 14px;border:1.5px dashed rgba(255,107,107,0.3);border-radius:10px;color:rgba(255,107,107,0.8);text-align:center;font-size:0.82em;">+ Upload PDF or add manually</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Auto task extraction -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">SMART ACTIONS</div>
+        <h2 class="section-title">The AI spots what needs doing.</h2>
+        <p class="big">
+          Every incoming message is analyzed for action items. If a resident mentions a broken appliance, the AI suggests a maintenance ticket. If they mention their lease ending, it surfaces their renewal date. If they mention rent, it pulls up their payment history.
+        </p>
+        <p class="big">
+          These aren't distracting pop-ups — they're tasteful, one-click suggestions that appear at the bottom of each thread. Click to accept, dismiss to ignore. Over time, you'll find that a huge amount of your to-do list assembles itself while you're just reading messages.
+        </p>
+        <p class="big">
+          Messages are also auto-categorized — maintenance, renewal, payment, general, emergency — so you can filter your inbox by what matters most right now. Emergency messages trigger optional SMS notifications to your phone.
+        </p>
+        <ul class="checks">
+          <li>Auto-categorization (maintenance, renewal, payment, emergency, general)</li>
+          <li>Suggested tasks extracted from message content</li>
+          <li>Emergency alerts pushed to your phone via SMS</li>
+          <li>Full context panel: lease end, rent status, open tickets, all in one sidebar</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=80&auto=format" alt="Dashboard analytics and messages" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="callout">
+      <div class="callout-label">A DAY IN THE LIFE</div>
+      <blockquote>"Before Modern Management, I had my work email, a personal phone for texts, and a clipboard for maintenance requests. Now everything comes into one place and the AI drafts replies while I'm still reading the question."</blockquote>
+    </div>
+  </div>
+
+  <!-- FINAL CTA -->
+  <section class="container">
+    <div class="final-cta">
+      <h2>Your inbox, finally under control.</h2>
+      <p>Start with a free account — your first email address and SMS number are set up for you during onboarding.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <!-- RELATED -->
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/ai" class="related-card">
+          <h4>🤖 AI Command Bar <span class="arrow">→</span></h4>
+          <p>Run the entire app with a single sentence — typed or spoken.</p>
+        </a>
+        <a href="/features/broadcasts-and-contacts" class="related-card">
+          <h4>📢 Broadcasts &amp; Contacts <span class="arrow">→</span></h4>
+          <p>Send email or SMS to all residents at once, personalized per recipient.</p>
+        </a>
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>Generate monthly rent rolls in one click, auto-flag overdue accounts.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

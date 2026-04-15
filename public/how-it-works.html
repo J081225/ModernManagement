@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How It Works — Modern Management</title>
+  <meta name="description" content="From sign-up to your first automated rent roll in under 10 minutes. A guided walkthrough of Modern Management's onboarding and daily use." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+  <style>
+    .step-list { counter-reset: step; }
+    .step {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 28px;
+      padding: 36px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(255,142,83,0.1));
+      border: 1px solid rgba(255,107,107,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8em; font-weight: 800;
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: #ff8e53;
+    }
+    .step h3 { font-size: 1.5em; font-weight: 700; color: white; margin-bottom: 10px; }
+    .step p { font-size: 1em; color: rgba(255,255,255,0.7); line-height: 1.7; margin-bottom: 10px; }
+    .step-tip {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(102,126,234,0.08);
+      border: 1px solid rgba(102,126,234,0.2);
+      border-radius: 10px;
+      font-size: 0.88em;
+      color: rgba(255,255,255,0.75);
+    }
+    @media (max-width: 680px) {
+      .step { grid-template-columns: 1fr; gap: 12px; }
+      .step-num { width: 48px; height: 48px; font-size: 1.4em; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">📘 Setup in under 10 minutes</div>
+    <h1 class="hero-title">From sign-up to <span class="grad">your first month's rent,</span> before lunch.</h1>
+    <p class="hero-sub">
+      Most property management software takes a full week to configure — you're learning menus, connecting integrations, uploading residents, and wrestling with permissions. Modern Management is different. You can sign up, import your residents, connect your communication channels, and generate your first full month's rent roll in under ten minutes. Here's exactly how.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Start now →</a>
+      <a href="/features/ai" class="btn-ghost">See the AI first</a>
+    </div>
+
+    <img src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1100&q=80&auto=format" alt="Workflow on laptop" style="border-radius:20px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 40px 100px rgba(0,0,0,0.5);max-width:1000px;margin:0 auto;" />
+  </section>
+
+  <!-- STEPS -->
+  <section class="section container">
+    <div class="narrow">
+      <div class="section-label">GETTING STARTED</div>
+      <h2 class="section-title">Five steps to a running operation.</h2>
+      <p class="section-sub">Every step takes a minute or two. By the end, you have a working property-management system with AI, unified messaging, rent tracking, and broadcasts all set up.</p>
+
+      <div class="step-list">
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>Sign up — free</h3>
+            <p>Head to the signup page and create your account with an email, username, and password. No credit card required. No trial expiration clock. The Starter plan is genuinely free forever and includes everything you need to manage one property: inbox, tasks, contacts, calendar, knowledge base, and AI command bar.</p>
+            <p>If you're on a team, you can invite coworkers later — but to get started, a single account for yourself is all you need.</p>
+            <div class="step-tip">💡 Tip: use an email address you check daily — that's where residents' messages will be forwarded.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>Walk through onboarding</h3>
+            <p>When you first sign in, a 3-step onboarding wizard introduces you to the key concepts. You'll set your property name (e.g., "Sunset Apartments"), a short description or tagline, and optionally upload a property photo. This personalizes your dashboard — when you sign in each morning, the home screen greets you by property name with a banner image of your actual building.</p>
+            <p>You'll also pick your default AI mode: <strong>Manager Review</strong> (AI drafts, you approve) or <strong>Auto-Response</strong> (AI sends instantly). Don't worry — you can switch any time from the Operations page.</p>
+            <div class="step-tip">💡 Tip: start in Manager Review mode. Once you've seen a dozen AI drafts and approved them with a click, you'll trust it enough to flip to Auto-Response.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>Import your residents &amp; contacts</h3>
+            <p>Open the Contacts page. You have two options: add residents one at a time using the <strong>+ Add Contact</strong> button (each contact takes about 30 seconds to create — name, unit, email, phone, lease dates, monthly rent), or bulk-import everyone at once from a CSV file.</p>
+            <p>If you're migrating from a spreadsheet, the CSV import is the fastest path. Export your tenant list from wherever it lives now (Google Sheets, Excel, your old software), map the columns to our fields, and click Import. A property with 50 residents typically imports in under a minute.</p>
+            <p>As you add residents, be sure to include their <strong>monthly rent amount</strong> and <strong>lease end date</strong>. These two fields power every automation downstream — monthly rent generation, overdue detection, lease expiration tracking. The more complete your contacts, the more work the system does for you automatically.</p>
+            <div class="step-tip">💡 Tip: if you're new to using a tool like this, start with just 3–5 residents to get the feel. You can import the rest once you're comfortable.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <div>
+            <h3>Connect your phone &amp; email</h3>
+            <p>Modern Management provisions a dedicated SMS number and email address for your account during onboarding. Your residents text or email that address; their messages land in your Modern Management inbox; your replies go back to them from the same address.</p>
+            <p>If you want to integrate with a phone number you already own, you can do that too — we'll help you forward or port the existing number. Most new users start with the auto-provisioned number because it's instant and works out of the box.</p>
+            <p>For SMS, there's a brief compliance step (Twilio's toll-free verification) that confirms your use case to the carriers. We handle most of the paperwork — you just confirm the details. Verification typically takes 1–3 business days and doesn't block you from using any other feature in the meantime.</p>
+            <div class="step-tip">💡 Tip: email works immediately. SMS becomes fully unrestricted after Twilio verification completes, but you can start using it right away for low-volume testing.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <div>
+            <h3>Generate this month's rent</h3>
+            <p>With contacts imported and residents' monthly rent amounts set, go to the Admin page → Rent Payments and click <strong>Generate Month</strong>. Pick the month, the due day (usually 1), and click Generate. In about three seconds, every resident gets a pending rent record. Your whole month is set up.</p>
+            <p>From here on, the system runs itself. As tenants pay, click <strong>Mark Paid</strong> on their row. Overdue records flag themselves automatically. Your Collected vs. Outstanding summary updates in real time. And when you get to month-end, generate the next month with the same one-click action.</p>
+            <div class="step-tip">💡 Tip: try this workflow too — type "Generate rent for next month" in the AI Command Bar on the home page. The AI will do it for you without any clicks.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- A DAY IN THE LIFE -->
+  <section class="section container">
+    <div class="section-label">A DAY IN THE LIFE</div>
+    <h2 class="section-title">What daily use actually looks like.</h2>
+    <p class="section-sub">Setup is one thing. Daily use is what matters. Here's a typical Tuesday for a property manager running Modern Management.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon-small">🌅</div>
+        <h4>8:00am — Coffee + Home screen</h4>
+        <p>Open the app. See overnight message count, 3 tasks due today, one lease expiring in 14 days. Tap the AI Command Bar: <em>"What's urgent?"</em></p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-small">✉</div>
+        <h4>9:00am — Inbox review</h4>
+        <p>Review 4 AI-drafted replies from overnight. Approve 3 with one click each; edit and send the 4th. Drafts took the AI 2 seconds apiece.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-small">🔧</div>
+        <h4>11:00am — Maintenance call</h4>
+        <p>A resident calls about a broken dishwasher. While on the phone, say: <em>"Create a maintenance ticket — broken dishwasher, Unit 204, normal priority."</em> Done.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-small">💰</div>
+        <h4>2:00pm — Rent came in</h4>
+        <p>Three tenants dropped off checks. Open Rent Payments, click Mark Paid on each. Total collected for May jumps to $38,200. Outstanding drops.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-small">📢</div>
+        <h4>4:00pm — Water shutoff</h4>
+        <p>The city schedules a water shutoff for tomorrow. Open Broadcast, pick SMS to all residents, preview the message, send. 24 residents notified in 42 seconds.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-small">📅</div>
+        <h4>5:30pm — Leave early</h4>
+        <p>Manager Review mode is off. Auto-Response takes over for the evening. Residents who text at 9pm get replies at 9:01pm. You're at dinner.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Migration -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">COMING FROM ELSEWHERE</div>
+        <h2 class="section-title">Migrating from another tool?</h2>
+        <p class="big">
+          If you're currently using AppFolio, Buildium, Rentec, or a spreadsheet, migration to Modern Management is straightforward. Your most valuable data — your resident contact info, lease terms, and rent amounts — all exports to CSV from any of these tools.
+        </p>
+        <p class="big">
+          Download the CSV, open it in any spreadsheet app to clean it up if needed, and import into Modern Management. You'll have your full resident roster in the system in under five minutes. Historical rent records don't migrate (they live in your old system for reference), but everything from this month forward runs natively in Modern Management.
+        </p>
+        <p class="big">
+          Most property managers run both systems in parallel for the first month to confirm they're not missing anything, then fully cut over once they're comfortable. There's no contract, no migration fee, and you can cancel anytime — so the risk is minimal.
+        </p>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=900&q=80&auto=format" alt="People collaborating at a modern workspace" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="callout">
+      <div class="callout-label">TIME TO VALUE</div>
+      <blockquote>"Most property managers are sending their first AI-drafted reply within 15 minutes of signing up. The system is designed to feel useful on day one, not day thirty."</blockquote>
+    </div>
+  </div>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>Start in two minutes. No credit card.</h2>
+      <p>Free forever for your first property. Upgrade only when you need more.</p>
+      <a href="/signup" class="btn-primary">Create my account →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">NEXT</div>
+      <h3 class="sub-title">Want to see what's possible first?</h3>
+      <div class="related-grid">
+        <a href="/features/ai" class="related-card">
+          <h4>🤖 AI Command Bar <span class="arrow">→</span></h4>
+          <p>One sentence controls the entire app. See the full capabilities.</p>
+        </a>
+        <a href="/why-ai" class="related-card">
+          <h4>💡 Why AI in property management <span class="arrow">→</span></h4>
+          <p>The thesis behind bringing Claude into your daily workflow.</p>
+        </a>
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>How auto-generation, overdue detection, and renewal alerts work.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -69,6 +69,15 @@ app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
 
+// --- Marketing sub-pages ---
+app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-consent.html')));
+app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
+app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
+app.get('/features/ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'ai.html')));
+app.get('/features/inbox', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'inbox.html')));
+app.get('/features/rent-and-leases', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'rent-and-leases.html')));
+app.get('/features/broadcasts-and-contacts', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'broadcasts-and-contacts.html')));
+
 // --- Database setup & migrations ---
 // Safe migration helper — logs errors but never crashes the server
 async function migrate(sql, label) {

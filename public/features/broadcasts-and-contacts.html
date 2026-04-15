@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Broadcasts &amp; Contacts — Modern Management</title>
+  <meta name="description" content="Reach every resident, vendor, or staff member at once. Email or SMS broadcasts, personalized per recipient, sent in under 30 seconds." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features ▾</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">🤖 AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">✉ Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">💰 Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">📢 Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero container">
+    <div class="eyebrow">📢 Broadcasts &amp; Contact Management</div>
+    <h1 class="hero-title">Reach everyone at once. <span class="grad">Personally.</span></h1>
+    <p class="hero-sub">
+      Fire drill this Saturday. Water shutoff tomorrow morning. Rent reminder on the 25th. Holiday office hours. Pool closing for the season. Property managers send dozens of messages to groups of residents every month — and traditionally, that meant a painful BCC email or a screenshot taped to the lobby wall. Modern Management turns group messaging into a 30-second task with per-recipient personalization, built-in SMS, and a live preview of exactly what residents will see.
+    </p>
+    <div class="hero-cta">
+      <a href="/signup" class="btn-primary">Try it free →</a>
+      <a href="/features/ai" class="btn-ghost">Send via AI</a>
+    </div>
+
+    <div class="ui-mock" style="max-width:700px;margin:0 auto;text-align:left;">
+      <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+        <div style="width:38px;height:38px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1em;">📢</div>
+        <div>
+          <div style="font-weight:700;color:white;font-size:1em;">Send Broadcast</div>
+          <div style="font-size:0.78em;color:rgba(255,255,255,0.45);">Email or SMS to a group at once</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="padding:11px 14px;background:rgba(255,107,107,0.1);border:1.5px solid rgba(255,107,107,0.35);border-radius:9px;font-size:0.88em;color:white;font-weight:600;text-align:center;">📱 SMS</div>
+        <div style="padding:11px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:9px;font-size:0.88em;color:rgba(255,255,255,0.65);text-align:center;">✉ Email</div>
+      </div>
+      <div style="padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:9px;font-size:0.85em;color:rgba(255,255,255,0.78);margin-bottom:14px;line-height:1.55;">
+        Hi {{name}}, reminder: the property fire drill is this Saturday at 10am. Please exit via the nearest stairwell. Should take about 15 minutes. Thanks! — Property Management
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.82em;color:rgba(255,255,255,0.55);margin-bottom:14px;">
+        <span>✓ 24 residents</span>
+        <span>142 chars · 1 SMS</span>
+      </div>
+      <button style="width:100%;padding:12px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;border:none;border-radius:9px;font-weight:600;font-size:0.92em;cursor:pointer;">Send to 24 residents</button>
+    </div>
+  </section>
+
+  <!-- Group broadcasts -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">GROUP MESSAGING</div>
+        <h2 class="section-title">One message. Many residents. Zero BCC.</h2>
+        <p class="big">
+          You've probably sent a mass email to your residents before using BCC. It works, but it's messy — some messages land in spam, you can't send SMS, you can't personalize, and you definitely can't see who received it and who didn't.
+        </p>
+        <p class="big">
+          Modern Management's broadcast tool is purpose-built for property managers. Pick your audience — <strong>all residents</strong>, <strong>all vendors</strong>, <strong>important contacts</strong>, or a custom selection from your contact list. Choose your channel — email or SMS. Write your message, preview it, and send. Each recipient gets an individually-addressed message (never BCC), with optional {{name}} and {{unit}} merge tags that personalize each one.
+        </p>
+        <p class="big">
+          The whole system is throttled and rate-limited in the background so you don't trigger spam filters or get blocked by carriers. Most broadcasts to 20–50 residents complete in under a minute, and you get a live progress indicator showing exactly how many were sent successfully.
+        </p>
+        <ul class="checks">
+          <li>Audience targeting: residents, vendors, important contacts, or custom selection</li>
+          <li>Channel choice: email or SMS — your decision per broadcast</li>
+          <li>Per-recipient personalization via {{name}} and {{unit}} variables</li>
+          <li>Live preview before send — see exactly what residents will see</li>
+          <li>Delivery rate-limiting to avoid carrier throttling</li>
+          <li>Full broadcast history with send count and failed count</li>
+        </ul>
+      </div>
+      <div class="col-visual">
+        <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=900&q=80&auto=format" alt="Team collaboration and communication" style="border-radius:16px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 28px 60px rgba(0,0,0,0.4);" />
+      </div>
+    </div>
+  </section>
+
+  <!-- SMS via Twilio -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">SMS YOUR RESIDENTS</div>
+        <h2 class="section-title">Email is old. Texts get read.</h2>
+        <p class="big">
+          Email open rates hover around 20%. SMS open rates are over 95%, and most texts are read within three minutes of delivery. For time-sensitive announcements — water shutoffs, emergency maintenance, weather warnings, lease deadlines — SMS is simply the right channel.
+        </p>
+        <p class="big">
+          Modern Management integrates directly with Twilio to send SMS from your own dedicated toll-free number. Your residents see a consistent business number when you text them, not some random random short code. The app handles opt-in tracking (residents who text STOP are automatically removed from future broadcasts), character counting (so you know if your message will be one SMS or two), and delivery tracking.
+        </p>
+        <p class="big">
+          All SMS messaging complies with carrier requirements and 10DLC rules. Your toll-free number goes through Twilio's toll-free verification process (Modern Management handles the paperwork), so your messages don't get blocked or flagged.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="padding:16px;background:rgba(255,255,255,0.03);border-radius:12px;">
+            <div style="font-size:0.74em;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">From +1 (855) 535-0785</div>
+            <div style="background:#1f2937;padding:12px 14px;border-radius:14px 14px 14px 4px;font-size:0.88em;line-height:1.55;color:white;max-width:88%;margin-bottom:10px;">
+              Hi Alex, reminder: water will be shut off on Tuesday 5/14 from 9am-12pm for pipe repairs. Please plan accordingly. — Property Management
+            </div>
+            <div style="font-size:0.72em;color:rgba(255,255,255,0.4);text-align:right;">Sent · Delivered</div>
+          </div>
+          <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:0.8em;">
+            <span style="color:rgba(255,255,255,0.55);">✓ Sent to 24</span>
+            <span style="color:rgba(255,255,255,0.55);">⚠ Failed: 0</span>
+            <span style="color:rgba(255,255,255,0.55);">⏱ 47s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact Management -->
+  <section class="section container">
+    <div class="two-col">
+      <div class="col-text">
+        <div class="section-label">CONTACT MANAGEMENT</div>
+        <h2 class="section-title">The people side of your property.</h2>
+        <p class="big">
+          Every broadcast, every rent record, every message in your inbox is tied back to a contact. Modern Management organizes all the people in your property's orbit — <strong>residents</strong>, <strong>vendors</strong>, and <strong>important contacts</strong> (like owners, HOA board members, inspectors) — in a single contact book with rich per-contact context.
+        </p>
+        <p class="big">
+          For each resident, you can store their unit number, email, phone, lease start and end dates, monthly rent amount, and free-form notes. These fields power everything else — the rent generator reads monthly rent, lease tracking reads end dates, the AI cross-references this data every time you send a command.
+        </p>
+        <p class="big">
+          Adding contacts one-by-one works fine, but if you're coming from a spreadsheet, the built-in <strong>CSV import</strong> lets you bring over hundreds of residents in seconds. Map your columns to our fields, click Import, and your entire contact list is ready. The importer is safe — it won't create duplicates, and invalid rows are flagged for your review instead of silently dropped.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <div style="flex:1;padding:10px 12px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.28);border-radius:7px;font-size:0.8em;color:#ff8e53;font-weight:600;text-align:center;">Residents (24)</div>
+            <div style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:7px;font-size:0.8em;color:rgba(255,255,255,0.55);text-align:center;">Vendors (6)</div>
+            <div style="flex:1;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:7px;font-size:0.8em;color:rgba(255,255,255,0.55);text-align:center;">Important (3)</div>
+          </div>
+          <div class="mock-row">
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div style="width:34px;height:34px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82em;color:white;">AR</div>
+              <div>
+                <div class="r-name">Alex Rivera</div>
+                <div class="r-sub">Unit 101 · alex@email.com</div>
+              </div>
+            </div>
+            <span class="mock-tag tag-red">46d</span>
+          </div>
+          <div class="mock-row">
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div style="width:34px;height:34px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82em;color:white;">MC</div>
+              <div>
+                <div class="r-name">Mira Chen</div>
+                <div class="r-sub">Unit 204 · mira@email.com</div>
+              </div>
+            </div>
+            <span class="mock-tag tag-red">18d</span>
+          </div>
+          <div class="mock-row">
+            <div style="display:flex;gap:10px;align-items:center;">
+              <div style="width:34px;height:34px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.82em;color:white;">JL</div>
+              <div>
+                <div class="r-name">Jordan Lee</div>
+                <div class="r-sub">Unit 305 · 555-201-3333</div>
+              </div>
+            </div>
+            <span class="mock-tag tag-green">81d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI integration -->
+  <section class="section container">
+    <div class="two-col reverse">
+      <div class="col-text">
+        <div class="section-label">AI-POWERED SENDING</div>
+        <h2 class="section-title">Broadcast by talking.</h2>
+        <p class="big">
+          The AI Command Bar can send broadcasts for you. Say — or type — <em>"Send an SMS to all residents that the water will be shut off tomorrow from 9am to noon"</em> and the AI composes the message, picks the right audience, previews it, and asks for your confirmation before sending.
+        </p>
+        <p class="big">
+          For true speed, you can even have the AI draft variations — a more formal one, a more casual one, a bilingual one — and pick which one to send. This is especially useful for emergency or policy messages where tone matters and you need options.
+        </p>
+        <p class="big">
+          The AI also cross-references who should receive each message. Tell it to "Send the rent-increase notice to anyone whose lease renews in the next 90 days" and it'll find those residents using their lease dates — no manual filtering required.
+        </p>
+      </div>
+      <div class="col-visual">
+        <div class="ui-mock">
+          <div class="ui-mock-dots"><span></span><span></span><span></span></div>
+          <div class="cmd-bar" style="background:rgba(255,107,107,0.06);border-color:rgba(255,107,107,0.25);">
+            <div class="cmd-icon">🤖</div>
+            <span>Send a friendly SMS to all residents that the pool will be closed this weekend for cleaning.</span>
+          </div>
+          <div class="cmd-reply">
+            ✓ Drafted and sent SMS to 24 residents. <br>
+            Message: "Hi! Quick heads up — the pool will be closed Sat &amp; Sun for cleaning and maintenance. It'll reopen Monday morning. Thanks for your patience! — Property Management"
+          </div>
+          <div>
+            <span class="cmd-chip">📱 24 SMS delivered</span>
+            <span class="cmd-chip">⏱ 42s total</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="final-cta">
+      <h2>Your residents. Instantly reachable.</h2>
+      <p>Sign up free, import your contacts, and send your first broadcast in under five minutes.</p>
+      <a href="/signup" class="btn-primary">Get started free →</a>
+    </div>
+  </section>
+
+  <section class="container">
+    <div class="related-section">
+      <div class="section-label">KEEP EXPLORING</div>
+      <h3 class="sub-title">Related features</h3>
+      <div class="related-grid">
+        <a href="/features/inbox" class="related-card">
+          <h4>✉ Unified Inbox <span class="arrow">→</span></h4>
+          <p>Responses to your broadcasts land right back in the same inbox.</p>
+        </a>
+        <a href="/features/rent-and-leases" class="related-card">
+          <h4>💰 Rent &amp; Leases <span class="arrow">→</span></h4>
+          <p>Combine broadcasts with rent reminders, renewal notices, and lease alerts.</p>
+        </a>
+        <a href="/features/ai" class="related-card">
+          <h4>🤖 AI Command Bar <span class="arrow">→</span></h4>
+          <p>Send broadcasts by voice or text — AI writes and schedules them.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> Modern Management © 2026</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/sms-consent">SMS Terms</a>
+    </div>
+  </footer>
+
+</body>
+</html>
