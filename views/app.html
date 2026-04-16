@@ -819,6 +819,87 @@
             <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save Settings</button>
           </div>
 
+          <!-- Connected Email Account -->
+          <div class="card">
+            <h2>📧 Property Email Connection</h2>
+            <p style="color:#94a3b8;font-size:0.9em;margin-bottom:14px;">Connect a dedicated property email so resident messages flow into your Modern Management inbox, and replies go out from your real address.</p>
+
+            <div id="emailConnStatus"></div>
+
+            <div id="emailConnForm" style="display:none;">
+              <!-- Path selection -->
+              <div id="emailPathPicker">
+                <div style="font-size:0.82em;font-weight:600;color:#475569;margin-bottom:10px;">Which email will you use?</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+                  <button onclick="chooseEmailPath('existing')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid #e2e8f0;">
+                    <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">I already have a business email</div>
+                    <div style="font-size:0.78em;color:#64748b;">Connect a Gmail, Outlook, Yahoo, or custom domain you already own.</div>
+                  </button>
+                  <button onclick="chooseEmailPath('new')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid #e2e8f0;">
+                    <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">Create a new dedicated Gmail</div>
+                    <div style="font-size:0.78em;color:#64748b;">Takes ~3 minutes, free, keeps personal mail separate.</div>
+                  </button>
+                </div>
+                <div style="padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:0.85em;color:#475569;">
+                  <strong>⚠ Don't connect your personal email.</strong> Use a dedicated address (e.g. <code>mypropertyapartments@gmail.com</code>) so personal mail stays out of your property inbox.
+                </div>
+              </div>
+
+              <!-- New Gmail walkthrough -->
+              <div id="emailPathNew" style="display:none;">
+                <button onclick="backToPathPicker()" class="btn-secondary" style="font-size:0.8em;padding:4px 10px;margin-bottom:12px;">← Back</button>
+                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 1: Create a new Gmail</h3>
+                <ol style="font-size:0.88em;color:#475569;line-height:1.75;margin-left:22px;margin-bottom:14px;">
+                  <li>Open <a href="https://accounts.google.com/signup" target="_blank" style="color:#ff6b6b;">accounts.google.com/signup</a></li>
+                  <li>Use a property-focused name like <code>sunsetapartmentsmgr@gmail.com</code></li>
+                  <li>Set a strong password and enable 2-Step Verification</li>
+                </ol>
+                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 2: Generate an app password</h3>
+                <ol style="font-size:0.88em;color:#475569;line-height:1.75;margin-left:22px;margin-bottom:14px;">
+                  <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#ff6b6b;">myaccount.google.com/apppasswords</a></li>
+                  <li>Create a new app password named "Modern Management"</li>
+                  <li>Copy the 16-character password Google shows you</li>
+                </ol>
+                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 3: Connect it here</h3>
+                <button onclick="showConnectForm()" class="btn-primary">I'm ready → Enter credentials</button>
+              </div>
+
+              <!-- Existing email walkthrough + form -->
+              <div id="emailPathExisting" style="display:none;">
+                <button onclick="backToPathPicker()" class="btn-secondary" style="font-size:0.8em;padding:4px 10px;margin-bottom:12px;">← Back</button>
+                <div style="padding:12px 14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;font-size:0.85em;color:#3730a3;margin-bottom:14px;">
+                  <strong>You'll need an app password</strong>, not your regular login password. Most providers require 2FA to be enabled first.
+                  <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" style="font-size:0.82em;color:#4f46e5;">Gmail →</a>
+                    <a href="https://account.microsoft.com/security" target="_blank" style="font-size:0.82em;color:#4f46e5;">Outlook →</a>
+                    <a href="https://login.yahoo.com/account/security" target="_blank" style="font-size:0.82em;color:#4f46e5;">Yahoo →</a>
+                  </div>
+                </div>
+                <div id="connectFormFields">
+                  <label style="font-size:0.85em;color:#475569;display:block;margin-bottom:4px;font-weight:600;">Email address</label>
+                  <input id="connEmail" type="email" placeholder="yourproperty@gmail.com" style="width:100%;margin-bottom:12px;" oninput="previewDetection()" />
+                  <div id="detectionHint" style="font-size:0.78em;color:#64748b;margin:-6px 0 12px;"></div>
+                  <label style="font-size:0.85em;color:#475569;display:block;margin-bottom:4px;font-weight:600;">App password</label>
+                  <input id="connPass" type="password" placeholder="16 characters from your provider" style="width:100%;margin-bottom:14px;" />
+                  <details style="margin-bottom:14px;">
+                    <summary style="cursor:pointer;font-size:0.82em;color:#64748b;">Advanced: custom IMAP/SMTP settings</summary>
+                    <div style="margin-top:10px;display:grid;grid-template-columns:2fr 1fr;gap:8px;">
+                      <input id="connImapHost" placeholder="imap.example.com" style="font-size:0.85em;" />
+                      <input id="connImapPort" type="number" placeholder="993" style="font-size:0.85em;" />
+                      <input id="connSmtpHost" placeholder="smtp.example.com" style="font-size:0.85em;" />
+                      <input id="connSmtpPort" type="number" placeholder="465" style="font-size:0.85em;" />
+                    </div>
+                  </details>
+                  <div style="display:flex;gap:8px;">
+                    <button onclick="testEmailConnection()" class="btn-secondary" style="flex:1;">Test</button>
+                    <button onclick="connectEmailAccount()" class="btn-primary" style="flex:1;">Connect &amp; Save</button>
+                  </div>
+                  <div id="connStatus" style="margin-top:12px;font-size:0.88em;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="card">
             <h2>Knowledge Base</h2>
             <div id="knowledgeList" style="margin-bottom:16px;"></div>
@@ -3451,6 +3532,131 @@
       }
       setInterval(pollInbox, 10000);
 
+      // --- Connected Email Account ---
+      async function loadEmailAccount() {
+        const info = await api('email-account');
+        const statusEl = document.getElementById('emailConnStatus');
+        const formEl = document.getElementById('emailConnForm');
+        if (info && info.connected) {
+          const acct = info.account;
+          const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).toLocaleString() : 'Never';
+          statusEl.innerHTML = `
+            <div style="padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:0.72em;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.8px;">✓ Connected · ${acct.provider}</div>
+                  <div style="font-weight:700;color:#1a2e4a;font-size:1em;margin-top:4px;">${acct.email}</div>
+                  <div style="font-size:0.78em;color:#64748b;margin-top:4px;">Last sync: ${lastSync}</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button onclick="syncEmailNow()" class="btn-secondary" style="font-size:0.82em;padding:5px 12px;">↻ Sync now</button>
+                  <button onclick="disconnectEmail()" class="btn-secondary" style="font-size:0.82em;padding:5px 12px;color:#dc2626;">Disconnect</button>
+                </div>
+              </div>
+            </div>`;
+          formEl.style.display = 'none';
+        } else {
+          statusEl.innerHTML = '';
+          formEl.style.display = 'block';
+          backToPathPicker();
+        }
+      }
+
+      function chooseEmailPath(path) {
+        document.getElementById('emailPathPicker').style.display = 'none';
+        document.getElementById('emailPathNew').style.display = path === 'new' ? 'block' : 'none';
+        document.getElementById('emailPathExisting').style.display = path === 'existing' ? 'block' : 'none';
+      }
+
+      function backToPathPicker() {
+        document.getElementById('emailPathPicker').style.display = 'block';
+        document.getElementById('emailPathNew').style.display = 'none';
+        document.getElementById('emailPathExisting').style.display = 'none';
+      }
+
+      function showConnectForm() {
+        chooseEmailPath('existing');
+      }
+
+      async function previewDetection() {
+        const email = document.getElementById('connEmail').value.trim();
+        const hint = document.getElementById('detectionHint');
+        if (!email || !email.includes('@')) { hint.textContent = ''; return; }
+        const detected = await api('email-account/detect?email=' + encodeURIComponent(email));
+        if (detected && detected.name) {
+          hint.innerHTML = `<span style="color:#15803d;">✓</span> Detected ${detected.name} — IMAP ${detected.imap}, SMTP ${detected.smtp}`;
+        }
+      }
+
+      async function testEmailConnection() {
+        const status = document.getElementById('connStatus');
+        status.style.color = '#64748b';
+        status.textContent = 'Testing connection...';
+        const body = buildConnectPayload();
+        const res = await fetch('/api/email-account/test', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          status.style.color = '#15803d';
+          status.innerHTML = `✓ Connection works. Found ${data.mailboxCount} mailboxes. Ready to save.`;
+        } else {
+          status.style.color = '#dc2626';
+          status.innerHTML = `⚠ ${data.error || 'Connection failed'}`;
+        }
+      }
+
+      function buildConnectPayload() {
+        return {
+          email: document.getElementById('connEmail').value.trim(),
+          password: document.getElementById('connPass').value,
+          imap_host: document.getElementById('connImapHost').value.trim() || undefined,
+          imap_port: Number(document.getElementById('connImapPort').value) || undefined,
+          smtp_host: document.getElementById('connSmtpHost').value.trim() || undefined,
+          smtp_port: Number(document.getElementById('connSmtpPort').value) || undefined,
+        };
+      }
+
+      async function connectEmailAccount() {
+        const status = document.getElementById('connStatus');
+        const body = buildConnectPayload();
+        if (!body.email || !body.password) {
+          status.style.color = '#dc2626';
+          status.textContent = '⚠ Email and app password are required.';
+          return;
+        }
+        status.style.color = '#64748b';
+        status.textContent = 'Connecting and syncing...';
+        const res = await fetch('/api/email-account/connect', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          status.style.color = '#15803d';
+          status.innerHTML = '✓ Connected! Syncing your inbox now...';
+          setTimeout(() => { loadEmailAccount(); loadInbox(); }, 1500);
+        } else {
+          status.style.color = '#dc2626';
+          status.innerHTML = '⚠ ' + (data.error || 'Connection failed');
+        }
+      }
+
+      async function syncEmailNow() {
+        const btn = event.target;
+        btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Syncing...';
+        const res = await fetch('/api/email-account/sync', { method: 'POST' });
+        const data = await res.json();
+        btn.disabled = false; btn.textContent = orig;
+        if (data.synced > 0) alert('Synced ' + data.synced + ' new message(s).');
+        loadEmailAccount(); loadInbox();
+      }
+
+      async function disconnectEmail() {
+        if (!confirm('Disconnect this email account? New mail will stop syncing.')) return;
+        await fetch('/api/email-account', { method: 'DELETE' });
+        loadEmailAccount();
+      }
+
       // --- Payment Auto-Match ---
       async function loadForwardingInfo() {
         const info = await api('payments/forwarding-info');
@@ -3546,7 +3752,7 @@
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadBillingStatus(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
-        loadForwardingInfo(); loadPaymentEvents();
+        loadForwardingInfo(); loadPaymentEvents(); loadEmailAccount();
         // Init month/year selectors to current month
         const now = new Date();
         const curMonth = String(now.getMonth() + 1);

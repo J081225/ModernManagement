@@ -3,6 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
+const crypto = require('crypto');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const Anthropic = require('@anthropic-ai/sdk').default;
@@ -11,6 +12,8 @@ const sgMail = require('@sendgrid/mail');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const Stripe = require('stripe');
+const nodemailer = require('nodemailer');
+const { ImapFlow } = require('imapflow');
 const { Pool } = require('pg');
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -101,6 +104,189 @@ function generateForwardToken() {
   for (let i = 0; i < 12; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return s;
 }
+
+// --- Credential encryption for stored app passwords ---
+// Uses AES-256-GCM with a key derived from SESSION_SECRET
+function _getEncryptionKey() {
+  const secret = process.env.SESSION_SECRET || 'mm-session-secret-2026';
+  return crypto.createHash('sha256').update(secret).digest();
+}
+function encryptSecret(plaintext) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', _getEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]).toString('base64');
+}
+function decryptSecret(ciphertext) {
+  const buf = Buffer.from(ciphertext, 'base64');
+  const iv = buf.subarray(0, 12);
+  const tag = buf.subarray(12, 28);
+  const data = buf.subarray(28);
+  const decipher = crypto.createDecipheriv('aes-256-gcm', _getEncryptionKey(), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+}
+
+// --- Auto-detect IMAP/SMTP settings for major providers ---
+function detectEmailProvider(email) {
+  const domain = (email.split('@')[1] || '').toLowerCase();
+  const providers = {
+    'gmail.com':       { name: 'gmail',    imap: 'imap.gmail.com',         smtp: 'smtp.gmail.com' },
+    'googlemail.com':  { name: 'gmail',    imap: 'imap.gmail.com',         smtp: 'smtp.gmail.com' },
+    'outlook.com':     { name: 'outlook',  imap: 'outlook.office365.com',  smtp: 'smtp.office365.com' },
+    'hotmail.com':     { name: 'outlook',  imap: 'outlook.office365.com',  smtp: 'smtp.office365.com' },
+    'live.com':        { name: 'outlook',  imap: 'outlook.office365.com',  smtp: 'smtp.office365.com' },
+    'office365.com':   { name: 'outlook',  imap: 'outlook.office365.com',  smtp: 'smtp.office365.com' },
+    'yahoo.com':       { name: 'yahoo',    imap: 'imap.mail.yahoo.com',    smtp: 'smtp.mail.yahoo.com' },
+    'icloud.com':      { name: 'icloud',   imap: 'imap.mail.me.com',       smtp: 'smtp.mail.me.com' },
+    'me.com':          { name: 'icloud',   imap: 'imap.mail.me.com',       smtp: 'smtp.mail.me.com' },
+    'aol.com':         { name: 'aol',      imap: 'imap.aol.com',           smtp: 'smtp.aol.com' },
+    'zoho.com':        { name: 'zoho',     imap: 'imap.zoho.com',          smtp: 'smtp.zoho.com' },
+    'proton.me':       { name: 'proton',   imap: '127.0.0.1',              smtp: '127.0.0.1' }, // ProtonMail requires bridge
+  };
+  if (providers[domain]) return { ...providers[domain], imap_port: 993, smtp_port: 465, domain };
+  return { name: 'custom', imap: `imap.${domain}`, smtp: `smtp.${domain}`, imap_port: 993, smtp_port: 465, domain };
+}
+
+// --- Test an IMAP connection without saving ---
+async function testImapConnection({ email, password, imap_host, imap_port }) {
+  const client = new ImapFlow({
+    host: imap_host,
+    port: imap_port || 993,
+    secure: true,
+    auth: { user: email, pass: password },
+    logger: false
+  });
+  try {
+    await client.connect();
+    const mailboxes = await client.list();
+    await client.logout();
+    return { success: true, mailboxCount: mailboxes.length };
+  } catch (err) {
+    try { await client.close(); } catch (_) {}
+    return { success: false, error: err.message };
+  }
+}
+
+// --- Send an email using a connected account's SMTP ---
+async function sendViaConnectedAccount(userId, { to, subject, text, html, replyTo }) {
+  const { rows } = await pool.query('SELECT * FROM email_accounts WHERE user_id=$1', [userId]);
+  if (!rows.length) return { success: false, error: 'No connected email account' };
+  const acct = rows[0];
+  const password = decryptSecret(acct.encrypted_password);
+  const transporter = nodemailer.createTransport({
+    host: acct.smtp_host,
+    port: acct.smtp_port,
+    secure: acct.smtp_port === 465,
+    auth: { user: acct.email, pass: password }
+  });
+  try {
+    const info = await transporter.sendMail({
+      from: acct.email,
+      to, subject, text, html,
+      replyTo: replyTo || acct.email
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (err) {
+    console.error('SMTP send error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+// --- Sync new mail from a connected IMAP account into messages table ---
+async function syncEmailAccount(userId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM email_accounts WHERE user_id=$1 AND sync_enabled=true`,
+    [userId]
+  );
+  if (!rows.length) return { synced: 0, skipped: true };
+  const acct = rows[0];
+  const password = decryptSecret(acct.encrypted_password);
+
+  const client = new ImapFlow({
+    host: acct.imap_host,
+    port: acct.imap_port,
+    secure: true,
+    auth: { user: acct.email, pass: password },
+    logger: false
+  });
+
+  let synced = 0;
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+      const lastUid = acct.last_sync_uid || 0;
+      // Fetch messages with UID > lastUid
+      const search = lastUid > 0 ? { uid: `${lastUid + 1}:*` } : { seen: false };
+      let maxUid = lastUid;
+      for await (const msg of client.fetch(search, { envelope: true, source: true, uid: true })) {
+        if (msg.uid <= lastUid) continue;
+        maxUid = Math.max(maxUid, msg.uid);
+        const env = msg.envelope || {};
+        const fromAddr = env.from?.[0] || {};
+        const from = fromAddr.address || 'unknown';
+        const name = fromAddr.name || from;
+        const subject = env.subject || '(No subject)';
+        // Extract plain text from raw source
+        const src = msg.source ? msg.source.toString('utf8') : '';
+        const body = extractTextFromEmail(src).slice(0, 8000);
+
+        // Skip payment-forwarded self-emails
+        if (from.includes('payments+')) continue;
+
+        await pool.query(
+          `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email)
+           VALUES ($1,$2,$3,'email',$4,'new','inbox',$5)`,
+          [userId, name, subject, body || '(No body)', from]
+        );
+        synced++;
+      }
+      if (maxUid > lastUid) {
+        await pool.query(
+          `UPDATE email_accounts SET last_sync_uid=$1, last_sync_at=NOW() WHERE id=$2`,
+          [maxUid, acct.id]
+        );
+      } else {
+        await pool.query(`UPDATE email_accounts SET last_sync_at=NOW() WHERE id=$1`, [acct.id]);
+      }
+    } finally {
+      lock.release();
+    }
+    await client.logout();
+    return { synced };
+  } catch (err) {
+    console.error(`IMAP sync error for user ${userId}:`, err.message);
+    try { await client.close(); } catch (_) {}
+    return { synced, error: err.message };
+  }
+}
+
+// Very naive plain-text extraction from raw RFC822 email
+function extractTextFromEmail(raw) {
+  if (!raw) return '';
+  // Find end of headers
+  const sep = raw.indexOf('\r\n\r\n');
+  const body = sep >= 0 ? raw.slice(sep + 4) : raw;
+  // Strip HTML if present, collapse whitespace
+  return body.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+// Background sync: every 5 minutes, sync all connected accounts
+async function runPeriodicEmailSync() {
+  try {
+    const { rows } = await pool.query(
+      `SELECT user_id FROM email_accounts WHERE sync_enabled=true`
+    );
+    for (const r of rows) {
+      await syncEmailAccount(r.user_id).catch(err => console.error('sync worker error:', err.message));
+    }
+  } catch (err) {
+    console.error('Periodic sync error:', err.message);
+  }
+}
+setInterval(runPeriodicEmailSync, 5 * 60 * 1000); // 5 minutes
 
 async function initDB() {
   // Verify DB connection is alive before doing anything
@@ -297,6 +483,25 @@ async function initDB() {
 
   // Payment forwarding token (Option 1: email parsing)
   await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_forward_token TEXT DEFAULT ''`, 'users.payment_forward_token');
+
+  // Connected email accounts (IMAP/SMTP, per user)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_accounts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL UNIQUE,
+      email TEXT NOT NULL,
+      provider TEXT DEFAULT 'custom',
+      imap_host TEXT NOT NULL,
+      imap_port INTEGER DEFAULT 993,
+      smtp_host TEXT NOT NULL,
+      smtp_port INTEGER DEFAULT 465,
+      encrypted_password TEXT NOT NULL,
+      last_sync_uid INTEGER DEFAULT 0,
+      last_sync_at TIMESTAMPTZ,
+      sync_enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 
   // Payment events table — incoming emails parsed by AI, matched or queued
   await pool.query(`
@@ -565,6 +770,115 @@ app.get('/api/me', requireAuth, async (req, res) => {
 app.put('/api/me/onboarding', requireAuth, async (req, res) => {
   await pool.query('UPDATE users SET onboarding_completed=true WHERE id=$1', [req.session.userId]);
   res.json({ success: true });
+});
+
+// --- Connected Email Account (IMAP/SMTP) ---
+
+// Returns connection status + detected settings (for setup UI)
+app.get('/api/email-account', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, email, provider, imap_host, imap_port, smtp_host, smtp_port, sync_enabled, last_sync_at
+       FROM email_accounts WHERE user_id=$1`,
+      [req.session.userId]
+    );
+    res.json({ connected: rows.length > 0, account: rows[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Auto-detect settings from email address (for pre-filling the setup form)
+app.get('/api/email-account/detect', requireAuth, async (req, res) => {
+  const email = String(req.query.email || '').trim();
+  if (!email) return res.status(400).json({ error: 'email is required' });
+  res.json(detectEmailProvider(email));
+});
+
+// Test credentials without saving
+app.post('/api/email-account/test', requireAuth, async (req, res) => {
+  try {
+    const { email, password, imap_host, imap_port } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    const detected = detectEmailProvider(email);
+    const result = await testImapConnection({
+      email,
+      password,
+      imap_host: imap_host || detected.imap,
+      imap_port: imap_port || detected.imap_port
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Connect or update an email account
+app.post('/api/email-account/connect', requireAuth, async (req, res) => {
+  try {
+    const { email, password, imap_host, imap_port, smtp_host, smtp_port } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+    const detected = detectEmailProvider(email);
+    const finalImapHost = imap_host || detected.imap;
+    const finalImapPort = imap_port || detected.imap_port;
+    const finalSmtpHost = smtp_host || detected.smtp;
+    const finalSmtpPort = smtp_port || detected.smtp_port;
+
+    // Test the IMAP connection before saving
+    const test = await testImapConnection({
+      email, password,
+      imap_host: finalImapHost, imap_port: finalImapPort
+    });
+    if (!test.success) return res.status(400).json({ error: 'Connection failed: ' + test.error });
+
+    const encrypted = encryptSecret(password);
+
+    // Upsert (one account per user)
+    await pool.query(
+      `INSERT INTO email_accounts
+         (user_id, email, provider, imap_host, imap_port, smtp_host, smtp_port, encrypted_password, sync_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true)
+       ON CONFLICT (user_id) DO UPDATE SET
+         email=EXCLUDED.email,
+         provider=EXCLUDED.provider,
+         imap_host=EXCLUDED.imap_host,
+         imap_port=EXCLUDED.imap_port,
+         smtp_host=EXCLUDED.smtp_host,
+         smtp_port=EXCLUDED.smtp_port,
+         encrypted_password=EXCLUDED.encrypted_password,
+         sync_enabled=true,
+         last_sync_uid=0`,
+      [req.session.userId, email, detected.name, finalImapHost, finalImapPort, finalSmtpHost, finalSmtpPort, encrypted]
+    );
+
+    // Trigger an immediate sync in the background
+    syncEmailAccount(req.session.userId).catch(err => console.error('Initial sync error:', err.message));
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Email connect error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger a manual sync
+app.post('/api/email-account/sync', requireAuth, async (req, res) => {
+  try {
+    const result = await syncEmailAccount(req.session.userId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Disconnect (removes credentials)
+app.delete('/api/email-account', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM email_accounts WHERE user_id=$1', [req.session.userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- Payment Forwarding ---
@@ -1710,6 +2024,19 @@ async function processPaymentEmail(userId, { from, subject, body }) {
 app.post('/api/email/send', async (req, res) => {
   const { to, subject, body } = req.body;
   if (!to || !subject || !body) return res.status(400).json({ error: 'Missing to, subject, or body' });
+
+  // Prefer user's connected account if available — replies appear from their real address
+  if (req.session?.userId) {
+    const { rows } = await pool.query('SELECT 1 FROM email_accounts WHERE user_id=$1', [req.session.userId]);
+    if (rows.length) {
+      const result = await sendViaConnectedAccount(req.session.userId, { to, subject, text: body });
+      if (result.success) return res.json({ success: true, via: 'connected' });
+      // Fall through to SendGrid if SMTP fails
+      console.warn('Connected SMTP send failed, falling back to SendGrid:', result.error);
+    }
+  }
+
+  // Fallback: send via MM's SendGrid account
   try {
     await sgMail.send({
       to,
@@ -1718,7 +2045,7 @@ app.post('/api/email/send', async (req, res) => {
       subject,
       text: body
     });
-    res.json({ success: true });
+    res.json({ success: true, via: 'sendgrid' });
   } catch (err) {
     console.error('SendGrid error:', err.message);
     res.status(500).json({ error: 'Failed to send email', details: err.message });
