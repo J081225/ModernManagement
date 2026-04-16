@@ -85,6 +85,7 @@ app.get('/features/budget', (_req, res) => res.sendFile(path.join(__dirname, 'pu
 app.get('/features/tasks', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'tasks.html')));
 app.get('/features/reports', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'reports.html')));
 app.get('/features/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'calendar.html')));
+app.get('/features/knowledge-base', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'knowledge-base.html')));
 
 // --- Database setup & migrations ---
 // Safe migration helper — logs errors but never crashes the server
