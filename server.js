@@ -15,8 +15,16 @@ const Stripe = require('stripe');
 const nodemailer = require('nodemailer');
 const { ImapFlow } = require('imapflow');
 const { Pool } = require('pg');
+const pgSession = require('connect-pg-simple')(session);
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+// SESSION_SECRET is required — refuse to start with a weak default
+if (!process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable is not set.');
+  console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
+  process.exit(1);
+}
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
@@ -25,8 +33,6 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
 const BCRYPT_ROUNDS = 10;
-// User ID that receives all inbound webhooks (Twilio/SendGrid) — always the first admin account
-const WEBHOOK_USER_ID = 1;
 
 app.use(cors());
 // Raw body needed for Stripe webhook signature verification — must be before bodyParser
@@ -34,10 +40,11 @@ app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'mm-session-secret-2026',
+  store: new pgSession({ pool, tableName: 'user_sessions', createTableIfMissing: true }),
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
 
 // Serve public static files (landing, login, signup pages)
@@ -485,6 +492,22 @@ async function initDB() {
   // Payment forwarding token (Option 1: email parsing)
   await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_forward_token TEXT DEFAULT ''`, 'users.payment_forward_token');
 
+  // Multi-tenant inbound routing columns
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS twilio_phone_number TEXT`, 'users.twilio_phone_number');
+  await migrate(`ALTER TABLE users ADD COLUMN IF NOT EXISTS inbound_email_alias TEXT`, 'users.inbound_email_alias');
+
+  // Drafts table (replaces in-memory array — user-scoped, persistent)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS drafts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      message_id INTEGER,
+      content TEXT DEFAULT '',
+      status TEXT DEFAULT 'draft',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   // Connected email accounts (IMAP/SMTP, per user)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_accounts (
@@ -523,13 +546,20 @@ async function initDB() {
     )
   `);
 
-  // Backfill forward tokens for existing users who don't have one
+  // Backfill forward tokens and inbound aliases for existing users
   const { rows: noTokenUsers } = await pool.query(
     `SELECT id FROM users WHERE payment_forward_token IS NULL OR payment_forward_token=''`
   );
   for (const u of noTokenUsers) {
     const token = generateForwardToken();
     await pool.query(`UPDATE users SET payment_forward_token=$1 WHERE id=$2`, [token, u.id]);
+  }
+  const { rows: noAliasUsers } = await pool.query(
+    `SELECT id FROM users WHERE inbound_email_alias IS NULL OR inbound_email_alias=''`
+  );
+  for (const u of noAliasUsers) {
+    const alias = `user-${generateForwardToken()}@inbound.modernmanagementapp.com`;
+    await pool.query(`UPDATE users SET inbound_email_alias=$1 WHERE id=$2`, [alias, u.id]);
   }
 
   // Rent payments table
@@ -696,7 +726,7 @@ async function sendNotificationEmail(userId, message) {
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT notification_email, notifications_enabled FROM users WHERE id=$1', [req.session.userId]
+    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias FROM users WHERE id=$1', [req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
@@ -1329,23 +1359,44 @@ app.put('/api/messages/:id/status', async (req, res) => {
   res.json(rows[0]);
 });
 
-// --- In-memory drafts (ephemeral, per-session) ---
-let drafts = [];
-
-app.get('/api/drafts', (_req, res) => res.json(drafts));
-
-app.post('/api/drafts', (req, res) => {
-  const { messageId, content, status } = req.body;
-  const id = drafts.length ? Math.max(...drafts.map(d => d.id)) + 1 : 1;
-  drafts.push({ id, messageId, content, status: status || 'pending', createdAt: new Date().toISOString() });
-  res.status(201).json(drafts[drafts.length - 1]);
+// --- Drafts (DB-backed, user-scoped) ---
+app.get('/api/drafts', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM drafts WHERE user_id=$1 ORDER BY created_at DESC',
+      [req.session.userId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-app.put('/api/drafts/:id', (req, res) => {
-  const draft = drafts.find(d => d.id === Number(req.params.id));
-  if (!draft) return res.status(404).json({ error: 'Draft not found' });
-  Object.assign(draft, req.body);
-  res.json(draft);
+app.post('/api/drafts', requireAuth, async (req, res) => {
+  try {
+    const { messageId, content, status } = req.body;
+    const { rows } = await pool.query(
+      'INSERT INTO drafts (user_id, message_id, content, status) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.session.userId, messageId || null, content || '', status || 'draft']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/drafts/:id', requireAuth, async (req, res) => {
+  try {
+    const { content, status } = req.body;
+    const { rows } = await pool.query(
+      'UPDATE drafts SET content=COALESCE($1,content), status=COALESCE($2,status) WHERE id=$3 AND user_id=$4 RETURNING *',
+      [content, status, Number(req.params.id), req.session.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Draft not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // --- Knowledge base (DB-backed, per-user) ---
@@ -1967,17 +2018,29 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
     return;
   }
 
-  // Regular resident message handling
+  // Regular resident message handling — route to the user who owns this inbound address
   try {
+    // Extract recipient addresses from the "to" field
+    const toAddresses = String(toRaw).match(/[\w.+-]+@[\w.-]+/gi) || [];
+    let userId = null;
+    for (const addr of toAddresses) {
+      userId = await lookupUserByEmailAlias(addr);
+      if (userId) break;
+    }
+    if (!userId) {
+      console.warn(`Inbound email to unrecognized address(es) [${toAddresses.join(', ')}] from ${email} — dropped`);
+      return;
+    }
+
     const { rows } = await pool.query(
       'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-      [WEBHOOK_USER_ID, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
+      [userId, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
     );
     if (rows[0]) {
-      sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
-      const autoData = await getAutomation(WEBHOOK_USER_ID);
-      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
-      else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
+      sendNotificationEmail(userId, rows[0]);
+      const autoData = await getAutomation(userId);
+      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+      else suggestTasksFromConversation(rows[0], null, userId);
     }
   } catch (err) {
     console.error('Inbound email error:', err.message);
@@ -2054,22 +2117,58 @@ app.post('/api/email/send', async (req, res) => {
 });
 
 // --- Twilio: Incoming SMS ---
+// --- Multi-tenant inbound routing helpers ---
+// Look up which user owns a given Twilio phone number
+async function lookupUserByPhone(phoneNumber) {
+  if (!phoneNumber) return null;
+  const { rows } = await pool.query(
+    'SELECT id FROM users WHERE twilio_phone_number=$1 LIMIT 1',
+    [phoneNumber]
+  );
+  return rows[0]?.id || null;
+}
+
+// Look up which user owns a given inbound email alias
+async function lookupUserByEmailAlias(toAddress) {
+  if (!toAddress) return null;
+  const addr = String(toAddress).toLowerCase();
+  // Check inbound_email_alias on users table
+  const { rows: aliasRows } = await pool.query(
+    `SELECT id FROM users WHERE LOWER(inbound_email_alias)=$1 LIMIT 1`,
+    [addr]
+  );
+  if (aliasRows.length) return aliasRows[0].id;
+  // Check connected email_accounts
+  const { rows: acctRows } = await pool.query(
+    `SELECT user_id FROM email_accounts WHERE LOWER(email)=$1 LIMIT 1`,
+    [addr]
+  );
+  return acctRows[0]?.user_id || null;
+}
+
 app.post('/api/sms/incoming', async (req, res) => {
   const from = req.body.From || 'Unknown';
+  const to = req.body.To || '';
   const body = req.body.Body || '';
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 
+  const userId = await lookupUserByPhone(to);
+  if (!userId) {
+    console.warn(`Inbound SMS to unrecognized number ${to} from ${from} — dropped (no user match)`);
+    return;
+  }
+
   const { rows } = await pool.query(
     'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-    [WEBHOOK_USER_ID, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]
+    [userId, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]
   ).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
 
   if (rows[0]) {
-    sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
-    const autoData = await getAutomation(WEBHOOK_USER_ID);
-    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
-    else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
+    sendNotificationEmail(userId, rows[0]);
+    const autoData = await getAutomation(userId);
+    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+    else suggestTasksFromConversation(rows[0], null, userId);
   }
 });
 
@@ -2098,12 +2197,18 @@ app.post('/api/voice/incoming', (req, res) => {
 });
 
 app.post('/api/voice/recording', async (req, res) => {
-  const { From, CallSid } = req.body;
+  const { From, To, CallSid } = req.body;
   const phone = From || 'Unknown';
+  const userId = await lookupUserByPhone(To);
+  if (!userId) {
+    console.warn(`Voicemail to unrecognized number ${To} from ${phone} — dropped`);
+    res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Goodbye!</Say></Response>`);
+    return;
+  }
   try {
     await pool.query(
       `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,'new','inbox',$6)`,
-      [WEBHOOK_USER_ID, `Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
+      [userId, `Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
     );
   } catch (err) {
     console.error('Voice recording save error:', err.message);
@@ -2115,8 +2220,13 @@ app.post('/api/voice/recording', async (req, res) => {
 });
 
 app.post('/api/voice/transcription', async (req, res) => {
-  const { TranscriptionText, TranscriptionStatus, CallSid, From } = req.body;
+  const { TranscriptionText, TranscriptionStatus, CallSid, From, To } = req.body;
   const phone = From || 'Unknown';
+  const userId = await lookupUserByPhone(To);
+  if (!userId) {
+    console.warn(`Transcription for unrecognized number ${To} — dropped`);
+    return res.sendStatus(200);
+  }
   const text = TranscriptionStatus === 'completed' && TranscriptionText
     ? `📞 Voicemail: "${TranscriptionText}"`
     : '📞 Voicemail received (transcription unavailable — check your Twilio recordings)';
@@ -2124,13 +2234,13 @@ app.post('/api/voice/transcription', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE messages SET text=$1, subject=$2 WHERE user_id=$3 AND subject LIKE $4 RETURNING *`,
-      [text, `Voicemail from ${phone}`, WEBHOOK_USER_ID, `[CALLSID:${CallSid}]%`]
+      [text, `Voicemail from ${phone}`, userId, `[CALLSID:${CallSid}]%`]
     );
     if (rows.length) {
-      sendNotificationEmail(WEBHOOK_USER_ID, rows[0]);
-      const autoData = await getAutomation(WEBHOOK_USER_ID);
-      if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], WEBHOOK_USER_ID);
-      else suggestTasksFromConversation(rows[0], null, WEBHOOK_USER_ID);
+      sendNotificationEmail(userId, rows[0]);
+      const autoData = await getAutomation(userId);
+      if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
+      else suggestTasksFromConversation(rows[0], null, userId);
     }
   } catch (err) {
     console.error('Transcription update error:', err.message);
