@@ -13,10 +13,23 @@
       color: white;
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
     }
+    .site-foot {
+      position: relative;
+      z-index: 5;
+      margin-top: 32px;
+      text-align: center;
+      font-size: 0.78em;
+      color: rgba(255,255,255,0.3);
+    }
+    .site-foot .foot-copy { margin-bottom: 10px; font-weight: 500; }
+    .site-foot .foot-links { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+    .site-foot .foot-links a { color: rgba(255,255,255,0.35); text-decoration: none; transition: color 0.2s; }
+    .site-foot .foot-links a:hover { color: rgba(255,255,255,0.7); }
     .bg-blob {
       position: fixed;
       border-radius: 50%;
@@ -190,6 +203,21 @@
 
     <div class="signin-link">Already have an account? <a href="/login">Sign in</a></div>
   </div>
+
+  <footer class="site-foot">
+    <div class="foot-copy">&copy; 2026 Modern Management Inc.</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/security">Security</a>
+      <a href="/sms-consent">SMS Consent</a>
+    </div>
+  </footer>
 
   <script>
     async function handleSignup(e) {
