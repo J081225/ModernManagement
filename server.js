@@ -116,8 +116,8 @@ function generateForwardToken() {
 // --- Credential encryption for stored app passwords ---
 // Uses AES-256-GCM with a key derived from SESSION_SECRET
 function _getEncryptionKey() {
-  const secret = process.env.SESSION_SECRET || 'mm-session-secret-2026';
-  return crypto.createHash('sha256').update(secret).digest();
+  if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET required for encryption');
+  return crypto.createHash('sha256').update(process.env.SESSION_SECRET).digest();
 }
 function encryptSecret(plaintext) {
   const iv = crypto.randomBytes(12);
@@ -1394,6 +1394,19 @@ app.put('/api/drafts/:id', requireAuth, async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Draft not found' });
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/drafts/:id', requireAuth, async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM drafts WHERE id=$1 AND user_id=$2',
+      [Number(req.params.id), req.session.userId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Draft not found' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
