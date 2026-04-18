@@ -468,8 +468,13 @@ async function initDB() {
       "autoReplyEnabled" BOOLEAN DEFAULT false
     )
   `);
-  // Ensure admin row exists
-  await pool.query(`INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`);
+  // Ensure admin row exists — wrapped in migrate() so any future schema drift
+  // (e.g. missing user_id column) is logged but does not abort initDB() and
+  // cascade into missing later migrations. See /docs/schema-reality-gap.md.
+  await migrate(
+    `INSERT INTO automation (user_id, "autoReplyEnabled") VALUES (1, false) ON CONFLICT DO NOTHING`,
+    'automation.admin_seed'
+  );
 
   // Lease tracking columns on contacts
   await migrate(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lease_start TEXT DEFAULT ''`, 'contacts.lease_start');
