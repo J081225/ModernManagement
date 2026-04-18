@@ -86,6 +86,76 @@
       margin: 20px 0;
     }
     .highlight-box p { color: rgba(255,255,255,0.88); margin-bottom: 0; }
+    .optin-form {
+      background: #ffffff;
+      color: #111827;
+      border: 2px solid #ff6b6b;
+      border-radius: 12px;
+      padding: 26px 28px;
+      margin: 24px 0 32px;
+      box-shadow: 0 8px 30px rgba(255,107,107,0.25);
+    }
+    .optin-form h3 {
+      color: #ff6b6b;
+      font-size: 0.95em;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .optin-form .form-title {
+      color: #111827;
+      font-size: 1.15em;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    .optin-form .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 16px 18px;
+      border: 2px solid #111827;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      background: #fef3f2;
+    }
+    .optin-form .fake-check {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      border: 2px solid #111827;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ff6b6b;
+      color: white;
+      font-weight: 800;
+      margin-top: 1px;
+    }
+    .optin-form .consent-text {
+      color: #111827;
+      font-size: 0.92em;
+      line-height: 1.55;
+    }
+    .optin-form .consent-text strong { color: #ff6b6b; }
+    .optin-form .required-label {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      font-size: 0.7em;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+      vertical-align: 2px;
+    }
+    .optin-form .footer-note {
+      font-size: 0.82em;
+      color: #4b5563;
+      margin-top: 8px;
+    }
     .footer {
       margin-top: 48px;
       padding-top: 22px;
@@ -121,6 +191,21 @@
 
     <h2>Consent is Mandatory</h2>
     <p><strong>SMS consent is a mandatory requirement for receiving any text messages through Modern Management.</strong> No messages are ever sent to any phone number without prior, express written consent from the recipient. Consent must be obtained before any SMS communication can occur — this is enforced at both the platform level and the property-manager level.</p>
+
+    <h2>Opt-In Form — Verbatim Example</h2>
+    <p>Below is the exact opt-in mechanism presented to every resident before their phone number is entered into the Modern Management system. The checkbox is <strong>required</strong> — the resident cannot complete lease signing or resident onboarding without affirmatively checking it. This form is presented during lease execution or resident onboarding, and the resident's consent is documented in writing and retained in their resident file.</p>
+
+    <div class="optin-form">
+      <h3>📋 Resident SMS Consent Form</h3>
+      <div class="form-title">SMS Communication Authorization <span class="required-label">REQUIRED</span></div>
+      <div class="checkbox-row">
+        <div class="fake-check">✓</div>
+        <div class="consent-text">
+          <strong>I expressly consent</strong> to receive recurring SMS text messages from property management at the mobile phone number I have provided, regarding matters related to my tenancy. These messages may include: <strong>rent payment reminders, lease renewal notifications, maintenance coordination updates, property announcements, and emergency alerts.</strong> Message and data rates may apply. Message frequency varies — typically 1 to 10 messages per month. I understand I can reply <strong>STOP</strong> at any time to cancel, or <strong>HELP</strong> for assistance. I understand that consent to receive these messages <strong>is not a condition of renting the property itself</strong>, but is required for SMS communication through the Modern Management platform. I have read and agree to the <a href="https://modernmanagementapp.com/sms-consent" target="_blank" style="color:#ff6b6b;">SMS Messaging Terms and Privacy Policy</a>.
+        </div>
+      </div>
+      <div class="footer-note"><strong>Printed name, signature, and date</strong> are captured below this checkbox on the lease document / onboarding form. The resident's SMS consent is retained in their resident file as proof of opt-in.</div>
+    </div>
 
     <h2>How Consent is Obtained</h2>
     <p>Residents and contacts are <strong>required</strong> to provide explicit written consent to receive SMS messages before any messages can be sent to their phone number. Consent is collected through one or more of the following mandatory processes:</p>
