@@ -1,4 +1,23 @@
 require('dotenv').config();
+
+// --- Sentry error monitoring ---
+// Must be initialized as early as possible, before any other requires that
+// might throw, so Sentry can instrument them. Graceful no-op if SENTRY_DSN
+// is not set (e.g. local development without monitoring).
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'production',
+    // Sampling: 100% of errors captured, 10% of successful transactions
+    // traced for performance monitoring. Tuned for the Sentry free tier
+    // (~5k events/month) at current production scale.
+    sampleRate: 1.0,
+    tracesSampleRate: 0.1,
+  });
+  console.log('Sentry initialized (environment: ' + (process.env.NODE_ENV || 'production') + ')');
+}
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -2734,6 +2753,25 @@ app.post('/api/billing/webhook',
   }
 );
 
+// --- Debug: test endpoint to verify Sentry is receiving events ---
+// Only enabled when ENABLE_DEBUG_ENDPOINTS=true is set in env.
+// Protected by requireAuth so anonymous requests can't spam errors.
+// After verifying Sentry captures the test event, unset the env var to disable.
+if (process.env.ENABLE_DEBUG_ENDPOINTS === 'true') {
+  app.get('/api/debug/trigger-error', requireAuth, (_req, _res) => {
+    throw new Error('Intentional Sentry test error at ' + new Date().toISOString());
+  });
+  console.log('Debug endpoints ENABLED: GET /api/debug/trigger-error');
+}
+
+// --- Sentry Express error handler ---
+// Must be registered AFTER all routes but BEFORE our custom error handler.
+// Sentry captures the exception, then the request continues through to our
+// handler which returns the 500 response to the client.
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
+
 // --- Global async error handler — wraps all async route handlers ---
 // Catches any unhandled thrown error and returns a 500 instead of crashing the process
 app.use((err, _req, res, _next) => {
@@ -2742,11 +2780,14 @@ app.use((err, _req, res, _next) => {
 });
 
 // --- Catch unhandled promise rejections so the process never crashes ---
+// Also forward to Sentry so these silent failures surface in the dashboard.
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection:', reason);
+  if (process.env.SENTRY_DSN) Sentry.captureException(reason);
 });
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err.message);
+  if (process.env.SENTRY_DSN) Sentry.captureException(err);
 });
 
 // --- Health check endpoint so Render can verify the service is up ---
