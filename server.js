@@ -2754,14 +2754,20 @@ app.post('/api/billing/webhook',
 );
 
 // --- Debug: test endpoint to verify Sentry is receiving events ---
-// Only enabled when ENABLE_DEBUG_ENDPOINTS=true is set in env.
+// Enabled when ENABLE_DEBUG_ENDPOINTS is any truthy-looking value.
 // Protected by requireAuth so anonymous requests can't spam errors.
 // After verifying Sentry captures the test event, unset the env var to disable.
-if (process.env.ENABLE_DEBUG_ENDPOINTS === 'true') {
+const debugRaw = process.env.ENABLE_DEBUG_ENDPOINTS;
+const debugEnabled = ['true', '1', 'yes', 'on'].includes(
+  (debugRaw || '').trim().toLowerCase()
+);
+if (debugEnabled) {
   app.get('/api/debug/trigger-error', requireAuth, (_req, _res) => {
     throw new Error('Intentional Sentry test error at ' + new Date().toISOString());
   });
   console.log('Debug endpoints ENABLED: GET /api/debug/trigger-error');
+} else {
+  console.log('Debug endpoints disabled (ENABLE_DEBUG_ENDPOINTS=' + JSON.stringify(debugRaw) + ')');
 }
 
 // --- Sentry Express error handler ---
