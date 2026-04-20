@@ -93,7 +93,7 @@
   <!-- LEGAL DOC -->
   <section class="container">
     <div class="legal-doc">
-      <div class="updated">Last updated: 2026-04-17</div>
+      <div class="updated">Last updated: 2026-04-19</div>
 
       <p>Modern Management handles sensitive property-management data: resident contact information, payment records, lease details, and communications. We take protecting that data seriously. This page explains the technical and organizational measures we use.</p>
 
@@ -101,6 +101,9 @@
       <p><strong>In transit:</strong> all traffic between your browser and Modern Management, and between Modern Management and our subprocessors, is encrypted using <strong>TLS 1.3</strong> (with TLS 1.2 as a fallback for legacy clients). HTTP connections are automatically redirected to HTTPS. API endpoints reject unencrypted requests.</p>
       <p><strong>At rest:</strong> application data is stored in a managed PostgreSQL database hosted by <a href="https://neon.tech" target="_blank" rel="noopener noreferrer">Neon</a>. Neon encrypts all data at rest using industry-standard AES-256 encryption. Database backups are likewise encrypted.</p>
       <p>Passwords are never stored in plaintext. They are hashed using <strong>bcrypt</strong> with a per-user salt and an appropriate cost factor, so even a full database compromise would not expose usable credentials.</p>
+
+      <h3>Backups and Disaster Recovery</h3>
+      <p>Backup and recovery: Our managed database provider (Neon) performs automated backups with point-in-time recovery capabilities. Our internal recovery point objective (RPO) is 24 hours, meaning we expect to be able to restore data to a point within the last 24 hours in the event of a database-level incident. Our recovery time objective (RTO) for critical services is 4 hours. These targets may evolve as we grow.</p>
 
       <h2>Data Isolation</h2>
       <p>Modern Management is a multi-tenant platform, but every row of customer data is scoped to a specific workspace. Isolation is enforced at multiple layers:</p>
@@ -118,6 +121,9 @@
         <li><strong>Session storage:</strong> session records are stored server-side in <strong>PostgreSQL</strong> (not in JWTs), so we can revoke a session instantly by deleting its row. On logout, the session row is removed.</li>
         <li><strong>Brute-force resistance:</strong> login endpoints are rate-limited, and repeated failed attempts trigger backoff.</li>
       </ul>
+
+      <h3>Administrative Access</h3>
+      <p>Access to production systems, including the database, application servers, and third-party service consoles (Stripe, Twilio, SendGrid, Neon, Render, Anthropic), is limited to authorized personnel on a need-to-know basis. As a solo-founder operation, this currently means only the founder has production access. As the team grows, we will implement role-based access controls, multi-factor authentication on all administrative accounts, and periodic access reviews.</p>
 
       <h2>Subprocessors</h2>
       <p>We use a small, vetted set of third-party services to operate the platform (AI processing, SMS, email, database hosting, payments, application hosting). Each is contractually bound to protect your data and use it only to provide services to us.</p>
@@ -140,6 +146,10 @@
         <li>Do not violate any laws or the rights of any third party during your research.</li>
       </ul>
       <p>We will acknowledge every good-faith report, keep you informed of our progress, and publicly credit you for the discovery (with your permission) once the issue is fixed.</p>
+
+      <h2>Vulnerability Management and Compliance</h2>
+      <p>Vulnerability management: We use automated dependency scanning (npm audit and similar) to identify known vulnerabilities in our open-source dependencies. Critical and high-severity issues are patched promptly upon discovery.</p>
+      <p>Compliance roadmap: Modern Management is an early-stage product. We are committed to evolving our security practices as we grow, and we intend to pursue formal security certifications (such as SOC 2 Type I and Type II) as our customer base expands to include organizations with formal vendor assessment requirements. If you are evaluating Modern Management for a context that requires specific compliance posture, contact <a href="mailto:security@modernmanagementapp.com">security@modernmanagementapp.com</a> to discuss.</p>
     </div>
   </section>
 
