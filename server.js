@@ -105,6 +105,7 @@ app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'w
 app.get('/terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));
 app.get('/privacy', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'privacy.html')));
 app.get('/security', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'security.html')));
+app.get('/changelog', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'changelog.html')));
 app.get('/features/ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'ai.html')));
 app.get('/features/inbox', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'inbox.html')));
 app.get('/features/rent-and-leases', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'rent-and-leases.html')));

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What's New — Modern Management</title>
+  <meta name="description" content="Product updates, improvements, and fixes shipped to Modern Management — in reverse chronological order." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/features.css" />
+  <style>
+    /* Changelog page — scoped additions on top of features.css */
+    .legal-doc { max-width: 820px; margin: 0 auto; padding: 40px 0 20px; }
+    .legal-doc .updated {
+      font-size: 0.82em;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 36px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .legal-doc h2 {
+      font-size: 1.35em;
+      font-weight: 700;
+      color: white;
+      margin: 40px 0 18px;
+      letter-spacing: -0.2px;
+    }
+    .legal-doc p { font-size: 0.98em; color: rgba(255,255,255,0.72); margin-bottom: 14px; line-height: 1.75; }
+    .legal-doc strong { color: white; font-weight: 600; }
+    .legal-doc a { color: #ff8e53; }
+    .legal-doc a:hover { text-decoration: underline; }
+
+    .changelog-entries { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+    .changelog-entry {
+      display: grid;
+      grid-template-columns: 120px 90px 1fr;
+      gap: 16px;
+      align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .changelog-entry:last-child { border-bottom: none; }
+    .cl-date { font-size: 0.82em; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; }
+    .cl-tag {
+      display: inline-block;
+      font-size: 0.7em;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 10px;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .cl-tag-new { background: rgba(255,142,83,0.14); color: #ff8e53; border: 1px solid rgba(255,142,83,0.28); }
+    .cl-tag-improved { background: rgba(102,126,234,0.14); color: #8ea3ff; border: 1px solid rgba(102,126,234,0.28); }
+    .cl-tag-fixed { background: rgba(80,200,120,0.14); color: #7fd4a0; border: 1px solid rgba(80,200,120,0.28); }
+    .cl-desc { font-size: 0.92em; color: rgba(255,255,255,0.72); line-height: 1.65; }
+
+    @media (max-width: 680px) {
+      .changelog-entry { grid-template-columns: 1fr; gap: 6px; }
+      .cl-date { font-size: 0.78em; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <!-- NAV -->
+  <nav class="top-nav">
+    <a href="/" class="nav-logo"><div class="badge">MM</div> Modern Management</a>
+    <div class="nav-links">
+      <div class="dropdown">
+        <button class="dropdown-toggle">Features &#9662;</button>
+        <div class="dropdown-menu">
+          <a href="/features/ai"><span class="item-title">&#129302; AI Command Bar</span><span class="item-desc">Control the app with one sentence</span></a>
+          <a href="/features/inbox"><span class="item-title">&#9993; Unified Inbox</span><span class="item-desc">Email + SMS in one place</span></a>
+          <a href="/features/rent-and-leases"><span class="item-title">&#128176; Rent &amp; Leases</span><span class="item-desc">Auto-generated, auto-tracked</span></a>
+          <a href="/features/broadcasts-and-contacts"><span class="item-title">&#128226; Broadcasts &amp; Contacts</span><span class="item-desc">Reach everyone at once</span></a>
+        </div>
+      </div>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup" class="btn-cta">Get Started</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero container" style="padding: 60px 0 20px;">
+    <div class="eyebrow">&#128221; Changelog</div>
+    <h1 class="hero-title" style="font-size: 2.6em;">What's new in <span class="grad">Modern Management</span></h1>
+    <p class="hero-sub">Product updates, improvements, and fixes &mdash; in reverse chronological order.</p>
+  </section>
+
+  <!-- CHANGELOG -->
+  <section class="container">
+    <div class="legal-doc">
+
+      <h2>April 2026</h2>
+      <ul class="changelog-entries">
+        <li class="changelog-entry">
+          <div class="cl-date">Apr 19, 2026</div>
+          <div><span class="cl-tag cl-tag-new">New</span></div>
+          <div class="cl-desc">Error monitoring with Sentry integration. Silent server errors now surface immediately.</div>
+        </li>
+        <li class="changelog-entry">
+          <div class="cl-date">Apr 19, 2026</div>
+          <div><span class="cl-tag cl-tag-improved">Improved</span></div>
+          <div class="cl-desc">Legal pages updated with complete Terms, Privacy Policy, Security, and SMS Consent. Delaware jurisdiction, AAA arbitration, full privacy rights including CCPA.</div>
+        </li>
+        <li class="changelog-entry">
+          <div class="cl-date">Apr 18, 2026</div>
+          <div><span class="cl-tag cl-tag-new">New</span></div>
+          <div class="cl-desc">Multi-tenant production infrastructure. Inbound SMS and email now routes to the correct account. Drafts are isolated per user. Sessions persist across server restarts.</div>
+        </li>
+        <li class="changelog-entry">
+          <div class="cl-date">Apr 18, 2026</div>
+          <div><span class="cl-tag cl-tag-fixed">Fixed</span></div>
+          <div class="cl-desc">Database schema reconciliation. Resolved silent migration failures and closed the initDB chain-failure class of bug.</div>
+        </li>
+        <li class="changelog-entry">
+          <div class="cl-date">Apr 16, 2026</div>
+          <div><span class="cl-tag cl-tag-new">New</span></div>
+          <div class="cl-desc">Buildium vs. Modern Management comparison FAQ to help customers understand when to use us alongside their accounting platform.</div>
+        </li>
+      </ul>
+
+      <h2>March 2026</h2>
+      <ul class="changelog-entries">
+        <li class="changelog-entry">
+          <div class="cl-date">March 2026</div>
+          <div><span class="cl-tag cl-tag-new">New</span></div>
+          <div class="cl-desc">Legal and trust pages published: Terms of Service, Privacy Policy, Security, and SMS Consent.</div>
+        </li>
+      </ul>
+
+      <p style="margin-top: 40px; color: rgba(255,255,255,0.4); font-size: 0.9em;">Have a suggestion? Email <a href="mailto:support@modernmanagementapp.com">support@modernmanagementapp.com</a>.</p>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="container">
+    <div class="final-cta">
+      <h2>Want to try the latest?</h2>
+      <p>Create a free account and see what shipped this week.</p>
+      <a href="/signup" class="btn-primary">Get started free &rarr;</a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="foot-logo"><div class="badge">MM</div> &copy; 2026 Modern Management Inc.</div>
+    <div class="foot-links">
+      <a href="/#features">Features</a>
+      <a href="/how-it-works">How It Works</a>
+      <a href="/why-ai">Why AI</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/login">Sign In</a>
+      <a href="/signup">Sign Up</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/security">Security</a>
+      <a href="/sms-consent">SMS Consent</a>
+      <a href="/changelog">What's new</a>
+    </div>
+  </footer>
+
+</body>
+</html>
