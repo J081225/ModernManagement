@@ -259,19 +259,37 @@
     .feature-card p { font-size: 0.83em; color: rgba(255,255,255,0.42); line-height: 1.65; }
 
     /* ── Pricing ── */
+    section#pricing { max-width: 1320px; }
     .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      align-items: start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      justify-content: center;
+      align-items: stretch;
     }
     .pricing-card {
+      flex: 1 1 220px;
+      max-width: 260px;
+      min-width: 0;
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 20px;
-      padding: 34px 30px 30px;
+      padding: 34px 26px 30px;
       position: relative;
       transition: all 0.22s;
+    }
+    .copilot-label {
+      display: inline-block;
+      font-size: 0.66em;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #8ea3ff;
+      background: rgba(102,126,234,0.1);
+      border: 1px solid rgba(102,126,234,0.25);
+      padding: 3px 10px;
+      border-radius: 10px;
+      margin-bottom: 14px;
     }
     .pricing-card:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-4px); }
     .pricing-card.featured {
@@ -384,7 +402,6 @@
     @media (max-width: 900px) {
       nav { padding: 16px 24px; }
       .features-grid { grid-template-columns: 1fr 1fr; }
-      .pricing-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
       .stat-item { padding: 16px 28px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); width: 50%; }
       .stat-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.07); }
       .stat-item:last-child { border-bottom: none; }
@@ -534,61 +551,89 @@
       <div class="pricing-card">
         <div class="plan-name">Starter</div>
         <div class="plan-price"><span class="dollar">$</span>0<span class="period">/month</span></div>
-        <div class="plan-desc">For individual managers getting started. No credit card needed.</div>
+        <div class="plan-desc">For landlords trying Modern Management for the first time.</div>
         <hr class="plan-divider">
         <ul class="plan-features">
           <li>1 workspace</li>
-          <li>Up to 25 contacts</li>
+          <li>Up to 10 contacts</li>
+          <li>10 AI-drafted replies per month</li>
           <li>Inbox (email &amp; SMS)</li>
-          <li>Task management</li>
-          <li>Calendar</li>
-          <li>30 AI-drafted replies / month</li>
-          <li class="muted">AI Command Bar</li>
-          <li class="muted">Property reports</li>
-          <li class="muted">Voicemail transcription</li>
-          <li class="muted">Maintenance management</li>
-          <li class="muted">Budget tracker</li>
+          <li>Task management &amp; calendar</li>
+          <li>Basic AI Command Bar</li>
         </ul>
         <a href="/signup" class="btn-plan btn-plan-ghost">Get started free</a>
+      </div>
+
+      <!-- Solo -->
+      <div class="pricing-card">
+        <div class="plan-name">Solo</div>
+        <div class="plan-price"><span class="dollar">$</span>29<span class="period">/month</span></div>
+        <div class="plan-desc">Best for independent landlords managing up to 10 units.</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>1 workspace</li>
+          <li>Unlimited contacts</li>
+          <li>200 AI-drafted replies per month</li>
+          <li>Full AI Command Bar (type or voice)</li>
+          <li>Rent &amp; lease tracking with renewal alerts</li>
+          <li>Maintenance ticketing with emergency SMS</li>
+          <li>Budget tracker</li>
+          <li>Knowledge base</li>
+          <li>Voicemail transcription</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-ghost">Start Solo &rarr;</a>
       </div>
 
       <!-- Pro (featured) -->
       <div class="pricing-card featured">
         <div class="popular-badge">&#11088; Most Popular</div>
         <div class="plan-name">Pro</div>
-        <div class="plan-price"><span class="dollar">$</span>49<span class="period">/month</span></div>
-        <div class="plan-desc">For active property managers who want AI working for them around the clock.</div>
+        <div class="plan-price"><span class="dollar">$</span>79<span class="period">/month</span></div>
+        <div class="plan-desc">For active property managers running up to 50 units.</div>
         <hr class="plan-divider">
         <ul class="plan-features">
-          <li>1 workspace</li>
-          <li>Unlimited contacts</li>
-          <li>Inbox (email &amp; SMS)</li>
-          <li>Task management</li>
-          <li>Calendar</li>
+          <li>Everything in Solo</li>
           <li>Unlimited AI-drafted replies</li>
-          <li>AI Command Bar (type or voice)</li>
+          <li>Broadcasts (email &amp; SMS to all residents)</li>
           <li>AI property reports</li>
-          <li>Voicemail transcription</li>
-          <li>Maintenance management + emergency SMS</li>
-          <li>Budget tracker &amp; ledger</li>
+          <li>AI task suggestions</li>
+          <li>Priority email support</li>
+          <li>Custom knowledge base uploads</li>
         </ul>
-        <a href="/signup" class="btn-plan btn-plan-primary">Start Pro free trial &rarr;</a>
+        <a href="/signup" class="btn-plan btn-plan-primary">Start Pro &rarr;</a>
+      </div>
+
+      <!-- Copilot -->
+      <div class="pricing-card">
+        <div class="copilot-label">For PM companies</div>
+        <div class="plan-name">Copilot</div>
+        <div class="plan-price"><span class="dollar">$</span>99<span class="period">/month</span></div>
+        <div class="plan-desc">For property management companies using Buildium, AppFolio, or DoorLoop &mdash; add Modern Management's AI as a layer on top.</div>
+        <hr class="plan-divider">
+        <ul class="plan-features">
+          <li>Everything in Pro</li>
+          <li>Designed to complement your existing accounting platform</li>
+          <li>Focus on tenant communication, maintenance triage, late notices, and broadcasts</li>
+          <li>Run Modern Management alongside your primary system</li>
+          <li>Priority onboarding</li>
+        </ul>
+        <a href="/signup" class="btn-plan btn-plan-ghost">Start Copilot &rarr;</a>
       </div>
 
       <!-- Team -->
       <div class="pricing-card">
         <div class="plan-name">Team</div>
-        <div class="plan-price"><span class="dollar">$</span>129<span class="period">/month</span></div>
+        <div class="plan-price"><span class="dollar">$</span>249<span class="period">/month</span></div>
         <div class="plan-desc">For property management companies with multiple managers or portfolios.</div>
         <hr class="plan-divider">
         <ul class="plan-features">
           <li>1 workspace included</li>
-          <li>Add up to 5 extra workspaces at <strong>$75/mo each</strong></li>
+          <li>Add up to 5 extra workspaces at <strong>$99/mo each</strong></li>
           <li>Unlimited contacts per workspace</li>
           <li>Everything in Pro</li>
+          <li>Team collaboration features</li>
           <li>Priority support</li>
           <li>Usage analytics <em style="color:rgba(255,255,255,0.3);font-style:normal;">(coming soon)</em></li>
-          <li>Team activity log <em style="color:rgba(255,255,255,0.3);font-style:normal;">(coming soon)</em></li>
           <li class="muted">White-label branding (coming soon)</li>
           <li class="muted">API access (coming soon)</li>
         </ul>
@@ -598,7 +643,7 @@
     </div>
 
     <p style="text-align:center;font-size:0.8em;color:rgba(255,255,255,0.2);margin-top:28px;">
-      All plans include a 14-day free trial of Pro features. Cancel anytime.
+      All paid plans include a 14-day free trial. Cancel anytime. No refunds.
     </p>
   </section>
 
@@ -610,7 +655,7 @@
     <div class="faq-list">
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-q">Do I need to set up Twilio or SendGrid myself? <span class="faq-toggle">+</span></div>
-        <div class="faq-a">For the Pro plan, you'll connect your own Twilio account (for SMS and voicemail) and a SendGrid account (for inbound email). It takes about 10 minutes to configure and we walk you through it step by step. The free plan doesn't require either.</div>
+        <div class="faq-a">For paid plans (Solo and above), you'll connect your own Twilio account (for SMS and voicemail) and a SendGrid account (for inbound email). It takes about 10 minutes to configure and we walk you through it step by step. The Starter plan doesn't require either.</div>
       </div>
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-q">What AI model powers Modern Management? <span class="faq-toggle">+</span></div>
