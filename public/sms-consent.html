@@ -89,25 +89,83 @@
     .optin-form {
       background: #ffffff;
       color: #111827;
-      border: 2px solid #ff6b6b;
-      border-radius: 12px;
-      padding: 26px 28px;
-      margin: 24px 0 32px;
-      box-shadow: 0 8px 30px rgba(255,107,107,0.25);
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 32px 32px 28px;
+      margin: 20px 0 32px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
     }
-    .optin-form h3 {
-      color: #ff6b6b;
-      font-size: 0.95em;
+    .optin-form .form-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+      border-bottom: 2px solid #111827;
+    }
+    .optin-form .form-brand-badge {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
       font-weight: 800;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
+      font-size: 0.9em;
+      flex-shrink: 0;
+    }
+    .optin-form .form-brand-name {
+      font-size: 1em;
+      font-weight: 800;
+      color: #111827;
+      letter-spacing: -0.2px;
+    }
+    .optin-form .form-brand-subtitle {
+      font-size: 0.78em;
+      color: #6b7280;
+      margin-top: 1px;
     }
     .optin-form .form-title {
       color: #111827;
-      font-size: 1.15em;
+      font-size: 1.05em;
       font-weight: 700;
-      margin-bottom: 18px;
+      margin-bottom: 22px;
+      line-height: 1.35;
+    }
+    .optin-form .form-section {
+      margin-bottom: 22px;
+    }
+    .optin-form .form-section-label {
+      font-size: 0.72em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+    .optin-form .form-field {
+      margin-bottom: 12px;
+    }
+    .optin-form .form-field label {
+      display: block;
+      font-size: 0.82em;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+    .optin-form .form-field .required-star {
+      color: #dc2626;
+      font-weight: 700;
+      margin-left: 2px;
+    }
+    .optin-form .form-input {
+      height: 34px;
+      border: 1px solid #9ca3af;
+      border-radius: 5px;
+      background: #ffffff;
+      width: 100%;
     }
     .optin-form .checkbox-row {
       display: flex;
@@ -116,21 +174,15 @@
       padding: 16px 18px;
       border: 2px solid #111827;
       border-radius: 8px;
-      margin-bottom: 12px;
       background: #fef3f2;
     }
-    .optin-form .fake-check {
+    .optin-form .empty-checkbox {
       width: 22px;
       height: 22px;
       flex-shrink: 0;
       border: 2px solid #111827;
       border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #ff6b6b;
-      color: white;
-      font-weight: 800;
+      background: #ffffff;
       margin-top: 1px;
     }
     .optin-form .consent-text {
@@ -141,7 +193,7 @@
     .optin-form .consent-text strong { color: #ff6b6b; }
     .optin-form .required-label {
       display: inline-block;
-      background: #ff6b6b;
+      background: #dc2626;
       color: white;
       font-size: 0.7em;
       font-weight: 800;
@@ -151,10 +203,61 @@
       letter-spacing: 0.5px;
       vertical-align: 2px;
     }
-    .optin-form .footer-note {
+    .optin-form .checkbox-note {
       font-size: 0.82em;
-      color: #4b5563;
+      color: #dc2626;
+      font-weight: 600;
+      margin-top: 10px;
+      margin-bottom: 0;
+    }
+    .optin-form .signature-row {
+      display: flex;
+      gap: 18px;
+      align-items: flex-end;
+    }
+    .optin-form .signature-field { flex: 1; }
+    .optin-form .signature-field label,
+    .optin-form .signature-date label {
+      display: block;
+      font-size: 0.82em;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+    .optin-form .signature-line {
+      border-bottom: 1.5px solid #111827;
+      height: 28px;
+      width: 100%;
+    }
+    .optin-form .signature-date {
+      width: 150px;
+      flex-shrink: 0;
+    }
+    .optin-form .form-submit {
+      display: inline-block;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white;
+      font-size: 0.95em;
+      font-weight: 700;
+      padding: 13px 32px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(255,107,107,0.35);
       margin-top: 8px;
+      cursor: not-allowed;
+      opacity: 0.9;
+    }
+    .optin-form .form-note {
+      font-size: 0.8em;
+      color: #6b7280;
+      margin-top: 20px;
+      margin-bottom: 0;
+      font-style: italic;
+      line-height: 1.55;
+    }
+    @media (max-width: 520px) {
+      .optin-form .signature-row { flex-direction: column; gap: 14px; align-items: stretch; }
+      .optin-form .signature-date { width: 100%; }
     }
     .footer {
       margin-top: 48px;
@@ -192,19 +295,85 @@
     <h2>Consent is Mandatory</h2>
     <p><strong>SMS consent is a mandatory requirement for receiving any text messages through Modern Management.</strong> No messages are ever sent to any phone number without prior, express written consent from the recipient. Consent must be obtained before any SMS communication can occur — this is enforced at both the platform level and the property-manager level.</p>
 
+    <h2>Opt-In Workflow</h2>
+    <p>The following workflow describes exactly how Modern Management captures SMS consent from every resident before their phone number is added to the system:</p>
+    <ol>
+      <li><strong>Presentation:</strong> The resident is presented with the SMS Communication Authorization form — either as part of their lease agreement signing package (physical or electronic), or during resident onboarding after move-in is completed.</li>
+      <li><strong>Review:</strong> The resident reviews the full consent language, including the purposes of messaging, frequency expectations, opt-out instructions, and the fact that consent is not a condition of the rental itself.</li>
+      <li><strong>Affirmative Action:</strong> The resident must actively check the required consent checkbox. The box is never pre-checked by the property manager, staff, or the Modern Management platform.</li>
+      <li><strong>Signature:</strong> The resident prints their name, signs, and dates the form.</li>
+      <li><strong>Collection:</strong> The signed form is retained by the property manager in the resident's file as written proof of consent.</li>
+      <li><strong>Entry:</strong> Only after the signed form is received and stored does the property manager enter the resident's phone number into Modern Management.</li>
+      <li><strong>First Contact:</strong> The first SMS sent to the resident includes opt-out instructions (STOP to unsubscribe).</li>
+    </ol>
+    <p><strong>No phone number is entered into Modern Management without a completed, signed, dated consent form on file. No SMS is ever sent to a phone number that has not completed this workflow.</strong></p>
+
     <h2>Opt-In Form — Verbatim Example</h2>
-    <p>Below is the exact opt-in mechanism presented to every resident before their phone number is entered into the Modern Management system. The checkbox is <strong>required</strong> — the resident cannot complete lease signing or resident onboarding without affirmatively checking it. This form is presented during lease execution or resident onboarding, and the resident's consent is documented in writing and retained in their resident file.</p>
+    <p>Below is the exact opt-in form used to capture SMS consent from every resident. The form is presented during lease execution or resident onboarding. The required consent checkbox is <strong>unchecked by default</strong> — the resident must actively check it before the form can be submitted. The form is never pre-filled, pre-checked, or submitted on the resident's behalf.</p>
 
     <div class="optin-form">
-      <h3>📋 Resident SMS Consent Form</h3>
-      <div class="form-title">SMS Communication Authorization <span class="required-label">REQUIRED</span></div>
-      <div class="checkbox-row">
-        <div class="fake-check">✓</div>
-        <div class="consent-text">
-          <strong>I expressly consent</strong> to receive recurring SMS text messages from property management at the mobile phone number I have provided, regarding matters related to my tenancy. These messages may include: <strong>rent payment reminders, lease renewal notifications, maintenance coordination updates, property announcements, and emergency alerts.</strong> Message and data rates may apply. Message frequency varies — typically 1 to 10 messages per month. I understand I can reply <strong>STOP</strong> at any time to cancel, or <strong>HELP</strong> for assistance. I understand that consent to receive these messages <strong>is not a condition of renting the property itself</strong>, but is required for SMS communication through the Modern Management platform. I have read and agree to the <a href="https://modernmanagementapp.com/sms-consent" target="_blank" style="color:#ff6b6b;">SMS Messaging Terms and Privacy Policy</a>.
+      <div class="form-brand">
+        <div class="form-brand-badge">MM</div>
+        <div>
+          <div class="form-brand-name">Modern Management</div>
+          <div class="form-brand-subtitle">Property Management Software</div>
         </div>
       </div>
-      <div class="footer-note"><strong>Printed name, signature, and date</strong> are captured below this checkbox on the lease document / onboarding form. The resident's SMS consent is retained in their resident file as proof of opt-in.</div>
+
+      <div class="form-title">SMS Communication Authorization &mdash; Resident Consent Form</div>
+
+      <div class="form-section">
+        <div class="form-section-label">Resident Information</div>
+        <div class="form-field">
+          <label>Full Legal Name<span class="required-star">*</span></label>
+          <div class="form-input"></div>
+        </div>
+        <div class="form-field">
+          <label>Mobile Phone Number<span class="required-star">*</span></label>
+          <div class="form-input"></div>
+        </div>
+        <div class="form-field">
+          <label>Email Address</label>
+          <div class="form-input"></div>
+        </div>
+        <div class="form-field">
+          <label>Unit Number<span class="required-star">*</span></label>
+          <div class="form-input"></div>
+        </div>
+        <div class="form-field">
+          <label>Property Address<span class="required-star">*</span></label>
+          <div class="form-input"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-label">Required Consent <span class="required-label">REQUIRED</span></div>
+        <div class="checkbox-row">
+          <div class="empty-checkbox" role="img" aria-label="Unchecked consent checkbox"></div>
+          <div class="consent-text">
+            <strong>I expressly consent</strong> to receive recurring SMS text messages from property management at the mobile phone number I have provided, regarding matters related to my tenancy. These messages may include: <strong>rent payment reminders, lease renewal notifications, maintenance coordination updates, property announcements, and emergency alerts.</strong> Message and data rates may apply. Message frequency varies &mdash; typically 1 to 10 messages per month. I understand I can reply <strong>STOP</strong> at any time to cancel, or <strong>HELP</strong> for assistance. I understand that consent to receive these messages <strong>is not a condition of renting the property itself</strong>, but is required for SMS communication through the Modern Management platform. I have read and agree to the <a href="https://modernmanagementapp.com/sms-consent" target="_blank" style="color:#ff6b6b;">SMS Messaging Terms and Privacy Policy</a>.
+          </div>
+        </div>
+        <p class="checkbox-note">Required &mdash; tenant must check this box to consent. Cannot be pre-checked or submitted unchecked.</p>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-label">Signature</div>
+        <div class="signature-row">
+          <div class="signature-field">
+            <label>Signature</label>
+            <div class="signature-line"></div>
+          </div>
+          <div class="signature-date">
+            <label>Date</label>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="form-submit" type="button" disabled aria-disabled="true">Submit Signed Form</button>
+
+      <p class="form-note">This is a visual representation of the actual opt-in form used. The real form is printed as part of the lease agreement packet or presented during resident onboarding.</p>
     </div>
 
     <h2>How Consent is Obtained</h2>
@@ -254,7 +423,7 @@
     <div class="footer">
       <p>Modern Management · Property Management Software<br>
       SMS program operated via Twilio toll-free number +1 (855) 535-0785<br>
-      Last updated: April 2026 · <a href="/">Back to home</a></p>
+      Last updated: 2026-04-21 · <a href="/">Back to home</a></p>
     </div>
   </div>
 
