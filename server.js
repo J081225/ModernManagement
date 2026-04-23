@@ -81,6 +81,24 @@ function requireAuthPage(req, res, next) {
   res.redirect('/login');
 }
 
+// --- Workspace helper ---
+// Every authenticated user owns exactly one workspace (1:1 seeded by
+// Phase 1 migration 008). getWorkspaceId() looks up that workspace id
+// for the caller and caches it on the request to avoid repeat queries
+// within a single request. Used by Inventory endpoints (/api/entities,
+// /api/offerings, /api/engagements) to scope all reads/writes to the
+// caller's workspace. Returns null if the user somehow has no workspace
+// (should never happen post-Phase-1; callers should treat null as 500).
+async function getWorkspaceId(req) {
+  if (req._workspaceId != null) return req._workspaceId;
+  const { rows } = await pool.query(
+    'SELECT id FROM workspaces WHERE owner_user_id = $1 LIMIT 1',
+    [req.session.userId]
+  );
+  req._workspaceId = rows[0]?.id ?? null;
+  return req._workspaceId;
+}
+
 // --- Page routes ---
 app.get('/', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
@@ -1139,6 +1157,738 @@ app.post('/api/leases/check-renewals', requireAuth, async (req, res) => {
     created++;
   }
   res.json({ checked: expiring.length, tasksCreated: created });
+});
+
+// --- Inventory: Entities (Properties in PM vertical) ---
+// Workspace-scoped. Archived (soft-deleted) entities are hidden from the
+// default list; pass ?include_archived=true to include them. DELETE is
+// soft-delete via archived_at (migration 018). See plan §2.2.
+
+app.get('/api/entities', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  const includeArchived = req.query.include_archived === 'true';
+  const sql = includeArchived
+    ? 'SELECT * FROM entities WHERE workspace_id=$1 ORDER BY name ASC'
+    : 'SELECT * FROM entities WHERE workspace_id=$1 AND archived_at IS NULL ORDER BY name ASC';
+  try {
+    const { rows } = await pool.query(sql, [workspaceId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/entities error:', err.message);
+    res.status(500).json({ error: 'Failed to list entities' });
+  }
+});
+
+app.get('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM entities WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch entity' });
+  }
+});
+
+app.post('/api/entities', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const name = (req.body.name || '').trim();
+  const address = (req.body.address || '').trim();
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!address) return res.status(400).json({ error: 'address is required' });
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO entities (
+         workspace_id, name, entity_type, address, description,
+         number_of_floors, total_unit_count, building_type, year_built,
+         heating_system, water_source, parking_setup, pet_policy, smoking_policy,
+         shared_amenities, emergency_contacts, service_vendors
+       ) VALUES (
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9,
+         $10, $11, $12, $13, $14,
+         $15::jsonb, $16::jsonb, $17::jsonb
+       ) RETURNING *`,
+      [
+        workspaceId,
+        name,
+        req.body.entity_type || 'property',
+        address,
+        req.body.description || '',
+        req.body.number_of_floors ?? null,
+        req.body.total_unit_count ?? null,
+        req.body.building_type ?? null,
+        req.body.year_built ?? null,
+        req.body.heating_system ?? null,
+        req.body.water_source ?? null,
+        req.body.parking_setup ?? null,
+        req.body.pet_policy ?? null,
+        req.body.smoking_policy ?? null,
+        JSON.stringify(req.body.shared_amenities || []),
+        JSON.stringify(req.body.emergency_contacts || []),
+        JSON.stringify(req.body.service_vendors || []),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/entities error:', err.message);
+    res.status(500).json({ error: 'Failed to create entity' });
+  }
+});
+
+app.patch('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  // Required-if-present: if name/address is in the body, it can't be empty.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'name') &&
+      !(req.body.name || '').trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'address') &&
+      !(req.body.address || '').trim()) {
+    return res.status(400).json({ error: 'address cannot be empty' });
+  }
+
+  // Only update fields present in the body. Prevents null-overwrites.
+  const scalarFields = [
+    'name', 'address', 'entity_type', 'description', 'number_of_floors',
+    'total_unit_count', 'building_type', 'year_built', 'heating_system',
+    'water_source', 'parking_setup', 'pet_policy', 'smoking_policy'
+  ];
+  const jsonbFields = ['shared_amenities', 'emergency_contacts', 'service_vendors'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(req.body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(req.body[f]));
+      i++;
+    }
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  values.push(Number(req.params.id), workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE entities SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1} AND archived_at IS NULL
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update entity' });
+  }
+});
+
+app.delete('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    // COALESCE preserves the original archive timestamp on re-delete
+    // (idempotent). NOW() only fires on first archive.
+    const { rows } = await pool.query(
+      `UPDATE entities SET archived_at = COALESCE(archived_at, NOW())
+       WHERE id=$1 AND workspace_id=$2
+       RETURNING id, archived_at`,
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json({ id: rows[0].id, archived_at: rows[0].archived_at });
+  } catch (err) {
+    console.error('DELETE /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to archive entity' });
+  }
+});
+
+// --- Inventory: Offerings (Units in PM vertical) ---
+// Workspace-scoped. Retired offerings are hidden from the default list;
+// pass ?include_retired=true to include them. DELETE is soft-delete via
+// status='retired' (no separate archived_at column for offerings — see
+// asymmetry note in migration 018). Allowed status values: draft,
+// available, unavailable, retired. 'occupied' is NEVER stored here;
+// it is derived client-side from engagement rows per plan §2.11 / §2.12.
+
+app.get('/api/offerings', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const includeRetired = req.query.include_retired === 'true';
+  const entityFilter = req.query.entity_id ? Number(req.query.entity_id) : null;
+
+  const params = [workspaceId];
+  let where = 'workspace_id = $1';
+  if (entityFilter) {
+    params.push(entityFilter);
+    where += ` AND entity_id = $${params.length}`;
+  }
+  if (!includeRetired) {
+    where += ` AND status <> 'retired'`;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM offerings WHERE ${where} ORDER BY entity_id, name ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/offerings error:', err.message);
+    res.status(500).json({ error: 'Failed to list offerings' });
+  }
+});
+
+app.get('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM offerings WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch offering' });
+  }
+});
+
+app.post('/api/offerings', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const name = (req.body.name || '').trim();
+  const entityId = Number(req.body.entity_id);
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!entityId || !Number.isInteger(entityId)) {
+    return res.status(400).json({ error: 'entity_id is required and must be a number' });
+  }
+
+  // Validate optional status / price_frequency if provided
+  if (req.body.status !== undefined) {
+    const allowed = ['draft', 'available', 'unavailable', 'retired'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+  if (req.body.price_frequency !== undefined) {
+    const allowed = ['one-time', 'monthly', 'quarterly', 'annual', 'hourly'];
+    if (!allowed.includes(req.body.price_frequency)) {
+      return res.status(400).json({ error: `price_frequency must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  // Verify the referenced entity belongs to the caller's workspace and
+  // isn't archived. Returns 400 (not 404) because entity_id is user input;
+  // the error is "you gave me an invalid value", not "resource missing".
+  try {
+    const { rows: entityCheck } = await pool.query(
+      'SELECT id FROM entities WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL',
+      [entityId, workspaceId]
+    );
+    if (!entityCheck.length) {
+      return res.status(400).json({ error: 'entity_id is invalid, archived, or not in your workspace' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO offerings (
+         workspace_id, entity_id, name, description, floor,
+         price_amount, price_frequency, status, metadata
+       ) VALUES (
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9::jsonb
+       ) RETURNING *`,
+      [
+        workspaceId,
+        entityId,
+        name,
+        req.body.description || '',
+        req.body.floor || '',
+        req.body.price_amount ?? 0,
+        req.body.price_frequency || 'monthly',
+        req.body.status || 'draft',
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/offerings error:', err.message);
+    res.status(500).json({ error: 'Failed to create offering' });
+  }
+});
+
+app.patch('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  // Required-if-present: if name is in the body it cannot be empty.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'name') &&
+      !(req.body.name || '').trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+
+  // Enum-like validation for status (app-layer; DB is TEXT no CHECK per §9.11).
+  if (Object.prototype.hasOwnProperty.call(req.body, 'status')) {
+    const allowed = ['draft', 'available', 'unavailable', 'retired'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'price_frequency')) {
+    const allowed = ['one-time', 'monthly', 'quarterly', 'annual', 'hourly'];
+    if (!allowed.includes(req.body.price_frequency)) {
+      return res.status(400).json({ error: `price_frequency must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  // If caller is moving the offering to a different entity, verify the
+  // new entity belongs to the workspace and isn't archived.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'entity_id')) {
+    const newEntityId = Number(req.body.entity_id);
+    if (!newEntityId || !Number.isInteger(newEntityId)) {
+      return res.status(400).json({ error: 'entity_id must be a number' });
+    }
+    try {
+      const { rows: check } = await pool.query(
+        'SELECT id FROM entities WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL',
+        [newEntityId, workspaceId]
+      );
+      if (!check.length) {
+        return res.status(400).json({ error: 'entity_id is invalid, archived, or not in your workspace' });
+      }
+    } catch (err) {
+      console.error('PATCH /api/offerings/:id entity-check error:', err.message);
+      return res.status(500).json({ error: 'Failed to validate entity_id' });
+    }
+  }
+
+  const scalarFields = ['name', 'description', 'floor', 'entity_id',
+                        'price_amount', 'price_frequency', 'status'];
+  const jsonbFields = ['metadata'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(req.body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(req.body[f]));
+      i++;
+    }
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  // Always bump updated_at on a real update.
+  setParts.push('updated_at = NOW()');
+
+  values.push(Number(req.params.id), workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE offerings SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1}
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update offering' });
+  }
+});
+
+app.delete('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    // Soft-delete: set status='retired'. Idempotent — on re-delete, status
+    // stays 'retired' and updated_at is preserved (the CASE clause keeps
+    // the original timestamp if the row was already retired).
+    const { rows } = await pool.query(
+      `UPDATE offerings
+         SET status = 'retired',
+             updated_at = CASE WHEN status = 'retired' THEN updated_at ELSE NOW() END
+       WHERE id=$1 AND workspace_id=$2
+       RETURNING id, status, updated_at`,
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json({ id: rows[0].id, status: rows[0].status, updated_at: rows[0].updated_at });
+  } catch (err) {
+    console.error('DELETE /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to retire offering' });
+  }
+});
+
+// --- Inventory: Engagements (Tenancies in PM vertical) ---
+// Workspace-scoped. No DELETE — engagements transition via status only
+// (per plan §2.12 / §9.15). Allowed status values: pending, active,
+// expired, terminated, renewed. Status transitions enforced on PATCH:
+//   pending  → active | renewed
+//   active   → terminated | renewed
+//   expired  → renewed
+//   terminated → renewed
+//   renewed  → (terminal, no transitions)
+// PATCH with status='renewed' is special: it marks the current engagement
+// as renewed AND creates a new 'active' engagement (same contact/offering)
+// atomically. Requires renewal_start_date in the body. See chunk 1b spec.
+
+app.get('/api/engagements', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const params = [workspaceId];
+  let where = 'workspace_id = $1';
+  if (req.query.contact_id) {
+    params.push(Number(req.query.contact_id));
+    where += ` AND contact_id = $${params.length}`;
+  }
+  if (req.query.offering_id) {
+    params.push(Number(req.query.offering_id));
+    where += ` AND offering_id = $${params.length}`;
+  }
+  if (req.query.status) {
+    params.push(String(req.query.status));
+    where += ` AND status = $${params.length}`;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM engagements WHERE ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/engagements error:', err.message);
+    res.status(500).json({ error: 'Failed to list engagements' });
+  }
+});
+
+app.get('/api/engagements/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM engagements WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/engagements/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch engagement' });
+  }
+});
+
+app.post('/api/engagements', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const contactId = Number(req.body.contact_id);
+  const offeringId = Number(req.body.offering_id);
+  if (!contactId || !Number.isInteger(contactId)) {
+    return res.status(400).json({ error: 'contact_id is required and must be a number' });
+  }
+  if (!offeringId || !Number.isInteger(offeringId)) {
+    return res.status(400).json({ error: 'offering_id is required and must be a number' });
+  }
+
+  // Optional status validation (defaults to 'pending' in DB if omitted)
+  if (req.body.status !== undefined) {
+    const allowed = ['pending', 'active', 'expired', 'terminated', 'renewed'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  try {
+    // Verify contact belongs to caller's workspace. contacts.user_id is
+    // the legacy scoping column; 1:1 with workspace owner post-Phase-1.
+    const { rows: contactRows } = await pool.query(
+      'SELECT id, monthly_rent FROM contacts WHERE id=$1 AND user_id=$2',
+      [contactId, req.session.userId]
+    );
+    if (!contactRows.length) {
+      return res.status(400).json({ error: 'contact_id is invalid or not in your workspace' });
+    }
+    const contactRent = contactRows[0].monthly_rent;
+
+    // Verify offering belongs to workspace
+    const { rows: offeringRows } = await pool.query(
+      'SELECT id, price_amount FROM offerings WHERE id=$1 AND workspace_id=$2',
+      [offeringId, workspaceId]
+    );
+    if (!offeringRows.length) {
+      return res.status(400).json({ error: 'offering_id is invalid or not in your workspace' });
+    }
+    const offeringPrice = offeringRows[0].price_amount;
+
+    // Compute current_price fallback:
+    //   1. explicit body value (even if 0)
+    //   2. contact.monthly_rent if non-null and > 0
+    //   3. offering.price_amount
+    let currentPrice = req.body.current_price;
+    if (currentPrice === undefined || currentPrice === null) {
+      const rent = contactRent != null ? Number(contactRent) : 0;
+      currentPrice = rent > 0 ? rent : offeringPrice;
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO engagements (
+         workspace_id, contact_id, offering_id,
+         start_date, end_date, current_price, status, metadata
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       RETURNING *`,
+      [
+        workspaceId,
+        contactId,
+        offeringId,
+        req.body.start_date || null,
+        req.body.end_date || null,
+        currentPrice,
+        req.body.status || 'pending',
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      // Partial unique violation on (contact_id, offering_id) WHERE status='active'
+      return res.status(409).json({
+        error: 'contact already has an active engagement with this offering'
+      });
+    }
+    if (err.code === '22007' || err.code === '22008') {
+      return res.status(400).json({ error: 'invalid date format for start_date or end_date' });
+    }
+    console.error('POST /api/engagements error:', err.message);
+    res.status(500).json({ error: 'Failed to create engagement' });
+  }
+});
+
+// Allowed status transitions (state machine)
+const ENGAGEMENT_TRANSITIONS = {
+  pending:    ['active', 'renewed'],
+  active:     ['terminated', 'renewed'],
+  expired:    ['renewed'],
+  terminated: ['renewed'],
+  renewed:    []
+};
+
+app.patch('/api/engagements/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const engId = Number(req.params.id);
+
+  // Fetch current (needed for transition check)
+  let current;
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM engagements WHERE id=$1 AND workspace_id=$2',
+      [engId, workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    current = rows[0];
+  } catch (err) {
+    console.error('PATCH /api/engagements/:id fetch error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch engagement' });
+  }
+
+  const body = req.body;
+  const targetStatus = body.status;
+
+  // Status-transition validation (only if status is being changed)
+  if (targetStatus !== undefined && targetStatus !== current.status) {
+    const allowed = ['pending', 'active', 'expired', 'terminated', 'renewed'];
+    if (!allowed.includes(targetStatus)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+    const validNext = ENGAGEMENT_TRANSITIONS[current.status] || [];
+    if (!validNext.includes(targetStatus)) {
+      return res.status(400).json({
+        error: `Invalid transition: ${current.status} → ${targetStatus}. Allowed from ${current.status}: ${validNext.join(', ') || '(none; terminal)'}`
+      });
+    }
+  }
+
+  // Renewal path: status='renewed' transitions the current AND creates a
+  // new 'active' engagement. Runs in a transaction.
+  if (targetStatus === 'renewed') {
+    const renewalStart = body.renewal_start_date;
+    if (!renewalStart) {
+      return res.status(400).json({ error: 'renewal_start_date is required when transitioning to renewed' });
+    }
+    const renewalEnd = body.renewal_end_date || null;
+    let renewalPrice = body.renewal_current_price;
+
+    // Compute renewal price fallback if not provided
+    if (renewalPrice === undefined || renewalPrice === null) {
+      try {
+        const { rows: c } = await pool.query(
+          'SELECT monthly_rent FROM contacts WHERE id=$1 AND user_id=$2',
+          [current.contact_id, req.session.userId]
+        );
+        const rent = c[0]?.monthly_rent != null ? Number(c[0].monthly_rent) : 0;
+        if (rent > 0) {
+          renewalPrice = rent;
+        } else {
+          const { rows: o } = await pool.query(
+            'SELECT price_amount FROM offerings WHERE id=$1 AND workspace_id=$2',
+            [current.offering_id, workspaceId]
+          );
+          renewalPrice = o[0]?.price_amount ?? null;
+        }
+      } catch (err) {
+        console.error('Renewal price-compute error:', err.message);
+        return res.status(500).json({ error: 'Failed to compute renewal price' });
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Mark the previous engagement as renewed. End-date logic: preserve
+      // existing end_date if set; otherwise set to the renewal's start_date
+      // (so the old tenancy's effective end aligns with the new one's start).
+      const { rows: prev } = await client.query(
+        `UPDATE engagements
+            SET status = 'renewed',
+                end_date = COALESCE(end_date, $1::date),
+                updated_at = NOW()
+          WHERE id = $2 AND workspace_id = $3
+          RETURNING *`,
+        [renewalStart, engId, workspaceId]
+      );
+      // Create the new engagement (status='active'). The partial unique
+      // index on (contact_id, offering_id) WHERE status='active' is safe
+      // here — the previous row is now 'renewed' so the new 'active' row
+      // has no conflict.
+      const { rows: next } = await client.query(
+        `INSERT INTO engagements (
+           workspace_id, contact_id, offering_id,
+           start_date, end_date, current_price, status, metadata
+         ) VALUES ($1, $2, $3, $4, $5, $6, 'active', '{}'::jsonb)
+         RETURNING *`,
+        [workspaceId, current.contact_id, current.offering_id,
+         renewalStart, renewalEnd, renewalPrice]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ previous: prev[0], current: next[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      if (err.code === '22007' || err.code === '22008') {
+        return res.status(400).json({ error: 'invalid date format for renewal_start_date or renewal_end_date' });
+      }
+      console.error('Renewal transaction error:', err.message);
+      res.status(500).json({ error: 'Failed to process renewal' });
+    } finally {
+      client.release();
+    }
+    return;
+  }
+
+  // Non-renewal PATCH: update provided fields. Only scalar fields allowed
+  // on engagements (plus metadata JSONB). contact_id/offering_id are
+  // intentionally NOT patchable — they define the engagement's identity.
+  const scalarFields = ['start_date', 'end_date', 'current_price', 'status'];
+  const jsonbFields = ['metadata'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(body[f]));
+      i++;
+    }
+  }
+
+  // Auto-populate end_date = TODAY when transitioning to 'terminated' if
+  // the caller didn't provide one.
+  if (targetStatus === 'terminated' &&
+      !Object.prototype.hasOwnProperty.call(body, 'end_date')) {
+    setParts.push(`end_date = $${i}`);
+    values.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    i++;
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  setParts.push('updated_at = NOW()');
+  values.push(engId, workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE engagements SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1}
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({
+        error: 'contact already has an active engagement with this offering'
+      });
+    }
+    if (err.code === '22007' || err.code === '22008') {
+      return res.status(400).json({ error: 'invalid date format for start_date or end_date' });
+    }
+    console.error('PATCH /api/engagements/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update engagement' });
+  }
 });
 
 // --- Tasks ---
