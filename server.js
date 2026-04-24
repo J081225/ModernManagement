@@ -1241,7 +1241,7 @@ app.post('/api/entities', requireAuth, async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error('POST /api/entities error:', err.message);
-    res.status(500).json({ error: 'Failed to create entity' });
+    res.status(500).json({ error: 'Failed to create entity: ' + err.message });
   }
 });
 
