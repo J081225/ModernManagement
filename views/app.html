@@ -1023,6 +1023,11 @@
                 <button class="btn-secondary" onclick="cancelPropertyEdit()">Cancel</button>
                 <button class="btn-primary" id="inventoryEditSaveBtn" onclick="savePropertyEdit()">Save Changes</button>
               </div>
+              <!-- Unit-detail-mode actions (hidden by default; shown when a unit is open) -->
+              <div id="inventoryUnitDetailActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="editCurrentUnit()">&#9998; Edit</button>
+                <button class="btn-secondary" onclick="retireCurrentUnit()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Retire</button>
+              </div>
             </div>
           </div>
 
@@ -4009,6 +4014,7 @@
       // 13 metadata fields + name/address. Breadcrumb updates to
       // "Properties ▸ [Name]" with a back-link.
       let inventoryCurrentEntityId = null;
+      let inventoryCurrentOfferingId = null;  // tracks the open unit (chunk 5b)
 
       function openPropertyDetail(id) {
         const entity = inventoryEntities.find(e => e.id === id);
@@ -4017,6 +4023,7 @@
           return;
         }
         inventoryCurrentEntityId = id;
+        inventoryCurrentOfferingId = null;
 
         // Swap visible sections
         document.getElementById('inventoryPropertiesGrid').style.display = 'none';
@@ -4027,6 +4034,7 @@
         // Swap action buttons in the header row
         document.getElementById('inventoryListActions').style.display = 'none';
         document.getElementById('inventoryDetailActions').style.display = 'flex';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'none';
 
         // Update breadcrumb with back-link
         document.getElementById('inventoryBreadcrumb').innerHTML =
@@ -4041,11 +4049,13 @@
 
       function showPropertyList() {
         inventoryCurrentEntityId = null;
+        inventoryCurrentOfferingId = null;
         document.getElementById('inventoryDetailPane').style.display = 'none';
         document.getElementById('inventoryDetailPane').innerHTML = '';
         document.getElementById('inventoryPropertiesGrid').style.display = 'grid';
         document.getElementById('inventoryListActions').style.display = 'block';
         document.getElementById('inventoryDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'none';
         document.getElementById('inventoryBreadcrumb').textContent = 'Properties';
         // Re-evaluate empty state in case list is now empty
         renderInventoryProperties();
@@ -4373,9 +4383,249 @@
         }
       }
 
-      // Stub — wired in chunk 5b
-      function openUnitDetail(offeringId) {
-        alert('Unit detail view \u2014 coming in chunk 5b. (Clicked offering id=' + offeringId + ')');
+      // --- Unit detail view (chunk 5b; read-only, edit + retire in 5c) ---
+      // Same-page swap pattern borrowed from openPropertyDetail. Reuses the
+      // inventoryDetailPane container; swaps breadcrumb + action buttons.
+      // Fetches the full engagement history for this offering (including
+      // terminated / renewed / pending statuses) so we can render the
+      // occupancy section — the cached inventoryActiveEngagements only
+      // includes status='active'.
+
+      async function openUnitDetail(offeringId) {
+        const offering = inventoryOfferings.find(o => o.id === offeringId);
+        if (!offering) {
+          alert('Unit not found. Try refreshing the list.');
+          return;
+        }
+        const entity = inventoryEntities.find(e => e.id === offering.entity_id);
+        if (!entity) {
+          alert('Parent property not found for this unit.');
+          return;
+        }
+
+        inventoryCurrentEntityId = entity.id;
+        inventoryCurrentOfferingId = offeringId;
+
+        // Swap visible sections
+        document.getElementById('inventoryPropertiesGrid').style.display = 'none';
+        document.getElementById('inventoryEmptyState').style.display = 'none';
+        document.getElementById('inventoryLoading').style.display = 'none';
+        document.getElementById('inventoryDetailPane').style.display = 'block';
+
+        // Swap action buttons: hide list + property-detail, show unit-detail
+        document.getElementById('inventoryListActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'flex';
+
+        // Breadcrumb: Properties > [Property] > [Unit]
+        document.getElementById('inventoryBreadcrumb').innerHTML =
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<a href="#" onclick="event.preventDefault();openPropertyDetail(' + entity.id + ');" style="color:#ff6b6b;text-decoration:none;font-weight:600;">' +
+            (escapeHtmlInv(entity.name) || '(unnamed)') +
+          '</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:#2d3748;">' + (escapeHtmlInv(offering.name) || '(unnamed)') + '</span>';
+
+        // Loading placeholder while we fetch history
+        document.getElementById('inventoryDetailPane').innerHTML =
+          '<div style="padding:40px 20px;text-align:center;color:#94a3b8;font-size:0.92em;">Loading unit details&hellip;</div>';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+
+        // Fetch full engagement history for this offering (all statuses)
+        const engsRaw = await api('engagements?offering_id=' + offeringId);
+        const allEngs = Array.isArray(engsRaw) ? engsRaw : [];
+
+        // Re-check we're still on this unit — user may have navigated away
+        if (inventoryCurrentOfferingId !== offeringId) return;
+
+        document.getElementById('inventoryDetailPane').innerHTML =
+          renderUnitDetail(offering, entity, allEngs);
+      }
+
+      function _invFmtDate(d) {
+        if (!d) return _invEmpty();
+        // Accept ISO string or Date; slice to YYYY-MM-DD for display
+        const s = String(d).slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return _invEmpty();
+        // Construct in local tz; show as medium-length locale date
+        const dt = new Date(s + 'T00:00:00');
+        if (Number.isNaN(dt.getTime())) return escapeHtmlInv(s);
+        return escapeHtmlInv(dt.toLocaleDateString(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }));
+      }
+
+      function _invFmtPrice(amount, freq) {
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n <= 0) return _invEmpty();
+        const formatted = '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        if (!freq || freq === 'one-time') return formatted;
+        const suffix = {
+          monthly: '/ month',
+          quarterly: '/ quarter',
+          annual: '/ year',
+          hourly: '/ hour',
+        }[freq] || '';
+        return suffix ? (formatted + ' <span style="color:#94a3b8;font-weight:400;">' + suffix + '</span>') : formatted;
+      }
+
+      function _invEngStatusBadge(status) {
+        const map = {
+          active:     { color: '#16a34a', bg: '#dcfce7', label: 'Active' },
+          pending:    { color: '#0369a1', bg: '#e0f2fe', label: 'Pending' },
+          renewed:    { color: '#7c3aed', bg: '#f3e8ff', label: 'Renewed' },
+          terminated: { color: '#b45309', bg: '#fef3c7', label: 'Terminated' },
+          expired:    { color: '#64748b', bg: '#f1f5f9', label: 'Expired' },
+        };
+        const m = map[status] || { color: '#64748b', bg: '#f1f5f9', label: status || '(unknown)' };
+        return `<span style="display:inline-block;padding:2px 9px;font-size:0.75em;font-weight:600;border-radius:12px;background:${m.bg};color:${m.color};">${escapeHtmlInv(m.label)}</span>`;
+      }
+
+      function renderUnitDetail(o, entity, allEngs) {
+        const md = o.metadata || {};
+        const activeEng = allEngs.find(e => e.status === 'active') || null;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+        const activeTenant = activeEng ? contactById[activeEng.contact_id] : null;
+        const activeTenantName = activeTenant ? activeTenant.name : null;
+        const statusBadge = _invUnitStatusBadge(o, activeEng, activeTenantName);
+
+        // Occupancy history: engagements other than the current active one,
+        // sorted newest first by start_date (fallback to created_at).
+        const history = allEngs
+          .filter(e => e.status !== 'active')
+          .slice()
+          .sort((a, b) => {
+            const ad = String(a.start_date || a.created_at || '');
+            const bd = String(b.start_date || b.created_at || '');
+            return bd.localeCompare(ad);
+          });
+
+        let currentTenantBlock;
+        if (activeEng) {
+          currentTenantBlock = `
+            <div style="margin-top:12px;padding:14px 16px;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:8px;">
+              <div style="font-size:0.88em;font-weight:700;color:#7c3aed;margin-bottom:4px;">Current Tenant</div>
+              <div style="color:#2d3748;font-size:1.02em;font-weight:600;margin-bottom:4px;">
+                ${activeTenantName ? escapeHtmlInv(activeTenantName) : '<span style="color:#94a3b8;">(unknown contact)</span>'}
+              </div>
+              <div style="color:#64748b;font-size:0.88em;">
+                Since ${_invFmtDate(activeEng.start_date)}
+                ${activeEng.end_date ? ' &mdash; ends ' + _invFmtDate(activeEng.end_date) : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          currentTenantBlock = `
+            <div style="margin-top:12px;padding:14px 16px;background:#f8fafc;border:1px dashed #e2e8f0;border-radius:8px;color:#94a3b8;font-size:0.92em;">
+              No active tenant. (Assign via the Contacts form &mdash; coming in chunk 6.)
+            </div>
+          `;
+        }
+
+        let historyBlock;
+        if (!history.length) {
+          historyBlock = `
+            <div style="margin-top:10px;color:#94a3b8;font-size:0.88em;">No prior engagements.</div>
+          `;
+        } else {
+          const rows = history.map(e => {
+            const c = contactById[e.contact_id];
+            const nm = c ? c.name : '(unknown)';
+            return `
+              <tr>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#2d3748;">${escapeHtmlInv(nm)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${_invFmtDate(e.start_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${_invFmtDate(e.end_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${_invEngStatusBadge(e.status)}</td>
+              </tr>
+            `;
+          }).join('');
+          historyBlock = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin-top:10px;">
+              <thead>
+                <tr style="text-align:left;color:#94a3b8;font-size:0.72em;text-transform:uppercase;letter-spacing:0.6px;">
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Tenant</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Start</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">End</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title area -->
+            <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;flex-wrap:wrap;">
+              <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;">
+                ${escapeHtmlInv(o.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+            <div style="color:#94a3b8;font-size:0.92em;margin-bottom:24px;">
+              in
+              <a href="#" onclick="event.preventDefault();openPropertyDetail(${entity.id});" style="color:#ff6b6b;text-decoration:none;font-weight:600;">
+                ${escapeHtmlInv(entity.name) || '(unnamed)'}
+              </a>
+            </div>
+
+            <!-- Description -->
+            ${_invField('Description', o.description ? escapeHtmlInv(o.description).replace(/\n/g, '<br>') : _invEmpty())}
+
+            <!-- Scalar strip: floor / price / bedrooms / bathrooms -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Floor', _invDispScalar(o.floor))}
+              ${_invField('Price', _invFmtPrice(o.price_amount, o.price_frequency))}
+              ${_invField('Bedrooms', md.bedrooms != null ? escapeHtmlInv(String(md.bedrooms)) : _invEmpty())}
+              ${_invField('Bathrooms', md.bathrooms != null ? escapeHtmlInv(String(md.bathrooms)) : _invEmpty())}
+            </div>
+
+            <!-- Second strip: sqft -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Sq Ft', md.sqft != null && md.sqft !== '' ? escapeHtmlInv(String(md.sqft)) : _invEmpty())}
+            </div>
+
+            <!-- Amenities -->
+            <div style="margin-top:22px;">
+              ${_invField('Amenities', _invDispAmenities(md.amenities))}
+            </div>
+
+            <!-- Notes -->
+            <div style="margin-top:22px;">
+              ${_invField('Notes', md.notes ? escapeHtmlInv(String(md.notes)).replace(/\n/g, '<br>') : _invEmpty())}
+            </div>
+
+            <!-- Retired banner (if this unit was retired) -->
+            ${o.status === 'retired' ? `
+              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+                &#9888; This unit is retired. It is hidden from the default units list.
+              </div>
+            ` : ''}
+
+            <!-- Occupancy section -->
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+              <div style="font-weight:700;color:#4a5568;font-size:1.05em;margin-bottom:8px;">Occupancy</div>
+              ${currentTenantBlock}
+              <div style="margin-top:22px;font-size:0.88em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">History</div>
+              ${historyBlock}
+            </div>
+
+          </div>
+        `;
+      }
+
+      // Stubs — wired in chunk 5c
+      function editCurrentUnit() {
+        alert('Unit edit mode \u2014 coming in chunk 5c. (Offering id=' + inventoryCurrentOfferingId + ')');
+      }
+
+      function retireCurrentUnit() {
+        alert('Unit retire (soft-delete) \u2014 coming in chunk 5c. (Offering id=' + inventoryCurrentOfferingId + ')');
       }
 
       // --- Edit mode (3c) ---
