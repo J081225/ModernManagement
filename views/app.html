@@ -1018,6 +1018,11 @@
                 <button class="btn-secondary" onclick="editCurrentProperty()">&#9998; Edit</button>
                 <button class="btn-secondary" onclick="archiveCurrentProperty()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Archive</button>
               </div>
+              <!-- Edit-mode actions (hidden by default; shown while editing) -->
+              <div id="inventoryEditActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="cancelPropertyEdit()">Cancel</button>
+                <button class="btn-primary" id="inventoryEditSaveBtn" onclick="savePropertyEdit()">Save Changes</button>
+              </div>
             </div>
           </div>
 
@@ -4161,13 +4166,357 @@
         `;
       }
 
-      // Stubs — wired in 3c
-      function editCurrentProperty() {
-        alert('Edit mode — coming in 3c. (Currently showing property id=' + inventoryCurrentEntityId + ')');
+      // --- Edit mode (3c) ---
+      // Refetches the entity from the server (cache may be stale), renders
+      // all 13 metadata fields + name/address as form inputs, swaps header
+      // actions to Save/Cancel. Save PATCHes with full state; Cancel discards.
+      let inventoryEditingEntity = null;
+
+      // Standard amenity checkboxes. Any JSONB values not in this list are
+      // treated as "other" and rendered into the free-text textarea on edit.
+      const INV_KNOWN_AMENITIES = [
+        'pool', 'gym', 'elevator', 'laundry', 'rooftop', 'parking garage', 'storage lockers'
+      ];
+
+      async function editCurrentProperty() {
+        if (!inventoryCurrentEntityId) return;
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId);
+          if (!res.ok) {
+            alert('Failed to load property for editing (HTTP ' + res.status + ')');
+            return;
+          }
+          const entity = await res.json();
+          // Keep the cache in sync with the fresh copy.
+          const idx = inventoryEntities.findIndex(e => e.id === inventoryCurrentEntityId);
+          if (idx >= 0) inventoryEntities[idx] = entity;
+
+          inventoryEditingEntity = entity;
+
+          // Swap action buttons: detail -> edit
+          document.getElementById('inventoryDetailActions').style.display = 'none';
+          document.getElementById('inventoryEditActions').style.display = 'flex';
+
+          // Render the edit form
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyEdit(entity);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        } catch (err) {
+          alert('Error loading property: ' + err.message);
+        }
       }
 
-      function archiveCurrentProperty() {
-        alert('Archive — coming in 3c. (Would archive property id=' + inventoryCurrentEntityId + ')');
+      function cancelPropertyEdit() {
+        const entity = inventoryEditingEntity;
+        inventoryEditingEntity = null;
+        document.getElementById('inventoryEditActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'flex';
+        if (entity) {
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(entity);
+        }
+      }
+
+      async function savePropertyEdit() {
+        const payload = _invGatherEditForm();
+        if (!payload.name || !payload.name.trim()) { alert('Name cannot be empty.'); return; }
+        if (!payload.address || !payload.address.trim()) { alert('Address cannot be empty.'); return; }
+
+        const btn = document.getElementById('inventoryEditSaveBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to save property:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache + current editing entity
+          const idx = inventoryEntities.findIndex(e => e.id === inventoryCurrentEntityId);
+          if (idx >= 0) inventoryEntities[idx] = body;
+          inventoryEditingEntity = null;
+
+          // Swap back to read mode
+          document.getElementById('inventoryEditActions').style.display = 'none';
+          document.getElementById('inventoryDetailActions').style.display = 'flex';
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(body);
+
+          // Refresh the breadcrumb (name may have changed)
+          document.getElementById('inventoryBreadcrumb').innerHTML =
+            '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+            ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+            '<span style="color:#2d3748;">' + (escapeHtmlInv(body.name) || '(unnamed)') + '</span>';
+        } catch (err) {
+          alert('Error saving: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function archiveCurrentProperty() {
+        if (!inventoryCurrentEntityId) return;
+        const entity = inventoryEntities.find(e => e.id === inventoryCurrentEntityId);
+        const name = (entity && entity.name) || 'this property';
+        const ok = confirm('Archive "' + name + '"?\n\nIt will be hidden from the Properties list. You can restore it later via the database.');
+        if (!ok) return;
+
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId, { method: 'DELETE' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to archive:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache (mark as archived locally) and return to list
+          if (entity) entity.archived_at = body.archived_at;
+          // Reload list so the archived property drops out of the default view
+          await loadInventory();
+          showPropertyList();
+        } catch (err) {
+          alert('Error archiving: ' + err.message);
+        }
+      }
+
+      // --- Edit form rendering ---
+
+      function _invEditLabel(text, required) {
+        return `<label style="display:block;font-size:0.78em;font-weight:600;color:#4a5568;margin-bottom:4px;">${text}${required ? ' <span style="color:#e53e3e;">*</span>' : ''}</label>`;
+      }
+
+      function renderPropertyEdit(e) {
+        // Split amenities into known (checkboxes) and other (freeform)
+        const amens = Array.isArray(e.shared_amenities) ? e.shared_amenities : [];
+        const knownSet = new Set(INV_KNOWN_AMENITIES.map(a => a.toLowerCase()));
+        const checkedKnown = new Set();
+        const otherAmens = [];
+        for (const a of amens) {
+          const s = String(a || '').trim();
+          if (!s) continue;
+          if (knownSet.has(s.toLowerCase())) checkedKnown.add(s.toLowerCase());
+          else otherAmens.push(s);
+        }
+
+        const amenCheckboxes = INV_KNOWN_AMENITIES.map(a => {
+          const checked = checkedKnown.has(a.toLowerCase()) ? ' checked' : '';
+          return `
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:0.9em;color:#4a5568;cursor:pointer;">
+              <input type="checkbox" data-amen-chk="${escapeHtmlInv(a)}"${checked} style="cursor:pointer;">
+              <span style="text-transform:capitalize;">${escapeHtmlInv(a)}</span>
+            </label>
+          `;
+        }).join('');
+
+        const ecRows = Array.isArray(e.emergency_contacts) ? e.emergency_contacts : [];
+        const svRows = Array.isArray(e.service_vendors) ? e.service_vendors : [];
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title + address -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Name', true)}
+              <input id="editPropName" type="text" value="${escapeHtmlInv(e.name)}" placeholder="Property name" />
+            </div>
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Address', true)}
+              <input id="editPropAddress" type="text" value="${escapeHtmlInv(e.address)}" placeholder="Full address" />
+            </div>
+
+            <!-- Description -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Description', false)}
+              <textarea id="editPropDescription" rows="2" placeholder="Brief description (optional)">${escapeHtmlInv(e.description || '')}</textarea>
+            </div>
+
+            <!-- 4-column numeric/scalar strip -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Building Type')}
+                <input id="editPropBuildingType" type="text" list="propBuildingTypeOptions" value="${escapeHtmlInv(e.building_type || '')}" placeholder="apartment, condo, ..." />
+              </div>
+              <div>
+                ${_invEditLabel('Year Built')}
+                <input id="editPropYearBuilt" type="number" min="1800" max="2100" value="${e.year_built != null ? escapeHtmlInv(e.year_built) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Number of Floors')}
+                <input id="editPropNumFloors" type="number" min="1" max="200" value="${e.number_of_floors != null ? escapeHtmlInv(e.number_of_floors) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Total Unit Count')}
+                <input id="editPropTotalUnits" type="number" min="0" max="10000" value="${e.total_unit_count != null ? escapeHtmlInv(e.total_unit_count) : ''}" />
+              </div>
+            </div>
+
+            <!-- Utilities -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Heating System')}
+                <input id="editPropHeating" type="text" value="${escapeHtmlInv(e.heating_system || '')}" placeholder="e.g. Gas boiler" />
+              </div>
+              <div>
+                ${_invEditLabel('Water Source')}
+                <input id="editPropWater" type="text" value="${escapeHtmlInv(e.water_source || '')}" placeholder="e.g. City" />
+              </div>
+              <div>
+                ${_invEditLabel('Parking Setup')}
+                <input id="editPropParking" type="text" value="${escapeHtmlInv(e.parking_setup || '')}" placeholder="e.g. Garage, 1/unit" />
+              </div>
+            </div>
+
+            <!-- Policies -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Pet Policy')}
+                <input id="editPropPetPolicy" type="text" value="${escapeHtmlInv(e.pet_policy || '')}" placeholder="e.g. Cats OK, no dogs" />
+              </div>
+              <div>
+                ${_invEditLabel('Smoking Policy')}
+                <input id="editPropSmokingPolicy" type="text" value="${escapeHtmlInv(e.smoking_policy || '')}" placeholder="e.g. No indoor smoking" />
+              </div>
+            </div>
+
+            <!-- Shared amenities: checkboxes + other -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Shared Amenities')}
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                <div style="line-height:1.8;">${amenCheckboxes}</div>
+                <div style="margin-top:10px;">
+                  <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Other (comma-separated)</label>
+                  <input id="editPropAmenOther" type="text" value="${escapeHtmlInv(otherAmens.join(', '))}" placeholder="e.g. concierge, bike storage" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Emergency contacts -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Emergency Contacts')}
+              <div id="editEmergencyContacts" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                ${ecRows.map(c => _invEditECRow(c)).join('')}
+                <button type="button" class="inv-ec-add-btn" onclick="_invAddECRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Contact</button>
+              </div>
+            </div>
+
+            <!-- Service vendors -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Service Vendors')}
+              <div id="editServiceVendors" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                ${svRows.map(v => _invEditSVRow(v)).join('')}
+                <button type="button" class="inv-sv-add-btn" onclick="_invAddSVRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Vendor</button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }
+
+      // Row-editor HTML templates (take an optional existing object)
+      function _invEditECRow(c) {
+        const name = escapeHtmlInv((c && c.name) || '');
+        const phone = escapeHtmlInv((c && c.phone) || '');
+        const role = escapeHtmlInv((c && c.role) || '');
+        return `
+          <div class="inv-ec-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;">
+            <input class="inv-ec-name" type="text" value="${name}" placeholder="Name" />
+            <input class="inv-ec-phone" type="text" value="${phone}" placeholder="Phone" />
+            <input class="inv-ec-role" type="text" value="${role}" placeholder="Role" />
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+          </div>
+        `;
+      }
+
+      function _invEditSVRow(v) {
+        const name = escapeHtmlInv((v && v.name) || '');
+        const trade = escapeHtmlInv((v && v.trade) || '');
+        const phone = escapeHtmlInv((v && v.phone) || '');
+        return `
+          <div class="inv-sv-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;">
+            <input class="inv-sv-name" type="text" value="${name}" placeholder="Name" />
+            <input class="inv-sv-trade" type="text" value="${trade}" placeholder="Trade" />
+            <input class="inv-sv-phone" type="text" value="${phone}" placeholder="Phone" />
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+          </div>
+        `;
+      }
+
+      function _invAddECRow() {
+        const container = document.getElementById('editEmergencyContacts');
+        const addBtn = container.querySelector('.inv-ec-add-btn');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = _invEditECRow(null).trim();
+        const row = tmp.firstChild;
+        container.insertBefore(row, addBtn);
+        row.querySelector('input').focus();
+      }
+
+      function _invAddSVRow() {
+        const container = document.getElementById('editServiceVendors');
+        const addBtn = container.querySelector('.inv-sv-add-btn');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = _invEditSVRow(null).trim();
+        const row = tmp.firstChild;
+        container.insertBefore(row, addBtn);
+        row.querySelector('input').focus();
+      }
+
+      // Read all edit-form inputs into a PATCH payload
+      function _invGatherEditForm() {
+        const val = id => (document.getElementById(id) || {}).value || '';
+        const intOrNull = id => {
+          const v = parseInt(val(id), 10);
+          return Number.isFinite(v) ? v : null;
+        };
+        const trimOrNull = id => (val(id).trim() || null);
+        const trimOrEmpty = id => val(id).trim();
+
+        // Amenities: combine checked boxes + parsed "other"
+        const amens = [];
+        document.querySelectorAll('input[data-amen-chk]:checked').forEach(cb => {
+          amens.push(cb.getAttribute('data-amen-chk'));
+        });
+        const otherRaw = val('editPropAmenOther');
+        otherRaw.split(',').forEach(s => {
+          const t = s.trim();
+          if (t) amens.push(t);
+        });
+
+        // Emergency contacts: scan row inputs
+        const emergencyContacts = [];
+        document.querySelectorAll('#editEmergencyContacts .inv-ec-row').forEach(row => {
+          const name = (row.querySelector('.inv-ec-name').value || '').trim();
+          const phone = (row.querySelector('.inv-ec-phone').value || '').trim();
+          const role = (row.querySelector('.inv-ec-role').value || '').trim();
+          if (name || phone || role) emergencyContacts.push({ name, phone, role });
+        });
+
+        // Service vendors
+        const serviceVendors = [];
+        document.querySelectorAll('#editServiceVendors .inv-sv-row').forEach(row => {
+          const name = (row.querySelector('.inv-sv-name').value || '').trim();
+          const trade = (row.querySelector('.inv-sv-trade').value || '').trim();
+          const phone = (row.querySelector('.inv-sv-phone').value || '').trim();
+          if (name || trade || phone) serviceVendors.push({ name, trade, phone });
+        });
+
+        return {
+          name: trimOrEmpty('editPropName'),
+          address: trimOrEmpty('editPropAddress'),
+          description: trimOrEmpty('editPropDescription'),
+          building_type: trimOrNull('editPropBuildingType'),
+          year_built: intOrNull('editPropYearBuilt'),
+          number_of_floors: intOrNull('editPropNumFloors'),
+          total_unit_count: intOrNull('editPropTotalUnits'),
+          heating_system: trimOrNull('editPropHeating'),
+          water_source: trimOrNull('editPropWater'),
+          parking_setup: trimOrNull('editPropParking'),
+          pet_policy: trimOrNull('editPropPetPolicy'),
+          smoking_policy: trimOrNull('editPropSmokingPolicy'),
+          shared_amenities: amens,
+          emergency_contacts: emergencyContacts,
+          service_vendors: serviceVendors,
+        };
       }
     </script>
   <!-- Maintenance Ticket Modal -->
