@@ -4281,13 +4281,101 @@
         `;
       }
 
-      // Stubs — wired in chunk 5
+      // --- Add Unit modal (chunk 5a) ---
+      // Opens a modal pre-scoped to the current property. Name is the only
+      // required field; everything else is optional. On success the modal
+      // closes, inventory reloads, and if we were on the property's detail
+      // view we re-open it so the new unit row appears immediately.
       function openAddUnit(entityId) {
-        alert('Add Unit form — coming in chunk 5. (Would create unit under entity id=' + entityId + ')');
+        const entity = inventoryEntities.find(e => e.id === entityId);
+        if (!entity) {
+          alert('Property not found. Try refreshing the list.');
+          return;
+        }
+        document.getElementById('unitEntityId').value = entityId;
+        document.getElementById('unitModalPropertyLabel').textContent = '\u2014 ' + entity.name;
+        document.getElementById('unitName').value = '';
+        document.getElementById('unitDescription').value = '';
+        document.getElementById('unitFloor').value = '';
+        document.getElementById('unitBedrooms').value = '';
+        document.getElementById('unitBathrooms').value = '';
+        document.getElementById('unitSqft').value = '';
+        document.getElementById('unitRent').value = '';
+        document.getElementById('unitFrequency').value = 'monthly';
+        document.getElementById('unitStatus').value = 'draft';
+        document.getElementById('unitAmenities').value = '';
+        document.getElementById('unitNotes').value = '';
+        document.getElementById('unitModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('unitName').focus(), 50);
       }
 
+      function closeUnitModal() {
+        document.getElementById('unitModal').style.display = 'none';
+      }
+
+      async function submitUnitModal() {
+        const entityId = Number(document.getElementById('unitEntityId').value);
+        const name = document.getElementById('unitName').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+        if (!entityId) { alert('Missing property reference. Close and reopen the form.'); return; }
+
+        // Build payload — only include fields the user actually filled in
+        // so the backend applies its defaults cleanly (per POST /api/offerings
+        // validation rules in chunk 1b).
+        const payload = { entity_id: entityId, name };
+        const desc = document.getElementById('unitDescription').value.trim();
+        if (desc) payload.description = desc;
+        const floor = document.getElementById('unitFloor').value.trim();
+        if (floor) payload.floor = floor;
+        const rent = parseFloat(document.getElementById('unitRent').value);
+        if (Number.isFinite(rent) && rent >= 0) payload.price_amount = rent;
+        const freq = document.getElementById('unitFrequency').value;
+        if (freq) payload.price_frequency = freq;
+        const status = document.getElementById('unitStatus').value;
+        if (status) payload.status = status;
+
+        const md = {};
+        const br = parseInt(document.getElementById('unitBedrooms').value, 10);
+        if (Number.isFinite(br) && br >= 0) md.bedrooms = br;
+        const ba = parseFloat(document.getElementById('unitBathrooms').value);
+        if (Number.isFinite(ba) && ba >= 0) md.bathrooms = ba;
+        const sqft = parseInt(document.getElementById('unitSqft').value, 10);
+        if (Number.isFinite(sqft) && sqft >= 0) md.sqft = sqft;
+        const amenRaw = document.getElementById('unitAmenities').value.trim();
+        if (amenRaw) md.amenities = amenRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const notes = document.getElementById('unitNotes').value.trim();
+        if (notes) md.notes = notes;
+        if (Object.keys(md).length) payload.metadata = md;
+
+        const btn = document.getElementById('unitModalSaveBtn');
+        btn.disabled = true;
+        try {
+          // Direct fetch (not api()) so we can surface server error messages
+          // on 4xx/5xx — same pattern as submitPropertyModal (chunk 3a).
+          const res = await fetch('/api/offerings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to create unit:\n\n' + (body.error || ('HTTP ' + res.status)));
+            return;
+          }
+          closeUnitModal();
+          // Preserve the current detail context across the reload so the
+          // user sees the new row in the same property they were viewing.
+          const resumeEntityId = inventoryCurrentEntityId;
+          await loadInventory();
+          if (resumeEntityId) openPropertyDetail(resumeEntityId);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // Stub — wired in chunk 5b
       function openUnitDetail(offeringId) {
-        alert('Unit detail view — coming in chunk 5. (Clicked offering id=' + offeringId + ')');
+        alert('Unit detail view \u2014 coming in chunk 5b. (Clicked offering id=' + offeringId + ')');
       }
 
       // --- Edit mode (3c) ---
@@ -4921,6 +5009,87 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closePropertyModal()">Cancel</button>
         <button class="btn-primary" id="propertyModalSaveBtn" onclick="submitPropertyModal()">Add Property</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Unit Modal (chunk 5a) -->
+  <div class="modal-overlay" id="unitModal" onclick="if(event.target===this)closeUnitModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:580px;max-width:96vw;">
+      <h3>&#127968; Add Unit <span id="unitModalPropertyLabel" style="color:#94a3b8;font-weight:400;font-size:0.8em;"></span></h3>
+      <input type="hidden" id="unitEntityId" />
+
+      <div>
+        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <input id="unitName" type="text" placeholder="e.g. Unit 101 or Apartment 2B" />
+      </div>
+
+      <div>
+        <label>Description</label>
+        <textarea id="unitDescription" rows="2" placeholder="Optional &mdash; short description shown on the listing"></textarea>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Floor</label>
+          <input id="unitFloor" type="text" placeholder="e.g. 2 or Ground" />
+        </div>
+        <div style="flex:1;">
+          <label>Bedrooms</label>
+          <input id="unitBedrooms" type="number" min="0" max="20" placeholder="e.g. 2" />
+        </div>
+        <div style="flex:1;">
+          <label>Bathrooms</label>
+          <input id="unitBathrooms" type="number" min="0" max="20" step="0.5" placeholder="e.g. 1.5" />
+        </div>
+        <div style="flex:1;">
+          <label>Sq Ft</label>
+          <input id="unitSqft" type="number" min="0" max="100000" placeholder="e.g. 850" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Rent / Price</label>
+          <input id="unitRent" type="number" min="0" step="0.01" placeholder="e.g. 1800" />
+        </div>
+        <div style="flex:1;">
+          <label>Frequency</label>
+          <select id="unitFrequency">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annual">Annual</option>
+            <option value="hourly">Hourly</option>
+            <option value="one-time">One-time</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label>Status</label>
+          <select id="unitStatus">
+            <option value="draft">Draft</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label>Amenities</label>
+        <input id="unitAmenities" type="text" placeholder="Comma-separated &mdash; e.g. balcony, in-unit washer, dishwasher" />
+      </div>
+
+      <div>
+        <label>Notes</label>
+        <textarea id="unitNotes" rows="2" placeholder="Optional &mdash; internal notes"></textarea>
+      </div>
+
+      <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+        Tenants aren't assigned here &mdash; a unit becomes "Occupied" when an engagement links it to a contact (coming in chunk 6).
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeUnitModal()">Cancel</button>
+        <button class="btn-primary" id="unitModalSaveBtn" onclick="submitUnitModal()">Add Unit</button>
       </div>
     </div>
   </div>
