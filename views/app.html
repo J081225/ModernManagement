@@ -1005,10 +1005,20 @@
         <!-- INVENTORY PAGE -->
         <div class="page" id="page-inventory">
 
-          <!-- Header row — breadcrumb + add button -->
+          <!-- Header row — breadcrumb + action buttons -->
           <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
             <div id="inventoryBreadcrumb" style="font-size:0.92em;color:#4a5568;font-weight:600;">Properties</div>
-            <button class="btn-primary" style="margin-left:auto;" onclick="openAddProperty()">+ Add Property</button>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <!-- List-mode actions -->
+              <div id="inventoryListActions">
+                <button class="btn-primary" onclick="openAddProperty()">+ Add Property</button>
+              </div>
+              <!-- Detail-mode actions (hidden by default; shown when a property is open) -->
+              <div id="inventoryDetailActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="editCurrentProperty()">&#9998; Edit</button>
+                <button class="btn-secondary" onclick="archiveCurrentProperty()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Archive</button>
+              </div>
+            </div>
           </div>
 
           <!-- Properties grid (populated by loadInventory) -->
@@ -1026,6 +1036,9 @@
           <div id="inventoryLoading" style="display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:0.92em;">
             Loading properties&hellip;
           </div>
+
+          <!-- Property detail pane (hidden in list mode; populated by openPropertyDetail) -->
+          <div id="inventoryDetailPane" style="display:none;"></div>
 
         </div>
 
@@ -3983,9 +3996,178 @@
         }
       }
 
-      // Stub — wired in 3b (detail view)
+      // --- Property detail view (read-only; edit + archive in 3c) ---
+      // Same-page swap: hide the list grid, show the detail pane with all
+      // 13 metadata fields + name/address. Breadcrumb updates to
+      // "Properties ▸ [Name]" with a back-link.
+      let inventoryCurrentEntityId = null;
+
       function openPropertyDetail(id) {
-        alert('Property detail view — coming next. (Clicked entity id=' + id + ')');
+        const entity = inventoryEntities.find(e => e.id === id);
+        if (!entity) {
+          alert('Property not found. Try refreshing the list.');
+          return;
+        }
+        inventoryCurrentEntityId = id;
+
+        // Swap visible sections
+        document.getElementById('inventoryPropertiesGrid').style.display = 'none';
+        document.getElementById('inventoryEmptyState').style.display = 'none';
+        document.getElementById('inventoryLoading').style.display = 'none';
+        document.getElementById('inventoryDetailPane').style.display = 'block';
+
+        // Swap action buttons in the header row
+        document.getElementById('inventoryListActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'flex';
+
+        // Update breadcrumb with back-link
+        document.getElementById('inventoryBreadcrumb').innerHTML =
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:#2d3748;">' + (escapeHtmlInv(entity.name) || '(unnamed)') + '</span>';
+
+        // Render detail content
+        document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(entity);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+
+      function showPropertyList() {
+        inventoryCurrentEntityId = null;
+        document.getElementById('inventoryDetailPane').style.display = 'none';
+        document.getElementById('inventoryDetailPane').innerHTML = '';
+        document.getElementById('inventoryPropertiesGrid').style.display = 'grid';
+        document.getElementById('inventoryListActions').style.display = 'block';
+        document.getElementById('inventoryDetailActions').style.display = 'none';
+        document.getElementById('inventoryBreadcrumb').textContent = 'Properties';
+        // Re-evaluate empty state in case list is now empty
+        renderInventoryProperties();
+      }
+
+      // Detail rendering helpers
+      function _invEmpty() {
+        return '<span style="color:#cbd5e1;">&mdash;</span>';
+      }
+
+      function _invDispScalar(v) {
+        if (v == null || v === '') return _invEmpty();
+        return escapeHtmlInv(v);
+      }
+
+      function _invDispAmenities(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(s => '<li>' + escapeHtmlInv(String(s)) + '</li>').join('') +
+          '</ul>';
+      }
+
+      function _invDispContacts(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(c => {
+            const parts = [c && c.name, c && c.phone, c && c.role]
+              .filter(p => p != null && String(p).trim() !== '')
+              .map(p => escapeHtmlInv(String(p)));
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+          }).join('') +
+          '</ul>';
+      }
+
+      function _invDispVendors(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(v => {
+            const parts = [v && v.name, v && v.trade, v && v.phone]
+              .filter(p => p != null && String(p).trim() !== '')
+              .map(p => escapeHtmlInv(String(p)));
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+          }).join('') +
+          '</ul>';
+      }
+
+      function _invField(label, valueHtml) {
+        return `
+          <div>
+            <div style="font-size:0.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
+            <div style="color:#4a5568;font-size:0.95em;line-height:1.5;">${valueHtml}</div>
+          </div>
+        `;
+      }
+
+      function renderPropertyDetail(e) {
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title area -->
+            <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;margin-bottom:4px;">
+              ${escapeHtmlInv(e.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
+            </div>
+            <div style="color:#94a3b8;font-size:0.92em;margin-bottom:24px;">
+              ${escapeHtmlInv(e.address) || _invEmpty()}
+            </div>
+
+            <!-- Description -->
+            ${_invField('Description', e.description ? escapeHtmlInv(e.description).replace(/\n/g, '<br>') : _invEmpty())}
+
+            <!-- 4-column numeric/scalar strip -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Building Type', e.building_type ? `<span style="text-transform:capitalize;">${escapeHtmlInv(e.building_type)}</span>` : _invEmpty())}
+              ${_invField('Year Built', _invDispScalar(e.year_built))}
+              ${_invField('Number of Floors', _invDispScalar(e.number_of_floors))}
+              ${_invField('Total Unit Count', _invDispScalar(e.total_unit_count))}
+            </div>
+
+            <!-- Utilities + parking -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Heating System', _invDispScalar(e.heating_system))}
+              ${_invField('Water Source', _invDispScalar(e.water_source))}
+              ${_invField('Parking Setup', _invDispScalar(e.parking_setup))}
+            </div>
+
+            <!-- Policies -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Pet Policy', _invDispScalar(e.pet_policy))}
+              ${_invField('Smoking Policy', _invDispScalar(e.smoking_policy))}
+            </div>
+
+            <!-- Shared amenities -->
+            <div style="margin-top:22px;">
+              ${_invField('Shared Amenities', _invDispAmenities(e.shared_amenities))}
+            </div>
+
+            <!-- Emergency contacts -->
+            <div style="margin-top:22px;">
+              ${_invField('Emergency Contacts', _invDispContacts(e.emergency_contacts))}
+            </div>
+
+            <!-- Service vendors -->
+            <div style="margin-top:22px;">
+              ${_invField('Service Vendors', _invDispVendors(e.service_vendors))}
+            </div>
+
+            <!-- Archived banner (visible only if this property is archived) -->
+            ${e.archived_at ? `
+              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+                &#9888; This property is archived (since ${escapeHtmlInv(String(e.archived_at).slice(0,10))}). It is hidden from the default list. Restore via the database or an unarchive action (coming later).
+              </div>
+            ` : ''}
+
+            <!-- Units section placeholder — wired in chunk 4 -->
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+              <div style="font-weight:700;color:#4a5568;font-size:1.05em;margin-bottom:8px;">Units</div>
+              <div style="color:#94a3b8;font-size:0.9em;">Unit list and management &mdash; coming in chunk 4.</div>
+            </div>
+
+          </div>
+        `;
+      }
+
+      // Stubs — wired in 3c
+      function editCurrentProperty() {
+        alert('Edit mode — coming in 3c. (Currently showing property id=' + inventoryCurrentEntityId + ')');
+      }
+
+      function archiveCurrentProperty() {
+        alert('Archive — coming in 3c. (Would archive property id=' + inventoryCurrentEntityId + ')');
       }
     </script>
   <!-- Maintenance Ticket Modal -->
