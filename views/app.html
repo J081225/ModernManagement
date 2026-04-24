@@ -3849,6 +3849,7 @@
       let inventoryEntities = [];
       let inventoryOfferings = [];
       let inventoryActiveEngagements = [];
+      let inventoryContacts = [];  // cached for tenant-name lookup in units list
 
       function escapeHtmlInv(s) {
         if (s == null) return '';
@@ -3868,14 +3869,16 @@
         empty.style.display = 'none';
         loading.style.display = 'block';
 
-        const [entitiesRaw, offeringsRaw, engagementsRaw] = await Promise.all([
+        const [entitiesRaw, offeringsRaw, engagementsRaw, contactsRaw] = await Promise.all([
           api('entities'),
           api('offerings'),
           api('engagements?status=active'),
+          api('contacts'),
         ]);
         inventoryEntities = Array.isArray(entitiesRaw) ? entitiesRaw : [];
         inventoryOfferings = Array.isArray(offeringsRaw) ? offeringsRaw : [];
         inventoryActiveEngagements = Array.isArray(engagementsRaw) ? engagementsRaw : [];
+        inventoryContacts = Array.isArray(contactsRaw) ? contactsRaw : [];
 
         loading.style.display = 'none';
         renderInventoryProperties();
@@ -4156,14 +4159,135 @@
               </div>
             ` : ''}
 
-            <!-- Units section placeholder — wired in chunk 4 -->
-            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
-              <div style="font-weight:700;color:#4a5568;font-size:1.05em;margin-bottom:8px;">Units</div>
-              <div style="color:#94a3b8;font-size:0.9em;">Unit list and management &mdash; coming in chunk 4.</div>
-            </div>
+            <!-- Units section (chunk 4) -->
+            ${_invRenderUnitsSection(e.id)}
 
           </div>
         `;
+      }
+
+      // --- Units section (chunk 4: read-only list within property detail) ---
+      // Rendered inside renderPropertyDetail. Uses cached inventoryOfferings,
+      // inventoryActiveEngagements, and inventoryContacts. Derived status
+      // logic per spec §Feature 8: an active engagement → "Occupied — Name";
+      // otherwise the raw offering.status ('draft' | 'available' |
+      // 'unavailable' | 'retired'). Retired offerings don't appear here
+      // because GET /api/offerings excludes them by default.
+
+      function _invUnitStatusBadge(offering, activeEng, tenantName) {
+        let label, color, bg;
+        if (activeEng) {
+          label = 'Occupied' + (tenantName ? ' \u2014 ' + escapeHtmlInv(tenantName) : '');
+          color = '#7c3aed'; bg = '#f3e8ff';
+        } else {
+          const s = offering.status || '';
+          if (s === 'available')       { label = 'Available';   color = '#16a34a'; bg = '#dcfce7'; }
+          else if (s === 'unavailable') { label = 'Unavailable'; color = '#d97706'; bg = '#ffedd5'; }
+          else if (s === 'draft')       { label = 'Draft';       color = '#64748b'; bg = '#f1f5f9'; }
+          else if (s === 'retired')     { label = 'Retired';     color = '#94a3b8'; bg = '#f8fafc'; }
+          else                          { label = s || '(unknown)'; color = '#64748b'; bg = '#f1f5f9'; }
+        }
+        return `<span style="display:inline-block;padding:3px 10px;font-size:0.78em;font-weight:600;border-radius:12px;background:${bg};color:${color};">${label}</span>`;
+      }
+
+      function _invFmtRent(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n <= 0) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+
+      function _invFmtBedsBaths(md) {
+        const br = md && md.bedrooms != null ? md.bedrooms : null;
+        const ba = md && md.bathrooms != null ? md.bathrooms : null;
+        if (br == null && ba == null) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return escapeHtmlInv(br != null ? String(br) : '—') + ' / ' + escapeHtmlInv(ba != null ? String(ba) : '—');
+      }
+
+      function _invFmtSqft(md) {
+        const s = md && md.sqft != null ? md.sqft : null;
+        if (s == null || s === '') return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return escapeHtmlInv(String(s));
+      }
+
+      function _invRenderUnitsSection(entityId) {
+        // Filter offerings for this property (retired already excluded at API level)
+        const units = inventoryOfferings.filter(o => o.entity_id === entityId);
+
+        // Indexes for O(1) lookup while iterating
+        const activeByOfferingId = {};
+        for (const eng of inventoryActiveEngagements) activeByOfferingId[eng.offering_id] = eng;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+
+        const header = `
+          <div style="display:flex;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:700;color:#4a5568;font-size:1.05em;">Units</div>
+            <button class="btn-secondary" style="margin-left:auto;font-size:0.85em;padding:7px 14px;" onclick="openAddUnit(${entityId})">+ Add Unit</button>
+          </div>
+        `;
+
+        if (!units.length) {
+          return `
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+              ${header}
+              <div style="padding:30px 20px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">
+                <div style="font-size:1.8em;margin-bottom:6px;">&#127968;</div>
+                <div style="font-size:0.9em;margin-bottom:12px;">No units yet for this property.</div>
+                <button class="btn-primary" style="font-size:0.85em;" onclick="openAddUnit(${entityId})">+ Add First Unit</button>
+              </div>
+            </div>
+          `;
+        }
+
+        const rows = units.map(u => {
+          const activeEng = activeByOfferingId[u.id];
+          const tenant = activeEng ? contactById[activeEng.contact_id] : null;
+          const tenantName = tenant ? tenant.name : null;
+          const badge = _invUnitStatusBadge(u, activeEng, tenantName);
+          const bb = _invFmtBedsBaths(u.metadata);
+          const sqft = _invFmtSqft(u.metadata);
+          const floor = (u.floor && String(u.floor).trim()) ? escapeHtmlInv(u.floor) : '<span style="color:#cbd5e1;">&mdash;</span>';
+          const rent = _invFmtRent(u.price_amount);
+
+          return `
+            <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#2d3748;">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${bb}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${sqft}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${floor}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${rent}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${badge}</td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+            ${header}
+            <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+              <thead>
+                <tr style="text-align:left;color:#94a3b8;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Unit</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">BR / BA</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Sq Ft</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Floor</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Rent</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // Stubs — wired in chunk 5
+      function openAddUnit(entityId) {
+        alert('Add Unit form — coming in chunk 5. (Would create unit under entity id=' + entityId + ')');
+      }
+
+      function openUnitDetail(offeringId) {
+        alert('Unit detail view — coming in chunk 5. (Clicked offering id=' + offeringId + ')');
       }
 
       // --- Edit mode (3c) ---
