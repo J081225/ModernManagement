@@ -3916,13 +3916,76 @@
         }).join('');
       }
 
-      // Stubs — wired in chunk 3 (detail view, forms)
+      // --- Create Property modal ---
+      // Opens a modal for creating a new property. On save, POSTs to
+      // /api/entities and reloads the Properties list. Edit of an existing
+      // property is NOT handled here — it lives in the detail view's
+      // edit-mode toggle.
+
       function openAddProperty() {
-        alert('Add Property form — coming in chunk 3 of the Inventory build.');
+        document.getElementById('propName').value = '';
+        document.getElementById('propAddress').value = '';
+        document.getElementById('propBuildingType').value = '';
+        document.getElementById('propYearBuilt').value = '';
+        document.getElementById('propNumFloors').value = '';
+        document.getElementById('propTotalUnits').value = '';
+        document.getElementById('propDescription').value = '';
+        document.getElementById('propertyModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('propName').focus(), 50);
       }
 
+      function closePropertyModal() {
+        document.getElementById('propertyModal').style.display = 'none';
+      }
+
+      async function submitPropertyModal() {
+        const name = document.getElementById('propName').value.trim();
+        const address = document.getElementById('propAddress').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+        if (!address) { alert('Address is required.'); return; }
+
+        // Build payload — omit empty optional fields so the backend applies
+        // its defaults cleanly. (POST /api/entities handles null/undefined
+        // via ?? null and || '' fallbacks per chunk 1b.)
+        const payload = { name, address };
+        const bt = document.getElementById('propBuildingType').value.trim();
+        if (bt) payload.building_type = bt;
+        const yb = parseInt(document.getElementById('propYearBuilt').value, 10);
+        if (Number.isFinite(yb)) payload.year_built = yb;
+        const nf = parseInt(document.getElementById('propNumFloors').value, 10);
+        if (Number.isFinite(nf)) payload.number_of_floors = nf;
+        const tu = parseInt(document.getElementById('propTotalUnits').value, 10);
+        if (Number.isFinite(tu)) payload.total_unit_count = tu;
+        const desc = document.getElementById('propDescription').value.trim();
+        if (desc) payload.description = desc;
+
+        const btn = document.getElementById('propertyModalSaveBtn');
+        btn.disabled = true;
+        try {
+          // Use fetch directly (not the api() helper) so we can read the
+          // response body on 4xx/5xx and surface the server's actual error
+          // message in the UI. The api() helper returns null on non-2xx,
+          // which loses the diagnostic detail.
+          const res = await fetch('/api/entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to create property:\n\n' + (body.error || ('HTTP ' + res.status)));
+            return;
+          }
+          closePropertyModal();
+          await loadInventory();
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // Stub — wired in 3b (detail view)
       function openPropertyDetail(id) {
-        alert('Property detail view — coming in chunk 3 of the Inventory build. (Clicked entity id=' + id + ')');
+        alert('Property detail view — coming next. (Clicked entity id=' + id + ')');
       }
     </script>
   <!-- Maintenance Ticket Modal -->
@@ -4143,6 +4206,66 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeContactModal()">Cancel</button>
         <button class="btn-primary" id="contactModalSaveBtn" onclick="submitContactModal()">Add Contact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Property Modal (chunk 3a — Create only; Edit happens in the detail view) -->
+  <div class="modal-overlay" id="propertyModal" onclick="if(event.target===this)closePropertyModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:540px;max-width:96vw;">
+      <h3>&#127970; Add Property</h3>
+
+      <div>
+        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <input id="propName" type="text" placeholder="e.g. Oakwood Apartments" />
+      </div>
+
+      <div>
+        <label>Address <span style="color:#e53e3e;">*</span></label>
+        <input id="propAddress" type="text" placeholder="e.g. 123 Main St, Seattle, WA" />
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Building Type</label>
+          <input id="propBuildingType" type="text" list="propBuildingTypeOptions" placeholder="apartment, condo, ..." />
+          <datalist id="propBuildingTypeOptions">
+            <option value="apartment"></option>
+            <option value="condo"></option>
+            <option value="single-family"></option>
+            <option value="townhouse"></option>
+            <option value="mixed-use"></option>
+          </datalist>
+        </div>
+        <div style="width:140px;">
+          <label>Year Built</label>
+          <input id="propYearBuilt" type="number" min="1800" max="2100" placeholder="e.g. 1995" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Number of Floors</label>
+          <input id="propNumFloors" type="number" min="1" max="200" placeholder="e.g. 4" />
+        </div>
+        <div style="flex:1;">
+          <label>Total Unit Count</label>
+          <input id="propTotalUnits" type="number" min="0" max="10000" placeholder="e.g. 24" />
+        </div>
+      </div>
+
+      <div>
+        <label>Description</label>
+        <textarea id="propDescription" rows="2" placeholder="Optional — brief description for internal reference"></textarea>
+      </div>
+
+      <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+        More fields (amenities, emergency contacts, service vendors, utility and policy details) can be added later via the property's detail view.
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePropertyModal()">Cancel</button>
+        <button class="btn-primary" id="propertyModalSaveBtn" onclick="submitPropertyModal()">Add Property</button>
       </div>
     </div>
   </div>
