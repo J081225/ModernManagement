@@ -602,6 +602,7 @@
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
         <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
+        <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
       <div class="sidebar-footer">Modern Management &copy; 2026</div>
@@ -1001,6 +1002,33 @@
 
         </div>
 
+        <!-- INVENTORY PAGE -->
+        <div class="page" id="page-inventory">
+
+          <!-- Header row — breadcrumb + add button -->
+          <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
+            <div id="inventoryBreadcrumb" style="font-size:0.92em;color:#4a5568;font-weight:600;">Properties</div>
+            <button class="btn-primary" style="margin-left:auto;" onclick="openAddProperty()">+ Add Property</button>
+          </div>
+
+          <!-- Properties grid (populated by loadInventory) -->
+          <div id="inventoryPropertiesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+
+          <!-- Empty state (shown when no non-archived entities exist) -->
+          <div id="inventoryEmptyState" style="display:none;padding:60px 20px;text-align:center;color:#94a3b8;">
+            <div style="font-size:3em;margin-bottom:12px;">&#127970;</div>
+            <div style="font-size:1.1em;font-weight:600;color:#4a5568;margin-bottom:8px;">No properties yet</div>
+            <div style="font-size:0.9em;margin-bottom:20px;">Get started by adding your first property.</div>
+            <button class="btn-primary" onclick="openAddProperty()">+ Add Your First Property</button>
+          </div>
+
+          <!-- Loading state (shown while API calls are in-flight) -->
+          <div id="inventoryLoading" style="display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:0.92em;">
+            Loading properties&hellip;
+          </div>
+
+        </div>
+
         <!-- TASKS PAGE -->
         <div class="page" id="page-tasks">
 
@@ -1342,8 +1370,9 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory' };
         if (name === 'home') { loadHomeStats(); loadLeases(); }
+        if (name === 'inventory') loadInventory();
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
       }
@@ -3793,6 +3822,108 @@
         loadLeases();
         api('leases/check-renewals', 'POST', {}).catch(() => {});
       };
+
+      // --- Inventory (chunk 2: Properties list view) ---
+      // Reads /api/entities, /api/offerings (non-retired), /api/engagements?status=active.
+      // Computes per-property unit count and occupancy rate client-side.
+      // Uses a tiny inline escapeHtml helper — all user-supplied strings from
+      // the API pass through it before landing in innerHTML.
+      let inventoryEntities = [];
+      let inventoryOfferings = [];
+      let inventoryActiveEngagements = [];
+
+      function escapeHtmlInv(s) {
+        if (s == null) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      async function loadInventory() {
+        const grid = document.getElementById('inventoryPropertiesGrid');
+        const empty = document.getElementById('inventoryEmptyState');
+        const loading = document.getElementById('inventoryLoading');
+        grid.style.display = 'none';
+        empty.style.display = 'none';
+        loading.style.display = 'block';
+
+        const [entitiesRaw, offeringsRaw, engagementsRaw] = await Promise.all([
+          api('entities'),
+          api('offerings'),
+          api('engagements?status=active'),
+        ]);
+        inventoryEntities = Array.isArray(entitiesRaw) ? entitiesRaw : [];
+        inventoryOfferings = Array.isArray(offeringsRaw) ? offeringsRaw : [];
+        inventoryActiveEngagements = Array.isArray(engagementsRaw) ? engagementsRaw : [];
+
+        loading.style.display = 'none';
+        renderInventoryProperties();
+      }
+
+      function renderInventoryProperties() {
+        const grid = document.getElementById('inventoryPropertiesGrid');
+        const empty = document.getElementById('inventoryEmptyState');
+
+        if (!inventoryEntities.length) {
+          grid.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+
+        grid.style.display = 'grid';
+        empty.style.display = 'none';
+
+        // Pre-group offerings and engagements by entity for efficient lookup.
+        const offeringsByEntity = {};
+        for (const o of inventoryOfferings) {
+          if (o.status === 'retired') continue;
+          if (!offeringsByEntity[o.entity_id]) offeringsByEntity[o.entity_id] = [];
+          offeringsByEntity[o.entity_id].push(o);
+        }
+        const activeOfferingIds = new Set(inventoryActiveEngagements.map(e => e.offering_id));
+
+        grid.innerHTML = inventoryEntities.map(e => {
+          const units = offeringsByEntity[e.id] || [];
+          const unitCount = units.length;
+          const occupiedCount = units.filter(u => activeOfferingIds.has(u.id)).length;
+          const rate = unitCount > 0 ? Math.round((occupiedCount / unitCount) * 100) : 0;
+
+          const rateColor = unitCount === 0 ? '#94a3b8'
+            : rate === 100 ? '#16a34a'
+            : rate >= 1 ? '#0ea5e9'
+            : '#94a3b8';
+
+          const buildingType = e.building_type ? escapeHtmlInv(e.building_type) : '<span style="color:#cbd5e1;">—</span>';
+          const unitLabel = unitCount === 0
+            ? '<span style="color:#94a3b8;">No units</span>'
+            : `${unitCount} unit${unitCount === 1 ? '' : 's'}`;
+          const rateLabel = unitCount === 0 ? '&nbsp;' : `${rate}% occupied`;
+
+          return `
+            <div class="card" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
+              <div style="font-weight:700;color:#2d3748;font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
+              <div style="font-size:0.85em;color:#94a3b8;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
+              <div style="display:flex;gap:14px;font-size:0.82em;color:#4a5568;flex-wrap:wrap;">
+                <div style="text-transform:capitalize;">${buildingType}</div>
+                <div>${unitLabel}</div>
+                <div style="color:${rateColor};font-weight:600;">${rateLabel}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Stubs — wired in chunk 3 (detail view, forms)
+      function openAddProperty() {
+        alert('Add Property form — coming in chunk 3 of the Inventory build.');
+      }
+
+      function openPropertyDetail(id) {
+        alert('Property detail view — coming in chunk 3 of the Inventory build. (Clicked entity id=' + id + ')');
+      }
     </script>
   <!-- Maintenance Ticket Modal -->
   <!-- Onboarding Modal -->
