@@ -2966,6 +2966,14 @@
         document.getElementById('contactModal').style.display = 'none';
       }
 
+      function _todayISODate() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd;
+      }
+
       async function submitContactModal() {
         const name = document.getElementById('cName').value.trim();
         if (!name) { alert('Please enter a name.'); return; }
@@ -2980,21 +2988,124 @@
           lease_end: type === 'resident' ? document.getElementById('cLeaseEnd').value : '',
           monthly_rent: type === 'resident' ? (parseFloat(document.getElementById('cMonthlyRent').value) || 0) : 0,
         };
+
+        // Capture engagement intent BEFORE the contact save so we can
+        // compare old vs new after success. (chunk 6b)
+        const newOfferingRaw = (document.getElementById('cUnitOffering') || {}).value || '';
+        const newOfferingId = newOfferingRaw ? parseInt(newOfferingRaw, 10) : null;
+        const oldEngagement = _editingContactId
+          ? (inventoryActiveEngagements.find(e => e.contact_id === _editingContactId) || null)
+          : null;
+        const oldOfferingId = oldEngagement ? oldEngagement.offering_id : null;
+
         const btn = document.getElementById('contactModalSaveBtn');
         btn.disabled = true;
-        if (_editingContactId) {
-          await fetch('/api/contacts/' + _editingContactId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          await api('contacts', 'POST', payload);
+
+        // Phase 1: contact save. If this fails we abort — don't touch engagements.
+        let savedContactId = _editingContactId;
+        try {
+          if (_editingContactId) {
+            const res = await fetch('/api/contacts/' + _editingContactId, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              alert('Failed to save contact:\n\n' + (body.error || 'HTTP ' + res.status));
+              return;
+            }
+          } else {
+            const res = await fetch('/api/contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              alert('Failed to add contact:\n\n' + (body.error || 'HTTP ' + res.status));
+              return;
+            }
+            const created = await res.json().catch(() => null);
+            savedContactId = created ? created.id : null;
+          }
+        } finally {
+          btn.disabled = false;
         }
-        btn.disabled = false;
+
+        // Phase 2: engagement reconciliation. Contact save already
+        // committed — failures here are soft warnings, not hard errors
+        // (the user can retry by re-saving the contact).
+        const warnings = [];
+        if (newOfferingId !== oldOfferingId) {
+          // Terminate the old engagement if one existed
+          if (oldEngagement) {
+            try {
+              const r = await fetch('/api/engagements/' + oldEngagement.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                warnings.push('Could not end previous unit assignment: ' + (eb.error || 'HTTP ' + r.status));
+              }
+            } catch (e) {
+              warnings.push('Could not end previous unit assignment: ' + e.message);
+            }
+          }
+          // Create a new engagement if a unit was selected
+          if (newOfferingId && savedContactId) {
+            const offering = inventoryOfferings.find(o => o.id === newOfferingId);
+            const monthlyRent = Number(payload.monthly_rent);
+            const offeringPrice = (offering && offering.price_amount != null) ? Number(offering.price_amount) : 0;
+            const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0)
+              ? monthlyRent
+              : offeringPrice;
+            const engBody = {
+              contact_id: savedContactId,
+              offering_id: newOfferingId,
+              status: 'active',
+              start_date: payload.lease_start || _todayISODate(),
+              end_date: payload.lease_end || null,
+              current_price: currentPrice,
+            };
+            try {
+              const r = await fetch('/api/engagements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(engBody),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                if (r.status === 409) {
+                  warnings.push('Could not assign unit: this contact already has an active engagement on this unit.');
+                } else {
+                  warnings.push('Could not create unit assignment: ' + (eb.error || 'HTTP ' + r.status));
+                }
+              }
+            } catch (e) {
+              warnings.push('Could not create unit assignment: ' + e.message);
+            }
+          }
+        }
+
+        if (warnings.length) {
+          alert('Contact saved, but unit-assignment changes had issues:\n\n' + warnings.join('\n'));
+        }
+
         closeContactModal();
         await loadContacts();
-        if (_editingContactId) selectContact(_editingContactId);
+        // Refresh inventory caches so subsequent renders (units list,
+        // occupancy badges, this contact's pre-selection on next edit)
+        // reflect the new engagement state.
+        inventoryEntities = [];
+        inventoryOfferings = [];
+        inventoryActiveEngagements = [];
+        inventoryContacts = [];
+        await _invEnsureLoaded();
+
+        if (savedContactId) selectContact(savedContactId);
         loadLeases();
       }
 
