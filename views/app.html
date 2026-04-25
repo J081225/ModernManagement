@@ -1028,6 +1028,11 @@
                 <button class="btn-secondary" onclick="editCurrentUnit()">&#9998; Edit</button>
                 <button class="btn-secondary" onclick="retireCurrentUnit()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Retire</button>
               </div>
+              <!-- Unit-edit-mode actions (hidden by default; shown while editing a unit) -->
+              <div id="inventoryUnitEditActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="cancelUnitEdit()">Cancel</button>
+                <button class="btn-primary" id="inventoryUnitEditSaveBtn" onclick="saveUnitEdit()">Save Changes</button>
+              </div>
             </div>
           </div>
 
@@ -4035,6 +4040,7 @@
         document.getElementById('inventoryListActions').style.display = 'none';
         document.getElementById('inventoryDetailActions').style.display = 'flex';
         document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
 
         // Update breadcrumb with back-link
         document.getElementById('inventoryBreadcrumb').innerHTML =
@@ -4056,6 +4062,7 @@
         document.getElementById('inventoryListActions').style.display = 'block';
         document.getElementById('inventoryDetailActions').style.display = 'none';
         document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
         document.getElementById('inventoryBreadcrumb').textContent = 'Properties';
         // Re-evaluate empty state in case list is now empty
         renderInventoryProperties();
@@ -4416,6 +4423,7 @@
         document.getElementById('inventoryListActions').style.display = 'none';
         document.getElementById('inventoryDetailActions').style.display = 'none';
         document.getElementById('inventoryUnitDetailActions').style.display = 'flex';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
 
         // Breadcrumb: Properties > [Property] > [Unit]
         document.getElementById('inventoryBreadcrumb').innerHTML =
@@ -4619,13 +4627,284 @@
         `;
       }
 
-      // Stubs — wired in chunk 5c
-      function editCurrentUnit() {
-        alert('Unit edit mode \u2014 coming in chunk 5c. (Offering id=' + inventoryCurrentOfferingId + ')');
+      // --- Unit edit mode + Retire (chunk 5c) ---
+      // Mirrors the property edit pattern: refetch on entry for cache
+      // freshness, swap buttons, swap pane contents. Retire uses DELETE
+      // /api/offerings/:id which soft-deletes via status='retired'
+      // (per chunk 1b spec).
+
+      let inventoryEditingOffering = null;
+      const INV_KNOWN_UNIT_AMENITIES = [
+        'balcony', 'dishwasher', 'in-unit laundry', 'hardwood floors',
+        'air conditioning', 'furnished'
+      ];
+
+      async function editCurrentUnit() {
+        if (!inventoryCurrentOfferingId) return;
+        try {
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId);
+          if (!res.ok) {
+            alert('Failed to load unit for editing (HTTP ' + res.status + ')');
+            return;
+          }
+          const offering = await res.json();
+          // Keep cache in sync with the fresh copy
+          const idx = inventoryOfferings.findIndex(o => o.id === inventoryCurrentOfferingId);
+          if (idx >= 0) inventoryOfferings[idx] = offering;
+
+          inventoryEditingOffering = offering;
+
+          // Swap action buttons: unit-detail -> unit-edit
+          document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+          document.getElementById('inventoryUnitEditActions').style.display = 'flex';
+
+          document.getElementById('inventoryDetailPane').innerHTML = renderUnitEdit(offering);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        } catch (err) {
+          alert('Error loading unit: ' + err.message);
+        }
       }
 
-      function retireCurrentUnit() {
-        alert('Unit retire (soft-delete) \u2014 coming in chunk 5c. (Offering id=' + inventoryCurrentOfferingId + ')');
+      function cancelUnitEdit() {
+        const offering = inventoryEditingOffering;
+        inventoryEditingOffering = null;
+        // openUnitDetail will restore button visibility and re-render read mode
+        if (offering) {
+          openUnitDetail(offering.id);
+        } else if (inventoryCurrentOfferingId) {
+          openUnitDetail(inventoryCurrentOfferingId);
+        }
+      }
+
+      async function saveUnitEdit() {
+        const original = inventoryEditingOffering;
+        if (!original) return;
+
+        const payload = _invGatherUnitEditForm(original);
+        if (!payload.name || !payload.name.trim()) { alert('Name cannot be empty.'); return; }
+
+        const btn = document.getElementById('inventoryUnitEditSaveBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to save unit:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache with the saved row
+          const idx = inventoryOfferings.findIndex(o => o.id === inventoryCurrentOfferingId);
+          if (idx >= 0) inventoryOfferings[idx] = body;
+          inventoryEditingOffering = null;
+
+          // Re-render read mode (openUnitDetail refetches engagement history
+          // and handles button visibility).
+          await openUnitDetail(inventoryCurrentOfferingId);
+        } catch (err) {
+          alert('Error saving: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function retireCurrentUnit() {
+        if (!inventoryCurrentOfferingId) return;
+        const offering = inventoryOfferings.find(o => o.id === inventoryCurrentOfferingId);
+        const name = (offering && offering.name) || 'this unit';
+        const ok = confirm('Retire "' + name + '"?\n\nIt will be hidden from the units list. You can restore it later via the database.');
+        if (!ok) return;
+
+        try {
+          // DELETE /api/offerings/:id does soft-delete: status='retired'
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId, { method: 'DELETE' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to retire unit:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Return to the parent property detail — the retired unit will
+          // have dropped out of inventoryOfferings after loadInventory()
+          // (GET /api/offerings excludes status='retired' by default).
+          const parentEntityId = inventoryCurrentEntityId;
+          await loadInventory();
+          if (parentEntityId && inventoryEntities.some(e => e.id === parentEntityId)) {
+            openPropertyDetail(parentEntityId);
+          } else {
+            showPropertyList();
+          }
+        } catch (err) {
+          alert('Error retiring: ' + err.message);
+        }
+      }
+
+      function renderUnitEdit(o) {
+        const md = o.metadata || {};
+        // Split amenities into known (checkboxes) and other (freeform)
+        const amens = Array.isArray(md.amenities) ? md.amenities : [];
+        const knownSet = new Set(INV_KNOWN_UNIT_AMENITIES.map(a => a.toLowerCase()));
+        const checkedKnown = new Set();
+        const otherAmens = [];
+        for (const a of amens) {
+          const s = String(a || '').trim();
+          if (!s) continue;
+          if (knownSet.has(s.toLowerCase())) checkedKnown.add(s.toLowerCase());
+          else otherAmens.push(s);
+        }
+        const amenCheckboxes = INV_KNOWN_UNIT_AMENITIES.map(a => {
+          const checked = checkedKnown.has(a.toLowerCase()) ? ' checked' : '';
+          return `
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:0.9em;color:#4a5568;cursor:pointer;">
+              <input type="checkbox" data-unit-amen-chk="${escapeHtmlInv(a)}"${checked} style="cursor:pointer;">
+              <span style="text-transform:capitalize;">${escapeHtmlInv(a)}</span>
+            </label>
+          `;
+        }).join('');
+
+        const freqOpts = ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'];
+        const freqCurrent = o.price_frequency || 'monthly';
+        const freqSelectHtml = freqOpts.map(f =>
+          `<option value="${f}"${f === freqCurrent ? ' selected' : ''}>${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
+        ).join('');
+
+        // Status dropdown excludes 'retired' (set via Retire button) and
+        // 'occupied' (derived from engagements, never set directly). If the
+        // current status is somehow something else (e.g. retired), we
+        // preserve it via a disabled option so PATCH round-trip is a no-op.
+        const statusOpts = ['draft', 'available', 'unavailable'];
+        const currentStatus = o.status || 'draft';
+        const statusSelectHtml = statusOpts.map(s =>
+          `<option value="${s}"${s === currentStatus ? ' selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+        ).join('')
+          + (!statusOpts.includes(currentStatus)
+            ? `<option value="${escapeHtmlInv(currentStatus)}" selected disabled>${escapeHtmlInv(currentStatus)} (set elsewhere)</option>`
+            : '');
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <div style="font-size:1.2em;font-weight:700;color:#2d3748;margin-bottom:20px;">
+              Edit Unit
+            </div>
+
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Name', true)}
+              <input id="editUnitName" type="text" value="${escapeHtmlInv(o.name || '')}" placeholder="e.g. Unit 101" />
+            </div>
+
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Description', false)}
+              <textarea id="editUnitDescription" rows="2" placeholder="Optional">${escapeHtmlInv(o.description || '')}</textarea>
+            </div>
+
+            <!-- 4-col strip: floor / bedrooms / bathrooms / sqft -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Floor')}
+                <input id="editUnitFloor" type="text" value="${escapeHtmlInv(o.floor || '')}" placeholder="e.g. 2 or Ground" />
+              </div>
+              <div>
+                ${_invEditLabel('Bedrooms')}
+                <input id="editUnitBedrooms" type="number" min="0" max="20" value="${md.bedrooms != null ? escapeHtmlInv(String(md.bedrooms)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Bathrooms')}
+                <input id="editUnitBathrooms" type="number" min="0" max="20" step="0.5" value="${md.bathrooms != null ? escapeHtmlInv(String(md.bathrooms)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Sq Ft')}
+                <input id="editUnitSqft" type="number" min="0" max="100000" value="${md.sqft != null ? escapeHtmlInv(String(md.sqft)) : ''}" />
+              </div>
+            </div>
+
+            <!-- Rent / frequency / status -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Rent / Price')}
+                <input id="editUnitRent" type="number" min="0" step="0.01" value="${o.price_amount != null ? escapeHtmlInv(String(o.price_amount)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Frequency')}
+                <select id="editUnitFrequency">${freqSelectHtml}</select>
+              </div>
+              <div>
+                ${_invEditLabel('Status')}
+                <select id="editUnitStatus">${statusSelectHtml}</select>
+              </div>
+            </div>
+
+            <!-- Amenities -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Amenities')}
+              <div style="margin-top:6px;">${amenCheckboxes}</div>
+              <input id="editUnitAmenOther" type="text" placeholder="Other amenities (comma-separated)" value="${escapeHtmlInv(otherAmens.join(', '))}" style="margin-top:8px;" />
+            </div>
+
+            <!-- Notes -->
+            <div style="margin-bottom:14px;">
+              ${_invEditLabel('Notes')}
+              <textarea id="editUnitNotes" rows="2" placeholder="Optional">${escapeHtmlInv(md.notes || '')}</textarea>
+            </div>
+
+            <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+              To retire this unit, cancel out and click the Retire button. "Occupied" is derived from active engagements and can't be set here.
+            </div>
+
+          </div>
+        `;
+      }
+
+      function _invGatherUnitEditForm(original) {
+        const val = id => (document.getElementById(id) || {}).value || '';
+        const intOrNull = id => {
+          const v = parseInt(val(id), 10);
+          return Number.isFinite(v) ? v : null;
+        };
+        const floatOrNull = id => {
+          const v = parseFloat(val(id));
+          return Number.isFinite(v) ? v : null;
+        };
+
+        // Amenities: checked boxes + parsed "other"
+        const amens = [];
+        document.querySelectorAll('input[data-unit-amen-chk]:checked').forEach(cb => {
+          amens.push(cb.getAttribute('data-unit-amen-chk'));
+        });
+        val('editUnitAmenOther').split(',').forEach(s => {
+          const t = s.trim();
+          if (t) amens.push(t);
+        });
+
+        // PATCH replaces the full metadata object, so start from the
+        // original and merge our UI-managed keys onto it — this preserves
+        // any keys the UI doesn't know about (future fields, manual edits).
+        const originalMd = (original && original.metadata) || {};
+        const newMd = { ...originalMd };
+
+        const br = intOrNull('editUnitBedrooms');
+        if (br != null && br >= 0) newMd.bedrooms = br; else delete newMd.bedrooms;
+        const ba = floatOrNull('editUnitBathrooms');
+        if (ba != null && ba >= 0) newMd.bathrooms = ba; else delete newMd.bathrooms;
+        const sqft = intOrNull('editUnitSqft');
+        if (sqft != null && sqft >= 0) newMd.sqft = sqft; else delete newMd.sqft;
+        newMd.amenities = amens;
+        const notes = val('editUnitNotes').trim();
+        if (notes) newMd.notes = notes; else delete newMd.notes;
+
+        const rent = floatOrNull('editUnitRent');
+
+        return {
+          name: val('editUnitName').trim(),
+          description: val('editUnitDescription').trim(),
+          floor: val('editUnitFloor').trim(),
+          price_amount: rent != null && rent >= 0 ? rent : 0,
+          price_frequency: val('editUnitFrequency') || 'monthly',
+          status: val('editUnitStatus'),
+          metadata: newMd,
+        };
       }
 
       // --- Edit mode (3c) ---
