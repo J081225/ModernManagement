@@ -4411,18 +4411,23 @@
       // 'unavailable' | 'retired'). Retired offerings don't appear here
       // because GET /api/offerings excludes them by default.
 
+      // Derived display status (status redesign):
+      //   1. active engagement → "Occupied — Name" (violet)
+      //   2. status='unavailable' → "Off-market" (amber)
+      //   3. status='retired' → "Retired" (muted; normally hidden)
+      //   4. anything else (available, draft, '', unknown) → "Vacant" (gray)
+      // The schema status TEXT column is unchanged — this is presentation only.
       function _invUnitStatusBadge(offering, activeEng, tenantName) {
         let label, color, bg;
         if (activeEng) {
           label = 'Occupied' + (tenantName ? ' \u2014 ' + escapeHtmlInv(tenantName) : '');
           color = '#7c3aed'; bg = '#f3e8ff';
+        } else if (offering.status === 'unavailable') {
+          label = 'Off-market'; color = '#d97706'; bg = '#ffedd5';
+        } else if (offering.status === 'retired') {
+          label = 'Retired'; color = '#94a3b8'; bg = '#f8fafc';
         } else {
-          const s = offering.status || '';
-          if (s === 'available')       { label = 'Available';   color = '#16a34a'; bg = '#dcfce7'; }
-          else if (s === 'unavailable') { label = 'Unavailable'; color = '#d97706'; bg = '#ffedd5'; }
-          else if (s === 'draft')       { label = 'Draft';       color = '#64748b'; bg = '#f1f5f9'; }
-          else if (s === 'retired')     { label = 'Retired';     color = '#94a3b8'; bg = '#f8fafc'; }
-          else                          { label = s || '(unknown)'; color = '#64748b'; bg = '#f1f5f9'; }
+          label = 'Vacant'; color = '#64748b'; bg = '#f1f5f9';
         }
         return `<span style="display:inline-block;padding:3px 10px;font-size:0.78em;font-weight:600;border-radius:12px;background:${bg};color:${color};">${label}</span>`;
       }
@@ -4539,7 +4544,6 @@
         document.getElementById('unitSqft').value = '';
         document.getElementById('unitRent').value = '';
         document.getElementById('unitFrequency').value = 'monthly';
-        document.getElementById('unitStatus').value = 'draft';
         document.getElementById('unitAmenities').value = '';
         document.getElementById('unitNotes').value = '';
         document.getElementById('unitModal').style.display = 'flex';
@@ -4568,8 +4572,11 @@
         if (Number.isFinite(rent) && rent >= 0) payload.price_amount = rent;
         const freq = document.getElementById('unitFrequency').value;
         if (freq) payload.price_frequency = freq;
-        const status = document.getElementById('unitStatus').value;
-        if (status) payload.status = status;
+        // New units default to status='available' (renders as "Vacant"
+        // via the derived display logic in _invUnitStatusBadge).
+        // The status field is no longer user-editable on create — it's
+        // derived from real state (engagements + Off-market toggle).
+        payload.status = 'available';
 
         const md = {};
         const br = parseInt(document.getElementById('unitBedrooms').value, 10);
@@ -4990,18 +4997,13 @@
           `<option value="${f}"${f === freqCurrent ? ' selected' : ''}>${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
         ).join('');
 
-        // Status dropdown excludes 'retired' (set via Retire button) and
-        // 'occupied' (derived from engagements, never set directly). If the
-        // current status is somehow something else (e.g. retired), we
-        // preserve it via a disabled option so PATCH round-trip is a no-op.
-        const statusOpts = ['draft', 'available', 'unavailable'];
-        const currentStatus = o.status || 'draft';
-        const statusSelectHtml = statusOpts.map(s =>
-          `<option value="${s}"${s === currentStatus ? ' selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`
-        ).join('')
-          + (!statusOpts.includes(currentStatus)
-            ? `<option value="${escapeHtmlInv(currentStatus)}" selected disabled>${escapeHtmlInv(currentStatus)} (set elsewhere)</option>`
-            : '');
+        // Status redesign: replaces the 3-option status dropdown with a
+        // single Off-market checkbox. Display "status" (Occupied/Vacant/
+        // Off-market) is derived in _invUnitStatusBadge — the user only
+        // controls the off-market flag here. 'retired' (Retire button)
+        // and active engagements are preserved untouched on save by
+        // _invGatherUnitEditForm.
+        const isOffMarket = (o.status === 'unavailable');
 
         return `
           <div class="card" style="padding:28px 32px;">
@@ -5040,8 +5042,8 @@
               </div>
             </div>
 
-            <!-- Rent / frequency / status -->
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+            <!-- Rent / frequency -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;">
               <div>
                 ${_invEditLabel('Rent / Price')}
                 <input id="editUnitRent" type="number" min="0" step="0.01" value="${o.price_amount != null ? escapeHtmlInv(String(o.price_amount)) : ''}" />
@@ -5050,9 +5052,16 @@
                 ${_invEditLabel('Frequency')}
                 <select id="editUnitFrequency">${freqSelectHtml}</select>
               </div>
-              <div>
-                ${_invEditLabel('Status')}
-                <select id="editUnitStatus">${statusSelectHtml}</select>
+            </div>
+
+            <!-- Off-market flag (status redesign) -->
+            <div style="margin-bottom:20px;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9em;font-weight:600;color:#4a5568;">
+                <input id="editUnitOffMarket" type="checkbox"${isOffMarket ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">
+                Off-market
+              </label>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;margin-left:24px;line-height:1.5;">
+                Hidden from "Vacant" lists. Use for units under repair, in renovation, or otherwise not currently rentable.
               </div>
             </div>
 
@@ -5116,13 +5125,23 @@
 
         const rent = floatOrNull('editUnitRent');
 
+        // Status from the Off-market checkbox. If the original was
+        // 'retired' (e.g. user somehow opened edit on a retired unit),
+        // preserve it so Save doesn't silently un-retire — Retire/restore
+        // is intentionally kept on its own button path.
+        const offMarket = !!(document.getElementById('editUnitOffMarket') || {}).checked;
+        const originalStatus = (original && original.status) || 'available';
+        const newStatus = (originalStatus === 'retired')
+          ? 'retired'
+          : (offMarket ? 'unavailable' : 'available');
+
         return {
           name: val('editUnitName').trim(),
           description: val('editUnitDescription').trim(),
           floor: val('editUnitFloor').trim(),
           price_amount: rent != null && rent >= 0 ? rent : 0,
           price_frequency: val('editUnitFrequency') || 'monthly',
-          status: val('editUnitStatus'),
+          status: newStatus,
           metadata: newMd,
         };
       }
@@ -5818,14 +5837,6 @@
             <option value="annual">Annual</option>
             <option value="hourly">Hourly</option>
             <option value="one-time">One-time</option>
-          </select>
-        </div>
-        <div style="flex:1;">
-          <label>Status</label>
-          <select id="unitStatus">
-            <option value="draft">Draft</option>
-            <option value="available">Available</option>
-            <option value="unavailable">Unavailable</option>
           </select>
         </div>
       </div>
