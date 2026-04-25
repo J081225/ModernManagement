@@ -697,6 +697,9 @@
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128295; Create a maintenance ticket</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128200; Log an expense</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; Who hasn't paid rent?</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127968; Add a unit</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128100; Assign a tenant</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127970; Show me what's vacant</button>
             </div>
             <!-- Response area -->
             <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
@@ -3534,8 +3537,78 @@
         submitHomeCommand();
       }
 
+      // --- AI inventory tool helpers (name → record resolution) ---
+      // These resolve property / unit / contact references to concrete
+      // records using the cached inventory data. They never auto-pick on
+      // ambiguity — multiple matches return an error string the AI will
+      // relay as a clarifying question to the user.
+      function _aiFindProperty(nameOrId) {
+        if (typeof nameOrId === 'number') {
+          const e = inventoryEntities.find(x => x.id === nameOrId && !x.archived_at);
+          return e ? { match: e } : { error: `No active property with id ${nameOrId}.` };
+        }
+        const q = String(nameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Property name is required.' };
+        const live = inventoryEntities.filter(e => !e.archived_at);
+        const exact = live.filter(e => String(e.name || '').toLowerCase() === q);
+        const partial = live.filter(e => String(e.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) return { error: `No property matches "${nameOrId}".` };
+        if (set.length > 1) return {
+          error: `Multiple properties match "${nameOrId}": ${set.map(e => `"${e.name}" (#${e.id})`).join(', ')}. Please specify which.`
+        };
+        return { match: set[0] };
+      }
+
+      function _aiFindUnit(unitNameOrId, propertyHint) {
+        if (typeof unitNameOrId === 'number') {
+          const o = inventoryOfferings.find(x => x.id === unitNameOrId && x.status !== 'retired');
+          return o ? { match: o } : { error: `No active unit with id ${unitNameOrId}.` };
+        }
+        const q = String(unitNameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Unit name is required.' };
+        let pool = inventoryOfferings.filter(o => o.status !== 'retired');
+        if (propertyHint) {
+          const propRes = _aiFindProperty(propertyHint);
+          if (propRes.error) return propRes;
+          pool = pool.filter(o => o.entity_id === propRes.match.id);
+        }
+        const exact = pool.filter(o => String(o.name || '').toLowerCase() === q);
+        const partial = pool.filter(o => String(o.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) {
+          return { error: `No unit matches "${unitNameOrId}"${propertyHint ? ` in property "${propertyHint}"` : ''}.` };
+        }
+        if (set.length > 1) {
+          const dets = set.map(o => {
+            const e = inventoryEntities.find(x => x.id === o.entity_id);
+            return `"${o.name}" in "${e ? e.name : '?'}" (#${o.id})`;
+          });
+          return { error: `Multiple units match "${unitNameOrId}": ${dets.join(', ')}. Please specify the property.` };
+        }
+        return { match: set[0] };
+      }
+
+      function _aiFindContact(nameOrId) {
+        if (typeof nameOrId === 'number') {
+          const c = contacts.find(x => x.id === nameOrId);
+          return c ? { match: c } : { error: `No contact with id ${nameOrId}.` };
+        }
+        const q = String(nameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Contact name is required.' };
+        const exact = contacts.filter(c => String(c.name || '').toLowerCase() === q);
+        const partial = contacts.filter(c => String(c.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) return { error: `No contact matches "${nameOrId}".` };
+        if (set.length > 1) return {
+          error: `Multiple contacts match "${nameOrId}": ${set.map(c => `"${c.name}" (#${c.id})`).join(', ')}. Please specify which.`
+        };
+        return { match: set[0] };
+      }
+
       async function applyActions(actions, actionLog) {
         if (!actions || !actions.length) return;
+        let inventoryDirty = false;
         for (const action of actions) {
 
           if (action.type === 'add_calendar_event') {
@@ -3631,7 +3704,222 @@
             if (result) {
               actionLog.push(`&#128181; Generated rent: ${result.created} record${result.created !== 1 ? 's' : ''} created${result.skipped ? `, ${result.skipped} already existed` : ''}`);
             }
+
+          // --- Inventory actions (chunk: AI command-bar inventory wiring) ---
+          } else if (action.type === 'create_property') {
+            const body = { name: action.name };
+            if (action.address) body.address = action.address;
+            if (action.building_type) body.building_type = action.building_type;
+            if (action.year_built) body.year_built = action.year_built;
+            if (action.number_of_floors) body.number_of_floors = action.number_of_floors;
+            if (action.total_unit_count) body.total_unit_count = action.total_unit_count;
+            if (action.description) body.description = action.description;
+            const r = await fetch('/api/entities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not create property: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127970; Created property: ${rb.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'update_property') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const body = {};
+            for (const f of ['name', 'address', 'description', 'building_type', 'year_built', 'number_of_floors', 'total_unit_count', 'heating_system', 'water_source', 'parking_setup', 'pet_policy', 'smoking_policy']) {
+              if (action[f] !== undefined && action[f] !== null && action[f] !== '') body[f] = action[f];
+            }
+            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${propRes.match.name}.`); continue; }
+            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not update ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#9998; Updated ${propRes.match.name}: ${Object.keys(body).join(', ')}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'archive_property') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'DELETE' });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not archive ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#128465; Archived property: ${propRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'create_unit') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const body = { entity_id: propRes.match.id, name: action.name, status: 'available' };
+            if (action.description) body.description = action.description;
+            if (action.floor) body.floor = action.floor;
+            if (action.rent != null) body.price_amount = action.rent;
+            if (action.frequency) body.price_frequency = action.frequency;
+            const md = {};
+            if (action.bedrooms != null) md.bedrooms = action.bedrooms;
+            if (action.bathrooms != null) md.bathrooms = action.bathrooms;
+            if (action.sqft != null) md.sqft = action.sqft;
+            if (Array.isArray(action.amenities) && action.amenities.length) md.amenities = action.amenities;
+            if (action.notes) md.notes = action.notes;
+            if (Object.keys(md).length) body.metadata = md;
+            const r = await fetch('/api/offerings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not create unit: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127968; Created ${rb.name} in ${propRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'update_unit') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const body = {};
+            if (action.name) body.name = action.name;
+            if (action.description !== undefined) body.description = action.description;
+            if (action.floor !== undefined) body.floor = action.floor;
+            if (action.rent != null) body.price_amount = action.rent;
+            if (action.frequency) body.price_frequency = action.frequency;
+            const originalMd = uRes.match.metadata || {};
+            const newMd = { ...originalMd };
+            let touchedMd = false;
+            if (action.bedrooms != null) { newMd.bedrooms = action.bedrooms; touchedMd = true; }
+            if (action.bathrooms != null) { newMd.bathrooms = action.bathrooms; touchedMd = true; }
+            if (action.sqft != null) { newMd.sqft = action.sqft; touchedMd = true; }
+            if (Array.isArray(action.amenities)) { newMd.amenities = action.amenities; touchedMd = true; }
+            if (action.notes !== undefined) { newMd.notes = action.notes; touchedMd = true; }
+            if (touchedMd) body.metadata = newMd;
+            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${uRes.match.name}.`); continue; }
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not update ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#9998; Updated ${uRes.match.name}: ${Object.keys(body).filter(k => k !== 'metadata').concat(touchedMd ? ['metadata'] : []).join(', ')}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'set_unit_off_market') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            if (uRes.match.status === 'retired') {
+              actionLog.push(`&#9888; ${uRes.match.name} is retired; restore it before changing off-market.`);
+              continue;
+            }
+            const targetStatus = action.off_market ? 'unavailable' : 'available';
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: targetStatus }) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not change ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127968; ${uRes.match.name} is now ${action.off_market ? 'Off-market' : 'Vacant'}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'retire_unit') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'DELETE' });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not retire ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#128465; Retired unit: ${uRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'assign_tenant_to_unit') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const offering = uRes.match;
+            const monthlyRent = Number(cRes.match.monthly_rent || 0);
+            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+            const fallbackPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+            const body = {
+              contact_id: cRes.match.id,
+              offering_id: offering.id,
+              status: 'active',
+              start_date: action.start_date || cRes.match.lease_start || _todayISODate(),
+              end_date: action.end_date || cRes.match.lease_end || null,
+              current_price: action.rent != null ? action.rent : fallbackPrice,
+            };
+            const r = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              if (r.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
+              else actionLog.push(`&#9888; Could not assign ${cRes.match.name} to ${offering.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Assigned ${cRes.match.name} to ${offering.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'move_tenant_to_unit') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
+            if (oldEng && oldEng.offering_id === uRes.match.id) {
+              actionLog.push(`&#9888; ${cRes.match.name} is already assigned to ${uRes.match.name}.`);
+              continue;
+            }
+            // Terminate the old engagement (if any) before creating the new one.
+            if (oldEng) {
+              const tr = await fetch('/api/engagements/' + oldEng.id, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!tr.ok) {
+                const trb = await tr.json().catch(() => ({}));
+                actionLog.push(`&#9888; Could not end ${cRes.match.name}'s previous unit assignment: ${trb.error || 'HTTP ' + tr.status}`);
+                continue;
+              }
+            }
+            const offering = uRes.match;
+            const monthlyRent = Number(cRes.match.monthly_rent || 0);
+            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+            const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+            const body = {
+              contact_id: cRes.match.id,
+              offering_id: offering.id,
+              status: 'active',
+              start_date: _todayISODate(),
+              end_date: cRes.match.lease_end || null,
+              current_price: currentPrice,
+            };
+            const cr = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const crb = await cr.json().catch(() => ({}));
+            if (!cr.ok) {
+              if (cr.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
+              else actionLog.push(`&#9888; Old assignment ended but could not move ${cRes.match.name} to ${offering.name}: ${crb.error || 'HTTP ' + cr.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Moved ${cRes.match.name} ${oldEng ? 'to ' : 'into '}${offering.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'end_tenant_assignment') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
+            if (!oldEng) {
+              actionLog.push(`&#9888; ${cRes.match.name} has no active unit assignment.`);
+              continue;
+            }
+            const r = await fetch('/api/engagements/' + oldEng.id, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+            });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not end ${cRes.match.name}'s assignment: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Ended ${cRes.match.name}'s unit assignment`);
+            inventoryDirty = true;
           }
+        }
+
+        // Refresh inventory caches once if any inventory action ran, so
+        // subsequent renders (units list occupancy, contact-modal dropdown
+        // pre-selection, next AI snapshot) reflect the new state.
+        if (inventoryDirty) {
+          inventoryEntities = [];
+          inventoryOfferings = [];
+          inventoryActiveEngagements = [];
+          inventoryContacts = [];
+          await _invEnsureLoaded();
         }
       }
 
@@ -3647,11 +3935,61 @@
         responseBox.innerHTML = '<span style="color:#94a3b8;">&#129302; Thinking...</span>';
 
         try {
-          // Fetch fresh rent + maintenance for context
+          // Fetch fresh rent + maintenance for context, and ensure
+          // inventory caches are populated so the snapshot can include
+          // properties/units (lets the AI answer "what's vacant?" etc.
+          // from context without needing read tools).
           const [freshRent, freshMaint] = await Promise.all([
             fetch('/api/rent').then(r => r.json()).catch(() => []),
             fetch('/api/maintenance').then(r => r.json()).catch(() => [])
           ]);
+          await _invEnsureLoaded();
+
+          // Build the inventory snapshot: pre-resolve property name +
+          // tenant name so the AI doesn't have to join three lists itself.
+          // FUTURE: cap at ~200 units for workspaces with hundreds of
+          // units (server-side renders the same list — same cap target).
+          const propertyById = {};
+          for (const e of inventoryEntities) propertyById[e.id] = e;
+          const activeEngByOfferingId = {};
+          for (const eng of inventoryActiveEngagements) activeEngByOfferingId[eng.offering_id] = eng;
+          const contactByIdLocal = {};
+          for (const c of inventoryContacts) contactByIdLocal[c.id] = c;
+
+          const propertiesSnap = inventoryEntities
+            .filter(e => !e.archived_at)
+            .map(e => ({
+              id: e.id,
+              name: e.name,
+              address: e.address || '',
+              building_type: e.building_type || '',
+              year_built: e.year_built,
+              number_of_floors: e.number_of_floors,
+              total_unit_count: e.total_unit_count,
+            }));
+
+          const unitsSnap = inventoryOfferings
+            .filter(o => o.status !== 'retired')
+            .map(o => {
+              const md = o.metadata || {};
+              const eng = activeEngByOfferingId[o.id];
+              const tenant = eng ? contactByIdLocal[eng.contact_id] : null;
+              const parent = propertyById[o.entity_id];
+              return {
+                id: o.id,
+                name: o.name,
+                property_id: o.entity_id,
+                property_name: parent ? parent.name : '',
+                bedrooms: md.bedrooms,
+                bathrooms: md.bathrooms,
+                sqft: md.sqft,
+                rent: o.price_amount != null ? Number(o.price_amount) : null,
+                frequency: o.price_frequency || '',
+                off_market: o.status === 'unavailable',
+                occupied_by: tenant ? tenant.name : null,
+              };
+            });
+
           const res = await fetch('/api/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3662,7 +4000,9 @@
               tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
               messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status })),
               rentRecords: freshRent.map(r => ({ id: r.id, resident: r.resident, unit: r.unit, amount: r.amount, due_date: r.due_date, status: r.status })),
-              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status }))
+              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status })),
+              properties: propertiesSnap,
+              units: unitsSnap,
             })
           });
           const data = await res.json();

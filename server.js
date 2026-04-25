@@ -2359,7 +2359,7 @@ Guidelines:
 
 // --- AI: Command center ---
 app.post('/api/command', requireAuth, async (req, res) => {
-  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets } = req.body;
+  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets, properties, units } = req.body;
 
   const knowledgeDocs = await getKnowledge(req.session.userId);
   const knowledgeSection = knowledgeDocs.length
@@ -2386,7 +2386,23 @@ ${rentRecords && rentRecords.length ? rentRecords.map(r => `- ${r.resident}${r.u
 
 ### Open Maintenance Tickets
 ${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t => t.status === 'open').map(t => `- #${t.id}: ${t.title}${t.unit ? ` (Unit ${t.unit})` : ''} [${t.priority}]`).join('\n') : 'No open tickets.'}
+
+### Properties (Inventory)
+${properties && properties.length ? properties.map(p => `- #${p.id} "${p.name}"${p.address ? ` at ${p.address}` : ''}${p.building_type ? `, ${p.building_type}` : ''}${p.year_built ? `, built ${p.year_built}` : ''}${p.number_of_floors ? `, ${p.number_of_floors} floors` : ''}${p.total_unit_count ? `, ${p.total_unit_count} total units` : ''}`).join('\n') : 'No properties.'}
+
+### Units (Inventory)
+${units && units.length ? units.map(u => {
+  const dims = [u.bedrooms != null ? `${u.bedrooms}br` : null, u.bathrooms != null ? `${u.bathrooms}ba` : null, u.sqft ? `${u.sqft}sqft` : null].filter(Boolean).join('/');
+  const price = u.rent ? `$${u.rent}${u.frequency ? `/${u.frequency.replace(/ly$/,'')}` : ''}` : '';
+  const occ = u.occupied_by ? `OCCUPIED by "${u.occupied_by}"` : (u.off_market ? 'Off-market' : 'Vacant');
+  return `- #${u.id} "${u.property_name}" ▸ "${u.name}"${dims ? `, ${dims}` : ''}${price ? `, ${price}` : ''}, ${occ}`;
+}).join('\n') : 'No units.'}
 `.trim();
+  // FUTURE: when a workspace has > ~200 units, the units list above
+  // dominates the snapshot. Cap the rendered list and tell the AI it's
+  // truncated, or switch read-query answers to dedicated endpoints.
+  // The frontend builds the units array in submitHomeCommand (views/
+  // app.html) — same cap target there.
 
   const tools = [
     {
@@ -2514,6 +2530,166 @@ ${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t 
         },
         required: ['month', 'year']
       }
+    },
+    // --- Inventory tools (Properties / Units / Engagements) ---
+    {
+      name: 'create_property',
+      description: 'Create a new property (building or location). Use when the user asks to add or create a property.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Property name' },
+          address: { type: 'string', description: 'Full address' },
+          building_type: { type: 'string', description: 'e.g. apartment, condo, single-family, townhouse, mixed-use' },
+          year_built: { type: 'number' },
+          number_of_floors: { type: 'number' },
+          total_unit_count: { type: 'number' },
+          description: { type: 'string' }
+        },
+        required: ['name']
+      }
+    },
+    {
+      name: 'update_property',
+      description: 'Update fields on an existing property. Identify the property by its name from the snapshot. If multiple properties match the name, ask the user to clarify rather than guessing.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Property name (must match a property in the snapshot)' },
+          name: { type: 'string', description: 'New name (only when renaming)' },
+          address: { type: 'string' },
+          description: { type: 'string' },
+          building_type: { type: 'string' },
+          year_built: { type: 'number' },
+          number_of_floors: { type: 'number' },
+          total_unit_count: { type: 'number' },
+          heating_system: { type: 'string' },
+          water_source: { type: 'string' },
+          parking_setup: { type: 'string' },
+          pet_policy: { type: 'string' },
+          smoking_policy: { type: 'string' }
+        },
+        required: ['property']
+      }
+    },
+    {
+      name: 'archive_property',
+      description: 'Soft-delete (archive) a property. The property is hidden from default lists but its data is preserved. Identify by property name.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Property name' }
+        },
+        required: ['property']
+      }
+    },
+    {
+      name: 'create_unit',
+      description: 'Create a new unit (rental space) within a property. Use when the user asks to add a unit, apartment, suite, or room.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Parent property name (must match a property in the snapshot)' },
+          name: { type: 'string', description: 'Unit identifier, e.g. "Unit 301", "Apartment 2B", "Studio A"' },
+          description: { type: 'string' },
+          floor: { type: 'string', description: 'Floor designation, e.g. "2", "Ground", "Penthouse"' },
+          rent: { type: 'number', description: 'Rent or price amount in dollars' },
+          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'], description: 'Rent frequency (default monthly)' },
+          bedrooms: { type: 'number' },
+          bathrooms: { type: 'number' },
+          sqft: { type: 'number' },
+          amenities: { type: 'array', items: { type: 'string' }, description: 'Amenities like balcony, dishwasher, in-unit laundry' },
+          notes: { type: 'string' }
+        },
+        required: ['property', 'name']
+      }
+    },
+    {
+      name: 'update_unit',
+      description: 'Update fields on an existing unit. Identify by unit name; include the property name when the unit name alone is ambiguous.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string', description: 'Unit name (must match a unit in the snapshot)' },
+          property: { type: 'string', description: 'Parent property name (required when unit name alone is ambiguous)' },
+          name: { type: 'string', description: 'New name (only when renaming)' },
+          description: { type: 'string' },
+          floor: { type: 'string' },
+          rent: { type: 'number' },
+          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'] },
+          bedrooms: { type: 'number' },
+          bathrooms: { type: 'number' },
+          sqft: { type: 'number' },
+          amenities: { type: 'array', items: { type: 'string' } },
+          notes: { type: 'string' }
+        },
+        required: ['unit']
+      }
+    },
+    {
+      name: 'set_unit_off_market',
+      description: 'Toggle a unit on or off the market. Off-market = under repair, in renovation, or otherwise not currently rentable. Does NOT terminate any active tenancy.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string' },
+          property: { type: 'string', description: 'Required when unit name alone is ambiguous' },
+          off_market: { type: 'boolean', description: 'true to mark off-market; false to bring back to vacant' }
+        },
+        required: ['unit', 'off_market']
+      }
+    },
+    {
+      name: 'retire_unit',
+      description: 'Soft-delete (retire) a unit. The unit is hidden from default lists but its history is preserved. Use when a unit is decommissioned permanently.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string' },
+          property: { type: 'string', description: 'Required when unit name alone is ambiguous' }
+        },
+        required: ['unit']
+      }
+    },
+    {
+      name: 'assign_tenant_to_unit',
+      description: 'Assign a tenant (existing contact) to a unit by creating an active engagement. The contact must already exist (use add_contact first if not). If multiple contacts or units match the names, ASK FOR CLARIFICATION rather than guessing.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string', description: 'Tenant contact name' },
+          unit: { type: 'string', description: 'Unit name' },
+          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' },
+          start_date: { type: 'string', description: 'Tenancy start date YYYY-MM-DD (default: contact lease_start or today)' },
+          end_date: { type: 'string', description: 'Tenancy end date YYYY-MM-DD (default: contact lease_end or none)' },
+          rent: { type: 'number', description: 'Override current price (default: contact monthly_rent if set, else unit rent)' }
+        },
+        required: ['tenant', 'unit']
+      }
+    },
+    {
+      name: 'move_tenant_to_unit',
+      description: 'Move an existing tenant from their current unit to a new unit. Atomically terminates the old engagement and creates a new active one. If the tenant has no current unit, behaves like assign_tenant_to_unit.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string' },
+          unit: { type: 'string', description: 'New unit name' },
+          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' }
+        },
+        required: ['tenant', 'unit']
+      }
+    },
+    {
+      name: 'end_tenant_assignment',
+      description: 'End a tenant\'s current unit assignment (terminate the active engagement). Use for move-outs, evictions, or lease terminations.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string' }
+        },
+        required: ['tenant']
+      }
     }
   ];
 
@@ -2538,9 +2714,18 @@ You have access to the following tools. Use them proactively when the user's int
 - add_budget_transaction: log income or expenses to the budget tracker
 - add_maintenance_ticket: create maintenance/repair tickets
 - generate_rent: create pending rent records for all residents for a given month
+- create_property / update_property / archive_property: manage properties (buildings, locations)
+- create_unit / update_unit: manage rental units within properties
+- set_unit_off_market: toggle a unit's off-market flag (use for repairs, renovations, or temporarily unrentable units)
+- retire_unit: soft-delete a unit permanently
+- assign_tenant_to_unit / move_tenant_to_unit / end_tenant_assignment: manage which tenant occupies which unit
 
 You can use multiple tools in one response if needed (e.g. "add Maria and generate May rent" → add_contact + generate_rent).
-Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.`,
+Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.
+
+CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
+
+For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`,
       tools,
       messages: [{ role: 'user', content: prompt }]
     });
