@@ -2815,7 +2815,107 @@
         document.getElementById('leaseFields').style.display = type === 'resident' ? '' : 'none';
       }
 
-      function openAddContact() {
+      // --- Contact form ↔ Inventory bridge (chunk 6a) ---
+      // The contact modal's Unit field is a structured dropdown
+      // populated from inventoryEntities/inventoryOfferings/
+      // inventoryActiveEngagements. These caches live on the Inventory
+      // page; if the user opens the contact form without first visiting
+      // Inventory, _invEnsureLoaded fetches them on demand.
+      async function _invEnsureLoaded() {
+        if (inventoryEntities.length || inventoryOfferings.length) return;
+        try {
+          const [entitiesRaw, offeringsRaw, engagementsRaw, contactsRaw] = await Promise.all([
+            api('entities'),
+            api('offerings'),
+            api('engagements?status=active'),
+            api('contacts'),
+          ]);
+          inventoryEntities = Array.isArray(entitiesRaw) ? entitiesRaw : [];
+          inventoryOfferings = Array.isArray(offeringsRaw) ? offeringsRaw : [];
+          inventoryActiveEngagements = Array.isArray(engagementsRaw) ? engagementsRaw : [];
+          inventoryContacts = Array.isArray(contactsRaw) ? contactsRaw : [];
+        } catch (e) {
+          console.error('Inventory preload failed for contact form:', e);
+        }
+      }
+
+      // Build the <option>/<optgroup> markup for #cUnitOffering.
+      //   forContactId: if editing, the contact id (used to suppress
+      //                 "currently occupied by self" suffix on their
+      //                 own active unit, and to pre-select that unit).
+      //                 null in Add mode.
+      // Returns { html, preSelectedOfferingId }.
+      function _buildUnitDropdownOptions(forContactId) {
+        // Group offerings by parent entity
+        const byEntity = new Map();
+        for (const e of inventoryEntities) byEntity.set(e.id, { entity: e, offerings: [] });
+        for (const o of inventoryOfferings) {
+          const bucket = byEntity.get(o.entity_id);
+          if (bucket) bucket.offerings.push(o);
+        }
+        const sortedEntities = Array.from(byEntity.values()).sort((a, b) =>
+          String(a.entity.name || '').localeCompare(String(b.entity.name || ''))
+        );
+
+        // Index active engagements + contacts for occupancy suffix
+        const activeEngByOffering = {};
+        for (const eng of inventoryActiveEngagements) activeEngByOffering[eng.offering_id] = eng;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+
+        // Pre-selection: this contact's own currently-active engagement
+        let preSelectedOfferingId = null;
+        if (forContactId != null) {
+          const own = inventoryActiveEngagements.find(e => e.contact_id === forContactId);
+          if (own) preSelectedOfferingId = own.offering_id;
+        }
+
+        let html = '<option value="">\u2014 No unit assigned \u2014</option>';
+        for (const { entity, offerings } of sortedEntities) {
+          if (!offerings.length) continue;
+          const sortedOffs = offerings.slice().sort((a, b) =>
+            String(a.name || '').localeCompare(String(b.name || ''))
+          );
+          html += '<optgroup label="' + escapeHtmlInv(entity.name || '(unnamed property)') + '">';
+          for (const o of sortedOffs) {
+            const eng = activeEngByOffering[o.id];
+            // Suppress "currently occupied by self" when this contact already
+            // holds the active engagement on the unit (avoids confusing label).
+            const showSuffix = eng && eng.contact_id !== forContactId;
+            const tenant = showSuffix ? contactById[eng.contact_id] : null;
+            const tenantName = (tenant && tenant.name) ? tenant.name : 'unknown';
+            const suffix = showSuffix ? ' (currently occupied by ' + tenantName + ')' : '';
+            const sel = preSelectedOfferingId === o.id ? ' selected' : '';
+            html += '<option value="' + o.id + '"' + sel + '>' +
+                    escapeHtmlInv(o.name || '(unnamed unit)') +
+                    escapeHtmlInv(suffix) + '</option>';
+          }
+          html += '</optgroup>';
+        }
+        return { html, preSelectedOfferingId };
+      }
+
+      // Apply the dropdown markup + legacy hint to the open contact modal.
+      // Called after caches are guaranteed populated.
+      function _populateUnitDropdown(forContactId, legacyUnitText) {
+        const sel = document.getElementById('cUnitOffering');
+        const hint = document.getElementById('cUnitLegacyHint');
+        const { html } = _buildUnitDropdownOptions(forContactId);
+        sel.innerHTML = html;
+        // Legacy hint: shown whenever contacts.unit text is populated, so
+        // users see continuity between the old freeform value and the new
+        // dropdown. The actionable migration prompt arrives in chunk 6d.
+        const t = (legacyUnitText || '').trim();
+        if (t) {
+          hint.textContent = "Previous unit text: '" + t + "'";
+          hint.style.display = '';
+        } else {
+          hint.textContent = '';
+          hint.style.display = 'none';
+        }
+      }
+
+      async function openAddContact() {
         _editingContactId = null;
         document.getElementById('contactModalTitle').textContent = '👤 Add Contact';
         document.getElementById('contactModalSaveBtn').textContent = 'Add Contact';
@@ -2831,9 +2931,12 @@
         toggleLeaseFields();
         document.getElementById('contactModal').style.display = 'flex';
         setTimeout(() => document.getElementById('cName').focus(), 50);
+        // Populate the unit dropdown (async — fetches caches on demand)
+        await _invEnsureLoaded();
+        _populateUnitDropdown(null, '');
       }
 
-      function openEditContact(id) {
+      async function openEditContact(id) {
         const c = contacts.find(x => x.id === id);
         if (!c) return;
         _editingContactId = id;
@@ -2843,6 +2946,9 @@
         document.getElementById('cType').value = c.type || 'resident';
         document.getElementById('cEmail').value = c.email || '';
         document.getElementById('cPhone').value = c.phone || '';
+        // #cUnit is now a hidden input that round-trips the legacy text
+        // value unchanged on save (until chunk 6b takes over the unit
+        // assignment write path via engagements).
         document.getElementById('cUnit').value = c.unit || '';
         document.getElementById('cNotes').value = c.notes || '';
         document.getElementById('cLeaseStart').value = c.lease_start || '';
@@ -2851,6 +2957,9 @@
         toggleLeaseFields();
         document.getElementById('contactModal').style.display = 'flex';
         setTimeout(() => document.getElementById('cName').focus(), 50);
+        // Populate dropdown + pre-select this contact's active engagement
+        await _invEnsureLoaded();
+        _populateUnitDropdown(id, c.unit || '');
       }
 
       function closeContactModal() {
@@ -5445,15 +5554,23 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <label>Unit</label>
-          <input id="cUnit" type="text" placeholder="e.g. 4B" />
-        </div>
-        <div style="flex:1;">
-          <label>Notes</label>
-          <input id="cNotes" type="text" placeholder="Optional notes" />
-        </div>
+      <!-- Unit dropdown (chunk 6a) — replaces the freeform unit text
+           input. Populated from the inventory caches at modal-open time
+           via _invEnsureLoaded(). Retained #cUnit hidden input round-
+           trips the legacy contacts.unit text value untouched until
+           chunk 6b wires real engagement writes. -->
+      <div>
+        <label>Unit</label>
+        <select id="cUnitOffering">
+          <option value="">&mdash; No unit assigned &mdash;</option>
+        </select>
+        <input id="cUnit" type="hidden" />
+        <div id="cUnitLegacyHint" style="display:none;font-size:0.78em;color:#94a3b8;margin-top:6px;"></div>
+      </div>
+
+      <div>
+        <label>Notes</label>
+        <input id="cNotes" type="text" placeholder="Optional notes" />
       </div>
 
       <!-- Lease fields — shown only for residents -->
