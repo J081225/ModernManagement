@@ -1810,9 +1810,16 @@
         }
       }
 
+      // Sub-step D (Layer 3): tracks the DB-side autoReplyEnabled value
+      // so saveAutomation can detect a FALSE->TRUE transition and route
+      // it through the consent modal. Refreshed on every loadAutomation
+      // and after any successful enable/disable round-trip.
+      let _currentAutoReplyState = false;
+
       async function loadAutomation() {
         const auto = await api('automation');
         if (!auto) return;
+        _currentAutoReplyState = !!auto.autoReplyEnabled;
         if (auto.autoReplyEnabled) {
           document.getElementById('autoReply').checked = true;
         } else {
@@ -1822,9 +1829,97 @@
       }
 
       async function saveAutomation() {
-        const autoReplyEnabled = document.getElementById('autoReply').checked;
-        await api('automation', 'PUT', { autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
+        const desired = document.getElementById('autoReply').checked;
+        const current = _currentAutoReplyState;
+
+        // Modal ALWAYS fires when Save is clicked with Auto Response
+        // selected — regardless of whether the DB state is currently
+        // off or on. This is a deliberate deviation from "modal on
+        // transition only": users testing or re-validating their
+        // consent shouldn't be silently no-op'd, and re-confirming
+        // creates a fresh audit_log grant entry that strengthens the
+        // ongoing-consent record.
+        if (desired === true) {
+          openAutoReplyConsentModal();
+          return;
+        }
+
+        // desired === false (Manager Review). Two sub-cases:
+        //   current === true  → revocation: PUT writes the
+        //                       auto_reply_consent_revoked audit-log
+        //                       entry and flips the bool.
+        //   current === false → no-op: nothing changed.
+        if (current === false) {
+          alert('Settings saved.');
+          return;
+        }
+
+        const res = await fetch('/api/automation', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoReplyEnabled: false, managerReviewRequired: true }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert('Failed to save settings:\n\n' + (body.error || 'HTTP ' + res.status));
+          return;
+        }
+        _currentAutoReplyState = false;
         alert('Settings saved.');
+      }
+
+      // --- Auto-reply consent modal (sub-step D) ---
+      // Appears every time the user toggles auto-reply ON (per spec).
+      // Checkbox-disabled-submit pattern: the Enable button is disabled
+      // until the acknowledgement checkbox is checked.
+
+      function openAutoReplyConsentModal() {
+        document.getElementById('autoReplyConsentCheckbox').checked = false;
+        updateAutoReplyConsentBtn();
+        document.getElementById('autoReplyConsentModal').style.display = 'flex';
+      }
+
+      function closeAutoReplyConsentModal() {
+        document.getElementById('autoReplyConsentModal').style.display = 'none';
+        // User cancelled — revert the radio selection back to the
+        // current DB state so the UI doesn't lie about being enabled.
+        if (!_currentAutoReplyState) {
+          document.getElementById('requireReview').checked = true;
+          document.getElementById('autoReply').checked = false;
+        }
+        updateModeUI();
+      }
+
+      function updateAutoReplyConsentBtn() {
+        const checked = document.getElementById('autoReplyConsentCheckbox').checked;
+        const btn = document.getElementById('autoReplyConsentBtn');
+        btn.disabled = !checked;
+        btn.style.opacity = checked ? '1' : '0.5';
+        btn.style.cursor = checked ? 'pointer' : 'not-allowed';
+      }
+
+      async function submitAutoReplyConsent() {
+        const btn = document.getElementById('autoReplyConsentBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/automation/consent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to enable auto-reply:\n\n' + (body.error || 'HTTP ' + res.status));
+            // Restore button enabled state (user may want to retry).
+            updateAutoReplyConsentBtn();
+            return;
+          }
+          _currentAutoReplyState = true;
+          document.getElementById('autoReplyConsentModal').style.display = 'none';
+          alert('Auto-reply enabled.');
+        } catch (err) {
+          alert('Error: ' + err.message);
+          updateAutoReplyConsentBtn();
+        }
       }
 
       async function loadKnowledge() {
@@ -6514,6 +6609,39 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeUnitModal()">Cancel</button>
         <button class="btn-primary" id="unitModalSaveBtn" onclick="submitUnitModal()">Add Unit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Auto-Reply Consent Modal (sub-step D / Layer 3) -->
+  <div class="modal-overlay" id="autoReplyConsentModal" onclick="if(event.target===this)closeAutoReplyConsentModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:560px;">
+      <h3>&#9889; Enable AI Auto-Reply Mode?</h3>
+
+      <p style="margin:12px 0;color:#475569;line-height:1.55;font-size:0.92em;">
+        When enabled, Modern Management's AI will respond to tenant messages on your behalf without your review.
+      </p>
+
+      <p style="margin:16px 0 8px;color:#475569;font-weight:600;font-size:0.92em;">What this means:</p>
+      <ul style="margin:0;padding-left:22px;color:#475569;line-height:1.6;font-size:0.9em;">
+        <li>The AI may occasionally make mistakes</li>
+        <li>Messages go out under your name and authority</li>
+        <li>You can review all sent messages in your inbox</li>
+        <li>For safety, emergency-keyword messages (fire, gas leak, threats, injuries, etc.) will always require your manual review and you'll be notified by SMS</li>
+      </ul>
+
+      <p style="margin:16px 0;color:#475569;line-height:1.55;font-size:0.92em;font-weight:500;">
+        By enabling auto-reply, you accept responsibility for messages sent on your behalf.
+      </p>
+
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:14px 0 4px;">
+        <input type="checkbox" id="autoReplyConsentCheckbox" onchange="updateAutoReplyConsentBtn()" style="cursor:pointer;width:16px;height:16px;flex-shrink:0;">
+        <span style="color:#1e293b;font-size:0.9em;font-weight:500;">I understand and accept these terms</span>
+      </label>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAutoReplyConsentModal()">Cancel</button>
+        <button class="btn-primary" id="autoReplyConsentBtn" onclick="submitAutoReplyConsent()" disabled style="opacity:0.5;cursor:not-allowed;">Enable Auto-Reply</button>
       </div>
     </div>
   </div>

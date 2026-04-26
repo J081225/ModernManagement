@@ -48,6 +48,11 @@ if (!process.env.SESSION_SECRET) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const app = express();
+// Trust the first proxy hop (Render's load balancer) so req.ip
+// returns the real client IP for audit-log writes (sub-step D).
+// Without this, req.ip captures the proxy's address (typically
+// 127.0.0.1 / 10.x.x.x) and audit trails are useless.
+app.set('trust proxy', 1);
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
@@ -2097,13 +2102,72 @@ app.get('/api/automation', async (req, res) => {
   res.json(automationData);
 });
 
-app.put('/api/automation', async (req, res) => {
-  const autoReplyEnabled = !!req.body.autoReplyEnabled;
+// Sub-step D (Layer 3): PUT /api/automation now enforces the consent
+// flow. Enabling auto-reply (FALSE -> TRUE) is rejected here — clients
+// must use POST /api/automation/consent so the consent grant gets
+// recorded in audit_log. Disabling (TRUE -> FALSE) writes a revocation
+// event to audit_log and proceeds. No-op writes pass through silently.
+app.put('/api/automation', requireAuth, async (req, res) => {
+  const desired = !!req.body.autoReplyEnabled;
+  const current = await getAutomation(req.session.userId);
+  const currentValue = !!current.autoReplyEnabled;
+
+  if (currentValue === desired) {
+    return res.json({ autoReplyEnabled: desired, managerReviewRequired: !desired });
+  }
+
+  if (desired === true) {
+    return res.status(400).json({
+      error: 'Use POST /api/automation/consent to enable auto-reply (consent required).'
+    });
+  }
+
+  // currentValue === true && desired === false — revocation path.
+  // Write the audit-log entry first; if it fails we don't flip the
+  // bool (keeps the audit trail authoritative — never a state change
+  // without a corresponding event log).
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (user_id, event_type, details, ip) VALUES ($1, $2, $3::jsonb, $4)',
+      [req.session.userId, 'auto_reply_consent_revoked', '{}', req.ip || null]
+    );
+  } catch (err) {
+    console.error('[consent] revocation audit-log write failed:', err.message);
+    return res.status(500).json({ error: 'Failed to record revocation' });
+  }
+
   await pool.query(
-    'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled"=$2',
-    [req.session.userId, autoReplyEnabled]
+    'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, FALSE) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled" = FALSE',
+    [req.session.userId]
   );
-  res.json({ autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
+  res.json({ autoReplyEnabled: false, managerReviewRequired: true });
+});
+
+// Sub-step D (Layer 3): explicit consent path for enabling auto-reply.
+// Frontend sends this only after the consent modal's checkbox has been
+// checked and the Enable Auto-Reply button clicked. Audit-log entry is
+// written before the automation flip, so we never have an "enabled"
+// state without a corresponding granted-consent record.
+app.post('/api/automation/consent', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (user_id, event_type, details, ip) VALUES ($1, $2, $3::jsonb, $4)',
+      [req.session.userId, 'auto_reply_consent_granted', '{}', req.ip || null]
+    );
+  } catch (err) {
+    console.error('[consent] grant audit-log write failed:', err.message);
+    return res.status(500).json({ error: 'Failed to record consent' });
+  }
+  try {
+    await pool.query(
+      'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, TRUE) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled" = TRUE',
+      [req.session.userId]
+    );
+  } catch (err) {
+    console.error('[consent] automation update failed:', err.message);
+    return res.status(500).json({ error: 'Failed to enable auto-reply' });
+  }
+  res.json({ autoReplyEnabled: true, managerReviewRequired: false });
 });
 
 // --- Messages ---
@@ -2882,7 +2946,15 @@ Return only the JSON array, no other text.`
 // literal-space matching with \b at the phrase edges. The list errs on
 // the side of safety: false positives just hold a message for manual
 // review, false negatives let dangerous content through to auto-reply.
-const EMERGENCY_KEYWORDS = [
+//
+// Distinct from the older EMERGENCY_KEYWORDS / isEmergency() above
+// (~line 1968) which is the MAINTENANCE-ticket triage list — that one
+// drives the maintenance "emergency" priority via physical-property
+// terms (carbon monoxide, structural, water damage, etc.). The two
+// lists overlap (fire / gas leak / smoke) but cover different domains:
+// auto-reply safety includes health/safety/threat terms that the
+// maintenance list deliberately doesn't, so they shouldn't be merged.
+const AUTOREPLY_EMERGENCY_KEYWORDS = [
   // Fire / smoke
   'fire', 'smoke', 'burning', 'alarm',
   // Gas
@@ -2901,8 +2973,8 @@ const EMERGENCY_KEYWORDS = [
 function _escapeRegexChars(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-const EMERGENCY_KEYWORD_REGEX = new RegExp(
-  '\\b(' + EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
+const AUTOREPLY_EMERGENCY_REGEX = new RegExp(
+  '\\b(' + AUTOREPLY_EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
   'gi'
 );
 
@@ -2911,7 +2983,7 @@ const EMERGENCY_KEYWORD_REGEX = new RegExp(
 // suppresses auto-reply) and as the payload for the owner alert SMS.
 function detectEmergency(text) {
   if (!text) return [];
-  const matches = String(text).match(EMERGENCY_KEYWORD_REGEX);
+  const matches = String(text).match(AUTOREPLY_EMERGENCY_REGEX);
   if (!matches) return [];
   const seen = new Set();
   const out = [];

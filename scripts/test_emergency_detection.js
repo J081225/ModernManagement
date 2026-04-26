@@ -23,7 +23,7 @@
 
 // ---- Mirror of server.js detector (sub-step B) -----------------------
 
-const EMERGENCY_KEYWORDS = [
+const AUTOREPLY_EMERGENCY_KEYWORDS = [
   // Fire / smoke
   'fire', 'smoke', 'burning', 'alarm',
   // Gas
@@ -42,14 +42,14 @@ const EMERGENCY_KEYWORDS = [
 function _escapeRegexChars(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
-const EMERGENCY_KEYWORD_REGEX = new RegExp(
-  '\\b(' + EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
+const AUTOREPLY_EMERGENCY_REGEX = new RegExp(
+  '\\b(' + AUTOREPLY_EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
   'gi'
 );
 
 function detectEmergency(text) {
   if (!text) return [];
-  const matches = String(text).match(EMERGENCY_KEYWORD_REGEX);
+  const matches = String(text).match(AUTOREPLY_EMERGENCY_REGEX);
   if (!matches) return [];
   const seen = new Set();
   const out = [];
