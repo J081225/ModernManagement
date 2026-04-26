@@ -772,19 +772,42 @@ async function sendNotificationEmail(userId, message) {
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias FROM users WHERE id=$1', [req.session.userId]
+    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias, alert_phone FROM users WHERE id=$1', [req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
+  // alert_phone is updated only when the key is explicitly present in
+  // the body — non-destructive for callers like the onboarding flow
+  // that only send notification_email / notifications_enabled.
   const { notification_email, notifications_enabled } = req.body;
-  const { rows } = await pool.query(
-    'UPDATE users SET notification_email=$1, notifications_enabled=$2 WHERE id=$3 RETURNING notification_email, notifications_enabled',
-    [notification_email || '', notifications_enabled !== false, req.session.userId]
-  );
-  res.json(rows[0]);
+  const hasAlertPhone = Object.prototype.hasOwnProperty.call(req.body, 'alert_phone');
+
+  if (hasAlertPhone) {
+    const alertPhone = (req.body.alert_phone || '').trim();
+    const { rows } = await pool.query(
+      `UPDATE users
+         SET notification_email = $1,
+             notifications_enabled = $2,
+             alert_phone = $3
+       WHERE id = $4
+       RETURNING notification_email, notifications_enabled, alert_phone`,
+      [notification_email || '', notifications_enabled !== false, alertPhone, req.session.userId]
+    );
+    res.json(rows[0]);
+  } else {
+    const { rows } = await pool.query(
+      `UPDATE users
+         SET notification_email = $1,
+             notifications_enabled = $2
+       WHERE id = $3
+       RETURNING notification_email, notifications_enabled`,
+      [notification_email || '', notifications_enabled !== false, req.session.userId]
+    );
+    res.json(rows[0]);
+  }
 });
 
 // --- Login / Logout / Signup ---
@@ -2086,8 +2109,14 @@ app.put('/api/automation', async (req, res) => {
 // --- Messages ---
 app.get('/api/messages', async (req, res) => {
   const folder = req.query.folder || 'inbox';
+  // Inbox pins emergency-flagged rows to the top until the owner
+  // marks them reviewed (sub-step C). Other folders keep the legacy
+  // chronological-only sort.
+  const orderBy = folder === 'inbox'
+    ? 'emergency_flagged DESC, "createdAt" DESC'
+    : '"createdAt" DESC';
   const { rows } = await pool.query(
-    'SELECT * FROM messages WHERE user_id=$1 AND folder=$2 ORDER BY "createdAt" DESC',
+    `SELECT * FROM messages WHERE user_id=$1 AND folder=$2 ORDER BY ${orderBy}`,
     [req.session.userId, folder]
   );
   res.json(rows);
@@ -2095,6 +2124,32 @@ app.get('/api/messages', async (req, res) => {
 
 app.get('/api/messages/:id', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  const msg = rows[0];
+  // Sub-step C: lazily compute matched keywords for the detail-view
+  // banner. Single source of truth on the server (no JS duplication of
+  // the keyword list). Graceful fallback if the keyword list has
+  // changed since flagging — the recompute may be empty even though
+  // emergency_flagged is true; the frontend handles that case.
+  if (msg.emergency_flagged) {
+    msg.emergency_keywords = detectEmergency(msg.text);
+  }
+  res.json(msg);
+});
+
+// Sub-step C: clear the emergency flag on a message after the owner
+// has manually reviewed it. Single-purpose endpoint — does not change
+// folder, status, or any other field. Uses requireAuth (safer than
+// the legacy /api/messages/* routes that scope by req.session.userId
+// directly; retrofitting the others is a separate cleanup task).
+app.post('/api/messages/:id/clear-emergency', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    `UPDATE messages
+        SET emergency_flagged = FALSE
+      WHERE id = $1 AND user_id = $2
+      RETURNING *`,
+    [Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   res.json(rows[0]);
 });

@@ -1192,6 +1192,16 @@
               <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
             </div>
             <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#27ae60;margin-top:8px;font-weight:500;">&#10003; Settings saved</div>
+
+            <!-- Sub-step C: Emergency alert phone (Layer 1 fallback target). -->
+            <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin:18px 0 4px;">Emergency alert phone (mobile)</label>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input type="tel" id="alertPhone" placeholder="+15551234567" style="flex:1;margin:0;" />
+              <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
+            </div>
+            <div style="font-size:0.78em;color:#94a3b8;margin-top:6px;line-height:1.5;">
+              Modern Management will text this number when a tenant message is held for manual review (emergency keywords detected). Falls back to your notification email if blank.
+            </div>
           </div>
 
           <!-- Phone & Email Routing -->
@@ -1458,12 +1468,22 @@
         messages.forEach(msg => {
           const line = document.createElement('div');
           line.className = 'list-item';
-          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;';
+          // Subtle red left border on emergency-flagged rows; no
+          // background or text-color change (sub-step C styling
+          // constraint — visible but not "broken-looking").
+          const flagBorder = msg.emergency_flagged
+            ? 'border-left:3px solid #dc2626;padding-left:8px;'
+            : '';
+          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;' + flagBorder;
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
           const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : msg.category === 'voicemail' ? '&#128222;' : '&#128172;';
+          // EMERGENCY badge (red, inline) — only for flagged rows.
+          const emergencyBadge = msg.emergency_flagged
+            ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>'
+            : '';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${catIcon} ${msg.subject}</div>
+              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${emergencyBadge}${catIcon} ${msg.subject}</div>
               <div style="color:#666;font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
             <div style="display:flex;gap:2px;flex-shrink:0;">
@@ -1533,7 +1553,35 @@
         const msg = await api('messages/' + id);
         selectedMessage = msg;
         const panel = document.getElementById('messageDetail');
+
+        // Sub-step C: emergency banner above the message header. Shows
+        // matched keywords (lazily computed by GET /api/messages/:id)
+        // and a red-outlined "Mark Reviewed" button. Falls back to a
+        // bare message if emergency_keywords is missing or empty (can
+        // happen if the keyword list changed since flagging).
+        let emergencyBanner = '';
+        if (msg.emergency_flagged) {
+          const kws = Array.isArray(msg.emergency_keywords) ? msg.emergency_keywords : [];
+          const kwText = kws.length
+            ? ` This message was flagged: <b>${kws.map(k => k.replace(/[<>&]/g, '')).join(', ')}</b>.`
+            : ' This message was flagged.';
+          emergencyBanner = `
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+              <div style="flex:1;color:#7f1d1d;font-size:0.92em;line-height:1.45;">
+                &#128680;${kwText}
+              </div>
+              <button
+                onclick="markEmergencyReviewed(${msg.id})"
+                style="background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:7px 14px;font-size:0.85em;font-weight:600;cursor:pointer;white-space:nowrap;"
+                onmouseover="this.style.background='#fef2f2'"
+                onmouseout="this.style.background='white'"
+              >Mark Reviewed</button>
+            </div>
+          `;
+        }
+
         panel.innerHTML = `
+          ${emergencyBanner}
           <h3 style="margin-bottom:10px">${msg.subject}</h3>
           <p><b>Resident:</b> ${msg.resident}</p>
           <p><b>Category:</b> ${msg.category}</p>
@@ -1564,6 +1612,34 @@
             </div>`
           ).join('');
         }
+      }
+
+      // Sub-step C: clear the emergency flag on the currently-open
+      // message. Called from the banner's "Mark Reviewed" button.
+      // Synchronously re-renders the detail pane (banner + EMERGENCY
+      // badge gone) and refreshes the inbox list (row un-pins from
+      // top, badge gone from list view) — no animation, no lag.
+      async function markEmergencyReviewed(id) {
+        const res = await fetch('/api/messages/' + id + '/clear-emergency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          alert('Could not clear emergency flag: ' + (body.error || 'HTTP ' + res.status));
+          return;
+        }
+        // Mutate local state so the immediately-following re-render
+        // shows the cleared state without waiting for the inbox list
+        // round-trip below.
+        if (selectedMessage && selectedMessage.id === id) {
+          selectedMessage.emergency_flagged = false;
+          selectedMessage.emergency_keywords = [];
+        }
+        // Re-render detail pane (banner gone) and refresh inbox list
+        // (un-pinned + badge gone). Both happen at once.
+        await showMessage(id);
+        switchFolder(currentFolder, null);
       }
 
       async function sendDraft(draftId) {
@@ -1695,6 +1771,9 @@
         const thumb = document.getElementById('notifToggleThumb');
         toggle.checked = data.notifications_enabled !== false;
         document.getElementById('notifEmail').value = data.notification_email || '';
+        // Sub-step C: alert_phone for Layer 1 emergency SMS.
+        const alertEl = document.getElementById('alertPhone');
+        if (alertEl) alertEl.value = data.alert_phone || '';
         updateNotifToggleUI(toggle.checked, track, thumb);
 
         // Populate routing info
@@ -1716,7 +1795,13 @@
       async function saveNotifSettings() {
         const notification_email = document.getElementById('notifEmail').value.trim();
         const notifications_enabled = document.getElementById('notifToggle').checked;
-        const result = await api('settings', 'PUT', { notification_email, notifications_enabled });
+        // Sub-step C: include alert_phone in the same save. The PUT
+        // endpoint treats the alert_phone key as opt-in (only updates
+        // when present in the body), so other callers like onboarding
+        // that only send notification_email aren't affected.
+        const alertEl = document.getElementById('alertPhone');
+        const alert_phone = alertEl ? alertEl.value.trim() : '';
+        const result = await api('settings', 'PUT', { notification_email, notifications_enabled, alert_phone });
         if (result) {
           const msg = document.getElementById('notifSaveMsg');
           msg.style.display = 'block';
