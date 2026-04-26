@@ -4863,6 +4863,167 @@
         `;
       }
 
+      // --- Tenant dropdown shared helpers (Unit forms) ---
+      // Mirror image of the chunk-6a unit dropdown on the Contact form:
+      // here the Create / Edit Unit forms get a structured dropdown of
+      // resident contacts. The reconciler then handles all the
+      // engagement-write paths the Contact-side flow does in 6b.
+
+      function _buildTenantDropdownOptions(forOfferingId) {
+        // forOfferingId: the unit being edited; we suppress
+        // "currently in <this unit>" suffix for tenants whose active
+        // engagement is on this unit (and pre-select them). Pass null
+        // in Create flow (no offering yet).
+        const engByContactId = {};
+        for (const eng of inventoryActiveEngagements) engByContactId[eng.contact_id] = eng;
+        const offeringById = {};
+        for (const o of inventoryOfferings) offeringById[o.id] = o;
+        const propertyById = {};
+        for (const e of inventoryEntities) propertyById[e.id] = e;
+
+        // Pre-select: an active engagement on this offering implies that
+        // contact is the current tenant. For roommate units (multiple
+        // active engagements on the same offering) we pick whichever one
+        // is found first — the dropdown represents single-tenant intent.
+        let preSelectedContactId = null;
+        if (forOfferingId != null) {
+          const occupant = inventoryActiveEngagements.find(e => e.offering_id === forOfferingId);
+          if (occupant) preSelectedContactId = occupant.contact_id;
+        }
+
+        const residents = (inventoryContacts || [])
+          .filter(c => c.type === 'resident')
+          .slice()
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+        let html = '<option value="">\u2014 No tenant assigned \u2014</option>';
+        for (const c of residents) {
+          const eng = engByContactId[c.id];
+          let suffix = '';
+          if (eng && eng.offering_id !== forOfferingId) {
+            const off = offeringById[eng.offering_id];
+            const prop = off ? propertyById[off.entity_id] : null;
+            const propName = prop ? prop.name : '?';
+            const offName = off ? off.name : '?';
+            suffix = ' (currently in ' + propName + ' \u25b8 ' + offName + ')';
+          }
+          const sel = preSelectedContactId === c.id ? ' selected' : '';
+          html += '<option value="' + c.id + '"' + sel + '>' +
+                  escapeHtmlInv(c.name || '(unnamed)') +
+                  escapeHtmlInv(suffix) + '</option>';
+        }
+        return { html, preSelectedContactId };
+      }
+
+      // Reconciles a tenant-change on a single offering. Mirrors 6b's
+      // contact-side logic, but viewed from the unit's perspective.
+      // Cases:
+      //   no change (same contact id, including both null): no-op
+      //   assign (no old, new): POST new (also terminate the new tenant's
+      //                         OTHER active engagement if they had one)
+      //   unassign (old, no new): PATCH old → terminated
+      //   swap (old, new, different): PATCH old → terminated, then assign new
+      //   "new" tenant already active on this offering (roommate scenario):
+      //     refuse the operation with a clear warning rather than
+      //     terminating the pre-selected roommate's engagement.
+      // Returns warnings[] — empty on full success.
+      async function _invReconcileTenantOnOffering(offering, oldEngagement, newContactId) {
+        const warnings = [];
+        const oldContactId = oldEngagement ? oldEngagement.contact_id : null;
+        if (oldContactId === newContactId) return warnings;
+
+        // Roommate guard: if new tenant is already active on this unit
+        // (pre-selection picked a different roommate), refuse rather than
+        // terminate the pre-selected one and then 409 on the new one.
+        if (newContactId) {
+          const alreadyHere = inventoryActiveEngagements.find(
+            e => e.contact_id === newContactId && e.offering_id === offering.id
+          );
+          if (alreadyHere) {
+            const c = (inventoryContacts || []).find(x => x.id === newContactId);
+            warnings.push((c && c.name ? c.name : 'Tenant') + ' is already a tenant of this unit. Use the Contacts form to manage roommate assignments.');
+            return warnings;
+          }
+        }
+
+        // 1. Terminate the engagement currently on this offering, if any
+        if (oldEngagement) {
+          try {
+            const r = await fetch('/api/engagements/' + oldEngagement.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+            });
+            if (!r.ok) {
+              const eb = await r.json().catch(() => ({}));
+              warnings.push('Could not end previous tenant assignment: ' + (eb.error || 'HTTP ' + r.status));
+            }
+          } catch (e) {
+            warnings.push('Could not end previous tenant assignment: ' + e.message);
+          }
+        }
+
+        // 2. Create new engagement (and if the new contact has a
+        // different active engagement elsewhere, terminate it too —
+        // mirrors 6b's contact-side flow so a single save never leaves
+        // the contact with two simultaneous active engagements).
+        if (newContactId) {
+          const contact = (inventoryContacts || []).find(c => c.id === newContactId);
+          if (!contact) {
+            warnings.push('Selected tenant not found in cache. Try refreshing.');
+            return warnings;
+          }
+          const otherEng = inventoryActiveEngagements.find(
+            e => e.contact_id === newContactId && e.offering_id !== offering.id
+          );
+          if (otherEng) {
+            try {
+              const r = await fetch('/api/engagements/' + otherEng.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                warnings.push('Could not end ' + (contact.name || 'tenant') + "'s previous assignment: " + (eb.error || 'HTTP ' + r.status));
+              }
+            } catch (e) {
+              warnings.push('Could not end previous assignment: ' + e.message);
+            }
+          }
+          const monthlyRent = Number(contact.monthly_rent || 0);
+          const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+          const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+          const body = {
+            contact_id: newContactId,
+            offering_id: offering.id,
+            status: 'active',
+            start_date: contact.lease_start || _todayISODate(),
+            end_date: contact.lease_end || null,
+            current_price: currentPrice,
+          };
+          try {
+            const r = await fetch('/api/engagements', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+              const eb = await r.json().catch(() => ({}));
+              if (r.status === 409) {
+                warnings.push((contact.name || 'tenant') + ' already has an active engagement on this unit.');
+              } else {
+                warnings.push('Could not assign ' + (contact.name || 'tenant') + ': ' + (eb.error || 'HTTP ' + r.status));
+              }
+            }
+          } catch (e) {
+            warnings.push('Could not assign tenant: ' + e.message);
+          }
+        }
+
+        return warnings;
+      }
+
       // --- Add Unit modal (chunk 5a) ---
       // Opens a modal pre-scoped to the current property. Name is the only
       // required field; everything else is optional. On success the modal
@@ -4886,6 +5047,15 @@
         document.getElementById('unitFrequency').value = 'monthly';
         document.getElementById('unitAmenities').value = '';
         document.getElementById('unitNotes').value = '';
+        // Tenant dropdown — populated from inventoryContacts. Caches are
+        // already warm here (openAddUnit is reachable only via the
+        // Inventory page which calls loadInventory), so no _invEnsureLoaded.
+        const sel = document.getElementById('unitTenant');
+        if (sel) {
+          const { html } = _buildTenantDropdownOptions(null);
+          sel.innerHTML = html;
+          sel.value = '';
+        }
         document.getElementById('unitModal').style.display = 'flex';
         setTimeout(() => document.getElementById('unitName').focus(), 50);
       }
@@ -4931,6 +5101,11 @@
         if (notes) md.notes = notes;
         if (Object.keys(md).length) payload.metadata = md;
 
+        // Capture tenant intent BEFORE the create so we can run the
+        // reconciler against the just-created offering after success.
+        const tenantSelRaw = (document.getElementById('unitTenant') || {}).value || '';
+        const newTenantId = tenantSelRaw ? parseInt(tenantSelRaw, 10) : null;
+
         const btn = document.getElementById('unitModalSaveBtn');
         btn.disabled = true;
         try {
@@ -4946,6 +5121,17 @@
             alert('Failed to create unit:\n\n' + (body.error || ('HTTP ' + res.status)));
             return;
           }
+
+          // If a tenant was selected, run the reconciler against the
+          // newly-created offering. Soft errors only — the offering exists
+          // either way; engagement failures surface as a trailing warning.
+          if (newTenantId) {
+            const warnings = await _invReconcileTenantOnOffering(body, null, newTenantId);
+            if (warnings.length) {
+              alert('Unit created, but tenant assignment had issues:\n\n' + warnings.join('\n'));
+            }
+          }
+
           closeUnitModal();
           // Preserve the current detail context across the reload so the
           // user sees the new row in the same property they were viewing.
@@ -5250,6 +5436,15 @@
         const payload = _invGatherUnitEditForm(original);
         if (!payload.name || !payload.name.trim()) { alert('Name cannot be empty.'); return; }
 
+        // Capture tenant intent BEFORE PATCH so we can compare against
+        // the cached oldEngagement after offering is saved. Mirrors 6b's
+        // two-phase approach.
+        const tenantSelRaw = (document.getElementById('editUnitTenant') || {}).value || '';
+        const newTenantId = tenantSelRaw ? parseInt(tenantSelRaw, 10) : null;
+        const oldEngagement = inventoryActiveEngagements.find(
+          e => e.offering_id === inventoryCurrentOfferingId
+        ) || null;
+
         const btn = document.getElementById('inventoryUnitEditSaveBtn');
         btn.disabled = true;
         try {
@@ -5267,6 +5462,21 @@
           const idx = inventoryOfferings.findIndex(o => o.id === inventoryCurrentOfferingId);
           if (idx >= 0) inventoryOfferings[idx] = body;
           inventoryEditingOffering = null;
+
+          // Reconcile the tenant change. Soft errors only — the offering
+          // PATCH already committed; engagement failures surface as a
+          // trailing warning.
+          const oldContactId = oldEngagement ? oldEngagement.contact_id : null;
+          if (oldContactId !== newTenantId) {
+            const warnings = await _invReconcileTenantOnOffering(body, oldEngagement, newTenantId);
+            if (warnings.length) {
+              alert('Unit saved, but tenant change had issues:\n\n' + warnings.join('\n'));
+            }
+            // Refresh active-engagements cache so openUnitDetail's
+            // re-render sees the new occupancy state.
+            const engsRaw = await api('engagements?status=active');
+            inventoryActiveEngagements = Array.isArray(engsRaw) ? engsRaw : [];
+          }
 
           // Re-render read mode (openUnitDetail refetches engagement history
           // and handles button visibility).
@@ -5341,9 +5551,12 @@
         // single Off-market checkbox. Display "status" (Occupied/Vacant/
         // Off-market) is derived in _invUnitStatusBadge — the user only
         // controls the off-market flag here. 'retired' (Retire button)
-        // and active engagements are preserved untouched on save by
-        // _invGatherUnitEditForm.
+        // is preserved untouched on save by _invGatherUnitEditForm.
         const isOffMarket = (o.status === 'unavailable');
+
+        // Tenant dropdown options (pre-resolved against caches; the unit
+        // being edited is passed so its current tenant is pre-selected).
+        const tenantOpts = _buildTenantDropdownOptions(o.id);
 
         return `
           <div class="card" style="padding:28px 32px;">
@@ -5405,6 +5618,15 @@
               </div>
             </div>
 
+            <!-- Tenant dropdown -->
+            <div style="margin-bottom:14px;">
+              ${_invEditLabel('Tenant')}
+              <select id="editUnitTenant">${tenantOpts.html}</select>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+                Changing the tenant terminates the current engagement and creates a new one. The new tenant's previous unit assignment (if any) is automatically ended.
+              </div>
+            </div>
+
             <!-- Amenities -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Amenities')}
@@ -5419,7 +5641,7 @@
             </div>
 
             <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
-              To retire this unit, cancel out and click the Retire button. "Occupied" is derived from active engagements and can't be set here.
+              To retire this unit, cancel out and click the Retire button.
             </div>
 
           </div>
@@ -6191,8 +6413,17 @@
         <textarea id="unitNotes" rows="2" placeholder="Optional &mdash; internal notes"></textarea>
       </div>
 
+      <!-- Tenant dropdown (populated by openAddUnit). Optional; pick a
+           tenant to occupy this unit at creation time, or leave blank. -->
+      <div>
+        <label>Tenant</label>
+        <select id="unitTenant">
+          <option value="">&mdash; No tenant assigned &mdash;</option>
+        </select>
+      </div>
+
       <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
-        Tenants aren't assigned here &mdash; a unit becomes "Occupied" when an engagement links it to a contact (coming in chunk 6).
+        If you pick a tenant, an active engagement is created at save. Their previous unit assignment (if any) is automatically ended.
       </div>
 
       <div class="modal-footer">
