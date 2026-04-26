@@ -2821,6 +2821,118 @@ Return only the JSON array, no other text.`
   }
 }
 
+// --- AI Auto-Reply Safety Layer 1: emergency keyword detection ---
+// Hardcoded keyword list (per spec — not user-editable). Word-boundary
+// regex; case-insensitive. Multi-word phrases like "gas leak" work via
+// literal-space matching with \b at the phrase edges. The list errs on
+// the side of safety: false positives just hold a message for manual
+// review, false negatives let dangerous content through to auto-reply.
+const EMERGENCY_KEYWORDS = [
+  // Fire / smoke
+  'fire', 'smoke', 'burning', 'alarm',
+  // Gas
+  'gas leak', 'gas smell', 'propane',
+  // Water
+  'flood', 'flooding', 'water leak', 'burst pipe', 'sewage',
+  // Safety
+  'emergency', 'urgent', 'threat', 'threatening', 'weapon', 'gun', 'knife',
+  'intruder', 'break-in', 'broken in',
+  // Health
+  'hurt', 'injured', 'bleeding', 'unconscious', 'dead', 'body', 'overdose',
+  // Severity markers
+  '911', 'asap urgent', 'life threatening',
+];
+
+function _escapeRegexChars(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const EMERGENCY_KEYWORD_REGEX = new RegExp(
+  '\\b(' + EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
+  'gi'
+);
+
+// detectEmergency: returns the unique matched keywords (lower-cased).
+// Empty array means clean message. Useful both as the gate (length > 0
+// suppresses auto-reply) and as the payload for the owner alert SMS.
+function detectEmergency(text) {
+  if (!text) return [];
+  const matches = String(text).match(EMERGENCY_KEYWORD_REGEX);
+  if (!matches) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of matches) {
+    const k = m.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); out.push(k); }
+  }
+  return out;
+}
+
+// sendOwnerEmergencyAlert: SMS to users.alert_phone first, fall back to
+// email via SendGrid (notification_email or email), log + return if
+// both are missing. Soft errors only — the message is already flagged
+// in the DB; failure here means the owner finds out next time they
+// open the inbox rather than instantly.
+async function sendOwnerEmergencyAlert(userId, message, matchedKeywords) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, alert_phone, notification_email, email FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!rows.length) {
+      console.error('[emergency-alert] No user row for userId=', userId);
+      return;
+    }
+    const user = rows[0];
+    const sender = (message.resident && String(message.resident).trim())
+      || message.phone
+      || message.email
+      || '(no sender label)';
+    const keywords = matchedKeywords.join(', ');
+    const smsBody = `Modern Management URGENT: Message from ${sender} flagged for review (keywords: ${keywords}). Reply in app.`;
+
+    const phone = (user.alert_phone || '').trim();
+    if (phone) {
+      try {
+        await twilioClient.messages.create({
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone,
+          body: smsBody,
+        });
+        console.log('[emergency-alert] SMS sent to', phone, 'for message', message.id);
+        return;
+      } catch (err) {
+        console.error('[emergency-alert] SMS send failed:', err.message, '— falling back to email');
+        // fall through
+      }
+    }
+
+    const toEmail = (user.notification_email && user.notification_email.trim())
+      || (user.email && user.email.trim())
+      || '';
+    if (toEmail) {
+      try {
+        await sgMail.send({
+          to: toEmail,
+          from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+          subject: 'URGENT: Tenant message flagged for review',
+          text: smsBody + '\n\nMessage preview:\n' + String(message.text || '').slice(0, 500),
+        });
+        console.log('[emergency-alert] Email sent to', toEmail, 'for message', message.id);
+        return;
+      } catch (err) {
+        console.error('[emergency-alert] Email send also failed:', err.message);
+      }
+    }
+
+    console.error(
+      '[emergency-alert] No alert_phone or email on file for userId=', userId,
+      '— message', message.id, 'is flagged in the DB but owner not actively notified'
+    );
+  } catch (err) {
+    console.error('[emergency-alert] Outer error:', err.message);
+  }
+}
+
 // --- Auto-reply helper ---
 async function autoReplyToMessage(message, userId) {
   try {
@@ -3014,9 +3126,28 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
     );
     if (rows[0]) {
       sendNotificationEmail(userId, rows[0]);
-      const autoData = await getAutomation(userId);
-      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
-      else suggestTasksFromConversation(rows[0], null, userId);
+
+      // Layer 1: emergency keyword gate. If matched, flag the row,
+      // alert the owner, and skip auto-reply / task suggestion. The
+      // notification email above still fires — it's the standard
+      // "you got a new message" ping, not the emergency alert.
+      const matched = detectEmergency(rows[0].text);
+      if (matched.length) {
+        try {
+          await pool.query(
+            'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+            [rows[0].id]
+          );
+          rows[0].emergency_flagged = true;
+        } catch (err) {
+          console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+        }
+        sendOwnerEmergencyAlert(userId, rows[0], matched);
+      } else {
+        const autoData = await getAutomation(userId);
+        if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+        else suggestTasksFromConversation(rows[0], null, userId);
+      }
     }
   } catch (err) {
     console.error('Inbound email error:', err.message);
@@ -3142,9 +3273,25 @@ app.post('/api/sms/incoming', async (req, res) => {
 
   if (rows[0]) {
     sendNotificationEmail(userId, rows[0]);
-    const autoData = await getAutomation(userId);
-    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
-    else suggestTasksFromConversation(rows[0], null, userId);
+
+    // Layer 1: emergency keyword gate (see /api/email/incoming above).
+    const matched = detectEmergency(rows[0].text);
+    if (matched.length) {
+      try {
+        await pool.query(
+          'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+          [rows[0].id]
+        );
+        rows[0].emergency_flagged = true;
+      } catch (err) {
+        console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+      }
+      sendOwnerEmergencyAlert(userId, rows[0], matched);
+    } else {
+      const autoData = await getAutomation(userId);
+      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+      else suggestTasksFromConversation(rows[0], null, userId);
+    }
   }
 });
 
@@ -3214,9 +3361,32 @@ app.post('/api/voice/transcription', async (req, res) => {
     );
     if (rows.length) {
       sendNotificationEmail(userId, rows[0]);
-      const autoData = await getAutomation(userId);
-      if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
-      else suggestTasksFromConversation(rows[0], null, userId);
+
+      // Layer 1: emergency keyword gate. Defensive short-circuit —
+      // if the row was already flagged by some other path (currently
+      // none, but defensive against future code), don't re-detect or
+      // re-alert. The owner has already been notified.
+      if (rows[0].emergency_flagged) {
+        console.log('[emergency-alert] Voicemail row', rows[0].id, 'already flagged — skipping re-detection');
+      } else {
+        const matched = detectEmergency(rows[0].text);
+        if (matched.length) {
+          try {
+            await pool.query(
+              'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+              [rows[0].id]
+            );
+            rows[0].emergency_flagged = true;
+          } catch (err) {
+            console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+          }
+          sendOwnerEmergencyAlert(userId, rows[0], matched);
+        } else {
+          const autoData = await getAutomation(userId);
+          if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
+          else suggestTasksFromConversation(rows[0], null, userId);
+        }
+      }
     }
   } catch (err) {
     console.error('Transcription update error:', err.message);
