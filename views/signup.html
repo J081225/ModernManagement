@@ -225,10 +225,15 @@
         </label>
 
         <div class="field-error" id="err-plan"></div>
+        <!-- B2.3: surfaces server-side errors from /api/signup/
+             create-checkout-session (uniqueness conflict, validation,
+             5xx, network). Sits below the plan-error div so a user
+             can see both at once if both fire. -->
+        <div class="field-error" id="err-checkout"></div>
 
         <div class="btn-row">
           <button class="btn-secondary" onclick="goBack(4)">Back</button>
-          <button class="btn-primary" onclick="advanceFromScreen(4)">Continue to Payment</button>
+          <button class="btn-primary" id="continue-to-payment-btn" onclick="advanceFromScreen(4)">Continue to Payment</button>
         </div>
       </div>
 
@@ -421,8 +426,80 @@
       capture(n);
 
       if (n === 4) {
-        // B1 placeholder handoff — Stripe wiring lands in B2.
-        window.location.href = '/signup/payment-coming';
+        // B2.3: real Stripe Checkout handoff. POST the entire draft
+        // (plus the password, which lives in the DOM input only —
+        // never persisted to sessionStorage) to the server. Server
+        // re-validates, hashes the password, persists a draft row,
+        // resolves the Stripe price ID, creates a Checkout session,
+        // and returns its URL. We then redirect the browser there.
+        const btn = document.getElementById('continue-to-payment-btn');
+        const errEl = document.getElementById('err-checkout');
+        errEl.textContent = '';
+        const origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Redirecting to payment\u2026';
+
+        const draft = getDraft();
+        const password = document.getElementById('f-password').value;
+        if (!password) {
+          // Possible if user navigated tab-away mid-flow — DOM input
+          // doesn't survive a page reload, and we deliberately don't
+          // sessionStorage-persist passwords for security.
+          errEl.textContent = 'Password missing. Click Back to step 1 and re-enter it (passwords are not saved between sessions).';
+          btn.disabled = false;
+          btn.textContent = origText;
+          return;
+        }
+
+        const payload = {
+          username:         draft.username,
+          password:         password,
+          email:            draft.email,
+          business_name:    draft.business_name,
+          units:            draft.units,
+          property_type:    draft.property_type,
+          area_code:        draft.area_code || '',
+          area_code_backup: draft.area_code_backup || '',
+          alert_phone:      draft.alert_phone || '',
+          billing:          draft.billing || 'monthly',
+          plan:             draft.plan,
+        };
+
+        try {
+          const res = await fetch('/api/signup/create-checkout-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const errMsg = body.error || ('HTTP ' + res.status);
+            if (res.status === 409) {
+              errEl.textContent = errMsg + ' Click Back to step 1 to update your account info.';
+            } else if (res.status === 400) {
+              errEl.textContent = 'Validation issue: ' + errMsg + '. Click Back to fix the affected step.';
+            } else {
+              errEl.textContent = 'Could not start payment: ' + errMsg;
+            }
+            btn.disabled = false;
+            btn.textContent = origText;
+            return;
+          }
+          if (!body.url) {
+            errEl.textContent = 'Server returned an unexpected response. Please try again.';
+            btn.disabled = false;
+            btn.textContent = origText;
+            return;
+          }
+          // Redirect to Stripe Checkout. Page is leaving — no need to
+          // restore button state (and visually nicer if it stays
+          // disabled during the navigation transition).
+          window.location.href = body.url;
+        } catch (err) {
+          errEl.textContent = 'Network error: ' + (err && err.message ? err.message : 'unknown') + '. Please try again.';
+          btn.disabled = false;
+          btn.textContent = origText;
+        }
         return;
       }
       if (n === 3) updatePlanSuggestion();
