@@ -36,6 +36,16 @@ const { ImapFlow } = require('imapflow');
 const { Pool } = require('pg');
 const pgSession = require('connect-pg-simple')(session);
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
+
+// Phase B B2: separate Stripe client for the new signup flow. Uses
+// STRIPE_TEST_SECRET_KEY (test mode) so the legacy /api/billing/*
+// paths — which still use the original `stripe` client above — stay
+// untouched. Env-var rename / consolidation happens in Phase B5
+// before production launch.
+const stripeSignup = process.env.STRIPE_TEST_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_TEST_SECRET_KEY)
+  : null;
+
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // SESSION_SECRET is required — refuse to start with a weak default
@@ -61,6 +71,9 @@ const BCRYPT_ROUNDS = 10;
 app.use(cors());
 // Raw body needed for Stripe webhook signature verification — must be before bodyParser
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+// Phase B B2: signup-flow Stripe webhook (separate from /api/billing/webhook
+// which serves the legacy live-mode flow). Same raw-body requirement.
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(session({
@@ -121,12 +134,20 @@ app.get('/signup', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'signup.html'));
 });
 
-// Phase B B1: placeholder destination for the "Continue to Payment"
-// button on screen 4. Echoes the captured sessionStorage draft so we
-// can sanity-check multi-screen state preservation. Will be replaced
-// by Stripe Checkout redirect in B2.
-app.get('/signup/payment-coming', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'signup-payment-coming.html'));
+// Phase B B2: Stripe Checkout success-redirect destination. Stripe
+// appends ?session_id={CHECKOUT_SESSION_ID}&draft_id=<id> to this
+// URL (configured in success_url at session-create time). The page
+// itself is a placeholder until B4 wires actual account creation.
+app.get('/signup/success', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'signup-success.html'));
+});
+
+// Phase B B2: Stripe Checkout cancel-redirect destination. Receives
+// ?draft_id=<id>. Page invites user back to /signup with sessionStorage
+// already preserving their entered data (same-origin survives the
+// Stripe round-trip).
+app.get('/signup/canceled', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'signup-canceled.html'));
 });
 app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
@@ -886,6 +907,222 @@ app.get('/api/signup/check-email', async (req, res) => {
     console.error('check-email error:', err.message);
     res.status(500).json({ error: 'Check failed' });
   }
+});
+
+// Phase B B2: Stripe price ID resolution by lookup_key. Cached at
+// first use for the lifetime of the process. If a key is missing,
+// throws so the calling endpoint can surface a clear 5xx — failing
+// fast is better than silently using a wrong/null price ID.
+const SIGNUP_PRICE_LOOKUP_KEYS = [
+  'solo_monthly', 'solo_annual',
+  'team_monthly', 'team_annual',
+  'enterprise_monthly', 'enterprise_annual',
+  'additional_user_monthly',
+];
+let _signupPriceCache = null;
+async function getSignupPriceIdByLookupKey(lookupKey) {
+  if (!stripeSignup) {
+    throw new Error('stripeSignup not initialized — STRIPE_TEST_SECRET_KEY missing');
+  }
+  if (!_signupPriceCache) {
+    const result = await stripeSignup.prices.list({
+      lookup_keys: SIGNUP_PRICE_LOOKUP_KEYS,
+      limit: 20,
+    });
+    _signupPriceCache = {};
+    for (const p of result.data) _signupPriceCache[p.lookup_key] = p.id;
+    for (const k of SIGNUP_PRICE_LOOKUP_KEYS) {
+      if (!_signupPriceCache[k]) {
+        _signupPriceCache = null;  // don't cache an incomplete result
+        throw new Error(`Stripe price lookup_key not found in account: ${k}`);
+      }
+    }
+    console.log('[signup] Stripe prices resolved:', Object.keys(_signupPriceCache).join(', '));
+  }
+  return _signupPriceCache[lookupKey];
+}
+
+// Phase B B2: signup → Stripe Checkout. Re-validates every field
+// (defense against form-bypass), bcrypt-hashes the password, stores
+// a signup_drafts row keyed by random hex, then creates a Checkout
+// session and returns its URL. The webhook handler below correlates
+// completed sessions back to the draft via client_reference_id.
+//
+// IMPORTANT: draft_data contains password_hash (bcrypt). Do NOT log
+// raw draft rows; redact password_hash before any console output.
+app.post('/api/signup/create-checkout-session', async (req, res) => {
+  if (!stripeSignup) {
+    return res.status(500).json({ error: 'Signup checkout is not configured' });
+  }
+
+  const body = req.body || {};
+  const username        = String(body.username || '').trim().toLowerCase();
+  const password        = String(body.password || '');
+  const email           = String(body.email || '').trim();
+  const business_name   = String(body.business_name || '').trim();
+  const units           = parseInt(body.units, 10);
+  const property_type   = String(body.property_type || '');
+  const area_code       = String(body.area_code || '').trim();
+  const area_code_backup = String(body.area_code_backup || '').trim();
+  const alert_phone     = String(body.alert_phone || '').trim();
+  const billing         = String(body.billing || '');
+  const plan            = String(body.plan || '');
+
+  // Server-side re-validation (mirrors client regexes in views/signup.html).
+  if (!/^[a-z0-9_]{3,30}$/.test(username))                  return res.status(400).json({ error: 'Invalid username format' });
+  if (!password || password.length < 8)                     return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))            return res.status(400).json({ error: 'Invalid email' });
+  if (!business_name || business_name.length > 100)         return res.status(400).json({ error: 'Business name is required (1-100 chars)' });
+  if (!Number.isFinite(units) || units < 1 || units > 1000) return res.status(400).json({ error: 'Units must be a number between 1 and 1000' });
+  const PROPERTY_TYPES = ['residential_apartment', 'condo', 'single_family', 'mixed_use', 'commercial'];
+  if (!PROPERTY_TYPES.includes(property_type))              return res.status(400).json({ error: 'Invalid property type' });
+  if (area_code && !/^[0-9]{3}$/.test(area_code))           return res.status(400).json({ error: 'Area code must be exactly 3 digits' });
+  if (area_code_backup && !/^[0-9]{3}$/.test(area_code_backup)) return res.status(400).json({ error: 'Backup area code must be exactly 3 digits' });
+  if (alert_phone && !/^\+1[0-9]{10}$/.test(alert_phone))   return res.status(400).json({ error: 'Alert phone must be +1 followed by 10 digits' });
+  if (!['monthly', 'annual'].includes(billing))             return res.status(400).json({ error: 'Invalid billing cadence' });
+  if (!['solo', 'team', 'enterprise'].includes(plan))       return res.status(400).json({ error: 'Invalid plan' });
+
+  // Final uniqueness re-check (catches races since the form's blur check)
+  try {
+    const { rows: u } = await pool.query('SELECT 1 FROM users WHERE username = $1 LIMIT 1', [username]);
+    if (u.length) return res.status(409).json({ error: 'That username is already taken' });
+    const { rows: e } = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
+    if (e.length) return res.status(409).json({ error: 'An account with that email already exists' });
+  } catch (err) {
+    console.error('[signup-checkout] uniqueness check failed:', err.message);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+
+  // Hash password — plaintext NEVER persists past this line.
+  let password_hash;
+  try {
+    password_hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  } catch (err) {
+    console.error('[signup-checkout] bcrypt hash failed:', err.message);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+
+  // Random hex draft_id — used as Stripe client_reference_id so the
+  // webhook can correlate session.completed back to the draft row.
+  const draft_id = require('crypto').randomBytes(16).toString('hex');
+
+  // Resolve Stripe price ID
+  const lookup_key = `${plan}_${billing}`;
+  let price_id;
+  try {
+    price_id = await getSignupPriceIdByLookupKey(lookup_key);
+  } catch (err) {
+    console.error('[signup-checkout] price lookup failed:', err.message);
+    return res.status(500).json({ error: 'Pricing temporarily unavailable; please try again' });
+  }
+
+  // Persist the draft (do NOT log this row — draft_data has password_hash).
+  try {
+    await pool.query(
+      'INSERT INTO signup_drafts (id, draft_data) VALUES ($1, $2::jsonb)',
+      [draft_id, JSON.stringify({
+        username, email, business_name, units, property_type,
+        area_code, area_code_backup, alert_phone, billing, plan,
+        password_hash,
+      })]
+    );
+  } catch (err) {
+    console.error('[signup-checkout] draft insert failed:', err.message);
+    return res.status(500).json({ error: 'Internal error' });
+  }
+
+  // Build success/cancel URLs from request host (trust proxy:1 makes
+  // req.protocol return the real client-facing protocol behind Render's
+  // load balancer). Q-B2.7 fallback: warn + use localhost:4000 if host
+  // header is somehow missing.
+  let host = req.headers.host;
+  if (!host) {
+    console.warn('[signup-checkout] req.headers.host is empty — falling back to localhost:4000');
+    host = 'localhost:4000';
+  }
+  const proto = req.protocol || 'http';
+  const success_url = `${proto}://${host}/signup/success?session_id={CHECKOUT_SESSION_ID}&draft_id=${draft_id}`;
+  const cancel_url  = `${proto}://${host}/signup/canceled?draft_id=${draft_id}`;
+
+  // Create Stripe Checkout session
+  let session;
+  try {
+    session = await stripeSignup.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: price_id, quantity: 1 }],
+      customer_email: email,
+      client_reference_id: draft_id,
+      metadata: {
+        draft_id,
+        signup_username: username,
+        signup_email: email,
+      },
+      success_url,
+      cancel_url,
+    });
+  } catch (err) {
+    console.error('[signup-checkout] Stripe session creation failed:', err.message);
+    return res.status(500).json({ error: 'Could not create checkout session' });
+  }
+
+  res.json({ url: session.url, session_id: session.id });
+});
+
+// Phase B B2: Stripe webhook receiver (signup flow). Verifies signature,
+// stores relevant events idempotently in stripe_events for B4 to consume.
+// Other event types are acknowledged but not stored (avoids bloat).
+//
+// Note: req.body here is a raw Buffer because /api/stripe/webhook is
+// mounted with express.raw() above, before bodyParser.json().
+app.post('/api/stripe/webhook', async (req, res) => {
+  if (!stripeSignup) {
+    return res.status(500).send('Webhook receiver not configured');
+  }
+  const sig = req.headers['stripe-signature'];
+  const secret = process.env.STRIPE_TEST_WEBHOOK_SECRET;
+  if (!sig || !secret) {
+    console.error('[stripe-webhook] missing signature header or webhook secret');
+    return res.status(400).send('Missing signature or secret');
+  }
+
+  let event;
+  try {
+    event = stripeSignup.webhooks.constructEvent(req.body, sig, secret);
+  } catch (err) {
+    console.error('[stripe-webhook] signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Filter to event families relevant to the signup + subscription lifecycle.
+  // Other events ack with 200 but aren't persisted.
+  const STORED_EVENT_PREFIXES = [
+    'checkout.session.',       // checkout.session.completed, checkout.session.async_payment_*
+    'customer.subscription.',  // customer.subscription.created/updated/deleted
+    'invoice.payment_',        // invoice.payment_succeeded/failed
+  ];
+  const should_store = STORED_EVENT_PREFIXES.some(p => event.type.startsWith(p));
+
+  if (should_store) {
+    try {
+      // ON CONFLICT DO NOTHING — Stripe sends the same event ID for retries.
+      // Idempotent INSERT means duplicate webhooks become silent no-ops.
+      await pool.query(
+        `INSERT INTO stripe_events (stripe_event_id, event_type, event_data)
+         VALUES ($1, $2, $3::jsonb)
+         ON CONFLICT (stripe_event_id) DO NOTHING`,
+        [event.id, event.type, JSON.stringify(event)]
+      );
+      console.log('[stripe-webhook] stored event:', event.type, event.id);
+    } catch (err) {
+      console.error('[stripe-webhook] DB insert failed:', err.message);
+      // Acknowledge anyway — Stripe will retry, and idempotency on
+      // stripe_event_id makes a re-insert safe.
+    }
+  } else {
+    console.log('[stripe-webhook] received (not stored):', event.type, event.id);
+  }
+
+  res.json({ received: true });
 });
 
 app.post('/api/signup', async (req, res) => {
