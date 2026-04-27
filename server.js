@@ -48,6 +48,11 @@ if (!process.env.SESSION_SECRET) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const app = express();
+// Trust the first proxy hop (Render's load balancer) so req.ip
+// returns the real client IP for audit-log writes (sub-step D).
+// Without this, req.ip captures the proxy's address (typically
+// 127.0.0.1 / 10.x.x.x) and audit trails are useless.
+app.set('trust proxy', 1);
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
@@ -79,6 +84,24 @@ function requireAuth(req, res, next) {
 function requireAuthPage(req, res, next) {
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.redirect('/login');
+}
+
+// --- Workspace helper ---
+// Every authenticated user owns exactly one workspace (1:1 seeded by
+// Phase 1 migration 008). getWorkspaceId() looks up that workspace id
+// for the caller and caches it on the request to avoid repeat queries
+// within a single request. Used by Inventory endpoints (/api/entities,
+// /api/offerings, /api/engagements) to scope all reads/writes to the
+// caller's workspace. Returns null if the user somehow has no workspace
+// (should never happen post-Phase-1; callers should treat null as 500).
+async function getWorkspaceId(req) {
+  if (req._workspaceId != null) return req._workspaceId;
+  const { rows } = await pool.query(
+    'SELECT id FROM workspaces WHERE owner_user_id = $1 LIMIT 1',
+    [req.session.userId]
+  );
+  req._workspaceId = rows[0]?.id ?? null;
+  return req._workspaceId;
 }
 
 // --- Page routes ---
@@ -754,19 +777,42 @@ async function sendNotificationEmail(userId, message) {
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias FROM users WHERE id=$1', [req.session.userId]
+    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias, alert_phone FROM users WHERE id=$1', [req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
   res.json(rows[0]);
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
+  // alert_phone is updated only when the key is explicitly present in
+  // the body — non-destructive for callers like the onboarding flow
+  // that only send notification_email / notifications_enabled.
   const { notification_email, notifications_enabled } = req.body;
-  const { rows } = await pool.query(
-    'UPDATE users SET notification_email=$1, notifications_enabled=$2 WHERE id=$3 RETURNING notification_email, notifications_enabled',
-    [notification_email || '', notifications_enabled !== false, req.session.userId]
-  );
-  res.json(rows[0]);
+  const hasAlertPhone = Object.prototype.hasOwnProperty.call(req.body, 'alert_phone');
+
+  if (hasAlertPhone) {
+    const alertPhone = (req.body.alert_phone || '').trim();
+    const { rows } = await pool.query(
+      `UPDATE users
+         SET notification_email = $1,
+             notifications_enabled = $2,
+             alert_phone = $3
+       WHERE id = $4
+       RETURNING notification_email, notifications_enabled, alert_phone`,
+      [notification_email || '', notifications_enabled !== false, alertPhone, req.session.userId]
+    );
+    res.json(rows[0]);
+  } else {
+    const { rows } = await pool.query(
+      `UPDATE users
+         SET notification_email = $1,
+             notifications_enabled = $2
+       WHERE id = $3
+       RETURNING notification_email, notifications_enabled`,
+      [notification_email || '', notifications_enabled !== false, req.session.userId]
+    );
+    res.json(rows[0]);
+  }
 });
 
 // --- Login / Logout / Signup ---
@@ -1141,6 +1187,738 @@ app.post('/api/leases/check-renewals', requireAuth, async (req, res) => {
   res.json({ checked: expiring.length, tasksCreated: created });
 });
 
+// --- Inventory: Entities (Properties in PM vertical) ---
+// Workspace-scoped. Archived (soft-deleted) entities are hidden from the
+// default list; pass ?include_archived=true to include them. DELETE is
+// soft-delete via archived_at (migration 018). See plan §2.2.
+
+app.get('/api/entities', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  const includeArchived = req.query.include_archived === 'true';
+  const sql = includeArchived
+    ? 'SELECT * FROM entities WHERE workspace_id=$1 ORDER BY name ASC'
+    : 'SELECT * FROM entities WHERE workspace_id=$1 AND archived_at IS NULL ORDER BY name ASC';
+  try {
+    const { rows } = await pool.query(sql, [workspaceId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/entities error:', err.message);
+    res.status(500).json({ error: 'Failed to list entities' });
+  }
+});
+
+app.get('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM entities WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch entity' });
+  }
+});
+
+app.post('/api/entities', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const name = (req.body.name || '').trim();
+  const address = (req.body.address || '').trim();
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!address) return res.status(400).json({ error: 'address is required' });
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO entities (
+         workspace_id, name, entity_type, address, description,
+         number_of_floors, total_unit_count, building_type, year_built,
+         heating_system, water_source, parking_setup, pet_policy, smoking_policy,
+         shared_amenities, emergency_contacts, service_vendors
+       ) VALUES (
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9,
+         $10, $11, $12, $13, $14,
+         $15::jsonb, $16::jsonb, $17::jsonb
+       ) RETURNING *`,
+      [
+        workspaceId,
+        name,
+        req.body.entity_type || 'property',
+        address,
+        req.body.description || '',
+        req.body.number_of_floors ?? null,
+        req.body.total_unit_count ?? null,
+        req.body.building_type ?? null,
+        req.body.year_built ?? null,
+        req.body.heating_system ?? null,
+        req.body.water_source ?? null,
+        req.body.parking_setup ?? null,
+        req.body.pet_policy ?? null,
+        req.body.smoking_policy ?? null,
+        JSON.stringify(req.body.shared_amenities || []),
+        JSON.stringify(req.body.emergency_contacts || []),
+        JSON.stringify(req.body.service_vendors || []),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/entities error:', err.message);
+    res.status(500).json({ error: 'Failed to create entity: ' + err.message });
+  }
+});
+
+app.patch('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  // Required-if-present: if name/address is in the body, it can't be empty.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'name') &&
+      !(req.body.name || '').trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'address') &&
+      !(req.body.address || '').trim()) {
+    return res.status(400).json({ error: 'address cannot be empty' });
+  }
+
+  // Only update fields present in the body. Prevents null-overwrites.
+  const scalarFields = [
+    'name', 'address', 'entity_type', 'description', 'number_of_floors',
+    'total_unit_count', 'building_type', 'year_built', 'heating_system',
+    'water_source', 'parking_setup', 'pet_policy', 'smoking_policy'
+  ];
+  const jsonbFields = ['shared_amenities', 'emergency_contacts', 'service_vendors'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(req.body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(req.body[f]));
+      i++;
+    }
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  values.push(Number(req.params.id), workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE entities SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1} AND archived_at IS NULL
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update entity' });
+  }
+});
+
+app.delete('/api/entities/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    // COALESCE preserves the original archive timestamp on re-delete
+    // (idempotent). NOW() only fires on first archive.
+    const { rows } = await pool.query(
+      `UPDATE entities SET archived_at = COALESCE(archived_at, NOW())
+       WHERE id=$1 AND workspace_id=$2
+       RETURNING id, archived_at`,
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Entity not found' });
+    res.json({ id: rows[0].id, archived_at: rows[0].archived_at });
+  } catch (err) {
+    console.error('DELETE /api/entities/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to archive entity' });
+  }
+});
+
+// --- Inventory: Offerings (Units in PM vertical) ---
+// Workspace-scoped. Retired offerings are hidden from the default list;
+// pass ?include_retired=true to include them. DELETE is soft-delete via
+// status='retired' (no separate archived_at column for offerings — see
+// asymmetry note in migration 018). Allowed status values: draft,
+// available, unavailable, retired. 'occupied' is NEVER stored here;
+// it is derived client-side from engagement rows per plan §2.11 / §2.12.
+
+app.get('/api/offerings', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const includeRetired = req.query.include_retired === 'true';
+  const entityFilter = req.query.entity_id ? Number(req.query.entity_id) : null;
+
+  const params = [workspaceId];
+  let where = 'workspace_id = $1';
+  if (entityFilter) {
+    params.push(entityFilter);
+    where += ` AND entity_id = $${params.length}`;
+  }
+  if (!includeRetired) {
+    where += ` AND status <> 'retired'`;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM offerings WHERE ${where} ORDER BY entity_id, name ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/offerings error:', err.message);
+    res.status(500).json({ error: 'Failed to list offerings' });
+  }
+});
+
+app.get('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM offerings WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch offering' });
+  }
+});
+
+app.post('/api/offerings', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const name = (req.body.name || '').trim();
+  const entityId = Number(req.body.entity_id);
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  if (!entityId || !Number.isInteger(entityId)) {
+    return res.status(400).json({ error: 'entity_id is required and must be a number' });
+  }
+
+  // Validate optional status / price_frequency if provided
+  if (req.body.status !== undefined) {
+    const allowed = ['draft', 'available', 'unavailable', 'retired'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+  if (req.body.price_frequency !== undefined) {
+    const allowed = ['one-time', 'monthly', 'quarterly', 'annual', 'hourly'];
+    if (!allowed.includes(req.body.price_frequency)) {
+      return res.status(400).json({ error: `price_frequency must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  // Verify the referenced entity belongs to the caller's workspace and
+  // isn't archived. Returns 400 (not 404) because entity_id is user input;
+  // the error is "you gave me an invalid value", not "resource missing".
+  try {
+    const { rows: entityCheck } = await pool.query(
+      'SELECT id FROM entities WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL',
+      [entityId, workspaceId]
+    );
+    if (!entityCheck.length) {
+      return res.status(400).json({ error: 'entity_id is invalid, archived, or not in your workspace' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO offerings (
+         workspace_id, entity_id, name, description, floor,
+         price_amount, price_frequency, status, metadata
+       ) VALUES (
+         $1, $2, $3, $4, $5,
+         $6, $7, $8, $9::jsonb
+       ) RETURNING *`,
+      [
+        workspaceId,
+        entityId,
+        name,
+        req.body.description || '',
+        req.body.floor || '',
+        req.body.price_amount ?? 0,
+        req.body.price_frequency || 'monthly',
+        req.body.status || 'draft',
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('POST /api/offerings error:', err.message);
+    res.status(500).json({ error: 'Failed to create offering' });
+  }
+});
+
+app.patch('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  // Required-if-present: if name is in the body it cannot be empty.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'name') &&
+      !(req.body.name || '').trim()) {
+    return res.status(400).json({ error: 'name cannot be empty' });
+  }
+
+  // Enum-like validation for status (app-layer; DB is TEXT no CHECK per §9.11).
+  if (Object.prototype.hasOwnProperty.call(req.body, 'status')) {
+    const allowed = ['draft', 'available', 'unavailable', 'retired'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(req.body, 'price_frequency')) {
+    const allowed = ['one-time', 'monthly', 'quarterly', 'annual', 'hourly'];
+    if (!allowed.includes(req.body.price_frequency)) {
+      return res.status(400).json({ error: `price_frequency must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  // If caller is moving the offering to a different entity, verify the
+  // new entity belongs to the workspace and isn't archived.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'entity_id')) {
+    const newEntityId = Number(req.body.entity_id);
+    if (!newEntityId || !Number.isInteger(newEntityId)) {
+      return res.status(400).json({ error: 'entity_id must be a number' });
+    }
+    try {
+      const { rows: check } = await pool.query(
+        'SELECT id FROM entities WHERE id=$1 AND workspace_id=$2 AND archived_at IS NULL',
+        [newEntityId, workspaceId]
+      );
+      if (!check.length) {
+        return res.status(400).json({ error: 'entity_id is invalid, archived, or not in your workspace' });
+      }
+    } catch (err) {
+      console.error('PATCH /api/offerings/:id entity-check error:', err.message);
+      return res.status(500).json({ error: 'Failed to validate entity_id' });
+    }
+  }
+
+  const scalarFields = ['name', 'description', 'floor', 'entity_id',
+                        'price_amount', 'price_frequency', 'status'];
+  const jsonbFields = ['metadata'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(req.body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(req.body[f]));
+      i++;
+    }
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  // Always bump updated_at on a real update.
+  setParts.push('updated_at = NOW()');
+
+  values.push(Number(req.params.id), workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE offerings SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1}
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('PATCH /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update offering' });
+  }
+});
+
+app.delete('/api/offerings/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    // Soft-delete: set status='retired'. Idempotent — on re-delete, status
+    // stays 'retired' and updated_at is preserved (the CASE clause keeps
+    // the original timestamp if the row was already retired).
+    const { rows } = await pool.query(
+      `UPDATE offerings
+         SET status = 'retired',
+             updated_at = CASE WHEN status = 'retired' THEN updated_at ELSE NOW() END
+       WHERE id=$1 AND workspace_id=$2
+       RETURNING id, status, updated_at`,
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Offering not found' });
+    res.json({ id: rows[0].id, status: rows[0].status, updated_at: rows[0].updated_at });
+  } catch (err) {
+    console.error('DELETE /api/offerings/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to retire offering' });
+  }
+});
+
+// --- Inventory: Engagements (Tenancies in PM vertical) ---
+// Workspace-scoped. No DELETE — engagements transition via status only
+// (per plan §2.12 / §9.15). Allowed status values: pending, active,
+// expired, terminated, renewed. Status transitions enforced on PATCH:
+//   pending  → active | renewed
+//   active   → terminated | renewed
+//   expired  → renewed
+//   terminated → renewed
+//   renewed  → (terminal, no transitions)
+// PATCH with status='renewed' is special: it marks the current engagement
+// as renewed AND creates a new 'active' engagement (same contact/offering)
+// atomically. Requires renewal_start_date in the body. See chunk 1b spec.
+
+app.get('/api/engagements', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const params = [workspaceId];
+  let where = 'workspace_id = $1';
+  if (req.query.contact_id) {
+    params.push(Number(req.query.contact_id));
+    where += ` AND contact_id = $${params.length}`;
+  }
+  if (req.query.offering_id) {
+    params.push(Number(req.query.offering_id));
+    where += ` AND offering_id = $${params.length}`;
+  }
+  if (req.query.status) {
+    params.push(String(req.query.status));
+    where += ` AND status = $${params.length}`;
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM engagements WHERE ${where} ORDER BY created_at DESC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('GET /api/engagements error:', err.message);
+    res.status(500).json({ error: 'Failed to list engagements' });
+  }
+});
+
+app.get('/api/engagements/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM engagements WHERE id=$1 AND workspace_id=$2',
+      [Number(req.params.id), workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('GET /api/engagements/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch engagement' });
+  }
+});
+
+app.post('/api/engagements', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const contactId = Number(req.body.contact_id);
+  const offeringId = Number(req.body.offering_id);
+  if (!contactId || !Number.isInteger(contactId)) {
+    return res.status(400).json({ error: 'contact_id is required and must be a number' });
+  }
+  if (!offeringId || !Number.isInteger(offeringId)) {
+    return res.status(400).json({ error: 'offering_id is required and must be a number' });
+  }
+
+  // Optional status validation (defaults to 'pending' in DB if omitted)
+  if (req.body.status !== undefined) {
+    const allowed = ['pending', 'active', 'expired', 'terminated', 'renewed'];
+    if (!allowed.includes(req.body.status)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+  }
+
+  try {
+    // Verify contact belongs to caller's workspace. contacts.user_id is
+    // the legacy scoping column; 1:1 with workspace owner post-Phase-1.
+    const { rows: contactRows } = await pool.query(
+      'SELECT id, monthly_rent FROM contacts WHERE id=$1 AND user_id=$2',
+      [contactId, req.session.userId]
+    );
+    if (!contactRows.length) {
+      return res.status(400).json({ error: 'contact_id is invalid or not in your workspace' });
+    }
+    const contactRent = contactRows[0].monthly_rent;
+
+    // Verify offering belongs to workspace
+    const { rows: offeringRows } = await pool.query(
+      'SELECT id, price_amount FROM offerings WHERE id=$1 AND workspace_id=$2',
+      [offeringId, workspaceId]
+    );
+    if (!offeringRows.length) {
+      return res.status(400).json({ error: 'offering_id is invalid or not in your workspace' });
+    }
+    const offeringPrice = offeringRows[0].price_amount;
+
+    // Compute current_price fallback:
+    //   1. explicit body value (even if 0)
+    //   2. contact.monthly_rent if non-null and > 0
+    //   3. offering.price_amount
+    let currentPrice = req.body.current_price;
+    if (currentPrice === undefined || currentPrice === null) {
+      const rent = contactRent != null ? Number(contactRent) : 0;
+      currentPrice = rent > 0 ? rent : offeringPrice;
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO engagements (
+         workspace_id, contact_id, offering_id,
+         start_date, end_date, current_price, status, metadata
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+       RETURNING *`,
+      [
+        workspaceId,
+        contactId,
+        offeringId,
+        req.body.start_date || null,
+        req.body.end_date || null,
+        currentPrice,
+        req.body.status || 'pending',
+        JSON.stringify(req.body.metadata || {}),
+      ]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      // Partial unique violation on (contact_id, offering_id) WHERE status='active'
+      return res.status(409).json({
+        error: 'contact already has an active engagement with this offering'
+      });
+    }
+    if (err.code === '22007' || err.code === '22008') {
+      return res.status(400).json({ error: 'invalid date format for start_date or end_date' });
+    }
+    console.error('POST /api/engagements error:', err.message);
+    res.status(500).json({ error: 'Failed to create engagement' });
+  }
+});
+
+// Allowed status transitions (state machine)
+const ENGAGEMENT_TRANSITIONS = {
+  pending:    ['active', 'renewed'],
+  active:     ['terminated', 'renewed'],
+  expired:    ['renewed'],
+  terminated: ['renewed'],
+  renewed:    []
+};
+
+app.patch('/api/engagements/:id', requireAuth, async (req, res) => {
+  const workspaceId = await getWorkspaceId(req);
+  if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+  const engId = Number(req.params.id);
+
+  // Fetch current (needed for transition check)
+  let current;
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM engagements WHERE id=$1 AND workspace_id=$2',
+      [engId, workspaceId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    current = rows[0];
+  } catch (err) {
+    console.error('PATCH /api/engagements/:id fetch error:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch engagement' });
+  }
+
+  const body = req.body;
+  const targetStatus = body.status;
+
+  // Status-transition validation (only if status is being changed)
+  if (targetStatus !== undefined && targetStatus !== current.status) {
+    const allowed = ['pending', 'active', 'expired', 'terminated', 'renewed'];
+    if (!allowed.includes(targetStatus)) {
+      return res.status(400).json({ error: `status must be one of: ${allowed.join(', ')}` });
+    }
+    const validNext = ENGAGEMENT_TRANSITIONS[current.status] || [];
+    if (!validNext.includes(targetStatus)) {
+      return res.status(400).json({
+        error: `Invalid transition: ${current.status} → ${targetStatus}. Allowed from ${current.status}: ${validNext.join(', ') || '(none; terminal)'}`
+      });
+    }
+  }
+
+  // Renewal path: status='renewed' transitions the current AND creates a
+  // new 'active' engagement. Runs in a transaction.
+  if (targetStatus === 'renewed') {
+    const renewalStart = body.renewal_start_date;
+    if (!renewalStart) {
+      return res.status(400).json({ error: 'renewal_start_date is required when transitioning to renewed' });
+    }
+    const renewalEnd = body.renewal_end_date || null;
+    let renewalPrice = body.renewal_current_price;
+
+    // Compute renewal price fallback if not provided
+    if (renewalPrice === undefined || renewalPrice === null) {
+      try {
+        const { rows: c } = await pool.query(
+          'SELECT monthly_rent FROM contacts WHERE id=$1 AND user_id=$2',
+          [current.contact_id, req.session.userId]
+        );
+        const rent = c[0]?.monthly_rent != null ? Number(c[0].monthly_rent) : 0;
+        if (rent > 0) {
+          renewalPrice = rent;
+        } else {
+          const { rows: o } = await pool.query(
+            'SELECT price_amount FROM offerings WHERE id=$1 AND workspace_id=$2',
+            [current.offering_id, workspaceId]
+          );
+          renewalPrice = o[0]?.price_amount ?? null;
+        }
+      } catch (err) {
+        console.error('Renewal price-compute error:', err.message);
+        return res.status(500).json({ error: 'Failed to compute renewal price' });
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Mark the previous engagement as renewed. End-date logic: preserve
+      // existing end_date if set; otherwise set to the renewal's start_date
+      // (so the old tenancy's effective end aligns with the new one's start).
+      const { rows: prev } = await client.query(
+        `UPDATE engagements
+            SET status = 'renewed',
+                end_date = COALESCE(end_date, $1::date),
+                updated_at = NOW()
+          WHERE id = $2 AND workspace_id = $3
+          RETURNING *`,
+        [renewalStart, engId, workspaceId]
+      );
+      // Create the new engagement (status='active'). The partial unique
+      // index on (contact_id, offering_id) WHERE status='active' is safe
+      // here — the previous row is now 'renewed' so the new 'active' row
+      // has no conflict.
+      const { rows: next } = await client.query(
+        `INSERT INTO engagements (
+           workspace_id, contact_id, offering_id,
+           start_date, end_date, current_price, status, metadata
+         ) VALUES ($1, $2, $3, $4, $5, $6, 'active', '{}'::jsonb)
+         RETURNING *`,
+        [workspaceId, current.contact_id, current.offering_id,
+         renewalStart, renewalEnd, renewalPrice]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ previous: prev[0], current: next[0] });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      if (err.code === '22007' || err.code === '22008') {
+        return res.status(400).json({ error: 'invalid date format for renewal_start_date or renewal_end_date' });
+      }
+      console.error('Renewal transaction error:', err.message);
+      res.status(500).json({ error: 'Failed to process renewal' });
+    } finally {
+      client.release();
+    }
+    return;
+  }
+
+  // Non-renewal PATCH: update provided fields. Only scalar fields allowed
+  // on engagements (plus metadata JSONB). contact_id/offering_id are
+  // intentionally NOT patchable — they define the engagement's identity.
+  const scalarFields = ['start_date', 'end_date', 'current_price', 'status'];
+  const jsonbFields = ['metadata'];
+
+  const setParts = [];
+  const values = [];
+  let i = 1;
+
+  for (const f of scalarFields) {
+    if (Object.prototype.hasOwnProperty.call(body, f)) {
+      setParts.push(`${f} = $${i}`);
+      values.push(body[f]);
+      i++;
+    }
+  }
+  for (const f of jsonbFields) {
+    if (Object.prototype.hasOwnProperty.call(body, f)) {
+      setParts.push(`${f} = $${i}::jsonb`);
+      values.push(JSON.stringify(body[f]));
+      i++;
+    }
+  }
+
+  // Auto-populate end_date = TODAY when transitioning to 'terminated' if
+  // the caller didn't provide one.
+  if (targetStatus === 'terminated' &&
+      !Object.prototype.hasOwnProperty.call(body, 'end_date')) {
+    setParts.push(`end_date = $${i}`);
+    values.push(new Date().toISOString().slice(0, 10)); // YYYY-MM-DD
+    i++;
+  }
+
+  if (!setParts.length) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  setParts.push('updated_at = NOW()');
+  values.push(engId, workspaceId);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE engagements SET ${setParts.join(', ')}
+       WHERE id=$${i} AND workspace_id=$${i + 1}
+       RETURNING *`,
+      values
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Engagement not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({
+        error: 'contact already has an active engagement with this offering'
+      });
+    }
+    if (err.code === '22007' || err.code === '22008') {
+      return res.status(400).json({ error: 'invalid date format for start_date or end_date' });
+    }
+    console.error('PATCH /api/engagements/:id error:', err.message);
+    res.status(500).json({ error: 'Failed to update engagement' });
+  }
+});
+
 // --- Tasks ---
 app.get('/api/tasks', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM tasks WHERE user_id=$1 ORDER BY suggested DESC, "dueDate" ASC', [req.session.userId]);
@@ -1324,20 +2102,85 @@ app.get('/api/automation', async (req, res) => {
   res.json(automationData);
 });
 
-app.put('/api/automation', async (req, res) => {
-  const autoReplyEnabled = !!req.body.autoReplyEnabled;
+// Sub-step D (Layer 3): PUT /api/automation now enforces the consent
+// flow. Enabling auto-reply (FALSE -> TRUE) is rejected here — clients
+// must use POST /api/automation/consent so the consent grant gets
+// recorded in audit_log. Disabling (TRUE -> FALSE) writes a revocation
+// event to audit_log and proceeds. No-op writes pass through silently.
+app.put('/api/automation', requireAuth, async (req, res) => {
+  const desired = !!req.body.autoReplyEnabled;
+  const current = await getAutomation(req.session.userId);
+  const currentValue = !!current.autoReplyEnabled;
+
+  if (currentValue === desired) {
+    return res.json({ autoReplyEnabled: desired, managerReviewRequired: !desired });
+  }
+
+  if (desired === true) {
+    return res.status(400).json({
+      error: 'Use POST /api/automation/consent to enable auto-reply (consent required).'
+    });
+  }
+
+  // currentValue === true && desired === false — revocation path.
+  // Write the audit-log entry first; if it fails we don't flip the
+  // bool (keeps the audit trail authoritative — never a state change
+  // without a corresponding event log).
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (user_id, event_type, details, ip) VALUES ($1, $2, $3::jsonb, $4)',
+      [req.session.userId, 'auto_reply_consent_revoked', '{}', req.ip || null]
+    );
+  } catch (err) {
+    console.error('[consent] revocation audit-log write failed:', err.message);
+    return res.status(500).json({ error: 'Failed to record revocation' });
+  }
+
   await pool.query(
-    'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled"=$2',
-    [req.session.userId, autoReplyEnabled]
+    'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, FALSE) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled" = FALSE',
+    [req.session.userId]
   );
-  res.json({ autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
+  res.json({ autoReplyEnabled: false, managerReviewRequired: true });
+});
+
+// Sub-step D (Layer 3): explicit consent path for enabling auto-reply.
+// Frontend sends this only after the consent modal's checkbox has been
+// checked and the Enable Auto-Reply button clicked. Audit-log entry is
+// written before the automation flip, so we never have an "enabled"
+// state without a corresponding granted-consent record.
+app.post('/api/automation/consent', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      'INSERT INTO audit_log (user_id, event_type, details, ip) VALUES ($1, $2, $3::jsonb, $4)',
+      [req.session.userId, 'auto_reply_consent_granted', '{}', req.ip || null]
+    );
+  } catch (err) {
+    console.error('[consent] grant audit-log write failed:', err.message);
+    return res.status(500).json({ error: 'Failed to record consent' });
+  }
+  try {
+    await pool.query(
+      'INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, TRUE) ON CONFLICT (user_id) DO UPDATE SET "autoReplyEnabled" = TRUE',
+      [req.session.userId]
+    );
+  } catch (err) {
+    console.error('[consent] automation update failed:', err.message);
+    return res.status(500).json({ error: 'Failed to enable auto-reply' });
+  }
+  res.json({ autoReplyEnabled: true, managerReviewRequired: false });
 });
 
 // --- Messages ---
 app.get('/api/messages', async (req, res) => {
   const folder = req.query.folder || 'inbox';
+  // Inbox pins emergency-flagged rows to the top until the owner
+  // marks them reviewed (sub-step C). Other folders keep the legacy
+  // chronological-only sort.
+  const orderBy = folder === 'inbox'
+    ? 'emergency_flagged DESC, "createdAt" DESC'
+    : '"createdAt" DESC';
   const { rows } = await pool.query(
-    'SELECT * FROM messages WHERE user_id=$1 AND folder=$2 ORDER BY "createdAt" DESC',
+    `SELECT * FROM messages WHERE user_id=$1 AND folder=$2 ORDER BY ${orderBy}`,
     [req.session.userId, folder]
   );
   res.json(rows);
@@ -1345,6 +2188,32 @@ app.get('/api/messages', async (req, res) => {
 
 app.get('/api/messages/:id', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  if (!rows.length) return res.status(404).json({ error: 'Message not found' });
+  const msg = rows[0];
+  // Sub-step C: lazily compute matched keywords for the detail-view
+  // banner. Single source of truth on the server (no JS duplication of
+  // the keyword list). Graceful fallback if the keyword list has
+  // changed since flagging — the recompute may be empty even though
+  // emergency_flagged is true; the frontend handles that case.
+  if (msg.emergency_flagged) {
+    msg.emergency_keywords = detectEmergency(msg.text);
+  }
+  res.json(msg);
+});
+
+// Sub-step C: clear the emergency flag on a message after the owner
+// has manually reviewed it. Single-purpose endpoint — does not change
+// folder, status, or any other field. Uses requireAuth (safer than
+// the legacy /api/messages/* routes that scope by req.session.userId
+// directly; retrofitting the others is a separate cleanup task).
+app.post('/api/messages/:id/clear-emergency', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    `UPDATE messages
+        SET emergency_flagged = FALSE
+      WHERE id = $1 AND user_id = $2
+      RETURNING *`,
+    [Number(req.params.id), req.session.userId]
+  );
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   res.json(rows[0]);
 });
@@ -1609,7 +2478,7 @@ Guidelines:
 
 // --- AI: Command center ---
 app.post('/api/command', requireAuth, async (req, res) => {
-  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets } = req.body;
+  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets, properties, units } = req.body;
 
   const knowledgeDocs = await getKnowledge(req.session.userId);
   const knowledgeSection = knowledgeDocs.length
@@ -1636,7 +2505,23 @@ ${rentRecords && rentRecords.length ? rentRecords.map(r => `- ${r.resident}${r.u
 
 ### Open Maintenance Tickets
 ${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t => t.status === 'open').map(t => `- #${t.id}: ${t.title}${t.unit ? ` (Unit ${t.unit})` : ''} [${t.priority}]`).join('\n') : 'No open tickets.'}
+
+### Properties (Inventory)
+${properties && properties.length ? properties.map(p => `- #${p.id} "${p.name}"${p.address ? ` at ${p.address}` : ''}${p.building_type ? `, ${p.building_type}` : ''}${p.year_built ? `, built ${p.year_built}` : ''}${p.number_of_floors ? `, ${p.number_of_floors} floors` : ''}${p.total_unit_count ? `, ${p.total_unit_count} total units` : ''}`).join('\n') : 'No properties.'}
+
+### Units (Inventory)
+${units && units.length ? units.map(u => {
+  const dims = [u.bedrooms != null ? `${u.bedrooms}br` : null, u.bathrooms != null ? `${u.bathrooms}ba` : null, u.sqft ? `${u.sqft}sqft` : null].filter(Boolean).join('/');
+  const price = u.rent ? `$${u.rent}${u.frequency ? `/${u.frequency.replace(/ly$/,'')}` : ''}` : '';
+  const occ = u.occupied_by ? `OCCUPIED by "${u.occupied_by}"` : (u.off_market ? 'Off-market' : 'Vacant');
+  return `- #${u.id} "${u.property_name}" ▸ "${u.name}"${dims ? `, ${dims}` : ''}${price ? `, ${price}` : ''}, ${occ}`;
+}).join('\n') : 'No units.'}
 `.trim();
+  // FUTURE: when a workspace has > ~200 units, the units list above
+  // dominates the snapshot. Cap the rendered list and tell the AI it's
+  // truncated, or switch read-query answers to dedicated endpoints.
+  // The frontend builds the units array in submitHomeCommand (views/
+  // app.html) — same cap target there.
 
   const tools = [
     {
@@ -1764,6 +2649,166 @@ ${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t 
         },
         required: ['month', 'year']
       }
+    },
+    // --- Inventory tools (Properties / Units / Engagements) ---
+    {
+      name: 'create_property',
+      description: 'Create a new property (building or location). Use when the user asks to add or create a property.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Property name' },
+          address: { type: 'string', description: 'Full address' },
+          building_type: { type: 'string', description: 'e.g. apartment, condo, single-family, townhouse, mixed-use' },
+          year_built: { type: 'number' },
+          number_of_floors: { type: 'number' },
+          total_unit_count: { type: 'number' },
+          description: { type: 'string' }
+        },
+        required: ['name']
+      }
+    },
+    {
+      name: 'update_property',
+      description: 'Update fields on an existing property. Identify the property by its name from the snapshot. If multiple properties match the name, ask the user to clarify rather than guessing.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Property name (must match a property in the snapshot)' },
+          name: { type: 'string', description: 'New name (only when renaming)' },
+          address: { type: 'string' },
+          description: { type: 'string' },
+          building_type: { type: 'string' },
+          year_built: { type: 'number' },
+          number_of_floors: { type: 'number' },
+          total_unit_count: { type: 'number' },
+          heating_system: { type: 'string' },
+          water_source: { type: 'string' },
+          parking_setup: { type: 'string' },
+          pet_policy: { type: 'string' },
+          smoking_policy: { type: 'string' }
+        },
+        required: ['property']
+      }
+    },
+    {
+      name: 'archive_property',
+      description: 'Soft-delete (archive) a property. The property is hidden from default lists but its data is preserved. Identify by property name.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Property name' }
+        },
+        required: ['property']
+      }
+    },
+    {
+      name: 'create_unit',
+      description: 'Create a new unit (rental space) within a property. Use when the user asks to add a unit, apartment, suite, or room.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          property: { type: 'string', description: 'Parent property name (must match a property in the snapshot)' },
+          name: { type: 'string', description: 'Unit identifier, e.g. "Unit 301", "Apartment 2B", "Studio A"' },
+          description: { type: 'string' },
+          floor: { type: 'string', description: 'Floor designation, e.g. "2", "Ground", "Penthouse"' },
+          rent: { type: 'number', description: 'Rent or price amount in dollars' },
+          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'], description: 'Rent frequency (default monthly)' },
+          bedrooms: { type: 'number' },
+          bathrooms: { type: 'number' },
+          sqft: { type: 'number' },
+          amenities: { type: 'array', items: { type: 'string' }, description: 'Amenities like balcony, dishwasher, in-unit laundry' },
+          notes: { type: 'string' }
+        },
+        required: ['property', 'name']
+      }
+    },
+    {
+      name: 'update_unit',
+      description: 'Update fields on an existing unit. Identify by unit name; include the property name when the unit name alone is ambiguous.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string', description: 'Unit name (must match a unit in the snapshot)' },
+          property: { type: 'string', description: 'Parent property name (required when unit name alone is ambiguous)' },
+          name: { type: 'string', description: 'New name (only when renaming)' },
+          description: { type: 'string' },
+          floor: { type: 'string' },
+          rent: { type: 'number' },
+          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'] },
+          bedrooms: { type: 'number' },
+          bathrooms: { type: 'number' },
+          sqft: { type: 'number' },
+          amenities: { type: 'array', items: { type: 'string' } },
+          notes: { type: 'string' }
+        },
+        required: ['unit']
+      }
+    },
+    {
+      name: 'set_unit_off_market',
+      description: 'Toggle a unit on or off the market. Off-market = under repair, in renovation, or otherwise not currently rentable. Does NOT terminate any active tenancy.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string' },
+          property: { type: 'string', description: 'Required when unit name alone is ambiguous' },
+          off_market: { type: 'boolean', description: 'true to mark off-market; false to bring back to vacant' }
+        },
+        required: ['unit', 'off_market']
+      }
+    },
+    {
+      name: 'retire_unit',
+      description: 'Soft-delete (retire) a unit. The unit is hidden from default lists but its history is preserved. Use when a unit is decommissioned permanently.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          unit: { type: 'string' },
+          property: { type: 'string', description: 'Required when unit name alone is ambiguous' }
+        },
+        required: ['unit']
+      }
+    },
+    {
+      name: 'assign_tenant_to_unit',
+      description: 'Assign a tenant (existing contact) to a unit by creating an active engagement. The contact must already exist (use add_contact first if not). If multiple contacts or units match the names, ASK FOR CLARIFICATION rather than guessing.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string', description: 'Tenant contact name' },
+          unit: { type: 'string', description: 'Unit name' },
+          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' },
+          start_date: { type: 'string', description: 'Tenancy start date YYYY-MM-DD (default: contact lease_start or today)' },
+          end_date: { type: 'string', description: 'Tenancy end date YYYY-MM-DD (default: contact lease_end or none)' },
+          rent: { type: 'number', description: 'Override current price (default: contact monthly_rent if set, else unit rent)' }
+        },
+        required: ['tenant', 'unit']
+      }
+    },
+    {
+      name: 'move_tenant_to_unit',
+      description: 'Move an existing tenant from their current unit to a new unit. Atomically terminates the old engagement and creates a new active one. If the tenant has no current unit, behaves like assign_tenant_to_unit.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string' },
+          unit: { type: 'string', description: 'New unit name' },
+          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' }
+        },
+        required: ['tenant', 'unit']
+      }
+    },
+    {
+      name: 'end_tenant_assignment',
+      description: 'End a tenant\'s current unit assignment (terminate the active engagement). Use for move-outs, evictions, or lease terminations.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          tenant: { type: 'string' }
+        },
+        required: ['tenant']
+      }
     }
   ];
 
@@ -1788,9 +2833,18 @@ You have access to the following tools. Use them proactively when the user's int
 - add_budget_transaction: log income or expenses to the budget tracker
 - add_maintenance_ticket: create maintenance/repair tickets
 - generate_rent: create pending rent records for all residents for a given month
+- create_property / update_property / archive_property: manage properties (buildings, locations)
+- create_unit / update_unit: manage rental units within properties
+- set_unit_off_market: toggle a unit's off-market flag (use for repairs, renovations, or temporarily unrentable units)
+- retire_unit: soft-delete a unit permanently
+- assign_tenant_to_unit / move_tenant_to_unit / end_tenant_assignment: manage which tenant occupies which unit
 
 You can use multiple tools in one response if needed (e.g. "add Maria and generate May rent" → add_contact + generate_rent).
-Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.`,
+Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.
+
+CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
+
+For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`,
       tools,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -1883,6 +2937,126 @@ Return only the JSON array, no other text.`
     console.log(`AI suggested ${suggested.length} task(s) from message ${message.id}`);
   } catch (err) {
     console.error('Task suggestion error:', err.message);
+  }
+}
+
+// --- AI Auto-Reply Safety Layer 1: emergency keyword detection ---
+// Hardcoded keyword list (per spec — not user-editable). Word-boundary
+// regex; case-insensitive. Multi-word phrases like "gas leak" work via
+// literal-space matching with \b at the phrase edges. The list errs on
+// the side of safety: false positives just hold a message for manual
+// review, false negatives let dangerous content through to auto-reply.
+//
+// Distinct from the older EMERGENCY_KEYWORDS / isEmergency() above
+// (~line 1968) which is the MAINTENANCE-ticket triage list — that one
+// drives the maintenance "emergency" priority via physical-property
+// terms (carbon monoxide, structural, water damage, etc.). The two
+// lists overlap (fire / gas leak / smoke) but cover different domains:
+// auto-reply safety includes health/safety/threat terms that the
+// maintenance list deliberately doesn't, so they shouldn't be merged.
+const AUTOREPLY_EMERGENCY_KEYWORDS = [
+  // Fire / smoke
+  'fire', 'smoke', 'burning', 'alarm',
+  // Gas
+  'gas leak', 'gas smell', 'propane',
+  // Water
+  'flood', 'flooding', 'water leak', 'burst pipe', 'sewage',
+  // Safety
+  'emergency', 'urgent', 'threat', 'threatening', 'weapon', 'gun', 'knife',
+  'intruder', 'break-in', 'broken in',
+  // Health
+  'hurt', 'injured', 'bleeding', 'unconscious', 'dead', 'body', 'overdose',
+  // Severity markers
+  '911', 'asap urgent', 'life threatening',
+];
+
+function _escapeRegexChars(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+const AUTOREPLY_EMERGENCY_REGEX = new RegExp(
+  '\\b(' + AUTOREPLY_EMERGENCY_KEYWORDS.map(_escapeRegexChars).join('|') + ')\\b',
+  'gi'
+);
+
+// detectEmergency: returns the unique matched keywords (lower-cased).
+// Empty array means clean message. Useful both as the gate (length > 0
+// suppresses auto-reply) and as the payload for the owner alert SMS.
+function detectEmergency(text) {
+  if (!text) return [];
+  const matches = String(text).match(AUTOREPLY_EMERGENCY_REGEX);
+  if (!matches) return [];
+  const seen = new Set();
+  const out = [];
+  for (const m of matches) {
+    const k = m.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); out.push(k); }
+  }
+  return out;
+}
+
+// sendOwnerEmergencyAlert: SMS to users.alert_phone first, fall back to
+// email via SendGrid (notification_email or email), log + return if
+// both are missing. Soft errors only — the message is already flagged
+// in the DB; failure here means the owner finds out next time they
+// open the inbox rather than instantly.
+async function sendOwnerEmergencyAlert(userId, message, matchedKeywords) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, alert_phone, notification_email, email FROM users WHERE id = $1',
+      [userId]
+    );
+    if (!rows.length) {
+      console.error('[emergency-alert] No user row for userId=', userId);
+      return;
+    }
+    const user = rows[0];
+    const sender = (message.resident && String(message.resident).trim())
+      || message.phone
+      || message.email
+      || '(no sender label)';
+    const keywords = matchedKeywords.join(', ');
+    const smsBody = `Modern Management URGENT: Message from ${sender} flagged for review (keywords: ${keywords}). Reply in app.`;
+
+    const phone = (user.alert_phone || '').trim();
+    if (phone) {
+      try {
+        await twilioClient.messages.create({
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone,
+          body: smsBody,
+        });
+        console.log('[emergency-alert] SMS sent to', phone, 'for message', message.id);
+        return;
+      } catch (err) {
+        console.error('[emergency-alert] SMS send failed:', err.message, '— falling back to email');
+        // fall through
+      }
+    }
+
+    const toEmail = (user.notification_email && user.notification_email.trim())
+      || (user.email && user.email.trim())
+      || '';
+    if (toEmail) {
+      try {
+        await sgMail.send({
+          to: toEmail,
+          from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+          subject: 'URGENT: Tenant message flagged for review',
+          text: smsBody + '\n\nMessage preview:\n' + String(message.text || '').slice(0, 500),
+        });
+        console.log('[emergency-alert] Email sent to', toEmail, 'for message', message.id);
+        return;
+      } catch (err) {
+        console.error('[emergency-alert] Email send also failed:', err.message);
+      }
+    }
+
+    console.error(
+      '[emergency-alert] No alert_phone or email on file for userId=', userId,
+      '— message', message.id, 'is flagged in the DB but owner not actively notified'
+    );
+  } catch (err) {
+    console.error('[emergency-alert] Outer error:', err.message);
   }
 }
 
@@ -2079,9 +3253,28 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
     );
     if (rows[0]) {
       sendNotificationEmail(userId, rows[0]);
-      const autoData = await getAutomation(userId);
-      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
-      else suggestTasksFromConversation(rows[0], null, userId);
+
+      // Layer 1: emergency keyword gate. If matched, flag the row,
+      // alert the owner, and skip auto-reply / task suggestion. The
+      // notification email above still fires — it's the standard
+      // "you got a new message" ping, not the emergency alert.
+      const matched = detectEmergency(rows[0].text);
+      if (matched.length) {
+        try {
+          await pool.query(
+            'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+            [rows[0].id]
+          );
+          rows[0].emergency_flagged = true;
+        } catch (err) {
+          console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+        }
+        sendOwnerEmergencyAlert(userId, rows[0], matched);
+      } else {
+        const autoData = await getAutomation(userId);
+        if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+        else suggestTasksFromConversation(rows[0], null, userId);
+      }
     }
   } catch (err) {
     console.error('Inbound email error:', err.message);
@@ -2207,9 +3400,25 @@ app.post('/api/sms/incoming', async (req, res) => {
 
   if (rows[0]) {
     sendNotificationEmail(userId, rows[0]);
-    const autoData = await getAutomation(userId);
-    if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
-    else suggestTasksFromConversation(rows[0], null, userId);
+
+    // Layer 1: emergency keyword gate (see /api/email/incoming above).
+    const matched = detectEmergency(rows[0].text);
+    if (matched.length) {
+      try {
+        await pool.query(
+          'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+          [rows[0].id]
+        );
+        rows[0].emergency_flagged = true;
+      } catch (err) {
+        console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+      }
+      sendOwnerEmergencyAlert(userId, rows[0], matched);
+    } else {
+      const autoData = await getAutomation(userId);
+      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+      else suggestTasksFromConversation(rows[0], null, userId);
+    }
   }
 });
 
@@ -2279,9 +3488,32 @@ app.post('/api/voice/transcription', async (req, res) => {
     );
     if (rows.length) {
       sendNotificationEmail(userId, rows[0]);
-      const autoData = await getAutomation(userId);
-      if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
-      else suggestTasksFromConversation(rows[0], null, userId);
+
+      // Layer 1: emergency keyword gate. Defensive short-circuit —
+      // if the row was already flagged by some other path (currently
+      // none, but defensive against future code), don't re-detect or
+      // re-alert. The owner has already been notified.
+      if (rows[0].emergency_flagged) {
+        console.log('[emergency-alert] Voicemail row', rows[0].id, 'already flagged — skipping re-detection');
+      } else {
+        const matched = detectEmergency(rows[0].text);
+        if (matched.length) {
+          try {
+            await pool.query(
+              'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+              [rows[0].id]
+            );
+            rows[0].emergency_flagged = true;
+          } catch (err) {
+            console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+          }
+          sendOwnerEmergencyAlert(userId, rows[0], matched);
+        } else {
+          const autoData = await getAutomation(userId);
+          if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
+          else suggestTasksFromConversation(rows[0], null, userId);
+        }
+      }
     }
   } catch (err) {
     console.error('Transcription update error:', err.message);

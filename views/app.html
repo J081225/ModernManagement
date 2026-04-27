@@ -602,6 +602,7 @@
         <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
         <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
+        <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
       <div class="sidebar-footer">Modern Management &copy; 2026</div>
@@ -696,6 +697,9 @@
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128295; Create a maintenance ticket</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128200; Log an expense</button>
               <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; Who hasn't paid rent?</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127968; Add a unit</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128100; Assign a tenant</button>
+              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127970; Show me what's vacant</button>
             </div>
             <!-- Response area -->
             <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
@@ -1001,6 +1005,61 @@
 
         </div>
 
+        <!-- INVENTORY PAGE -->
+        <div class="page" id="page-inventory">
+
+          <!-- Header row — breadcrumb + action buttons -->
+          <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
+            <div id="inventoryBreadcrumb" style="font-size:0.92em;color:#4a5568;font-weight:600;">Properties</div>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <!-- List-mode actions -->
+              <div id="inventoryListActions">
+                <button class="btn-primary" onclick="openAddProperty()">+ Add Property</button>
+              </div>
+              <!-- Detail-mode actions (hidden by default; shown when a property is open) -->
+              <div id="inventoryDetailActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="editCurrentProperty()">&#9998; Edit</button>
+                <button class="btn-secondary" onclick="archiveCurrentProperty()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Archive</button>
+              </div>
+              <!-- Edit-mode actions (hidden by default; shown while editing) -->
+              <div id="inventoryEditActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="cancelPropertyEdit()">Cancel</button>
+                <button class="btn-primary" id="inventoryEditSaveBtn" onclick="savePropertyEdit()">Save Changes</button>
+              </div>
+              <!-- Unit-detail-mode actions (hidden by default; shown when a unit is open) -->
+              <div id="inventoryUnitDetailActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="editCurrentUnit()">&#9998; Edit</button>
+                <button class="btn-secondary" onclick="retireCurrentUnit()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Retire</button>
+              </div>
+              <!-- Unit-edit-mode actions (hidden by default; shown while editing a unit) -->
+              <div id="inventoryUnitEditActions" style="display:none;gap:8px;">
+                <button class="btn-secondary" onclick="cancelUnitEdit()">Cancel</button>
+                <button class="btn-primary" id="inventoryUnitEditSaveBtn" onclick="saveUnitEdit()">Save Changes</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Properties grid (populated by loadInventory) -->
+          <div id="inventoryPropertiesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;"></div>
+
+          <!-- Empty state (shown when no non-archived entities exist) -->
+          <div id="inventoryEmptyState" style="display:none;padding:60px 20px;text-align:center;color:#94a3b8;">
+            <div style="font-size:3em;margin-bottom:12px;">&#127970;</div>
+            <div style="font-size:1.1em;font-weight:600;color:#4a5568;margin-bottom:8px;">No properties yet</div>
+            <div style="font-size:0.9em;margin-bottom:20px;">Get started by adding your first property.</div>
+            <button class="btn-primary" onclick="openAddProperty()">+ Add Your First Property</button>
+          </div>
+
+          <!-- Loading state (shown while API calls are in-flight) -->
+          <div id="inventoryLoading" style="display:none;padding:40px 20px;text-align:center;color:#94a3b8;font-size:0.92em;">
+            Loading properties&hellip;
+          </div>
+
+          <!-- Property detail pane (hidden in list mode; populated by openPropertyDetail) -->
+          <div id="inventoryDetailPane" style="display:none;"></div>
+
+        </div>
+
         <!-- TASKS PAGE -->
         <div class="page" id="page-tasks">
 
@@ -1133,6 +1192,16 @@
               <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
             </div>
             <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#27ae60;margin-top:8px;font-weight:500;">&#10003; Settings saved</div>
+
+            <!-- Sub-step C: Emergency alert phone (Layer 1 fallback target). -->
+            <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin:18px 0 4px;">Emergency alert phone (mobile)</label>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input type="tel" id="alertPhone" placeholder="+15551234567" style="flex:1;margin:0;" />
+              <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
+            </div>
+            <div style="font-size:0.78em;color:#94a3b8;margin-top:6px;line-height:1.5;">
+              Modern Management will text this number when a tenant message is held for manual review (emergency keywords detected). Falls back to your notification email if blank.
+            </div>
           </div>
 
           <!-- Phone & Email Routing -->
@@ -1342,8 +1411,9 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.getElementById('page-' + name).classList.add('active');
         link.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory' };
         if (name === 'home') { loadHomeStats(); loadLeases(); }
+        if (name === 'inventory') loadInventory();
         document.getElementById('topbar-icon').innerHTML = icon;
         document.getElementById('topbar-title').textContent = titles[name];
       }
@@ -1398,12 +1468,22 @@
         messages.forEach(msg => {
           const line = document.createElement('div');
           line.className = 'list-item';
-          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;';
+          // Subtle red left border on emergency-flagged rows; no
+          // background or text-color change (sub-step C styling
+          // constraint — visible but not "broken-looking").
+          const flagBorder = msg.emergency_flagged
+            ? 'border-left:3px solid #dc2626;padding-left:8px;'
+            : '';
+          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;' + flagBorder;
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
           const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : msg.category === 'voicemail' ? '&#128222;' : '&#128172;';
+          // EMERGENCY badge (red, inline) — only for flagged rows.
+          const emergencyBadge = msg.emergency_flagged
+            ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>'
+            : '';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${catIcon} ${msg.subject}</div>
+              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${emergencyBadge}${catIcon} ${msg.subject}</div>
               <div style="color:#666;font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
             <div style="display:flex;gap:2px;flex-shrink:0;">
@@ -1473,7 +1553,35 @@
         const msg = await api('messages/' + id);
         selectedMessage = msg;
         const panel = document.getElementById('messageDetail');
+
+        // Sub-step C: emergency banner above the message header. Shows
+        // matched keywords (lazily computed by GET /api/messages/:id)
+        // and a red-outlined "Mark Reviewed" button. Falls back to a
+        // bare message if emergency_keywords is missing or empty (can
+        // happen if the keyword list changed since flagging).
+        let emergencyBanner = '';
+        if (msg.emergency_flagged) {
+          const kws = Array.isArray(msg.emergency_keywords) ? msg.emergency_keywords : [];
+          const kwText = kws.length
+            ? ` This message was flagged: <b>${kws.map(k => k.replace(/[<>&]/g, '')).join(', ')}</b>.`
+            : ' This message was flagged.';
+          emergencyBanner = `
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+              <div style="flex:1;color:#7f1d1d;font-size:0.92em;line-height:1.45;">
+                &#128680;${kwText}
+              </div>
+              <button
+                onclick="markEmergencyReviewed(${msg.id})"
+                style="background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:7px 14px;font-size:0.85em;font-weight:600;cursor:pointer;white-space:nowrap;"
+                onmouseover="this.style.background='#fef2f2'"
+                onmouseout="this.style.background='white'"
+              >Mark Reviewed</button>
+            </div>
+          `;
+        }
+
         panel.innerHTML = `
+          ${emergencyBanner}
           <h3 style="margin-bottom:10px">${msg.subject}</h3>
           <p><b>Resident:</b> ${msg.resident}</p>
           <p><b>Category:</b> ${msg.category}</p>
@@ -1504,6 +1612,34 @@
             </div>`
           ).join('');
         }
+      }
+
+      // Sub-step C: clear the emergency flag on the currently-open
+      // message. Called from the banner's "Mark Reviewed" button.
+      // Synchronously re-renders the detail pane (banner + EMERGENCY
+      // badge gone) and refreshes the inbox list (row un-pins from
+      // top, badge gone from list view) — no animation, no lag.
+      async function markEmergencyReviewed(id) {
+        const res = await fetch('/api/messages/' + id + '/clear-emergency', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          alert('Could not clear emergency flag: ' + (body.error || 'HTTP ' + res.status));
+          return;
+        }
+        // Mutate local state so the immediately-following re-render
+        // shows the cleared state without waiting for the inbox list
+        // round-trip below.
+        if (selectedMessage && selectedMessage.id === id) {
+          selectedMessage.emergency_flagged = false;
+          selectedMessage.emergency_keywords = [];
+        }
+        // Re-render detail pane (banner gone) and refresh inbox list
+        // (un-pinned + badge gone). Both happen at once.
+        await showMessage(id);
+        switchFolder(currentFolder, null);
       }
 
       async function sendDraft(draftId) {
@@ -1635,6 +1771,9 @@
         const thumb = document.getElementById('notifToggleThumb');
         toggle.checked = data.notifications_enabled !== false;
         document.getElementById('notifEmail').value = data.notification_email || '';
+        // Sub-step C: alert_phone for Layer 1 emergency SMS.
+        const alertEl = document.getElementById('alertPhone');
+        if (alertEl) alertEl.value = data.alert_phone || '';
         updateNotifToggleUI(toggle.checked, track, thumb);
 
         // Populate routing info
@@ -1656,7 +1795,13 @@
       async function saveNotifSettings() {
         const notification_email = document.getElementById('notifEmail').value.trim();
         const notifications_enabled = document.getElementById('notifToggle').checked;
-        const result = await api('settings', 'PUT', { notification_email, notifications_enabled });
+        // Sub-step C: include alert_phone in the same save. The PUT
+        // endpoint treats the alert_phone key as opt-in (only updates
+        // when present in the body), so other callers like onboarding
+        // that only send notification_email aren't affected.
+        const alertEl = document.getElementById('alertPhone');
+        const alert_phone = alertEl ? alertEl.value.trim() : '';
+        const result = await api('settings', 'PUT', { notification_email, notifications_enabled, alert_phone });
         if (result) {
           const msg = document.getElementById('notifSaveMsg');
           msg.style.display = 'block';
@@ -1665,9 +1810,16 @@
         }
       }
 
+      // Sub-step D (Layer 3): tracks the DB-side autoReplyEnabled value
+      // so saveAutomation can detect a FALSE->TRUE transition and route
+      // it through the consent modal. Refreshed on every loadAutomation
+      // and after any successful enable/disable round-trip.
+      let _currentAutoReplyState = false;
+
       async function loadAutomation() {
         const auto = await api('automation');
         if (!auto) return;
+        _currentAutoReplyState = !!auto.autoReplyEnabled;
         if (auto.autoReplyEnabled) {
           document.getElementById('autoReply').checked = true;
         } else {
@@ -1677,9 +1829,97 @@
       }
 
       async function saveAutomation() {
-        const autoReplyEnabled = document.getElementById('autoReply').checked;
-        await api('automation', 'PUT', { autoReplyEnabled, managerReviewRequired: !autoReplyEnabled });
+        const desired = document.getElementById('autoReply').checked;
+        const current = _currentAutoReplyState;
+
+        // Modal ALWAYS fires when Save is clicked with Auto Response
+        // selected — regardless of whether the DB state is currently
+        // off or on. This is a deliberate deviation from "modal on
+        // transition only": users testing or re-validating their
+        // consent shouldn't be silently no-op'd, and re-confirming
+        // creates a fresh audit_log grant entry that strengthens the
+        // ongoing-consent record.
+        if (desired === true) {
+          openAutoReplyConsentModal();
+          return;
+        }
+
+        // desired === false (Manager Review). Two sub-cases:
+        //   current === true  → revocation: PUT writes the
+        //                       auto_reply_consent_revoked audit-log
+        //                       entry and flips the bool.
+        //   current === false → no-op: nothing changed.
+        if (current === false) {
+          alert('Settings saved.');
+          return;
+        }
+
+        const res = await fetch('/api/automation', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoReplyEnabled: false, managerReviewRequired: true }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          alert('Failed to save settings:\n\n' + (body.error || 'HTTP ' + res.status));
+          return;
+        }
+        _currentAutoReplyState = false;
         alert('Settings saved.');
+      }
+
+      // --- Auto-reply consent modal (sub-step D) ---
+      // Appears every time the user toggles auto-reply ON (per spec).
+      // Checkbox-disabled-submit pattern: the Enable button is disabled
+      // until the acknowledgement checkbox is checked.
+
+      function openAutoReplyConsentModal() {
+        document.getElementById('autoReplyConsentCheckbox').checked = false;
+        updateAutoReplyConsentBtn();
+        document.getElementById('autoReplyConsentModal').style.display = 'flex';
+      }
+
+      function closeAutoReplyConsentModal() {
+        document.getElementById('autoReplyConsentModal').style.display = 'none';
+        // User cancelled — revert the radio selection back to the
+        // current DB state so the UI doesn't lie about being enabled.
+        if (!_currentAutoReplyState) {
+          document.getElementById('requireReview').checked = true;
+          document.getElementById('autoReply').checked = false;
+        }
+        updateModeUI();
+      }
+
+      function updateAutoReplyConsentBtn() {
+        const checked = document.getElementById('autoReplyConsentCheckbox').checked;
+        const btn = document.getElementById('autoReplyConsentBtn');
+        btn.disabled = !checked;
+        btn.style.opacity = checked ? '1' : '0.5';
+        btn.style.cursor = checked ? 'pointer' : 'not-allowed';
+      }
+
+      async function submitAutoReplyConsent() {
+        const btn = document.getElementById('autoReplyConsentBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/automation/consent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to enable auto-reply:\n\n' + (body.error || 'HTTP ' + res.status));
+            // Restore button enabled state (user may want to retry).
+            updateAutoReplyConsentBtn();
+            return;
+          }
+          _currentAutoReplyState = true;
+          document.getElementById('autoReplyConsentModal').style.display = 'none';
+          alert('Auto-reply enabled.');
+        } catch (err) {
+          alert('Error: ' + err.message);
+          updateAutoReplyConsentBtn();
+        }
       }
 
       async function loadKnowledge() {
@@ -2758,7 +2998,107 @@
         document.getElementById('leaseFields').style.display = type === 'resident' ? '' : 'none';
       }
 
-      function openAddContact() {
+      // --- Contact form ↔ Inventory bridge (chunk 6a) ---
+      // The contact modal's Unit field is a structured dropdown
+      // populated from inventoryEntities/inventoryOfferings/
+      // inventoryActiveEngagements. These caches live on the Inventory
+      // page; if the user opens the contact form without first visiting
+      // Inventory, _invEnsureLoaded fetches them on demand.
+      async function _invEnsureLoaded() {
+        if (inventoryEntities.length || inventoryOfferings.length) return;
+        try {
+          const [entitiesRaw, offeringsRaw, engagementsRaw, contactsRaw] = await Promise.all([
+            api('entities'),
+            api('offerings'),
+            api('engagements?status=active'),
+            api('contacts'),
+          ]);
+          inventoryEntities = Array.isArray(entitiesRaw) ? entitiesRaw : [];
+          inventoryOfferings = Array.isArray(offeringsRaw) ? offeringsRaw : [];
+          inventoryActiveEngagements = Array.isArray(engagementsRaw) ? engagementsRaw : [];
+          inventoryContacts = Array.isArray(contactsRaw) ? contactsRaw : [];
+        } catch (e) {
+          console.error('Inventory preload failed for contact form:', e);
+        }
+      }
+
+      // Build the <option>/<optgroup> markup for #cUnitOffering.
+      //   forContactId: if editing, the contact id (used to suppress
+      //                 "currently occupied by self" suffix on their
+      //                 own active unit, and to pre-select that unit).
+      //                 null in Add mode.
+      // Returns { html, preSelectedOfferingId }.
+      function _buildUnitDropdownOptions(forContactId) {
+        // Group offerings by parent entity
+        const byEntity = new Map();
+        for (const e of inventoryEntities) byEntity.set(e.id, { entity: e, offerings: [] });
+        for (const o of inventoryOfferings) {
+          const bucket = byEntity.get(o.entity_id);
+          if (bucket) bucket.offerings.push(o);
+        }
+        const sortedEntities = Array.from(byEntity.values()).sort((a, b) =>
+          String(a.entity.name || '').localeCompare(String(b.entity.name || ''))
+        );
+
+        // Index active engagements + contacts for occupancy suffix
+        const activeEngByOffering = {};
+        for (const eng of inventoryActiveEngagements) activeEngByOffering[eng.offering_id] = eng;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+
+        // Pre-selection: this contact's own currently-active engagement
+        let preSelectedOfferingId = null;
+        if (forContactId != null) {
+          const own = inventoryActiveEngagements.find(e => e.contact_id === forContactId);
+          if (own) preSelectedOfferingId = own.offering_id;
+        }
+
+        let html = '<option value="">\u2014 No unit assigned \u2014</option>';
+        for (const { entity, offerings } of sortedEntities) {
+          if (!offerings.length) continue;
+          const sortedOffs = offerings.slice().sort((a, b) =>
+            String(a.name || '').localeCompare(String(b.name || ''))
+          );
+          html += '<optgroup label="' + escapeHtmlInv(entity.name || '(unnamed property)') + '">';
+          for (const o of sortedOffs) {
+            const eng = activeEngByOffering[o.id];
+            // Suppress "currently occupied by self" when this contact already
+            // holds the active engagement on the unit (avoids confusing label).
+            const showSuffix = eng && eng.contact_id !== forContactId;
+            const tenant = showSuffix ? contactById[eng.contact_id] : null;
+            const tenantName = (tenant && tenant.name) ? tenant.name : 'unknown';
+            const suffix = showSuffix ? ' (currently occupied by ' + tenantName + ')' : '';
+            const sel = preSelectedOfferingId === o.id ? ' selected' : '';
+            html += '<option value="' + o.id + '"' + sel + '>' +
+                    escapeHtmlInv(o.name || '(unnamed unit)') +
+                    escapeHtmlInv(suffix) + '</option>';
+          }
+          html += '</optgroup>';
+        }
+        return { html, preSelectedOfferingId };
+      }
+
+      // Apply the dropdown markup + legacy hint to the open contact modal.
+      // Called after caches are guaranteed populated.
+      function _populateUnitDropdown(forContactId, legacyUnitText) {
+        const sel = document.getElementById('cUnitOffering');
+        const hint = document.getElementById('cUnitLegacyHint');
+        const { html } = _buildUnitDropdownOptions(forContactId);
+        sel.innerHTML = html;
+        // Legacy hint: shown whenever contacts.unit text is populated, so
+        // users see continuity between the old freeform value and the new
+        // dropdown. The actionable migration prompt arrives in chunk 6d.
+        const t = (legacyUnitText || '').trim();
+        if (t) {
+          hint.textContent = "Previous unit text: '" + t + "'";
+          hint.style.display = '';
+        } else {
+          hint.textContent = '';
+          hint.style.display = 'none';
+        }
+      }
+
+      async function openAddContact() {
         _editingContactId = null;
         document.getElementById('contactModalTitle').textContent = '👤 Add Contact';
         document.getElementById('contactModalSaveBtn').textContent = 'Add Contact';
@@ -2774,9 +3114,12 @@
         toggleLeaseFields();
         document.getElementById('contactModal').style.display = 'flex';
         setTimeout(() => document.getElementById('cName').focus(), 50);
+        // Populate the unit dropdown (async — fetches caches on demand)
+        await _invEnsureLoaded();
+        _populateUnitDropdown(null, '');
       }
 
-      function openEditContact(id) {
+      async function openEditContact(id) {
         const c = contacts.find(x => x.id === id);
         if (!c) return;
         _editingContactId = id;
@@ -2786,6 +3129,9 @@
         document.getElementById('cType').value = c.type || 'resident';
         document.getElementById('cEmail').value = c.email || '';
         document.getElementById('cPhone').value = c.phone || '';
+        // #cUnit is now a hidden input that round-trips the legacy text
+        // value unchanged on save (until chunk 6b takes over the unit
+        // assignment write path via engagements).
         document.getElementById('cUnit').value = c.unit || '';
         document.getElementById('cNotes').value = c.notes || '';
         document.getElementById('cLeaseStart').value = c.lease_start || '';
@@ -2794,10 +3140,21 @@
         toggleLeaseFields();
         document.getElementById('contactModal').style.display = 'flex';
         setTimeout(() => document.getElementById('cName').focus(), 50);
+        // Populate dropdown + pre-select this contact's active engagement
+        await _invEnsureLoaded();
+        _populateUnitDropdown(id, c.unit || '');
       }
 
       function closeContactModal() {
         document.getElementById('contactModal').style.display = 'none';
+      }
+
+      function _todayISODate() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return yyyy + '-' + mm + '-' + dd;
       }
 
       async function submitContactModal() {
@@ -2814,21 +3171,124 @@
           lease_end: type === 'resident' ? document.getElementById('cLeaseEnd').value : '',
           monthly_rent: type === 'resident' ? (parseFloat(document.getElementById('cMonthlyRent').value) || 0) : 0,
         };
+
+        // Capture engagement intent BEFORE the contact save so we can
+        // compare old vs new after success. (chunk 6b)
+        const newOfferingRaw = (document.getElementById('cUnitOffering') || {}).value || '';
+        const newOfferingId = newOfferingRaw ? parseInt(newOfferingRaw, 10) : null;
+        const oldEngagement = _editingContactId
+          ? (inventoryActiveEngagements.find(e => e.contact_id === _editingContactId) || null)
+          : null;
+        const oldOfferingId = oldEngagement ? oldEngagement.offering_id : null;
+
         const btn = document.getElementById('contactModalSaveBtn');
         btn.disabled = true;
-        if (_editingContactId) {
-          await fetch('/api/contacts/' + _editingContactId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        } else {
-          await api('contacts', 'POST', payload);
+
+        // Phase 1: contact save. If this fails we abort — don't touch engagements.
+        let savedContactId = _editingContactId;
+        try {
+          if (_editingContactId) {
+            const res = await fetch('/api/contacts/' + _editingContactId, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              alert('Failed to save contact:\n\n' + (body.error || 'HTTP ' + res.status));
+              return;
+            }
+          } else {
+            const res = await fetch('/api/contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              alert('Failed to add contact:\n\n' + (body.error || 'HTTP ' + res.status));
+              return;
+            }
+            const created = await res.json().catch(() => null);
+            savedContactId = created ? created.id : null;
+          }
+        } finally {
+          btn.disabled = false;
         }
-        btn.disabled = false;
+
+        // Phase 2: engagement reconciliation. Contact save already
+        // committed — failures here are soft warnings, not hard errors
+        // (the user can retry by re-saving the contact).
+        const warnings = [];
+        if (newOfferingId !== oldOfferingId) {
+          // Terminate the old engagement if one existed
+          if (oldEngagement) {
+            try {
+              const r = await fetch('/api/engagements/' + oldEngagement.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                warnings.push('Could not end previous unit assignment: ' + (eb.error || 'HTTP ' + r.status));
+              }
+            } catch (e) {
+              warnings.push('Could not end previous unit assignment: ' + e.message);
+            }
+          }
+          // Create a new engagement if a unit was selected
+          if (newOfferingId && savedContactId) {
+            const offering = inventoryOfferings.find(o => o.id === newOfferingId);
+            const monthlyRent = Number(payload.monthly_rent);
+            const offeringPrice = (offering && offering.price_amount != null) ? Number(offering.price_amount) : 0;
+            const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0)
+              ? monthlyRent
+              : offeringPrice;
+            const engBody = {
+              contact_id: savedContactId,
+              offering_id: newOfferingId,
+              status: 'active',
+              start_date: payload.lease_start || _todayISODate(),
+              end_date: payload.lease_end || null,
+              current_price: currentPrice,
+            };
+            try {
+              const r = await fetch('/api/engagements', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(engBody),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                if (r.status === 409) {
+                  warnings.push('Could not assign unit: this contact already has an active engagement on this unit.');
+                } else {
+                  warnings.push('Could not create unit assignment: ' + (eb.error || 'HTTP ' + r.status));
+                }
+              }
+            } catch (e) {
+              warnings.push('Could not create unit assignment: ' + e.message);
+            }
+          }
+        }
+
+        if (warnings.length) {
+          alert('Contact saved, but unit-assignment changes had issues:\n\n' + warnings.join('\n'));
+        }
+
         closeContactModal();
         await loadContacts();
-        if (_editingContactId) selectContact(_editingContactId);
+        // Refresh inventory caches so subsequent renders (units list,
+        // occupancy badges, this contact's pre-selection on next edit)
+        // reflect the new engagement state.
+        inventoryEntities = [];
+        inventoryOfferings = [];
+        inventoryActiveEngagements = [];
+        inventoryContacts = [];
+        await _invEnsureLoaded();
+
+        if (savedContactId) selectContact(savedContactId);
         loadLeases();
       }
 
@@ -3257,8 +3717,78 @@
         submitHomeCommand();
       }
 
+      // --- AI inventory tool helpers (name → record resolution) ---
+      // These resolve property / unit / contact references to concrete
+      // records using the cached inventory data. They never auto-pick on
+      // ambiguity — multiple matches return an error string the AI will
+      // relay as a clarifying question to the user.
+      function _aiFindProperty(nameOrId) {
+        if (typeof nameOrId === 'number') {
+          const e = inventoryEntities.find(x => x.id === nameOrId && !x.archived_at);
+          return e ? { match: e } : { error: `No active property with id ${nameOrId}.` };
+        }
+        const q = String(nameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Property name is required.' };
+        const live = inventoryEntities.filter(e => !e.archived_at);
+        const exact = live.filter(e => String(e.name || '').toLowerCase() === q);
+        const partial = live.filter(e => String(e.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) return { error: `No property matches "${nameOrId}".` };
+        if (set.length > 1) return {
+          error: `Multiple properties match "${nameOrId}": ${set.map(e => `"${e.name}" (#${e.id})`).join(', ')}. Please specify which.`
+        };
+        return { match: set[0] };
+      }
+
+      function _aiFindUnit(unitNameOrId, propertyHint) {
+        if (typeof unitNameOrId === 'number') {
+          const o = inventoryOfferings.find(x => x.id === unitNameOrId && x.status !== 'retired');
+          return o ? { match: o } : { error: `No active unit with id ${unitNameOrId}.` };
+        }
+        const q = String(unitNameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Unit name is required.' };
+        let pool = inventoryOfferings.filter(o => o.status !== 'retired');
+        if (propertyHint) {
+          const propRes = _aiFindProperty(propertyHint);
+          if (propRes.error) return propRes;
+          pool = pool.filter(o => o.entity_id === propRes.match.id);
+        }
+        const exact = pool.filter(o => String(o.name || '').toLowerCase() === q);
+        const partial = pool.filter(o => String(o.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) {
+          return { error: `No unit matches "${unitNameOrId}"${propertyHint ? ` in property "${propertyHint}"` : ''}.` };
+        }
+        if (set.length > 1) {
+          const dets = set.map(o => {
+            const e = inventoryEntities.find(x => x.id === o.entity_id);
+            return `"${o.name}" in "${e ? e.name : '?'}" (#${o.id})`;
+          });
+          return { error: `Multiple units match "${unitNameOrId}": ${dets.join(', ')}. Please specify the property.` };
+        }
+        return { match: set[0] };
+      }
+
+      function _aiFindContact(nameOrId) {
+        if (typeof nameOrId === 'number') {
+          const c = contacts.find(x => x.id === nameOrId);
+          return c ? { match: c } : { error: `No contact with id ${nameOrId}.` };
+        }
+        const q = String(nameOrId || '').trim().toLowerCase();
+        if (!q) return { error: 'Contact name is required.' };
+        const exact = contacts.filter(c => String(c.name || '').toLowerCase() === q);
+        const partial = contacts.filter(c => String(c.name || '').toLowerCase().includes(q));
+        const set = exact.length ? exact : partial;
+        if (set.length === 0) return { error: `No contact matches "${nameOrId}".` };
+        if (set.length > 1) return {
+          error: `Multiple contacts match "${nameOrId}": ${set.map(c => `"${c.name}" (#${c.id})`).join(', ')}. Please specify which.`
+        };
+        return { match: set[0] };
+      }
+
       async function applyActions(actions, actionLog) {
         if (!actions || !actions.length) return;
+        let inventoryDirty = false;
         for (const action of actions) {
 
           if (action.type === 'add_calendar_event') {
@@ -3354,7 +3884,222 @@
             if (result) {
               actionLog.push(`&#128181; Generated rent: ${result.created} record${result.created !== 1 ? 's' : ''} created${result.skipped ? `, ${result.skipped} already existed` : ''}`);
             }
+
+          // --- Inventory actions (chunk: AI command-bar inventory wiring) ---
+          } else if (action.type === 'create_property') {
+            const body = { name: action.name };
+            if (action.address) body.address = action.address;
+            if (action.building_type) body.building_type = action.building_type;
+            if (action.year_built) body.year_built = action.year_built;
+            if (action.number_of_floors) body.number_of_floors = action.number_of_floors;
+            if (action.total_unit_count) body.total_unit_count = action.total_unit_count;
+            if (action.description) body.description = action.description;
+            const r = await fetch('/api/entities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not create property: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127970; Created property: ${rb.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'update_property') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const body = {};
+            for (const f of ['name', 'address', 'description', 'building_type', 'year_built', 'number_of_floors', 'total_unit_count', 'heating_system', 'water_source', 'parking_setup', 'pet_policy', 'smoking_policy']) {
+              if (action[f] !== undefined && action[f] !== null && action[f] !== '') body[f] = action[f];
+            }
+            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${propRes.match.name}.`); continue; }
+            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not update ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#9998; Updated ${propRes.match.name}: ${Object.keys(body).join(', ')}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'archive_property') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'DELETE' });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not archive ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#128465; Archived property: ${propRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'create_unit') {
+            const propRes = _aiFindProperty(action.property);
+            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
+            const body = { entity_id: propRes.match.id, name: action.name, status: 'available' };
+            if (action.description) body.description = action.description;
+            if (action.floor) body.floor = action.floor;
+            if (action.rent != null) body.price_amount = action.rent;
+            if (action.frequency) body.price_frequency = action.frequency;
+            const md = {};
+            if (action.bedrooms != null) md.bedrooms = action.bedrooms;
+            if (action.bathrooms != null) md.bathrooms = action.bathrooms;
+            if (action.sqft != null) md.sqft = action.sqft;
+            if (Array.isArray(action.amenities) && action.amenities.length) md.amenities = action.amenities;
+            if (action.notes) md.notes = action.notes;
+            if (Object.keys(md).length) body.metadata = md;
+            const r = await fetch('/api/offerings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not create unit: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127968; Created ${rb.name} in ${propRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'update_unit') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const body = {};
+            if (action.name) body.name = action.name;
+            if (action.description !== undefined) body.description = action.description;
+            if (action.floor !== undefined) body.floor = action.floor;
+            if (action.rent != null) body.price_amount = action.rent;
+            if (action.frequency) body.price_frequency = action.frequency;
+            const originalMd = uRes.match.metadata || {};
+            const newMd = { ...originalMd };
+            let touchedMd = false;
+            if (action.bedrooms != null) { newMd.bedrooms = action.bedrooms; touchedMd = true; }
+            if (action.bathrooms != null) { newMd.bathrooms = action.bathrooms; touchedMd = true; }
+            if (action.sqft != null) { newMd.sqft = action.sqft; touchedMd = true; }
+            if (Array.isArray(action.amenities)) { newMd.amenities = action.amenities; touchedMd = true; }
+            if (action.notes !== undefined) { newMd.notes = action.notes; touchedMd = true; }
+            if (touchedMd) body.metadata = newMd;
+            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${uRes.match.name}.`); continue; }
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not update ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#9998; Updated ${uRes.match.name}: ${Object.keys(body).filter(k => k !== 'metadata').concat(touchedMd ? ['metadata'] : []).join(', ')}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'set_unit_off_market') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            if (uRes.match.status === 'retired') {
+              actionLog.push(`&#9888; ${uRes.match.name} is retired; restore it before changing off-market.`);
+              continue;
+            }
+            const targetStatus = action.off_market ? 'unavailable' : 'available';
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: targetStatus }) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) { actionLog.push(`&#9888; Could not change ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
+            actionLog.push(`&#127968; ${uRes.match.name} is now ${action.off_market ? 'Off-market' : 'Vacant'}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'retire_unit') {
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'DELETE' });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not retire ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#128465; Retired unit: ${uRes.match.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'assign_tenant_to_unit') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const offering = uRes.match;
+            const monthlyRent = Number(cRes.match.monthly_rent || 0);
+            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+            const fallbackPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+            const body = {
+              contact_id: cRes.match.id,
+              offering_id: offering.id,
+              status: 'active',
+              start_date: action.start_date || cRes.match.lease_start || _todayISODate(),
+              end_date: action.end_date || cRes.match.lease_end || null,
+              current_price: action.rent != null ? action.rent : fallbackPrice,
+            };
+            const r = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const rb = await r.json().catch(() => ({}));
+            if (!r.ok) {
+              if (r.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
+              else actionLog.push(`&#9888; Could not assign ${cRes.match.name} to ${offering.name}: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Assigned ${cRes.match.name} to ${offering.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'move_tenant_to_unit') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const uRes = _aiFindUnit(action.unit, action.property);
+            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
+            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
+            if (oldEng && oldEng.offering_id === uRes.match.id) {
+              actionLog.push(`&#9888; ${cRes.match.name} is already assigned to ${uRes.match.name}.`);
+              continue;
+            }
+            // Terminate the old engagement (if any) before creating the new one.
+            if (oldEng) {
+              const tr = await fetch('/api/engagements/' + oldEng.id, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!tr.ok) {
+                const trb = await tr.json().catch(() => ({}));
+                actionLog.push(`&#9888; Could not end ${cRes.match.name}'s previous unit assignment: ${trb.error || 'HTTP ' + tr.status}`);
+                continue;
+              }
+            }
+            const offering = uRes.match;
+            const monthlyRent = Number(cRes.match.monthly_rent || 0);
+            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+            const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+            const body = {
+              contact_id: cRes.match.id,
+              offering_id: offering.id,
+              status: 'active',
+              start_date: _todayISODate(),
+              end_date: cRes.match.lease_end || null,
+              current_price: currentPrice,
+            };
+            const cr = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const crb = await cr.json().catch(() => ({}));
+            if (!cr.ok) {
+              if (cr.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
+              else actionLog.push(`&#9888; Old assignment ended but could not move ${cRes.match.name} to ${offering.name}: ${crb.error || 'HTTP ' + cr.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Moved ${cRes.match.name} ${oldEng ? 'to ' : 'into '}${offering.name}`);
+            inventoryDirty = true;
+
+          } else if (action.type === 'end_tenant_assignment') {
+            const cRes = _aiFindContact(action.tenant);
+            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
+            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
+            if (!oldEng) {
+              actionLog.push(`&#9888; ${cRes.match.name} has no active unit assignment.`);
+              continue;
+            }
+            const r = await fetch('/api/engagements/' + oldEng.id, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+            });
+            if (!r.ok) {
+              const rb = await r.json().catch(() => ({}));
+              actionLog.push(`&#9888; Could not end ${cRes.match.name}'s assignment: ${rb.error || 'HTTP ' + r.status}`);
+              continue;
+            }
+            actionLog.push(`&#127968; Ended ${cRes.match.name}'s unit assignment`);
+            inventoryDirty = true;
           }
+        }
+
+        // Refresh inventory caches once if any inventory action ran, so
+        // subsequent renders (units list occupancy, contact-modal dropdown
+        // pre-selection, next AI snapshot) reflect the new state.
+        if (inventoryDirty) {
+          inventoryEntities = [];
+          inventoryOfferings = [];
+          inventoryActiveEngagements = [];
+          inventoryContacts = [];
+          await _invEnsureLoaded();
         }
       }
 
@@ -3370,11 +4115,61 @@
         responseBox.innerHTML = '<span style="color:#94a3b8;">&#129302; Thinking...</span>';
 
         try {
-          // Fetch fresh rent + maintenance for context
+          // Fetch fresh rent + maintenance for context, and ensure
+          // inventory caches are populated so the snapshot can include
+          // properties/units (lets the AI answer "what's vacant?" etc.
+          // from context without needing read tools).
           const [freshRent, freshMaint] = await Promise.all([
             fetch('/api/rent').then(r => r.json()).catch(() => []),
             fetch('/api/maintenance').then(r => r.json()).catch(() => [])
           ]);
+          await _invEnsureLoaded();
+
+          // Build the inventory snapshot: pre-resolve property name +
+          // tenant name so the AI doesn't have to join three lists itself.
+          // FUTURE: cap at ~200 units for workspaces with hundreds of
+          // units (server-side renders the same list — same cap target).
+          const propertyById = {};
+          for (const e of inventoryEntities) propertyById[e.id] = e;
+          const activeEngByOfferingId = {};
+          for (const eng of inventoryActiveEngagements) activeEngByOfferingId[eng.offering_id] = eng;
+          const contactByIdLocal = {};
+          for (const c of inventoryContacts) contactByIdLocal[c.id] = c;
+
+          const propertiesSnap = inventoryEntities
+            .filter(e => !e.archived_at)
+            .map(e => ({
+              id: e.id,
+              name: e.name,
+              address: e.address || '',
+              building_type: e.building_type || '',
+              year_built: e.year_built,
+              number_of_floors: e.number_of_floors,
+              total_unit_count: e.total_unit_count,
+            }));
+
+          const unitsSnap = inventoryOfferings
+            .filter(o => o.status !== 'retired')
+            .map(o => {
+              const md = o.metadata || {};
+              const eng = activeEngByOfferingId[o.id];
+              const tenant = eng ? contactByIdLocal[eng.contact_id] : null;
+              const parent = propertyById[o.entity_id];
+              return {
+                id: o.id,
+                name: o.name,
+                property_id: o.entity_id,
+                property_name: parent ? parent.name : '',
+                bedrooms: md.bedrooms,
+                bathrooms: md.bathrooms,
+                sqft: md.sqft,
+                rent: o.price_amount != null ? Number(o.price_amount) : null,
+                frequency: o.price_frequency || '',
+                off_market: o.status === 'unavailable',
+                occupied_by: tenant ? tenant.name : null,
+              };
+            });
+
           const res = await fetch('/api/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3385,7 +4180,9 @@
               tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
               messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status })),
               rentRecords: freshRent.map(r => ({ id: r.id, resident: r.resident, unit: r.unit, amount: r.amount, due_date: r.due_date, status: r.status })),
-              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status }))
+              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status })),
+              properties: propertiesSnap,
+              units: unitsSnap,
             })
           });
           const data = await res.json();
@@ -3793,6 +4590,1656 @@
         loadLeases();
         api('leases/check-renewals', 'POST', {}).catch(() => {});
       };
+
+      // --- Inventory (chunk 2: Properties list view) ---
+      // Reads /api/entities, /api/offerings (non-retired), /api/engagements?status=active.
+      // Computes per-property unit count and occupancy rate client-side.
+      // Uses a tiny inline escapeHtml helper — all user-supplied strings from
+      // the API pass through it before landing in innerHTML.
+      let inventoryEntities = [];
+      let inventoryOfferings = [];
+      let inventoryActiveEngagements = [];
+      let inventoryContacts = [];  // cached for tenant-name lookup in units list
+
+      function escapeHtmlInv(s) {
+        if (s == null) return '';
+        return String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      async function loadInventory() {
+        const grid = document.getElementById('inventoryPropertiesGrid');
+        const empty = document.getElementById('inventoryEmptyState');
+        const loading = document.getElementById('inventoryLoading');
+        grid.style.display = 'none';
+        empty.style.display = 'none';
+        loading.style.display = 'block';
+
+        const [entitiesRaw, offeringsRaw, engagementsRaw, contactsRaw] = await Promise.all([
+          api('entities'),
+          api('offerings'),
+          api('engagements?status=active'),
+          api('contacts'),
+        ]);
+        inventoryEntities = Array.isArray(entitiesRaw) ? entitiesRaw : [];
+        inventoryOfferings = Array.isArray(offeringsRaw) ? offeringsRaw : [];
+        inventoryActiveEngagements = Array.isArray(engagementsRaw) ? engagementsRaw : [];
+        inventoryContacts = Array.isArray(contactsRaw) ? contactsRaw : [];
+
+        loading.style.display = 'none';
+        renderInventoryProperties();
+      }
+
+      function renderInventoryProperties() {
+        const grid = document.getElementById('inventoryPropertiesGrid');
+        const empty = document.getElementById('inventoryEmptyState');
+
+        if (!inventoryEntities.length) {
+          grid.style.display = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+
+        grid.style.display = 'grid';
+        empty.style.display = 'none';
+
+        // Pre-group offerings and engagements by entity for efficient lookup.
+        const offeringsByEntity = {};
+        for (const o of inventoryOfferings) {
+          if (o.status === 'retired') continue;
+          if (!offeringsByEntity[o.entity_id]) offeringsByEntity[o.entity_id] = [];
+          offeringsByEntity[o.entity_id].push(o);
+        }
+        const activeOfferingIds = new Set(inventoryActiveEngagements.map(e => e.offering_id));
+
+        grid.innerHTML = inventoryEntities.map(e => {
+          const units = offeringsByEntity[e.id] || [];
+          const unitCount = units.length;
+          const occupiedCount = units.filter(u => activeOfferingIds.has(u.id)).length;
+          const rate = unitCount > 0 ? Math.round((occupiedCount / unitCount) * 100) : 0;
+
+          const rateColor = unitCount === 0 ? '#94a3b8'
+            : rate === 100 ? '#16a34a'
+            : rate >= 1 ? '#0ea5e9'
+            : '#94a3b8';
+
+          const buildingType = e.building_type ? escapeHtmlInv(e.building_type) : '<span style="color:#cbd5e1;">—</span>';
+          const unitLabel = unitCount === 0
+            ? '<span style="color:#94a3b8;">No units</span>'
+            : `${unitCount} unit${unitCount === 1 ? '' : 's'}`;
+          const rateLabel = unitCount === 0 ? '&nbsp;' : `${rate}% occupied`;
+
+          return `
+            <div class="card" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
+              <div style="font-weight:700;color:#2d3748;font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
+              <div style="font-size:0.85em;color:#94a3b8;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
+              <div style="display:flex;gap:14px;font-size:0.82em;color:#4a5568;flex-wrap:wrap;">
+                <div style="text-transform:capitalize;">${buildingType}</div>
+                <div>${unitLabel}</div>
+                <div style="color:${rateColor};font-weight:600;">${rateLabel}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // --- Create Property modal ---
+      // Opens a modal for creating a new property. On save, POSTs to
+      // /api/entities and reloads the Properties list. Edit of an existing
+      // property is NOT handled here — it lives in the detail view's
+      // edit-mode toggle.
+
+      function openAddProperty() {
+        document.getElementById('propName').value = '';
+        document.getElementById('propAddress').value = '';
+        document.getElementById('propBuildingType').value = '';
+        document.getElementById('propYearBuilt').value = '';
+        document.getElementById('propNumFloors').value = '';
+        document.getElementById('propTotalUnits').value = '';
+        document.getElementById('propDescription').value = '';
+        document.getElementById('propertyModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('propName').focus(), 50);
+      }
+
+      function closePropertyModal() {
+        document.getElementById('propertyModal').style.display = 'none';
+      }
+
+      async function submitPropertyModal() {
+        const name = document.getElementById('propName').value.trim();
+        const address = document.getElementById('propAddress').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+        if (!address) { alert('Address is required.'); return; }
+
+        // Build payload — omit empty optional fields so the backend applies
+        // its defaults cleanly. (POST /api/entities handles null/undefined
+        // via ?? null and || '' fallbacks per chunk 1b.)
+        const payload = { name, address };
+        const bt = document.getElementById('propBuildingType').value.trim();
+        if (bt) payload.building_type = bt;
+        const yb = parseInt(document.getElementById('propYearBuilt').value, 10);
+        if (Number.isFinite(yb)) payload.year_built = yb;
+        const nf = parseInt(document.getElementById('propNumFloors').value, 10);
+        if (Number.isFinite(nf)) payload.number_of_floors = nf;
+        const tu = parseInt(document.getElementById('propTotalUnits').value, 10);
+        if (Number.isFinite(tu)) payload.total_unit_count = tu;
+        const desc = document.getElementById('propDescription').value.trim();
+        if (desc) payload.description = desc;
+
+        const btn = document.getElementById('propertyModalSaveBtn');
+        btn.disabled = true;
+        try {
+          // Use fetch directly (not the api() helper) so we can read the
+          // response body on 4xx/5xx and surface the server's actual error
+          // message in the UI. The api() helper returns null on non-2xx,
+          // which loses the diagnostic detail.
+          const res = await fetch('/api/entities', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to create property:\n\n' + (body.error || ('HTTP ' + res.status)));
+            return;
+          }
+          closePropertyModal();
+          await loadInventory();
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // --- Property detail view (read-only; edit + archive in 3c) ---
+      // Same-page swap: hide the list grid, show the detail pane with all
+      // 13 metadata fields + name/address. Breadcrumb updates to
+      // "Properties ▸ [Name]" with a back-link.
+      let inventoryCurrentEntityId = null;
+      let inventoryCurrentOfferingId = null;  // tracks the open unit (chunk 5b)
+
+      function openPropertyDetail(id) {
+        const entity = inventoryEntities.find(e => e.id === id);
+        if (!entity) {
+          alert('Property not found. Try refreshing the list.');
+          return;
+        }
+        inventoryCurrentEntityId = id;
+        inventoryCurrentOfferingId = null;
+
+        // Swap visible sections
+        document.getElementById('inventoryPropertiesGrid').style.display = 'none';
+        document.getElementById('inventoryEmptyState').style.display = 'none';
+        document.getElementById('inventoryLoading').style.display = 'none';
+        document.getElementById('inventoryDetailPane').style.display = 'block';
+
+        // Swap action buttons in the header row
+        document.getElementById('inventoryListActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'flex';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
+
+        // Update breadcrumb with back-link
+        document.getElementById('inventoryBreadcrumb').innerHTML =
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:#2d3748;">' + (escapeHtmlInv(entity.name) || '(unnamed)') + '</span>';
+
+        // Render detail content
+        document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(entity);
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+
+      function showPropertyList() {
+        inventoryCurrentEntityId = null;
+        inventoryCurrentOfferingId = null;
+        document.getElementById('inventoryDetailPane').style.display = 'none';
+        document.getElementById('inventoryDetailPane').innerHTML = '';
+        document.getElementById('inventoryPropertiesGrid').style.display = 'grid';
+        document.getElementById('inventoryListActions').style.display = 'block';
+        document.getElementById('inventoryDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
+        document.getElementById('inventoryBreadcrumb').textContent = 'Properties';
+        // Re-evaluate empty state in case list is now empty
+        renderInventoryProperties();
+      }
+
+      // Detail rendering helpers
+      function _invEmpty() {
+        return '<span style="color:#cbd5e1;">&mdash;</span>';
+      }
+
+      function _invDispScalar(v) {
+        if (v == null || v === '') return _invEmpty();
+        return escapeHtmlInv(v);
+      }
+
+      function _invDispAmenities(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(s => '<li>' + escapeHtmlInv(String(s)) + '</li>').join('') +
+          '</ul>';
+      }
+
+      function _invDispContacts(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(c => {
+            const parts = [c && c.name, c && c.phone, c && c.role]
+              .filter(p => p != null && String(p).trim() !== '')
+              .map(p => escapeHtmlInv(String(p)));
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+          }).join('') +
+          '</ul>';
+      }
+
+      function _invDispVendors(arr) {
+        if (!Array.isArray(arr) || !arr.length) return _invEmpty();
+        return '<ul style="margin:4px 0 0;padding-left:18px;color:#4a5568;font-size:0.95em;">' +
+          arr.map(v => {
+            const parts = [v && v.name, v && v.trade, v && v.phone]
+              .filter(p => p != null && String(p).trim() !== '')
+              .map(p => escapeHtmlInv(String(p)));
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+          }).join('') +
+          '</ul>';
+      }
+
+      function _invField(label, valueHtml) {
+        return `
+          <div>
+            <div style="font-size:0.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
+            <div style="color:#4a5568;font-size:0.95em;line-height:1.5;">${valueHtml}</div>
+          </div>
+        `;
+      }
+
+      function renderPropertyDetail(e) {
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title area -->
+            <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;margin-bottom:4px;">
+              ${escapeHtmlInv(e.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
+            </div>
+            <div style="color:#94a3b8;font-size:0.92em;margin-bottom:24px;">
+              ${escapeHtmlInv(e.address) || _invEmpty()}
+            </div>
+
+            <!-- Description -->
+            ${_invField('Description', e.description ? escapeHtmlInv(e.description).replace(/\n/g, '<br>') : _invEmpty())}
+
+            <!-- 4-column numeric/scalar strip -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Building Type', e.building_type ? `<span style="text-transform:capitalize;">${escapeHtmlInv(e.building_type)}</span>` : _invEmpty())}
+              ${_invField('Year Built', _invDispScalar(e.year_built))}
+              ${_invField('Number of Floors', _invDispScalar(e.number_of_floors))}
+              ${_invField('Total Unit Count', _invDispScalar(e.total_unit_count))}
+            </div>
+
+            <!-- Utilities + parking -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Heating System', _invDispScalar(e.heating_system))}
+              ${_invField('Water Source', _invDispScalar(e.water_source))}
+              ${_invField('Parking Setup', _invDispScalar(e.parking_setup))}
+            </div>
+
+            <!-- Policies -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Pet Policy', _invDispScalar(e.pet_policy))}
+              ${_invField('Smoking Policy', _invDispScalar(e.smoking_policy))}
+            </div>
+
+            <!-- Shared amenities -->
+            <div style="margin-top:22px;">
+              ${_invField('Shared Amenities', _invDispAmenities(e.shared_amenities))}
+            </div>
+
+            <!-- Emergency contacts -->
+            <div style="margin-top:22px;">
+              ${_invField('Emergency Contacts', _invDispContacts(e.emergency_contacts))}
+            </div>
+
+            <!-- Service vendors -->
+            <div style="margin-top:22px;">
+              ${_invField('Service Vendors', _invDispVendors(e.service_vendors))}
+            </div>
+
+            <!-- Archived banner (visible only if this property is archived) -->
+            ${e.archived_at ? `
+              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+                &#9888; This property is archived (since ${escapeHtmlInv(String(e.archived_at).slice(0,10))}). It is hidden from the default list. Restore via the database or an unarchive action (coming later).
+              </div>
+            ` : ''}
+
+            <!-- Units section (chunk 4) -->
+            ${_invRenderUnitsSection(e.id)}
+
+          </div>
+        `;
+      }
+
+      // --- Units section (chunk 4: read-only list within property detail) ---
+      // Rendered inside renderPropertyDetail. Uses cached inventoryOfferings,
+      // inventoryActiveEngagements, and inventoryContacts. Derived status
+      // logic per spec §Feature 8: an active engagement → "Occupied — Name";
+      // otherwise the raw offering.status ('draft' | 'available' |
+      // 'unavailable' | 'retired'). Retired offerings don't appear here
+      // because GET /api/offerings excludes them by default.
+
+      // Derived display status (status redesign):
+      //   1. active engagement → "Occupied — Name" (violet)
+      //   2. status='unavailable' → "Off-market" (amber)
+      //   3. status='retired' → "Retired" (muted; normally hidden)
+      //   4. anything else (available, draft, '', unknown) → "Vacant" (gray)
+      // The schema status TEXT column is unchanged — this is presentation only.
+      function _invUnitStatusBadge(offering, activeEng, tenantName) {
+        let label, color, bg;
+        if (activeEng) {
+          label = 'Occupied' + (tenantName ? ' \u2014 ' + escapeHtmlInv(tenantName) : '');
+          color = '#7c3aed'; bg = '#f3e8ff';
+        } else if (offering.status === 'unavailable') {
+          label = 'Off-market'; color = '#d97706'; bg = '#ffedd5';
+        } else if (offering.status === 'retired') {
+          label = 'Retired'; color = '#94a3b8'; bg = '#f8fafc';
+        } else {
+          label = 'Vacant'; color = '#64748b'; bg = '#f1f5f9';
+        }
+        return `<span style="display:inline-block;padding:3px 10px;font-size:0.78em;font-weight:600;border-radius:12px;background:${bg};color:${color};">${label}</span>`;
+      }
+
+      function _invFmtRent(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n <= 0) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+      }
+
+      function _invFmtBedsBaths(md) {
+        const br = md && md.bedrooms != null ? md.bedrooms : null;
+        const ba = md && md.bathrooms != null ? md.bathrooms : null;
+        if (br == null && ba == null) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return escapeHtmlInv(br != null ? String(br) : '—') + ' / ' + escapeHtmlInv(ba != null ? String(ba) : '—');
+      }
+
+      function _invFmtSqft(md) {
+        const s = md && md.sqft != null ? md.sqft : null;
+        if (s == null || s === '') return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return escapeHtmlInv(String(s));
+      }
+
+      function _invRenderUnitsSection(entityId) {
+        // Filter offerings for this property (retired already excluded at API level)
+        const units = inventoryOfferings.filter(o => o.entity_id === entityId);
+
+        // Indexes for O(1) lookup while iterating
+        const activeByOfferingId = {};
+        for (const eng of inventoryActiveEngagements) activeByOfferingId[eng.offering_id] = eng;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+
+        const header = `
+          <div style="display:flex;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:700;color:#4a5568;font-size:1.05em;">Units</div>
+            <button class="btn-secondary" style="margin-left:auto;font-size:0.85em;padding:7px 14px;" onclick="openAddUnit(${entityId})">+ Add Unit</button>
+          </div>
+        `;
+
+        if (!units.length) {
+          return `
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+              ${header}
+              <div style="padding:30px 20px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">
+                <div style="font-size:1.8em;margin-bottom:6px;">&#127968;</div>
+                <div style="font-size:0.9em;margin-bottom:12px;">No units yet for this property.</div>
+                <button class="btn-primary" style="font-size:0.85em;" onclick="openAddUnit(${entityId})">+ Add First Unit</button>
+              </div>
+            </div>
+          `;
+        }
+
+        const rows = units.map(u => {
+          const activeEng = activeByOfferingId[u.id];
+          const tenant = activeEng ? contactById[activeEng.contact_id] : null;
+          const tenantName = tenant ? tenant.name : null;
+          const badge = _invUnitStatusBadge(u, activeEng, tenantName);
+          const bb = _invFmtBedsBaths(u.metadata);
+          const sqft = _invFmtSqft(u.metadata);
+          const floor = (u.floor && String(u.floor).trim()) ? escapeHtmlInv(u.floor) : '<span style="color:#cbd5e1;">&mdash;</span>';
+          const rent = _invFmtRent(u.price_amount);
+
+          return `
+            <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#2d3748;">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${bb}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${sqft}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${floor}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${rent}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${badge}</td>
+            </tr>
+          `;
+        }).join('');
+
+        return `
+          <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+            ${header}
+            <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+              <thead>
+                <tr style="text-align:left;color:#94a3b8;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Unit</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">BR / BA</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Sq Ft</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Floor</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Rent</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // --- Tenant dropdown shared helpers (Unit forms) ---
+      // Mirror image of the chunk-6a unit dropdown on the Contact form:
+      // here the Create / Edit Unit forms get a structured dropdown of
+      // resident contacts. The reconciler then handles all the
+      // engagement-write paths the Contact-side flow does in 6b.
+
+      function _buildTenantDropdownOptions(forOfferingId) {
+        // forOfferingId: the unit being edited; we suppress
+        // "currently in <this unit>" suffix for tenants whose active
+        // engagement is on this unit (and pre-select them). Pass null
+        // in Create flow (no offering yet).
+        const engByContactId = {};
+        for (const eng of inventoryActiveEngagements) engByContactId[eng.contact_id] = eng;
+        const offeringById = {};
+        for (const o of inventoryOfferings) offeringById[o.id] = o;
+        const propertyById = {};
+        for (const e of inventoryEntities) propertyById[e.id] = e;
+
+        // Pre-select: an active engagement on this offering implies that
+        // contact is the current tenant. For roommate units (multiple
+        // active engagements on the same offering) we pick whichever one
+        // is found first — the dropdown represents single-tenant intent.
+        let preSelectedContactId = null;
+        if (forOfferingId != null) {
+          const occupant = inventoryActiveEngagements.find(e => e.offering_id === forOfferingId);
+          if (occupant) preSelectedContactId = occupant.contact_id;
+        }
+
+        const residents = (inventoryContacts || [])
+          .filter(c => c.type === 'resident')
+          .slice()
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+
+        let html = '<option value="">\u2014 No tenant assigned \u2014</option>';
+        for (const c of residents) {
+          const eng = engByContactId[c.id];
+          let suffix = '';
+          if (eng && eng.offering_id !== forOfferingId) {
+            const off = offeringById[eng.offering_id];
+            const prop = off ? propertyById[off.entity_id] : null;
+            const propName = prop ? prop.name : '?';
+            const offName = off ? off.name : '?';
+            suffix = ' (currently in ' + propName + ' \u25b8 ' + offName + ')';
+          }
+          const sel = preSelectedContactId === c.id ? ' selected' : '';
+          html += '<option value="' + c.id + '"' + sel + '>' +
+                  escapeHtmlInv(c.name || '(unnamed)') +
+                  escapeHtmlInv(suffix) + '</option>';
+        }
+        return { html, preSelectedContactId };
+      }
+
+      // Reconciles a tenant-change on a single offering. Mirrors 6b's
+      // contact-side logic, but viewed from the unit's perspective.
+      // Cases:
+      //   no change (same contact id, including both null): no-op
+      //   assign (no old, new): POST new (also terminate the new tenant's
+      //                         OTHER active engagement if they had one)
+      //   unassign (old, no new): PATCH old → terminated
+      //   swap (old, new, different): PATCH old → terminated, then assign new
+      //   "new" tenant already active on this offering (roommate scenario):
+      //     refuse the operation with a clear warning rather than
+      //     terminating the pre-selected roommate's engagement.
+      // Returns warnings[] — empty on full success.
+      async function _invReconcileTenantOnOffering(offering, oldEngagement, newContactId) {
+        const warnings = [];
+        const oldContactId = oldEngagement ? oldEngagement.contact_id : null;
+        if (oldContactId === newContactId) return warnings;
+
+        // Roommate guard: if new tenant is already active on this unit
+        // (pre-selection picked a different roommate), refuse rather than
+        // terminate the pre-selected one and then 409 on the new one.
+        if (newContactId) {
+          const alreadyHere = inventoryActiveEngagements.find(
+            e => e.contact_id === newContactId && e.offering_id === offering.id
+          );
+          if (alreadyHere) {
+            const c = (inventoryContacts || []).find(x => x.id === newContactId);
+            warnings.push((c && c.name ? c.name : 'Tenant') + ' is already a tenant of this unit. Use the Contacts form to manage roommate assignments.');
+            return warnings;
+          }
+        }
+
+        // 1. Terminate the engagement currently on this offering, if any
+        if (oldEngagement) {
+          try {
+            const r = await fetch('/api/engagements/' + oldEngagement.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+            });
+            if (!r.ok) {
+              const eb = await r.json().catch(() => ({}));
+              warnings.push('Could not end previous tenant assignment: ' + (eb.error || 'HTTP ' + r.status));
+            }
+          } catch (e) {
+            warnings.push('Could not end previous tenant assignment: ' + e.message);
+          }
+        }
+
+        // 2. Create new engagement (and if the new contact has a
+        // different active engagement elsewhere, terminate it too —
+        // mirrors 6b's contact-side flow so a single save never leaves
+        // the contact with two simultaneous active engagements).
+        if (newContactId) {
+          const contact = (inventoryContacts || []).find(c => c.id === newContactId);
+          if (!contact) {
+            warnings.push('Selected tenant not found in cache. Try refreshing.');
+            return warnings;
+          }
+          const otherEng = inventoryActiveEngagements.find(
+            e => e.contact_id === newContactId && e.offering_id !== offering.id
+          );
+          if (otherEng) {
+            try {
+              const r = await fetch('/api/engagements/' + otherEng.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
+              });
+              if (!r.ok) {
+                const eb = await r.json().catch(() => ({}));
+                warnings.push('Could not end ' + (contact.name || 'tenant') + "'s previous assignment: " + (eb.error || 'HTTP ' + r.status));
+              }
+            } catch (e) {
+              warnings.push('Could not end previous assignment: ' + e.message);
+            }
+          }
+          const monthlyRent = Number(contact.monthly_rent || 0);
+          const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
+          const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
+          const body = {
+            contact_id: newContactId,
+            offering_id: offering.id,
+            status: 'active',
+            start_date: contact.lease_start || _todayISODate(),
+            end_date: contact.lease_end || null,
+            current_price: currentPrice,
+          };
+          try {
+            const r = await fetch('/api/engagements', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            if (!r.ok) {
+              const eb = await r.json().catch(() => ({}));
+              if (r.status === 409) {
+                warnings.push((contact.name || 'tenant') + ' already has an active engagement on this unit.');
+              } else {
+                warnings.push('Could not assign ' + (contact.name || 'tenant') + ': ' + (eb.error || 'HTTP ' + r.status));
+              }
+            }
+          } catch (e) {
+            warnings.push('Could not assign tenant: ' + e.message);
+          }
+        }
+
+        return warnings;
+      }
+
+      // --- Add Unit modal (chunk 5a) ---
+      // Opens a modal pre-scoped to the current property. Name is the only
+      // required field; everything else is optional. On success the modal
+      // closes, inventory reloads, and if we were on the property's detail
+      // view we re-open it so the new unit row appears immediately.
+      function openAddUnit(entityId) {
+        const entity = inventoryEntities.find(e => e.id === entityId);
+        if (!entity) {
+          alert('Property not found. Try refreshing the list.');
+          return;
+        }
+        document.getElementById('unitEntityId').value = entityId;
+        document.getElementById('unitModalPropertyLabel').textContent = '\u2014 ' + entity.name;
+        document.getElementById('unitName').value = '';
+        document.getElementById('unitDescription').value = '';
+        document.getElementById('unitFloor').value = '';
+        document.getElementById('unitBedrooms').value = '';
+        document.getElementById('unitBathrooms').value = '';
+        document.getElementById('unitSqft').value = '';
+        document.getElementById('unitRent').value = '';
+        document.getElementById('unitFrequency').value = 'monthly';
+        document.getElementById('unitAmenities').value = '';
+        document.getElementById('unitNotes').value = '';
+        // Tenant dropdown — populated from inventoryContacts. Caches are
+        // already warm here (openAddUnit is reachable only via the
+        // Inventory page which calls loadInventory), so no _invEnsureLoaded.
+        const sel = document.getElementById('unitTenant');
+        if (sel) {
+          const { html } = _buildTenantDropdownOptions(null);
+          sel.innerHTML = html;
+          sel.value = '';
+        }
+        document.getElementById('unitModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('unitName').focus(), 50);
+      }
+
+      function closeUnitModal() {
+        document.getElementById('unitModal').style.display = 'none';
+      }
+
+      async function submitUnitModal() {
+        const entityId = Number(document.getElementById('unitEntityId').value);
+        const name = document.getElementById('unitName').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+        if (!entityId) { alert('Missing property reference. Close and reopen the form.'); return; }
+
+        // Build payload — only include fields the user actually filled in
+        // so the backend applies its defaults cleanly (per POST /api/offerings
+        // validation rules in chunk 1b).
+        const payload = { entity_id: entityId, name };
+        const desc = document.getElementById('unitDescription').value.trim();
+        if (desc) payload.description = desc;
+        const floor = document.getElementById('unitFloor').value.trim();
+        if (floor) payload.floor = floor;
+        const rent = parseFloat(document.getElementById('unitRent').value);
+        if (Number.isFinite(rent) && rent >= 0) payload.price_amount = rent;
+        const freq = document.getElementById('unitFrequency').value;
+        if (freq) payload.price_frequency = freq;
+        // New units default to status='available' (renders as "Vacant"
+        // via the derived display logic in _invUnitStatusBadge).
+        // The status field is no longer user-editable on create — it's
+        // derived from real state (engagements + Off-market toggle).
+        payload.status = 'available';
+
+        const md = {};
+        const br = parseInt(document.getElementById('unitBedrooms').value, 10);
+        if (Number.isFinite(br) && br >= 0) md.bedrooms = br;
+        const ba = parseFloat(document.getElementById('unitBathrooms').value);
+        if (Number.isFinite(ba) && ba >= 0) md.bathrooms = ba;
+        const sqft = parseInt(document.getElementById('unitSqft').value, 10);
+        if (Number.isFinite(sqft) && sqft >= 0) md.sqft = sqft;
+        const amenRaw = document.getElementById('unitAmenities').value.trim();
+        if (amenRaw) md.amenities = amenRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const notes = document.getElementById('unitNotes').value.trim();
+        if (notes) md.notes = notes;
+        if (Object.keys(md).length) payload.metadata = md;
+
+        // Capture tenant intent BEFORE the create so we can run the
+        // reconciler against the just-created offering after success.
+        const tenantSelRaw = (document.getElementById('unitTenant') || {}).value || '';
+        const newTenantId = tenantSelRaw ? parseInt(tenantSelRaw, 10) : null;
+
+        const btn = document.getElementById('unitModalSaveBtn');
+        btn.disabled = true;
+        try {
+          // Direct fetch (not api()) so we can surface server error messages
+          // on 4xx/5xx — same pattern as submitPropertyModal (chunk 3a).
+          const res = await fetch('/api/offerings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to create unit:\n\n' + (body.error || ('HTTP ' + res.status)));
+            return;
+          }
+
+          // If a tenant was selected, run the reconciler against the
+          // newly-created offering. Soft errors only — the offering exists
+          // either way; engagement failures surface as a trailing warning.
+          if (newTenantId) {
+            const warnings = await _invReconcileTenantOnOffering(body, null, newTenantId);
+            if (warnings.length) {
+              alert('Unit created, but tenant assignment had issues:\n\n' + warnings.join('\n'));
+            }
+          }
+
+          closeUnitModal();
+          // Preserve the current detail context across the reload so the
+          // user sees the new row in the same property they were viewing.
+          const resumeEntityId = inventoryCurrentEntityId;
+          await loadInventory();
+          if (resumeEntityId) openPropertyDetail(resumeEntityId);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      // --- Unit detail view (chunk 5b; read-only, edit + retire in 5c) ---
+      // Same-page swap pattern borrowed from openPropertyDetail. Reuses the
+      // inventoryDetailPane container; swaps breadcrumb + action buttons.
+      // Fetches the full engagement history for this offering (including
+      // terminated / renewed / pending statuses) so we can render the
+      // occupancy section — the cached inventoryActiveEngagements only
+      // includes status='active'.
+
+      async function openUnitDetail(offeringId) {
+        const offering = inventoryOfferings.find(o => o.id === offeringId);
+        if (!offering) {
+          alert('Unit not found. Try refreshing the list.');
+          return;
+        }
+        const entity = inventoryEntities.find(e => e.id === offering.entity_id);
+        if (!entity) {
+          alert('Parent property not found for this unit.');
+          return;
+        }
+
+        inventoryCurrentEntityId = entity.id;
+        inventoryCurrentOfferingId = offeringId;
+
+        // Swap visible sections
+        document.getElementById('inventoryPropertiesGrid').style.display = 'none';
+        document.getElementById('inventoryEmptyState').style.display = 'none';
+        document.getElementById('inventoryLoading').style.display = 'none';
+        document.getElementById('inventoryDetailPane').style.display = 'block';
+
+        // Swap action buttons: hide list + property-detail, show unit-detail
+        document.getElementById('inventoryListActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'none';
+        document.getElementById('inventoryUnitDetailActions').style.display = 'flex';
+        document.getElementById('inventoryUnitEditActions').style.display = 'none';
+
+        // Breadcrumb: Properties > [Property] > [Unit]
+        document.getElementById('inventoryBreadcrumb').innerHTML =
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<a href="#" onclick="event.preventDefault();openPropertyDetail(' + entity.id + ');" style="color:#ff6b6b;text-decoration:none;font-weight:600;">' +
+            (escapeHtmlInv(entity.name) || '(unnamed)') +
+          '</a>' +
+          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:#2d3748;">' + (escapeHtmlInv(offering.name) || '(unnamed)') + '</span>';
+
+        // Loading placeholder while we fetch history
+        document.getElementById('inventoryDetailPane').innerHTML =
+          '<div style="padding:40px 20px;text-align:center;color:#94a3b8;font-size:0.92em;">Loading unit details&hellip;</div>';
+        window.scrollTo({ top: 0, behavior: 'instant' });
+
+        // Fetch full engagement history for this offering (all statuses)
+        const engsRaw = await api('engagements?offering_id=' + offeringId);
+        const allEngs = Array.isArray(engsRaw) ? engsRaw : [];
+
+        // Re-check we're still on this unit — user may have navigated away
+        if (inventoryCurrentOfferingId !== offeringId) return;
+
+        document.getElementById('inventoryDetailPane').innerHTML =
+          renderUnitDetail(offering, entity, allEngs);
+      }
+
+      function _invFmtDate(d) {
+        if (!d) return _invEmpty();
+        // Accept ISO string or Date; slice to YYYY-MM-DD for display
+        const s = String(d).slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return _invEmpty();
+        // Construct in local tz; show as medium-length locale date
+        const dt = new Date(s + 'T00:00:00');
+        if (Number.isNaN(dt.getTime())) return escapeHtmlInv(s);
+        return escapeHtmlInv(dt.toLocaleDateString(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric'
+        }));
+      }
+
+      function _invFmtPrice(amount, freq) {
+        const n = Number(amount);
+        if (!Number.isFinite(n) || n <= 0) return _invEmpty();
+        const formatted = '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+        if (!freq || freq === 'one-time') return formatted;
+        const suffix = {
+          monthly: '/ month',
+          quarterly: '/ quarter',
+          annual: '/ year',
+          hourly: '/ hour',
+        }[freq] || '';
+        return suffix ? (formatted + ' <span style="color:#94a3b8;font-weight:400;">' + suffix + '</span>') : formatted;
+      }
+
+      function _invEngStatusBadge(status) {
+        const map = {
+          active:     { color: '#16a34a', bg: '#dcfce7', label: 'Active' },
+          pending:    { color: '#0369a1', bg: '#e0f2fe', label: 'Pending' },
+          renewed:    { color: '#7c3aed', bg: '#f3e8ff', label: 'Renewed' },
+          terminated: { color: '#b45309', bg: '#fef3c7', label: 'Terminated' },
+          expired:    { color: '#64748b', bg: '#f1f5f9', label: 'Expired' },
+        };
+        const m = map[status] || { color: '#64748b', bg: '#f1f5f9', label: status || '(unknown)' };
+        return `<span style="display:inline-block;padding:2px 9px;font-size:0.75em;font-weight:600;border-radius:12px;background:${m.bg};color:${m.color};">${escapeHtmlInv(m.label)}</span>`;
+      }
+
+      function renderUnitDetail(o, entity, allEngs) {
+        const md = o.metadata || {};
+        const activeEng = allEngs.find(e => e.status === 'active') || null;
+        const contactById = {};
+        for (const c of inventoryContacts) contactById[c.id] = c;
+        const activeTenant = activeEng ? contactById[activeEng.contact_id] : null;
+        const activeTenantName = activeTenant ? activeTenant.name : null;
+        const statusBadge = _invUnitStatusBadge(o, activeEng, activeTenantName);
+
+        // Occupancy history: engagements other than the current active one,
+        // sorted newest first by start_date (fallback to created_at).
+        const history = allEngs
+          .filter(e => e.status !== 'active')
+          .slice()
+          .sort((a, b) => {
+            const ad = String(a.start_date || a.created_at || '');
+            const bd = String(b.start_date || b.created_at || '');
+            return bd.localeCompare(ad);
+          });
+
+        let currentTenantBlock;
+        if (activeEng) {
+          currentTenantBlock = `
+            <div style="margin-top:12px;padding:14px 16px;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:8px;">
+              <div style="font-size:0.88em;font-weight:700;color:#7c3aed;margin-bottom:4px;">Current Tenant</div>
+              <div style="color:#2d3748;font-size:1.02em;font-weight:600;margin-bottom:4px;">
+                ${activeTenantName ? escapeHtmlInv(activeTenantName) : '<span style="color:#94a3b8;">(unknown contact)</span>'}
+              </div>
+              <div style="color:#64748b;font-size:0.88em;">
+                Since ${_invFmtDate(activeEng.start_date)}
+                ${activeEng.end_date ? ' &mdash; ends ' + _invFmtDate(activeEng.end_date) : ''}
+              </div>
+            </div>
+          `;
+        } else {
+          currentTenantBlock = `
+            <div style="margin-top:12px;padding:14px 16px;background:#f8fafc;border:1px dashed #e2e8f0;border-radius:8px;color:#94a3b8;font-size:0.92em;">
+              No active tenant. (Assign via the Contacts form &mdash; coming in chunk 6.)
+            </div>
+          `;
+        }
+
+        let historyBlock;
+        if (!history.length) {
+          historyBlock = `
+            <div style="margin-top:10px;color:#94a3b8;font-size:0.88em;">No prior engagements.</div>
+          `;
+        } else {
+          const rows = history.map(e => {
+            const c = contactById[e.contact_id];
+            const nm = c ? c.name : '(unknown)';
+            return `
+              <tr>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#2d3748;">${escapeHtmlInv(nm)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${_invFmtDate(e.start_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${_invFmtDate(e.end_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${_invEngStatusBadge(e.status)}</td>
+              </tr>
+            `;
+          }).join('');
+          historyBlock = `
+            <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin-top:10px;">
+              <thead>
+                <tr style="text-align:left;color:#94a3b8;font-size:0.72em;text-transform:uppercase;letter-spacing:0.6px;">
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Tenant</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Start</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">End</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          `;
+        }
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title area -->
+            <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;flex-wrap:wrap;">
+              <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;">
+                ${escapeHtmlInv(o.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
+              </div>
+              <div>${statusBadge}</div>
+            </div>
+            <div style="color:#94a3b8;font-size:0.92em;margin-bottom:24px;">
+              in
+              <a href="#" onclick="event.preventDefault();openPropertyDetail(${entity.id});" style="color:#ff6b6b;text-decoration:none;font-weight:600;">
+                ${escapeHtmlInv(entity.name) || '(unnamed)'}
+              </a>
+            </div>
+
+            <!-- Description -->
+            ${_invField('Description', o.description ? escapeHtmlInv(o.description).replace(/\n/g, '<br>') : _invEmpty())}
+
+            <!-- Scalar strip: floor / price / bedrooms / bathrooms -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Floor', _invDispScalar(o.floor))}
+              ${_invField('Price', _invFmtPrice(o.price_amount, o.price_frequency))}
+              ${_invField('Bedrooms', md.bedrooms != null ? escapeHtmlInv(String(md.bedrooms)) : _invEmpty())}
+              ${_invField('Bathrooms', md.bathrooms != null ? escapeHtmlInv(String(md.bathrooms)) : _invEmpty())}
+            </div>
+
+            <!-- Second strip: sqft -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:22px;">
+              ${_invField('Sq Ft', md.sqft != null && md.sqft !== '' ? escapeHtmlInv(String(md.sqft)) : _invEmpty())}
+            </div>
+
+            <!-- Amenities -->
+            <div style="margin-top:22px;">
+              ${_invField('Amenities', _invDispAmenities(md.amenities))}
+            </div>
+
+            <!-- Notes -->
+            <div style="margin-top:22px;">
+              ${_invField('Notes', md.notes ? escapeHtmlInv(String(md.notes)).replace(/\n/g, '<br>') : _invEmpty())}
+            </div>
+
+            <!-- Retired banner (if this unit was retired) -->
+            ${o.status === 'retired' ? `
+              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+                &#9888; This unit is retired. It is hidden from the default units list.
+              </div>
+            ` : ''}
+
+            <!-- Occupancy section -->
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+              <div style="font-weight:700;color:#4a5568;font-size:1.05em;margin-bottom:8px;">Occupancy</div>
+              ${currentTenantBlock}
+              <div style="margin-top:22px;font-size:0.88em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">History</div>
+              ${historyBlock}
+            </div>
+
+          </div>
+        `;
+      }
+
+      // --- Unit edit mode + Retire (chunk 5c) ---
+      // Mirrors the property edit pattern: refetch on entry for cache
+      // freshness, swap buttons, swap pane contents. Retire uses DELETE
+      // /api/offerings/:id which soft-deletes via status='retired'
+      // (per chunk 1b spec).
+
+      let inventoryEditingOffering = null;
+      const INV_KNOWN_UNIT_AMENITIES = [
+        'balcony', 'dishwasher', 'in-unit laundry', 'hardwood floors',
+        'air conditioning', 'furnished'
+      ];
+
+      async function editCurrentUnit() {
+        if (!inventoryCurrentOfferingId) return;
+        try {
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId);
+          if (!res.ok) {
+            alert('Failed to load unit for editing (HTTP ' + res.status + ')');
+            return;
+          }
+          const offering = await res.json();
+          // Keep cache in sync with the fresh copy
+          const idx = inventoryOfferings.findIndex(o => o.id === inventoryCurrentOfferingId);
+          if (idx >= 0) inventoryOfferings[idx] = offering;
+
+          inventoryEditingOffering = offering;
+
+          // Swap action buttons: unit-detail -> unit-edit
+          document.getElementById('inventoryUnitDetailActions').style.display = 'none';
+          document.getElementById('inventoryUnitEditActions').style.display = 'flex';
+
+          document.getElementById('inventoryDetailPane').innerHTML = renderUnitEdit(offering);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        } catch (err) {
+          alert('Error loading unit: ' + err.message);
+        }
+      }
+
+      function cancelUnitEdit() {
+        const offering = inventoryEditingOffering;
+        inventoryEditingOffering = null;
+        // openUnitDetail will restore button visibility and re-render read mode
+        if (offering) {
+          openUnitDetail(offering.id);
+        } else if (inventoryCurrentOfferingId) {
+          openUnitDetail(inventoryCurrentOfferingId);
+        }
+      }
+
+      async function saveUnitEdit() {
+        const original = inventoryEditingOffering;
+        if (!original) return;
+
+        const payload = _invGatherUnitEditForm(original);
+        if (!payload.name || !payload.name.trim()) { alert('Name cannot be empty.'); return; }
+
+        // Capture tenant intent BEFORE PATCH so we can compare against
+        // the cached oldEngagement after offering is saved. Mirrors 6b's
+        // two-phase approach.
+        const tenantSelRaw = (document.getElementById('editUnitTenant') || {}).value || '';
+        const newTenantId = tenantSelRaw ? parseInt(tenantSelRaw, 10) : null;
+        const oldEngagement = inventoryActiveEngagements.find(
+          e => e.offering_id === inventoryCurrentOfferingId
+        ) || null;
+
+        const btn = document.getElementById('inventoryUnitEditSaveBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to save unit:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache with the saved row
+          const idx = inventoryOfferings.findIndex(o => o.id === inventoryCurrentOfferingId);
+          if (idx >= 0) inventoryOfferings[idx] = body;
+          inventoryEditingOffering = null;
+
+          // Reconcile the tenant change. Soft errors only — the offering
+          // PATCH already committed; engagement failures surface as a
+          // trailing warning.
+          const oldContactId = oldEngagement ? oldEngagement.contact_id : null;
+          if (oldContactId !== newTenantId) {
+            const warnings = await _invReconcileTenantOnOffering(body, oldEngagement, newTenantId);
+            if (warnings.length) {
+              alert('Unit saved, but tenant change had issues:\n\n' + warnings.join('\n'));
+            }
+            // Refresh active-engagements cache so openUnitDetail's
+            // re-render sees the new occupancy state.
+            const engsRaw = await api('engagements?status=active');
+            inventoryActiveEngagements = Array.isArray(engsRaw) ? engsRaw : [];
+          }
+
+          // Re-render read mode (openUnitDetail refetches engagement history
+          // and handles button visibility).
+          await openUnitDetail(inventoryCurrentOfferingId);
+        } catch (err) {
+          alert('Error saving: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function retireCurrentUnit() {
+        if (!inventoryCurrentOfferingId) return;
+        const offering = inventoryOfferings.find(o => o.id === inventoryCurrentOfferingId);
+        const name = (offering && offering.name) || 'this unit';
+        const ok = confirm('Retire "' + name + '"?\n\nIt will be hidden from the units list. You can restore it later via the database.');
+        if (!ok) return;
+
+        try {
+          // DELETE /api/offerings/:id does soft-delete: status='retired'
+          const res = await fetch('/api/offerings/' + inventoryCurrentOfferingId, { method: 'DELETE' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to retire unit:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Return to the parent property detail — the retired unit will
+          // have dropped out of inventoryOfferings after loadInventory()
+          // (GET /api/offerings excludes status='retired' by default).
+          const parentEntityId = inventoryCurrentEntityId;
+          await loadInventory();
+          if (parentEntityId && inventoryEntities.some(e => e.id === parentEntityId)) {
+            openPropertyDetail(parentEntityId);
+          } else {
+            showPropertyList();
+          }
+        } catch (err) {
+          alert('Error retiring: ' + err.message);
+        }
+      }
+
+      function renderUnitEdit(o) {
+        const md = o.metadata || {};
+        // Split amenities into known (checkboxes) and other (freeform)
+        const amens = Array.isArray(md.amenities) ? md.amenities : [];
+        const knownSet = new Set(INV_KNOWN_UNIT_AMENITIES.map(a => a.toLowerCase()));
+        const checkedKnown = new Set();
+        const otherAmens = [];
+        for (const a of amens) {
+          const s = String(a || '').trim();
+          if (!s) continue;
+          if (knownSet.has(s.toLowerCase())) checkedKnown.add(s.toLowerCase());
+          else otherAmens.push(s);
+        }
+        const amenCheckboxes = INV_KNOWN_UNIT_AMENITIES.map(a => {
+          const checked = checkedKnown.has(a.toLowerCase()) ? ' checked' : '';
+          return `
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:0.9em;color:#4a5568;cursor:pointer;">
+              <input type="checkbox" data-unit-amen-chk="${escapeHtmlInv(a)}"${checked} style="cursor:pointer;">
+              <span style="text-transform:capitalize;">${escapeHtmlInv(a)}</span>
+            </label>
+          `;
+        }).join('');
+
+        const freqOpts = ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'];
+        const freqCurrent = o.price_frequency || 'monthly';
+        const freqSelectHtml = freqOpts.map(f =>
+          `<option value="${f}"${f === freqCurrent ? ' selected' : ''}>${f.charAt(0).toUpperCase() + f.slice(1)}</option>`
+        ).join('');
+
+        // Status redesign: replaces the 3-option status dropdown with a
+        // single Off-market checkbox. Display "status" (Occupied/Vacant/
+        // Off-market) is derived in _invUnitStatusBadge — the user only
+        // controls the off-market flag here. 'retired' (Retire button)
+        // is preserved untouched on save by _invGatherUnitEditForm.
+        const isOffMarket = (o.status === 'unavailable');
+
+        // Tenant dropdown options (pre-resolved against caches; the unit
+        // being edited is passed so its current tenant is pre-selected).
+        const tenantOpts = _buildTenantDropdownOptions(o.id);
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <div style="font-size:1.2em;font-weight:700;color:#2d3748;margin-bottom:20px;">
+              Edit Unit
+            </div>
+
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Name', true)}
+              <input id="editUnitName" type="text" value="${escapeHtmlInv(o.name || '')}" placeholder="e.g. Unit 101" />
+            </div>
+
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Description', false)}
+              <textarea id="editUnitDescription" rows="2" placeholder="Optional">${escapeHtmlInv(o.description || '')}</textarea>
+            </div>
+
+            <!-- 4-col strip: floor / bedrooms / bathrooms / sqft -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Floor')}
+                <input id="editUnitFloor" type="text" value="${escapeHtmlInv(o.floor || '')}" placeholder="e.g. 2 or Ground" />
+              </div>
+              <div>
+                ${_invEditLabel('Bedrooms')}
+                <input id="editUnitBedrooms" type="number" min="0" max="20" value="${md.bedrooms != null ? escapeHtmlInv(String(md.bedrooms)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Bathrooms')}
+                <input id="editUnitBathrooms" type="number" min="0" max="20" step="0.5" value="${md.bathrooms != null ? escapeHtmlInv(String(md.bathrooms)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Sq Ft')}
+                <input id="editUnitSqft" type="number" min="0" max="100000" value="${md.sqft != null ? escapeHtmlInv(String(md.sqft)) : ''}" />
+              </div>
+            </div>
+
+            <!-- Rent / frequency -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Rent / Price')}
+                <input id="editUnitRent" type="number" min="0" step="0.01" value="${o.price_amount != null ? escapeHtmlInv(String(o.price_amount)) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Frequency')}
+                <select id="editUnitFrequency">${freqSelectHtml}</select>
+              </div>
+            </div>
+
+            <!-- Off-market flag (status redesign) -->
+            <div style="margin-bottom:20px;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9em;font-weight:600;color:#4a5568;">
+                <input id="editUnitOffMarket" type="checkbox"${isOffMarket ? ' checked' : ''} style="cursor:pointer;width:16px;height:16px;">
+                Off-market
+              </label>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;margin-left:24px;line-height:1.5;">
+                Hidden from "Vacant" lists. Use for units under repair, in renovation, or otherwise not currently rentable.
+              </div>
+            </div>
+
+            <!-- Tenant dropdown -->
+            <div style="margin-bottom:14px;">
+              ${_invEditLabel('Tenant')}
+              <select id="editUnitTenant">${tenantOpts.html}</select>
+              <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+                Changing the tenant terminates the current engagement and creates a new one. The new tenant's previous unit assignment (if any) is automatically ended.
+              </div>
+            </div>
+
+            <!-- Amenities -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Amenities')}
+              <div style="margin-top:6px;">${amenCheckboxes}</div>
+              <input id="editUnitAmenOther" type="text" placeholder="Other amenities (comma-separated)" value="${escapeHtmlInv(otherAmens.join(', '))}" style="margin-top:8px;" />
+            </div>
+
+            <!-- Notes -->
+            <div style="margin-bottom:14px;">
+              ${_invEditLabel('Notes')}
+              <textarea id="editUnitNotes" rows="2" placeholder="Optional">${escapeHtmlInv(md.notes || '')}</textarea>
+            </div>
+
+            <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+              To retire this unit, cancel out and click the Retire button.
+            </div>
+
+          </div>
+        `;
+      }
+
+      function _invGatherUnitEditForm(original) {
+        const val = id => (document.getElementById(id) || {}).value || '';
+        const intOrNull = id => {
+          const v = parseInt(val(id), 10);
+          return Number.isFinite(v) ? v : null;
+        };
+        const floatOrNull = id => {
+          const v = parseFloat(val(id));
+          return Number.isFinite(v) ? v : null;
+        };
+
+        // Amenities: checked boxes + parsed "other"
+        const amens = [];
+        document.querySelectorAll('input[data-unit-amen-chk]:checked').forEach(cb => {
+          amens.push(cb.getAttribute('data-unit-amen-chk'));
+        });
+        val('editUnitAmenOther').split(',').forEach(s => {
+          const t = s.trim();
+          if (t) amens.push(t);
+        });
+
+        // PATCH replaces the full metadata object, so start from the
+        // original and merge our UI-managed keys onto it — this preserves
+        // any keys the UI doesn't know about (future fields, manual edits).
+        const originalMd = (original && original.metadata) || {};
+        const newMd = { ...originalMd };
+
+        const br = intOrNull('editUnitBedrooms');
+        if (br != null && br >= 0) newMd.bedrooms = br; else delete newMd.bedrooms;
+        const ba = floatOrNull('editUnitBathrooms');
+        if (ba != null && ba >= 0) newMd.bathrooms = ba; else delete newMd.bathrooms;
+        const sqft = intOrNull('editUnitSqft');
+        if (sqft != null && sqft >= 0) newMd.sqft = sqft; else delete newMd.sqft;
+        newMd.amenities = amens;
+        const notes = val('editUnitNotes').trim();
+        if (notes) newMd.notes = notes; else delete newMd.notes;
+
+        const rent = floatOrNull('editUnitRent');
+
+        // Status from the Off-market checkbox. If the original was
+        // 'retired' (e.g. user somehow opened edit on a retired unit),
+        // preserve it so Save doesn't silently un-retire — Retire/restore
+        // is intentionally kept on its own button path.
+        const offMarket = !!(document.getElementById('editUnitOffMarket') || {}).checked;
+        const originalStatus = (original && original.status) || 'available';
+        const newStatus = (originalStatus === 'retired')
+          ? 'retired'
+          : (offMarket ? 'unavailable' : 'available');
+
+        return {
+          name: val('editUnitName').trim(),
+          description: val('editUnitDescription').trim(),
+          floor: val('editUnitFloor').trim(),
+          price_amount: rent != null && rent >= 0 ? rent : 0,
+          price_frequency: val('editUnitFrequency') || 'monthly',
+          status: newStatus,
+          metadata: newMd,
+        };
+      }
+
+      // --- Edit mode (3c) ---
+      // Refetches the entity from the server (cache may be stale), renders
+      // all 13 metadata fields + name/address as form inputs, swaps header
+      // actions to Save/Cancel. Save PATCHes with full state; Cancel discards.
+      let inventoryEditingEntity = null;
+
+      // Standard amenity checkboxes. Any JSONB values not in this list are
+      // treated as "other" and rendered into the free-text textarea on edit.
+      const INV_KNOWN_AMENITIES = [
+        'pool', 'gym', 'elevator', 'laundry', 'rooftop', 'parking garage', 'storage lockers'
+      ];
+
+      async function editCurrentProperty() {
+        if (!inventoryCurrentEntityId) return;
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId);
+          if (!res.ok) {
+            alert('Failed to load property for editing (HTTP ' + res.status + ')');
+            return;
+          }
+          const entity = await res.json();
+          // Keep the cache in sync with the fresh copy.
+          const idx = inventoryEntities.findIndex(e => e.id === inventoryCurrentEntityId);
+          if (idx >= 0) inventoryEntities[idx] = entity;
+
+          inventoryEditingEntity = entity;
+
+          // Swap action buttons: detail -> edit
+          document.getElementById('inventoryDetailActions').style.display = 'none';
+          document.getElementById('inventoryEditActions').style.display = 'flex';
+
+          // Render the edit form
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyEdit(entity);
+          window.scrollTo({ top: 0, behavior: 'instant' });
+        } catch (err) {
+          alert('Error loading property: ' + err.message);
+        }
+      }
+
+      function cancelPropertyEdit() {
+        const entity = inventoryEditingEntity;
+        inventoryEditingEntity = null;
+        document.getElementById('inventoryEditActions').style.display = 'none';
+        document.getElementById('inventoryDetailActions').style.display = 'flex';
+        if (entity) {
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(entity);
+        }
+      }
+
+      async function savePropertyEdit() {
+        const payload = _invGatherEditForm();
+        if (!payload.name || !payload.name.trim()) { alert('Name cannot be empty.'); return; }
+        if (!payload.address || !payload.address.trim()) { alert('Address cannot be empty.'); return; }
+
+        const btn = document.getElementById('inventoryEditSaveBtn');
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to save property:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache + current editing entity
+          const idx = inventoryEntities.findIndex(e => e.id === inventoryCurrentEntityId);
+          if (idx >= 0) inventoryEntities[idx] = body;
+          inventoryEditingEntity = null;
+
+          // Swap back to read mode
+          document.getElementById('inventoryEditActions').style.display = 'none';
+          document.getElementById('inventoryDetailActions').style.display = 'flex';
+          document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(body);
+
+          // Refresh the breadcrumb (name may have changed)
+          document.getElementById('inventoryBreadcrumb').innerHTML =
+            '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+            ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+            '<span style="color:#2d3748;">' + (escapeHtmlInv(body.name) || '(unnamed)') + '</span>';
+        } catch (err) {
+          alert('Error saving: ' + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      async function archiveCurrentProperty() {
+        if (!inventoryCurrentEntityId) return;
+        const entity = inventoryEntities.find(e => e.id === inventoryCurrentEntityId);
+        const name = (entity && entity.name) || 'this property';
+        const ok = confirm('Archive "' + name + '"?\n\nIt will be hidden from the Properties list. You can restore it later via the database.');
+        if (!ok) return;
+
+        try {
+          const res = await fetch('/api/entities/' + inventoryCurrentEntityId, { method: 'DELETE' });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            alert('Failed to archive:\n\n' + (body.error || 'HTTP ' + res.status));
+            return;
+          }
+          // Update cache (mark as archived locally) and return to list
+          if (entity) entity.archived_at = body.archived_at;
+          // Reload list so the archived property drops out of the default view
+          await loadInventory();
+          showPropertyList();
+        } catch (err) {
+          alert('Error archiving: ' + err.message);
+        }
+      }
+
+      // --- Edit form rendering ---
+
+      function _invEditLabel(text, required) {
+        return `<label style="display:block;font-size:0.78em;font-weight:600;color:#4a5568;margin-bottom:4px;">${text}${required ? ' <span style="color:#e53e3e;">*</span>' : ''}</label>`;
+      }
+
+      function renderPropertyEdit(e) {
+        // Split amenities into known (checkboxes) and other (freeform)
+        const amens = Array.isArray(e.shared_amenities) ? e.shared_amenities : [];
+        const knownSet = new Set(INV_KNOWN_AMENITIES.map(a => a.toLowerCase()));
+        const checkedKnown = new Set();
+        const otherAmens = [];
+        for (const a of amens) {
+          const s = String(a || '').trim();
+          if (!s) continue;
+          if (knownSet.has(s.toLowerCase())) checkedKnown.add(s.toLowerCase());
+          else otherAmens.push(s);
+        }
+
+        const amenCheckboxes = INV_KNOWN_AMENITIES.map(a => {
+          const checked = checkedKnown.has(a.toLowerCase()) ? ' checked' : '';
+          return `
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:0.9em;color:#4a5568;cursor:pointer;">
+              <input type="checkbox" data-amen-chk="${escapeHtmlInv(a)}"${checked} style="cursor:pointer;">
+              <span style="text-transform:capitalize;">${escapeHtmlInv(a)}</span>
+            </label>
+          `;
+        }).join('');
+
+        const ecRows = Array.isArray(e.emergency_contacts) ? e.emergency_contacts : [];
+        const svRows = Array.isArray(e.service_vendors) ? e.service_vendors : [];
+
+        return `
+          <div class="card" style="padding:28px 32px;">
+
+            <!-- Title + address -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Name', true)}
+              <input id="editPropName" type="text" value="${escapeHtmlInv(e.name)}" placeholder="Property name" />
+            </div>
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Address', true)}
+              <input id="editPropAddress" type="text" value="${escapeHtmlInv(e.address)}" placeholder="Full address" />
+            </div>
+
+            <!-- Description -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Description', false)}
+              <textarea id="editPropDescription" rows="2" placeholder="Brief description (optional)">${escapeHtmlInv(e.description || '')}</textarea>
+            </div>
+
+            <!-- 4-column numeric/scalar strip -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Building Type')}
+                <input id="editPropBuildingType" type="text" list="propBuildingTypeOptions" value="${escapeHtmlInv(e.building_type || '')}" placeholder="apartment, condo, ..." />
+              </div>
+              <div>
+                ${_invEditLabel('Year Built')}
+                <input id="editPropYearBuilt" type="number" min="1800" max="2100" value="${e.year_built != null ? escapeHtmlInv(e.year_built) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Number of Floors')}
+                <input id="editPropNumFloors" type="number" min="1" max="200" value="${e.number_of_floors != null ? escapeHtmlInv(e.number_of_floors) : ''}" />
+              </div>
+              <div>
+                ${_invEditLabel('Total Unit Count')}
+                <input id="editPropTotalUnits" type="number" min="0" max="10000" value="${e.total_unit_count != null ? escapeHtmlInv(e.total_unit_count) : ''}" />
+              </div>
+            </div>
+
+            <!-- Utilities -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Heating System')}
+                <input id="editPropHeating" type="text" value="${escapeHtmlInv(e.heating_system || '')}" placeholder="e.g. Gas boiler" />
+              </div>
+              <div>
+                ${_invEditLabel('Water Source')}
+                <input id="editPropWater" type="text" value="${escapeHtmlInv(e.water_source || '')}" placeholder="e.g. City" />
+              </div>
+              <div>
+                ${_invEditLabel('Parking Setup')}
+                <input id="editPropParking" type="text" value="${escapeHtmlInv(e.parking_setup || '')}" placeholder="e.g. Garage, 1/unit" />
+              </div>
+            </div>
+
+            <!-- Policies -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px;">
+              <div>
+                ${_invEditLabel('Pet Policy')}
+                <input id="editPropPetPolicy" type="text" value="${escapeHtmlInv(e.pet_policy || '')}" placeholder="e.g. Cats OK, no dogs" />
+              </div>
+              <div>
+                ${_invEditLabel('Smoking Policy')}
+                <input id="editPropSmokingPolicy" type="text" value="${escapeHtmlInv(e.smoking_policy || '')}" placeholder="e.g. No indoor smoking" />
+              </div>
+            </div>
+
+            <!-- Shared amenities: checkboxes + other -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Shared Amenities')}
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                <div style="line-height:1.8;">${amenCheckboxes}</div>
+                <div style="margin-top:10px;">
+                  <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Other (comma-separated)</label>
+                  <input id="editPropAmenOther" type="text" value="${escapeHtmlInv(otherAmens.join(', '))}" placeholder="e.g. concierge, bike storage" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Emergency contacts -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Emergency Contacts')}
+              <div id="editEmergencyContacts" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                ${ecRows.map(c => _invEditECRow(c)).join('')}
+                <button type="button" class="inv-ec-add-btn" onclick="_invAddECRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Contact</button>
+              </div>
+            </div>
+
+            <!-- Service vendors -->
+            <div style="margin-bottom:20px;">
+              ${_invEditLabel('Service Vendors')}
+              <div id="editServiceVendors" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+                ${svRows.map(v => _invEditSVRow(v)).join('')}
+                <button type="button" class="inv-sv-add-btn" onclick="_invAddSVRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:#4a5568;border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Vendor</button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }
+
+      // Row-editor HTML templates (take an optional existing object)
+      function _invEditECRow(c) {
+        const name = escapeHtmlInv((c && c.name) || '');
+        const phone = escapeHtmlInv((c && c.phone) || '');
+        const role = escapeHtmlInv((c && c.role) || '');
+        return `
+          <div class="inv-ec-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;">
+            <input class="inv-ec-name" type="text" value="${name}" placeholder="Name" />
+            <input class="inv-ec-phone" type="text" value="${phone}" placeholder="Phone" />
+            <input class="inv-ec-role" type="text" value="${role}" placeholder="Role" />
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+          </div>
+        `;
+      }
+
+      function _invEditSVRow(v) {
+        const name = escapeHtmlInv((v && v.name) || '');
+        const trade = escapeHtmlInv((v && v.trade) || '');
+        const phone = escapeHtmlInv((v && v.phone) || '');
+        return `
+          <div class="inv-sv-row" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;">
+            <input class="inv-sv-name" type="text" value="${name}" placeholder="Name" />
+            <input class="inv-sv-trade" type="text" value="${trade}" placeholder="Trade" />
+            <input class="inv-sv-phone" type="text" value="${phone}" placeholder="Phone" />
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+          </div>
+        `;
+      }
+
+      function _invAddECRow() {
+        const container = document.getElementById('editEmergencyContacts');
+        const addBtn = container.querySelector('.inv-ec-add-btn');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = _invEditECRow(null).trim();
+        const row = tmp.firstChild;
+        container.insertBefore(row, addBtn);
+        row.querySelector('input').focus();
+      }
+
+      function _invAddSVRow() {
+        const container = document.getElementById('editServiceVendors');
+        const addBtn = container.querySelector('.inv-sv-add-btn');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = _invEditSVRow(null).trim();
+        const row = tmp.firstChild;
+        container.insertBefore(row, addBtn);
+        row.querySelector('input').focus();
+      }
+
+      // Read all edit-form inputs into a PATCH payload
+      function _invGatherEditForm() {
+        const val = id => (document.getElementById(id) || {}).value || '';
+        const intOrNull = id => {
+          const v = parseInt(val(id), 10);
+          return Number.isFinite(v) ? v : null;
+        };
+        const trimOrNull = id => (val(id).trim() || null);
+        const trimOrEmpty = id => val(id).trim();
+
+        // Amenities: combine checked boxes + parsed "other"
+        const amens = [];
+        document.querySelectorAll('input[data-amen-chk]:checked').forEach(cb => {
+          amens.push(cb.getAttribute('data-amen-chk'));
+        });
+        const otherRaw = val('editPropAmenOther');
+        otherRaw.split(',').forEach(s => {
+          const t = s.trim();
+          if (t) amens.push(t);
+        });
+
+        // Emergency contacts: scan row inputs
+        const emergencyContacts = [];
+        document.querySelectorAll('#editEmergencyContacts .inv-ec-row').forEach(row => {
+          const name = (row.querySelector('.inv-ec-name').value || '').trim();
+          const phone = (row.querySelector('.inv-ec-phone').value || '').trim();
+          const role = (row.querySelector('.inv-ec-role').value || '').trim();
+          if (name || phone || role) emergencyContacts.push({ name, phone, role });
+        });
+
+        // Service vendors
+        const serviceVendors = [];
+        document.querySelectorAll('#editServiceVendors .inv-sv-row').forEach(row => {
+          const name = (row.querySelector('.inv-sv-name').value || '').trim();
+          const trade = (row.querySelector('.inv-sv-trade').value || '').trim();
+          const phone = (row.querySelector('.inv-sv-phone').value || '').trim();
+          if (name || trade || phone) serviceVendors.push({ name, trade, phone });
+        });
+
+        return {
+          name: trimOrEmpty('editPropName'),
+          address: trimOrEmpty('editPropAddress'),
+          description: trimOrEmpty('editPropDescription'),
+          building_type: trimOrNull('editPropBuildingType'),
+          year_built: intOrNull('editPropYearBuilt'),
+          number_of_floors: intOrNull('editPropNumFloors'),
+          total_unit_count: intOrNull('editPropTotalUnits'),
+          heating_system: trimOrNull('editPropHeating'),
+          water_source: trimOrNull('editPropWater'),
+          parking_setup: trimOrNull('editPropParking'),
+          pet_policy: trimOrNull('editPropPetPolicy'),
+          smoking_policy: trimOrNull('editPropSmokingPolicy'),
+          shared_amenities: amens,
+          emergency_contacts: emergencyContacts,
+          service_vendors: serviceVendors,
+        };
+      }
     </script>
   <!-- Maintenance Ticket Modal -->
   <!-- Onboarding Modal -->
@@ -3979,15 +6426,23 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <label>Unit</label>
-          <input id="cUnit" type="text" placeholder="e.g. 4B" />
-        </div>
-        <div style="flex:1;">
-          <label>Notes</label>
-          <input id="cNotes" type="text" placeholder="Optional notes" />
-        </div>
+      <!-- Unit dropdown (chunk 6a) — replaces the freeform unit text
+           input. Populated from the inventory caches at modal-open time
+           via _invEnsureLoaded(). Retained #cUnit hidden input round-
+           trips the legacy contacts.unit text value untouched until
+           chunk 6b wires real engagement writes. -->
+      <div>
+        <label>Unit</label>
+        <select id="cUnitOffering">
+          <option value="">&mdash; No unit assigned &mdash;</option>
+        </select>
+        <input id="cUnit" type="hidden" />
+        <div id="cUnitLegacyHint" style="display:none;font-size:0.78em;color:#94a3b8;margin-top:6px;"></div>
+      </div>
+
+      <div>
+        <label>Notes</label>
+        <input id="cNotes" type="text" placeholder="Optional notes" />
       </div>
 
       <!-- Lease fields — shown only for residents -->
@@ -4012,6 +6467,181 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeContactModal()">Cancel</button>
         <button class="btn-primary" id="contactModalSaveBtn" onclick="submitContactModal()">Add Contact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Property Modal (chunk 3a — Create only; Edit happens in the detail view) -->
+  <div class="modal-overlay" id="propertyModal" onclick="if(event.target===this)closePropertyModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:540px;max-width:96vw;">
+      <h3>&#127970; Add Property</h3>
+
+      <div>
+        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <input id="propName" type="text" placeholder="e.g. Oakwood Apartments" />
+      </div>
+
+      <div>
+        <label>Address <span style="color:#e53e3e;">*</span></label>
+        <input id="propAddress" type="text" placeholder="e.g. 123 Main St, Seattle, WA" />
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Building Type</label>
+          <input id="propBuildingType" type="text" list="propBuildingTypeOptions" placeholder="apartment, condo, ..." />
+          <datalist id="propBuildingTypeOptions">
+            <option value="apartment"></option>
+            <option value="condo"></option>
+            <option value="single-family"></option>
+            <option value="townhouse"></option>
+            <option value="mixed-use"></option>
+          </datalist>
+        </div>
+        <div style="width:140px;">
+          <label>Year Built</label>
+          <input id="propYearBuilt" type="number" min="1800" max="2100" placeholder="e.g. 1995" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Number of Floors</label>
+          <input id="propNumFloors" type="number" min="1" max="200" placeholder="e.g. 4" />
+        </div>
+        <div style="flex:1;">
+          <label>Total Unit Count</label>
+          <input id="propTotalUnits" type="number" min="0" max="10000" placeholder="e.g. 24" />
+        </div>
+      </div>
+
+      <div>
+        <label>Description</label>
+        <textarea id="propDescription" rows="2" placeholder="Optional — brief description for internal reference"></textarea>
+      </div>
+
+      <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+        More fields (amenities, emergency contacts, service vendors, utility and policy details) can be added later via the property's detail view.
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePropertyModal()">Cancel</button>
+        <button class="btn-primary" id="propertyModalSaveBtn" onclick="submitPropertyModal()">Add Property</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Unit Modal (chunk 5a) -->
+  <div class="modal-overlay" id="unitModal" onclick="if(event.target===this)closeUnitModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="width:580px;max-width:96vw;">
+      <h3>&#127968; Add Unit <span id="unitModalPropertyLabel" style="color:#94a3b8;font-weight:400;font-size:0.8em;"></span></h3>
+      <input type="hidden" id="unitEntityId" />
+
+      <div>
+        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <input id="unitName" type="text" placeholder="e.g. Unit 101 or Apartment 2B" />
+      </div>
+
+      <div>
+        <label>Description</label>
+        <textarea id="unitDescription" rows="2" placeholder="Optional &mdash; short description shown on the listing"></textarea>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Floor</label>
+          <input id="unitFloor" type="text" placeholder="e.g. 2 or Ground" />
+        </div>
+        <div style="flex:1;">
+          <label>Bedrooms</label>
+          <input id="unitBedrooms" type="number" min="0" max="20" placeholder="e.g. 2" />
+        </div>
+        <div style="flex:1;">
+          <label>Bathrooms</label>
+          <input id="unitBathrooms" type="number" min="0" max="20" step="0.5" placeholder="e.g. 1.5" />
+        </div>
+        <div style="flex:1;">
+          <label>Sq Ft</label>
+          <input id="unitSqft" type="number" min="0" max="100000" placeholder="e.g. 850" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Rent / Price</label>
+          <input id="unitRent" type="number" min="0" step="0.01" placeholder="e.g. 1800" />
+        </div>
+        <div style="flex:1;">
+          <label>Frequency</label>
+          <select id="unitFrequency">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annual">Annual</option>
+            <option value="hourly">Hourly</option>
+            <option value="one-time">One-time</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label>Amenities</label>
+        <input id="unitAmenities" type="text" placeholder="Comma-separated &mdash; e.g. balcony, in-unit washer, dishwasher" />
+      </div>
+
+      <div>
+        <label>Notes</label>
+        <textarea id="unitNotes" rows="2" placeholder="Optional &mdash; internal notes"></textarea>
+      </div>
+
+      <!-- Tenant dropdown (populated by openAddUnit). Optional; pick a
+           tenant to occupy this unit at creation time, or leave blank. -->
+      <div>
+        <label>Tenant</label>
+        <select id="unitTenant">
+          <option value="">&mdash; No tenant assigned &mdash;</option>
+        </select>
+      </div>
+
+      <div style="font-size:0.78em;color:#94a3b8;margin-top:4px;line-height:1.5;">
+        If you pick a tenant, an active engagement is created at save. Their previous unit assignment (if any) is automatically ended.
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeUnitModal()">Cancel</button>
+        <button class="btn-primary" id="unitModalSaveBtn" onclick="submitUnitModal()">Add Unit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Auto-Reply Consent Modal (sub-step D / Layer 3) -->
+  <div class="modal-overlay" id="autoReplyConsentModal" onclick="if(event.target===this)closeAutoReplyConsentModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:560px;">
+      <h3>&#9889; Enable AI Auto-Reply Mode?</h3>
+
+      <p style="margin:12px 0;color:#475569;line-height:1.55;font-size:0.92em;">
+        When enabled, Modern Management's AI will respond to tenant messages on your behalf without your review.
+      </p>
+
+      <p style="margin:16px 0 8px;color:#475569;font-weight:600;font-size:0.92em;">What this means:</p>
+      <ul style="margin:0;padding-left:22px;color:#475569;line-height:1.6;font-size:0.9em;">
+        <li>The AI may occasionally make mistakes</li>
+        <li>Messages go out under your name and authority</li>
+        <li>You can review all sent messages in your inbox</li>
+        <li>For safety, emergency-keyword messages (fire, gas leak, threats, injuries, etc.) will always require your manual review and you'll be notified by SMS</li>
+      </ul>
+
+      <p style="margin:16px 0;color:#475569;line-height:1.55;font-size:0.92em;font-weight:500;">
+        By enabling auto-reply, you accept responsibility for messages sent on your behalf.
+      </p>
+
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:14px 0 4px;">
+        <input type="checkbox" id="autoReplyConsentCheckbox" onchange="updateAutoReplyConsentBtn()" style="cursor:pointer;width:16px;height:16px;flex-shrink:0;">
+        <span style="color:#1e293b;font-size:0.9em;font-weight:500;">I understand and accept these terms</span>
+      </label>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAutoReplyConsentModal()">Cancel</button>
+        <button class="btn-primary" id="autoReplyConsentBtn" onclick="submitAutoReplyConsent()" disabled style="opacity:0.5;cursor:not-allowed;">Enable Auto-Reply</button>
       </div>
     </div>
   </div>
