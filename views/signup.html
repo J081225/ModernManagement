@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign up — Modern Management</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f8fafc, #eef2ff);
+      color: #2d3748;
+      min-height: 100vh;
+      padding: 40px 16px;
+    }
+    .container { max-width: 540px; margin: 0 auto; }
+    .logo {
+      text-align: center; font-size: 1.4em; font-weight: 800;
+      color: #ff6b6b; margin-bottom: 24px;
+    }
+    .step-indicator { display: flex; gap: 8px; justify-content: center; margin-bottom: 28px; }
+    .step-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #e2e8f0; transition: background 0.2s;
+    }
+    .step-dot.active { background: #ff6b6b; }
+    .step-dot.complete { background: #16a34a; }
+    .card {
+      background: white; border-radius: 14px; padding: 32px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    h1 { margin: 0 0 8px; font-size: 1.4em; color: #2d3748; }
+    .subtitle { color: #94a3b8; font-size: 0.92em; margin-bottom: 24px; line-height: 1.5; }
+    label {
+      display: block; font-size: 0.84em; font-weight: 600;
+      color: #475569; margin: 14px 0 6px;
+    }
+    label .required { color: #e53e3e; margin-left: 2px; }
+    input, select {
+      width: 100%; padding: 11px 13px; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; font-size: 0.95em; font-family: inherit;
+      color: #2d3748; transition: border-color 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: #ff6b6b; }
+    input.invalid, select.invalid { border-color: #e53e3e; background: #fef2f2; }
+    .field-error { color: #e53e3e; font-size: 0.78em; margin-top: 4px; min-height: 16px; }
+    .field-success { color: #16a34a; font-size: 0.78em; margin-top: 4px; }
+    .field-hint { color: #94a3b8; font-size: 0.78em; margin-top: 4px; line-height: 1.45; }
+    .btn-primary {
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      color: white; border: none; border-radius: 8px;
+      padding: 12px 22px; font-size: 0.94em; font-weight: 600; cursor: pointer;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: white; color: #475569; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; padding: 12px 22px;
+      font-size: 0.94em; font-weight: 600; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+    .btn-row { display: flex; gap: 12px; justify-content: space-between; margin-top: 28px; }
+    .password-strength {
+      height: 6px; background: #f1f5f9; border-radius: 3px;
+      margin-top: 6px; overflow: hidden;
+    }
+    .password-strength-bar { height: 100%; transition: width 0.2s, background 0.2s; }
+    .plan-card {
+      display: block; padding: 16px 18px; border: 2px solid #e2e8f0;
+      border-radius: 12px; margin-bottom: 12px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .plan-card.selected { border-color: #ff6b6b; background: #fff7ed; }
+    .plan-card input[type="radio"] { margin-right: 10px; }
+    .plan-name { font-weight: 700; color: #2d3748; }
+    .plan-price { color: #ff6b6b; font-weight: 700; font-size: 1.05em; }
+    .plan-meta { color: #94a3b8; font-size: 0.84em; margin-top: 4px; }
+    .billing-toggle {
+      display: flex; gap: 0; background: #f1f5f9;
+      border-radius: 8px; padding: 4px; margin-bottom: 20px;
+    }
+    .billing-toggle button {
+      flex: 1; padding: 8px 12px; border: none; background: transparent;
+      color: #64748b; font-weight: 600; cursor: pointer;
+      border-radius: 6px; transition: background 0.15s;
+      font-family: inherit; font-size: 0.9em;
+    }
+    .billing-toggle button.active {
+      background: white; color: #2d3748;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    .savings-tag {
+      background: #dcfce7; color: #16a34a; font-size: 0.7em;
+      font-weight: 700; padding: 2px 7px; border-radius: 10px;
+      margin-left: 6px; display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">Modern Management</div>
+
+    <div class="step-indicator">
+      <div class="step-dot active" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+      <div class="step-dot" id="dot-3"></div>
+      <div class="step-dot" id="dot-4"></div>
+    </div>
+
+    <div class="card">
+
+      <!-- Screen 1: Account info -->
+      <div class="screen active" id="screen-1">
+        <h1>Create your account</h1>
+        <p class="subtitle">Step 1 of 4 — basic account credentials.</p>
+
+        <label>Username <span class="required">*</span></label>
+        <input id="f-username" type="text" placeholder="e.g. yourbusiness" autocomplete="username" />
+        <div class="field-error" id="err-username"></div>
+        <div class="field-hint">3-30 characters, lowercase letters, numbers, and underscores only.</div>
+
+        <label>Password <span class="required">*</span></label>
+        <input id="f-password" type="password" autocomplete="new-password" />
+        <div class="password-strength"><div class="password-strength-bar" id="pw-bar"></div></div>
+        <div class="field-error" id="err-password"></div>
+
+        <label>Confirm password <span class="required">*</span></label>
+        <input id="f-password-confirm" type="password" autocomplete="new-password" />
+        <div class="field-error" id="err-password-confirm"></div>
+
+        <label>Email <span class="required">*</span></label>
+        <input id="f-email" type="email" placeholder="you@example.com" autocomplete="email" />
+        <div class="field-error" id="err-email"></div>
+
+        <div class="btn-row">
+          <a href="/" class="btn-secondary">Cancel</a>
+          <button class="btn-primary" onclick="advanceFromScreen(1)">Continue</button>
+        </div>
+      </div>
+
+      <!-- Screen 2: Business info -->
+      <div class="screen" id="screen-2">
+        <h1>Tell us about your business</h1>
+        <p class="subtitle">Step 2 of 4 — helps us recommend the right plan.</p>
+
+        <label>Business name <span class="required">*</span></label>
+        <input id="f-business-name" type="text" placeholder="e.g. Riverside Property Management" />
+        <div class="field-error" id="err-business-name"></div>
+
+        <label>Number of units you manage <span class="required">*</span></label>
+        <input id="f-units" type="number" min="1" max="1000" placeholder="e.g. 25" />
+        <div class="field-error" id="err-units"></div>
+
+        <label>Property type <span class="required">*</span></label>
+        <select id="f-property-type">
+          <option value="">Select...</option>
+          <option value="residential_apartment">Residential apartments</option>
+          <option value="condo">Condos</option>
+          <option value="single_family">Single-family rentals</option>
+          <option value="mixed_use">Mixed-use</option>
+          <option value="commercial">Commercial</option>
+        </select>
+        <div class="field-error" id="err-property-type"></div>
+
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="goBack(2)">Back</button>
+          <button class="btn-primary" onclick="advanceFromScreen(2)">Continue</button>
+        </div>
+      </div>
+
+      <!-- Screen 3: Phone preferences -->
+      <div class="screen" id="screen-3">
+        <h1>Phone setup</h1>
+        <p class="subtitle">Step 3 of 4 — we'll provision a Twilio number for you in your preferred area code.</p>
+
+        <label>Preferred area code</label>
+        <input id="f-area-code" type="text" maxlength="3" placeholder="e.g. 503" />
+        <div class="field-error" id="err-area-code"></div>
+        <div class="field-hint">3 digits. Leave blank to let us pick any available area code.</div>
+
+        <label>Backup area code</label>
+        <input id="f-area-code-backup" type="text" maxlength="3" placeholder="e.g. 971" />
+        <div class="field-error" id="err-area-code-backup"></div>
+        <div class="field-hint">Optional. Used if your preferred area code isn't available.</div>
+
+        <label>Owner alert mobile</label>
+        <input id="f-alert-phone" type="tel" placeholder="+15551234567" />
+        <div class="field-error" id="err-alert-phone"></div>
+        <div class="field-hint">Optional but recommended. We'll text this number when an emergency message arrives (fire, gas leak, threats, etc.). Format: +1 followed by 10 digits, no spaces or dashes.</div>
+
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="goBack(3)">Back</button>
+          <button class="btn-primary" onclick="advanceFromScreen(3)">Continue</button>
+        </div>
+      </div>
+
+      <!-- Screen 4: Plan selection -->
+      <div class="screen" id="screen-4">
+        <h1>Choose your plan</h1>
+        <p class="subtitle" id="plan-suggestion">Step 4 of 4 — pick the plan that fits your business.</p>
+
+        <div class="billing-toggle">
+          <button id="bill-monthly" class="active" onclick="setBilling('monthly')">Monthly</button>
+          <button id="bill-annual" onclick="setBilling('annual')">Annual <span class="savings-tag">Save 2 months</span></button>
+        </div>
+
+        <label class="plan-card" data-plan="solo" onclick="selectPlan('solo')">
+          <input type="radio" name="plan" value="solo" />
+          <span class="plan-name">Solo</span> &nbsp; <span class="plan-price" id="price-solo">$79/mo</span>
+          <div class="plan-meta">Up to 25 units, 1 user</div>
+        </label>
+
+        <label class="plan-card" data-plan="team" onclick="selectPlan('team')">
+          <input type="radio" name="plan" value="team" />
+          <span class="plan-name">Team</span> &nbsp; <span class="plan-price" id="price-team">$149/mo</span>
+          <div class="plan-meta">Up to 100 units, 3 users included</div>
+        </label>
+
+        <label class="plan-card" data-plan="enterprise" onclick="selectPlan('enterprise')">
+          <input type="radio" name="plan" value="enterprise" />
+          <span class="plan-name">Enterprise</span> &nbsp; <span class="plan-price" id="price-enterprise">$299/mo</span>
+          <div class="plan-meta">Up to 500 units, 10 users included</div>
+        </label>
+
+        <div class="field-error" id="err-plan"></div>
+
+        <div class="btn-row">
+          <button class="btn-secondary" onclick="goBack(4)">Back</button>
+          <button class="btn-primary" onclick="advanceFromScreen(4)">Continue to Payment</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // === sessionStorage draft state ===
+    // Key dies with the tab — privacy-friendly. Server-side persistence
+    // arrives in B2 when Stripe redirect needs to survive cross-origin.
+    // Passwords are NEVER captured to sessionStorage; they live only in
+    // their input element's DOM value (preserved across screen swaps
+    // because we hide/show rather than navigate).
+    const DRAFT_KEY = 'signupDraft';
+    function getDraft() {
+      try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY)) || {}; }
+      catch (e) { return {}; }
+    }
+    function patchDraft(patch) {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...getDraft(), ...patch }));
+    }
+
+    // Repopulate fields on load (back-button-friendly).
+    window.addEventListener('DOMContentLoaded', () => {
+      const d = getDraft();
+      if (d.username) document.getElementById('f-username').value = d.username;
+      if (d.email) document.getElementById('f-email').value = d.email;
+      if (d.business_name) document.getElementById('f-business-name').value = d.business_name;
+      if (d.units != null) document.getElementById('f-units').value = d.units;
+      if (d.property_type) document.getElementById('f-property-type').value = d.property_type;
+      if (d.area_code) document.getElementById('f-area-code').value = d.area_code;
+      if (d.area_code_backup) document.getElementById('f-area-code-backup').value = d.area_code_backup;
+      if (d.alert_phone) document.getElementById('f-alert-phone').value = d.alert_phone;
+      if (d.billing) setBilling(d.billing, /*skipPersist=*/true);
+      if (d.plan) selectPlan(d.plan, /*skipPersist=*/true);
+    });
+
+    // === Screen navigation ===
+    let currentScreen = 1;
+    function showScreen(n) {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('screen-' + i).classList.toggle('active', i === n);
+        const dot = document.getElementById('dot-' + i);
+        dot.classList.remove('active', 'complete');
+        if (i < n) dot.classList.add('complete');
+        else if (i === n) dot.classList.add('active');
+      }
+      currentScreen = n;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    function goBack(fromScreen) {
+      capture(fromScreen);
+      showScreen(fromScreen - 1);
+    }
+
+    // === Validation helpers ===
+    function setError(field, msg) {
+      const errEl = document.getElementById('err-' + field);
+      const inputEl = document.getElementById('f-' + field);
+      if (errEl) {
+        errEl.textContent = msg || '';
+        errEl.style.color = '';
+      }
+      if (inputEl) inputEl.classList.toggle('invalid', !!msg);
+    }
+    function setSuccess(field, msg) {
+      const errEl = document.getElementById('err-' + field);
+      const inputEl = document.getElementById('f-' + field);
+      if (errEl) {
+        errEl.textContent = msg || '';
+        errEl.style.color = '#16a34a';
+      }
+      if (inputEl) inputEl.classList.remove('invalid');
+    }
+    function validUsername(s) { return /^[a-z0-9_]{3,30}$/.test(s); }
+    function validEmail(s)    { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+    function validE164(s)     { return /^\+1[0-9]{10}$/.test(s); }
+    function validAreaCode(s) { return /^[0-9]{3}$/.test(s); }
+
+    // Password strength tier (per Q-B1.3 — simple length-based)
+    function passwordTier(pw) {
+      if (pw.length < 8)  return { tier: 'invalid', color: '#e53e3e', width: '20%' };
+      if (pw.length < 12) return { tier: 'weak',    color: '#f59e0b', width: '40%' };
+      if (pw.length < 16) return { tier: 'good',    color: '#16a34a', width: '70%' };
+      return                     { tier: 'strong',  color: '#16a34a', width: '100%' };
+    }
+    document.getElementById('f-password').addEventListener('input', (e) => {
+      const t = passwordTier(e.target.value);
+      document.getElementById('pw-bar').style.width = t.width;
+      document.getElementById('pw-bar').style.background = t.color;
+      if (e.target.value.length >= 8) setError('password', '');
+    });
+
+    // Async uniqueness checks on blur (Q-B1.4)
+    document.getElementById('f-username').addEventListener('blur', async (e) => {
+      const v = e.target.value.trim().toLowerCase();
+      if (!v) return;
+      if (!validUsername(v)) {
+        setError('username', '3-30 chars, lowercase letters / numbers / underscores only');
+        return;
+      }
+      try {
+        const r = await fetch('/api/signup/check-username?username=' + encodeURIComponent(v));
+        const data = await r.json();
+        if (data.available === false) setError('username', 'That username is already taken');
+        else setSuccess('username', '\u2713 Available');
+      } catch (err) { /* network error — don't block */ }
+    });
+    document.getElementById('f-email').addEventListener('blur', async (e) => {
+      const v = e.target.value.trim();
+      if (!v) return;
+      if (!validEmail(v)) {
+        setError('email', 'Enter a valid email address');
+        return;
+      }
+      try {
+        const r = await fetch('/api/signup/check-email?email=' + encodeURIComponent(v));
+        const data = await r.json();
+        if (data.available === false) setError('email', 'An account with that email already exists');
+        else setSuccess('email', '\u2713 Available');
+      } catch (err) { /* network error — don't block */ }
+    });
+
+    // === Capture screen state into draft ===
+    function capture(screen) {
+      const d = {};
+      if (screen >= 1) {
+        d.username = document.getElementById('f-username').value.trim().toLowerCase();
+        d.email    = document.getElementById('f-email').value.trim();
+      }
+      if (screen >= 2) {
+        d.business_name = document.getElementById('f-business-name').value.trim();
+        const units = parseInt(document.getElementById('f-units').value, 10);
+        d.units = Number.isFinite(units) ? units : null;
+        d.property_type = document.getElementById('f-property-type').value;
+      }
+      if (screen >= 3) {
+        d.area_code        = document.getElementById('f-area-code').value.trim();
+        d.area_code_backup = document.getElementById('f-area-code-backup').value.trim();
+        d.alert_phone      = document.getElementById('f-alert-phone').value.trim();
+      }
+      patchDraft(d);
+    }
+
+    // === Advance flow + per-screen validation ===
+    async function advanceFromScreen(n) {
+      let ok = true;
+      if (n === 1) {
+        const username        = document.getElementById('f-username').value.trim().toLowerCase();
+        const password        = document.getElementById('f-password').value;
+        const passwordConfirm = document.getElementById('f-password-confirm').value;
+        const email           = document.getElementById('f-email').value.trim();
+
+        if (!validUsername(username))     { setError('username', '3-30 chars, lowercase letters / numbers / underscores only'); ok = false; }
+        if (!password || password.length < 8) { setError('password', 'Password must be at least 8 characters'); ok = false; }
+        if (password !== passwordConfirm) { setError('password-confirm', 'Passwords do not match'); ok = false; }
+        if (!validEmail(email))           { setError('email', 'Enter a valid email address'); ok = false; }
+
+        if (ok) {
+          // Final uniqueness re-check (catches race with someone signing up
+          // since the blur check). Network error is non-blocking.
+          try {
+            const [u, em] = await Promise.all([
+              fetch('/api/signup/check-username?username=' + encodeURIComponent(username)).then(r => r.json()),
+              fetch('/api/signup/check-email?email=' + encodeURIComponent(email)).then(r => r.json()),
+            ]);
+            if (u.available === false)  { setError('username', 'That username is already taken'); ok = false; }
+            if (em.available === false) { setError('email', 'An account with that email already exists'); ok = false; }
+          } catch (err) { /* allow continue on network error */ }
+        }
+      } else if (n === 2) {
+        const businessName = document.getElementById('f-business-name').value.trim();
+        const units        = parseInt(document.getElementById('f-units').value, 10);
+        const propertyType = document.getElementById('f-property-type').value;
+        if (!businessName || businessName.length > 100) { setError('business-name', 'Business name is required (1-100 characters)'); ok = false; }
+        if (!Number.isFinite(units) || units < 1 || units > 1000) { setError('units', 'Enter a number between 1 and 1000'); ok = false; }
+        if (!propertyType) { setError('property-type', 'Select a property type'); ok = false; }
+      } else if (n === 3) {
+        const areaCode       = document.getElementById('f-area-code').value.trim();
+        const areaCodeBackup = document.getElementById('f-area-code-backup').value.trim();
+        const alertPhone     = document.getElementById('f-alert-phone').value.trim();
+        if (areaCode && !validAreaCode(areaCode)) { setError('area-code', 'Area code must be exactly 3 digits'); ok = false; }
+        if (areaCodeBackup && !validAreaCode(areaCodeBackup)) { setError('area-code-backup', 'Area code must be exactly 3 digits'); ok = false; }
+        if (alertPhone && !validE164(alertPhone)) { setError('alert-phone', 'Format must be +1 followed by 10 digits, e.g. +15551234567'); ok = false; }
+      } else if (n === 4) {
+        const planChecked = document.querySelector('input[name="plan"]:checked');
+        if (!planChecked) { document.getElementById('err-plan').textContent = 'Choose a plan to continue'; ok = false; }
+      }
+      if (!ok) return;
+      capture(n);
+
+      if (n === 4) {
+        // B1 placeholder handoff — Stripe wiring lands in B2.
+        window.location.href = '/signup/payment-coming';
+        return;
+      }
+      if (n === 3) updatePlanSuggestion();
+      showScreen(n + 1);
+    }
+
+    function updatePlanSuggestion() {
+      const u = getDraft().units;
+      const el = document.getElementById('plan-suggestion');
+      if (!Number.isFinite(u)) return;
+      if (u <= 25)       el.textContent = 'Step 4 of 4 — based on your unit count, Solo is recommended.';
+      else if (u <= 100) el.textContent = 'Step 4 of 4 — based on your unit count, Team is recommended.';
+      else               el.textContent = 'Step 4 of 4 — based on your unit count, Enterprise is recommended.';
+    }
+
+    // === Plan + billing toggles ===
+    function setBilling(mode, skipPersist) {
+      document.getElementById('bill-monthly').classList.toggle('active', mode === 'monthly');
+      document.getElementById('bill-annual').classList.toggle('active', mode === 'annual');
+      if (mode === 'monthly') {
+        document.getElementById('price-solo').innerHTML       = '$79/mo';
+        document.getElementById('price-team').innerHTML       = '$149/mo';
+        document.getElementById('price-enterprise').innerHTML = '$299/mo';
+      } else {
+        document.getElementById('price-solo').innerHTML       = '$66/mo billed annually <span class="savings-tag">save $158</span>';
+        document.getElementById('price-team').innerHTML       = '$124/mo billed annually <span class="savings-tag">save $298</span>';
+        document.getElementById('price-enterprise').innerHTML = '$249/mo billed annually <span class="savings-tag">save $598</span>';
+      }
+      if (!skipPersist) patchDraft({ billing: mode });
+    }
+    function selectPlan(plan, skipPersist) {
+      document.querySelectorAll('.plan-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.plan === plan);
+      });
+      const radio = document.querySelector('input[name="plan"][value="' + plan + '"]');
+      if (radio) radio.checked = true;
+      document.getElementById('err-plan').textContent = '';
+      if (!skipPersist) patchDraft({ plan });
+    }
+  </script>
+</body>
+</html>

@@ -115,7 +115,18 @@ app.get('/login', (req, res) => {
 });
 app.get('/signup', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
-  res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+  // Phase B B1: now serves the multi-screen signup form from views/.
+  // The legacy single-screen public/signup.html is left on disk as a
+  // backup but no longer routed.
+  res.sendFile(path.join(__dirname, 'views', 'signup.html'));
+});
+
+// Phase B B1: placeholder destination for the "Continue to Payment"
+// button on screen 4. Echoes the captured sessionStorage draft so we
+// can sanity-check multi-screen state preservation. Will be replaced
+// by Stripe Checkout redirect in B2.
+app.get('/signup/payment-coming', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'signup-payment-coming.html'));
 });
 app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
@@ -831,6 +842,49 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Phase B B1: signup-form uniqueness pre-check endpoints. Public
+// (no auth) so the multi-screen form can validate inline as the user
+// types. Final uniqueness re-check happens at account-creation time
+// in B4 to catch races during the multi-minute Stripe + Twilio flow.
+// Rate-limiting is not applied here yet — flag for Phase D hardening.
+app.get('/api/signup/check-username', async (req, res) => {
+  const username = String(req.query.username || '').trim().toLowerCase();
+  if (!username) return res.status(400).json({ error: 'username required' });
+  // Same regex the form enforces — server-side guard so a malformed
+  // value can't cause an unbounded query against an indexed column.
+  if (!/^[a-z0-9_]{3,30}$/.test(username)) {
+    return res.json({ available: false, reason: 'invalid_format' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
+      [username]
+    );
+    res.json({ available: rows.length === 0 });
+  } catch (err) {
+    console.error('check-username error:', err.message);
+    res.status(500).json({ error: 'Check failed' });
+  }
+});
+
+app.get('/api/signup/check-email', async (req, res) => {
+  const email = String(req.query.email || '').trim();
+  if (!email) return res.status(400).json({ error: 'email required' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.json({ available: false, reason: 'invalid_format' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+    res.json({ available: rows.length === 0 });
+  } catch (err) {
+    console.error('check-email error:', err.message);
+    res.status(500).json({ error: 'Check failed' });
   }
 });
 
