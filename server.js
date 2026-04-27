@@ -3353,13 +3353,23 @@ app.post('/api/email/send', async (req, res) => {
 // --- Twilio: Incoming SMS ---
 // --- Multi-tenant inbound routing helpers ---
 // Look up which user owns a given Twilio phone number
-async function lookupUserByPhone(phoneNumber) {
+// Phase A multi-customer routing (A2): replaced the legacy
+// lookupUserByPhone() — which looked up users.twilio_phone_number
+// directly — with workspace-aware routing. Each customer's workspace
+// owns its Twilio number and a subscription_status; only 'active'
+// workspaces accept inbound traffic. Returns { workspace_id,
+// owner_user_id } or null.
+async function lookupWorkspaceByTwilioNumber(phoneNumber) {
   if (!phoneNumber) return null;
   const { rows } = await pool.query(
-    'SELECT id FROM users WHERE twilio_phone_number=$1 LIMIT 1',
+    `SELECT id AS workspace_id, owner_user_id
+       FROM workspaces
+      WHERE twilio_phone_number = $1
+        AND subscription_status = 'active'
+      LIMIT 1`,
     [phoneNumber]
   );
-  return rows[0]?.id || null;
+  return rows[0] || null;
 }
 
 // Look up which user owns a given inbound email alias
@@ -3387,11 +3397,12 @@ app.post('/api/sms/incoming', async (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 
-  const userId = await lookupUserByPhone(to);
-  if (!userId) {
-    console.warn(`Inbound SMS to unrecognized number ${to} from ${from} — dropped (no user match)`);
+  const route = await lookupWorkspaceByTwilioNumber(to);
+  if (!route) {
+    console.warn(`Inbound SMS to unrecognized or inactive Twilio number ${to} from ${from} — dropped`);
     return;
   }
+  const userId = route.owner_user_id;
 
   const { rows } = await pool.query(
     'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
@@ -3449,12 +3460,13 @@ app.post('/api/voice/incoming', (req, res) => {
 app.post('/api/voice/recording', async (req, res) => {
   const { From, To, CallSid } = req.body;
   const phone = From || 'Unknown';
-  const userId = await lookupUserByPhone(To);
-  if (!userId) {
-    console.warn(`Voicemail to unrecognized number ${To} from ${phone} — dropped`);
+  const route = await lookupWorkspaceByTwilioNumber(To);
+  if (!route) {
+    console.warn(`Voicemail to unrecognized or inactive Twilio number ${To} from ${phone} — dropped`);
     res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">Goodbye!</Say></Response>`);
     return;
   }
+  const userId = route.owner_user_id;
   try {
     await pool.query(
       `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,'new','inbox',$6)`,
@@ -3472,11 +3484,12 @@ app.post('/api/voice/recording', async (req, res) => {
 app.post('/api/voice/transcription', async (req, res) => {
   const { TranscriptionText, TranscriptionStatus, CallSid, From, To } = req.body;
   const phone = From || 'Unknown';
-  const userId = await lookupUserByPhone(To);
-  if (!userId) {
-    console.warn(`Transcription for unrecognized number ${To} — dropped`);
+  const route = await lookupWorkspaceByTwilioNumber(To);
+  if (!route) {
+    console.warn(`Transcription for unrecognized or inactive Twilio number ${To} — dropped`);
     return res.sendStatus(200);
   }
+  const userId = route.owner_user_id;
   const text = TranscriptionStatus === 'completed' && TranscriptionText
     ? `📞 Voicemail: "${TranscriptionText}"`
     : '📞 Voicemail received (transcription unavailable — check your Twilio recordings)';
