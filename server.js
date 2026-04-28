@@ -48,6 +48,11 @@ const stripeSignup = process.env.STRIPE_TEST_SECRET_KEY
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+// Phase B B4: signup orchestrator. Triggered from /api/stripe/webhook
+// when a checkout.session.completed event arrives. Pool is passed at
+// call time so this module stays leaf (no server.js dependency).
+const { processCheckoutCompletedEvent } = require('./lib/signup-orchestrator');
+
 // SESSION_SECRET is required — refuse to start with a weak default
 if (!process.env.SESSION_SECRET) {
   console.error('FATAL: SESSION_SECRET environment variable is not set.');
@@ -1117,6 +1122,24 @@ app.post('/api/stripe/webhook', async (req, res) => {
       console.error('[stripe-webhook] DB insert failed:', err.message);
       // Acknowledge anyway — Stripe will retry, and idempotency on
       // stripe_event_id makes a re-insert safe.
+    }
+
+    // B4 part 1: dispatch checkout.session.completed to the orchestrator.
+    // Synchronous: we want any orchestration error to surface in our logs
+    // before we 200 to Stripe. The orchestrator handles its own
+    // idempotency (SELECT ... FOR UPDATE on stripe_events.processed_at)
+    // so duplicate webhook deliveries from Stripe become no-op skips.
+    // Other event types (customer.subscription.*, invoice.payment_*) are
+    // logged-only for now; B4 only acts on checkout.session.completed.
+    if (event.type === 'checkout.session.completed') {
+      try {
+        const result = await processCheckoutCompletedEvent(event, pool);
+        console.log('[stripe-webhook] orchestrator result:', JSON.stringify(result));
+      } catch (orchErr) {
+        // Should not throw — processCheckoutCompletedEvent catches its own
+        // errors and returns { ok: false }. But defensive in case of bug.
+        console.error('[stripe-webhook] orchestrator threw unexpectedly:', orchErr.message);
+      }
     }
   } else {
     console.log('[stripe-webhook] received (not stored):', event.type, event.id);
