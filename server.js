@@ -71,6 +71,48 @@ app.set('trust proxy', 1);
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const PORT = process.env.PORT || 4000;
+
+// Phase B B7: rate limiters for public signup + auth endpoints.
+// Per-IP, in-memory store (resets on server restart). For multi-instance
+// production deploys, swap to a Redis-backed store. For Render single-instance
+// deploys this is fine. trust proxy:1 is already set above so req.ip resolves
+// to the real client IP behind Render's load balancer.
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const standardOpts = {
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Identify by the real client IP (works because of trust proxy:1).
+  // ipKeyGenerator handles IPv4 + IPv6 normalization (per express-rate-limit v8 docs).
+  keyGenerator: (req) => ipKeyGenerator(req.ip),
+  // 429 response body — JSON, not HTML, since these endpoints serve JSON.
+  handler: (req, res, _next, options) => {
+    console.warn('[rate-limit] ' + req.method + ' ' + req.path + ' blocked for ip=' + req.ip);
+    res.status(options.statusCode).json({
+      error: options.message || 'Too many requests. Please slow down and try again shortly.',
+    });
+  },
+};
+
+const signupCheckLimiter = rateLimit({
+  ...standardOpts,
+  windowMs: 60 * 1000,           // 1 minute
+  max: 60,                       // 60 per minute per IP
+  message: 'Too many checks. Please wait a minute and try again.',
+});
+
+const signupCheckoutLimiter = rateLimit({
+  ...standardOpts,
+  windowMs: 60 * 60 * 1000,      // 1 hour
+  max: 20,                       // 20 per hour per IP
+  message: 'Too many signup attempts. Please wait an hour and try again.',
+});
+
+const passwordResetRequestLimiter = rateLimit({
+  ...standardOpts,
+  windowMs: 60 * 60 * 1000,      // 1 hour
+  max: 10,                       // 10 per hour per IP
+  message: 'Too many password reset requests. Please wait an hour and try again.',
+});
 const BCRYPT_ROUNDS = 10;
 
 app.use(cors());
@@ -921,7 +963,7 @@ app.post('/api/login', async (req, res) => {
 // IMPORTANT — account enumeration prevention: this endpoint always
 // returns the same generic success response regardless of whether
 // the email exists. Email is only sent when a real user matches.
-app.post('/api/auth/request-password-reset', async (req, res) => {
+app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
 
   // Validate format but always respond identically.
@@ -1102,7 +1144,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 // types. Final uniqueness re-check happens at account-creation time
 // in B4 to catch races during the multi-minute Stripe + Twilio flow.
 // Rate-limiting is not applied here yet — flag for Phase D hardening.
-app.get('/api/signup/check-username', async (req, res) => {
+app.get('/api/signup/check-username', signupCheckLimiter, async (req, res) => {
   const username = String(req.query.username || '').trim().toLowerCase();
   if (!username) return res.status(400).json({ error: 'username required' });
   // Same regex the form enforces — server-side guard so a malformed
@@ -1122,7 +1164,7 @@ app.get('/api/signup/check-username', async (req, res) => {
   }
 });
 
-app.get('/api/signup/check-email', async (req, res) => {
+app.get('/api/signup/check-email', signupCheckLimiter, async (req, res) => {
   const email = String(req.query.email || '').trim();
   if (!email) return res.status(400).json({ error: 'email required' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -1181,7 +1223,7 @@ async function getSignupPriceIdByLookupKey(lookupKey) {
 //
 // IMPORTANT: draft_data contains password_hash (bcrypt). Do NOT log
 // raw draft rows; redact password_hash before any console output.
-app.post('/api/signup/create-checkout-session', async (req, res) => {
+app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (req, res) => {
   if (!stripeSignup) {
     return res.status(500).json({ error: 'Signup checkout is not configured' });
   }
