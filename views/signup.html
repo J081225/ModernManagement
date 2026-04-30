@@ -96,6 +96,38 @@
       font-weight: 700; padding: 2px 7px; border-radius: 10px;
       margin-left: 6px; display: inline-block;
     }
+
+    /* B5: error modal for signup form failures */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      align-items: center; justify-content: center;
+      z-index: 1000; padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-dialog {
+      background: white; border-radius: 14px;
+      max-width: 440px; width: 100%; padding: 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    }
+    .modal-icon {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: #fef2f2; color: #dc2626; font-size: 1.5em;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-weight: 800;
+    }
+    .modal-title {
+      font-size: 1.15em; font-weight: 700; color: #2d3748;
+      text-align: center; margin: 0 0 10px;
+    }
+    .modal-message {
+      font-size: 0.92em; color: #475569; text-align: center;
+      line-height: 1.55; margin: 0 0 22px;
+    }
+    .modal-btn-row {
+      display: flex; gap: 10px; justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -240,6 +272,19 @@
     </div>
   </div>
 
+  <!-- B5: error modal for signup form failures -->
+  <div class="modal-overlay" id="error-modal">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="error-modal-title">
+      <div class="modal-icon">!</div>
+      <h2 class="modal-title" id="error-modal-title">Something went wrong</h2>
+      <p class="modal-message" id="error-modal-message">An unexpected error occurred.</p>
+      <div class="modal-btn-row">
+        <button class="btn-secondary" id="error-modal-cancel">Cancel</button>
+        <button class="btn-primary" id="error-modal-retry">Try again</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // === sessionStorage draft state ===
     // Key dies with the tab — privacy-friendly. Server-side persistence
@@ -255,6 +300,29 @@
     function patchDraft(patch) {
       sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...getDraft(), ...patch }));
     }
+
+    // === Error modal (B5) ===
+    let _modalRetryFn = null;
+    function showErrorModal({ title, message, retryFn }) {
+      document.getElementById('error-modal-title').textContent = title || 'Something went wrong';
+      document.getElementById('error-modal-message').textContent = message || 'An unexpected error occurred.';
+      _modalRetryFn = typeof retryFn === 'function' ? retryFn : null;
+      document.getElementById('error-modal').classList.add('active');
+    }
+    function hideErrorModal() {
+      document.getElementById('error-modal').classList.remove('active');
+      _modalRetryFn = null;
+    }
+    document.getElementById('error-modal-cancel').addEventListener('click', hideErrorModal);
+    document.getElementById('error-modal-retry').addEventListener('click', () => {
+      const fn = _modalRetryFn;
+      hideErrorModal();
+      if (fn) fn();
+    });
+    // Click on overlay (but not on dialog) dismisses
+    document.getElementById('error-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'error-modal') hideErrorModal();
+    });
 
     // Repopulate fields on load (back-button-friendly).
     window.addEventListener('DOMContentLoaded', () => {
@@ -474,21 +542,30 @@
           const body = await res.json().catch(() => ({}));
           if (!res.ok) {
             const errMsg = body.error || ('HTTP ' + res.status);
+            let title, message;
             if (res.status === 409) {
-              errEl.textContent = errMsg + ' Click Back to step 1 to update your account info.';
+              title = 'Account info already in use';
+              message = errMsg + ' Click Cancel, then use the Back button to return to step 1 and update your details.';
             } else if (res.status === 400) {
-              errEl.textContent = 'Validation issue: ' + errMsg + '. Click Back to fix the affected step.';
+              title = "Couldn't complete signup";
+              message = 'Validation issue: ' + errMsg + '. Click Cancel, then use Back to fix the affected step.';
             } else {
-              errEl.textContent = 'Could not start payment: ' + errMsg;
+              title = "Couldn't reach the payment system";
+              message = 'Could not start payment: ' + errMsg + '. This is usually temporary — try again in a moment.';
             }
             btn.disabled = false;
             btn.textContent = origText;
+            showErrorModal({ title, message, retryFn: () => advanceFromScreen(4) });
             return;
           }
           if (!body.url) {
-            errEl.textContent = 'Server returned an unexpected response. Please try again.';
             btn.disabled = false;
             btn.textContent = origText;
+            showErrorModal({
+              title: 'Unexpected response',
+              message: 'The payment system returned an unexpected response. This is usually temporary — try again in a moment.',
+              retryFn: () => advanceFromScreen(4),
+            });
             return;
           }
           // Redirect to Stripe Checkout. Page is leaving — no need to
@@ -496,9 +573,13 @@
           // disabled during the navigation transition).
           window.location.href = body.url;
         } catch (err) {
-          errEl.textContent = 'Network error: ' + (err && err.message ? err.message : 'unknown') + '. Please try again.';
           btn.disabled = false;
           btn.textContent = origText;
+          showErrorModal({
+            title: 'Network problem',
+            message: 'Could not reach our servers: ' + (err && err.message ? err.message : 'unknown') + '. Check your internet connection and try again.',
+            retryFn: () => advanceFromScreen(4),
+          });
         }
         return;
       }
