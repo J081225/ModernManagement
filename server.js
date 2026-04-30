@@ -154,6 +154,14 @@ app.get('/signup/success', (req, res) => {
 app.get('/signup/canceled', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'signup-canceled.html'));
 });
+
+// Phase B B6: password reset pages (public — no auth).
+app.get('/forgot-password', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+app.get('/reset-password', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
+});
 app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
@@ -400,6 +408,22 @@ setInterval(runSignupDraftCleanup, 6 * 60 * 60 * 1000); // every 6 hours
 // Run once at startup so the table doesn't accumulate cruft during
 // long-running dev sessions or after a deploy.
 runSignupDraftCleanup();
+
+// Phase B B6: cleanup of used or expired password reset tokens.
+async function runPasswordResetTokenCleanup() {
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM password_reset_tokens WHERE expires_at < NOW() OR used_at IS NOT NULL`
+    );
+    if (rowCount > 0) {
+      console.log(`[reset-token-cleanup] Deleted ${rowCount} used/expired password reset token(s)`);
+    }
+  } catch (err) {
+    console.error('[reset-token-cleanup] error:', err.message);
+  }
+}
+setInterval(runPasswordResetTokenCleanup, 6 * 60 * 60 * 1000); // every 6 hours
+runPasswordResetTokenCleanup();
 
 async function initDB() {
   // Verify DB connection is alive before doing anything
@@ -890,6 +914,186 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Phase B B6: request a password reset link. Public route.
+// IMPORTANT — account enumeration prevention: this endpoint always
+// returns the same generic success response regardless of whether
+// the email exists. Email is only sent when a real user matches.
+app.post('/api/auth/request-password-reset', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+
+  // Validate format but always respond identically.
+  const validFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const genericResponse = {
+    success: true,
+    message: 'If an account with that email exists, a password reset link has been sent.',
+  };
+
+  if (!validFormat) {
+    // Don't even try to look up — invalid format is its own bucket.
+    // Still respond identically to prevent enumeration.
+    return res.json(genericResponse);
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, username, email FROM users WHERE LOWER(email) = $1 LIMIT 1',
+      [email]
+    );
+
+    if (!rows.length) {
+      console.log('[password-reset] No account for', email, '— silent no-op');
+      return res.json(genericResponse);
+    }
+
+    const user = rows[0];
+
+    // Generate a 32-byte random token (URL-safe hex).
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await pool.query(
+      `INSERT INTO password_reset_tokens (token, user_id) VALUES ($1, $2)`,
+      [token, user.id]
+    );
+
+    const baseUrl = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const resetUrl = baseUrl + '/reset-password?token=' + encodeURIComponent(token);
+
+    // Send the email. Failure here is logged but doesn't change the
+    // response — we don't want to surface email-system errors to the
+    // user (also enumeration-vector adjacent).
+    try {
+      await sgMail.send({
+        to: user.email,
+        from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: 'Reset your Modern Management password',
+        text: [
+          'Hi ' + user.username + ',',
+          '',
+          'You (or someone using your email address) requested a password reset for your Modern Management account.',
+          '',
+          'To set a new password, click the link below within the next hour:',
+          resetUrl,
+          '',
+          'If you did not request this, you can safely ignore this email — your password will stay the same.',
+          '',
+          'For your security, this link will expire in 1 hour and can only be used once.',
+          '',
+          'Modern Management',
+        ].join('\n'),
+        html: [
+          '<!DOCTYPE html>',
+          '<html><head><meta charset="utf-8"></head>',
+          '<body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;color:#2d3748;">',
+          '<div style="max-width:540px;margin:0 auto;padding:24px 16px;">',
+          '<div style="background:white;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">',
+          '<h1 style="margin:0 0 8px;font-size:1.4em;color:#2d3748;">Reset your password</h1>',
+          '<p style="color:#475569;font-size:0.95em;line-height:1.6;">Hi ' + user.username + ', you (or someone using your email) requested a password reset for your Modern Management account.</p>',
+          '<div style="text-align:center;margin:28px 0;">',
+          '<a href="' + resetUrl + '" style="display:inline-block;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;text-decoration:none;padding:13px 28px;border-radius:9px;font-weight:700;">Set a new password</a>',
+          '</div>',
+          '<p style="color:#64748b;font-size:0.85em;line-height:1.5;">This link expires in 1 hour and can only be used once.</p>',
+          '<p style="color:#64748b;font-size:0.85em;line-height:1.5;">If you did not request this, you can safely ignore this email — your password will stay the same.</p>',
+          '<p style="color:#94a3b8;font-size:0.78em;margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;">If the button does not work, copy and paste this URL into your browser:<br><span style="word-break:break-all;">' + resetUrl + '</span></p>',
+          '</div></div></body></html>',
+        ].join(''),
+      });
+      console.log('[password-reset] Email sent to', user.email);
+    } catch (emailErr) {
+      console.error('[password-reset] Email send failed for', user.email, ':', emailErr.message);
+    }
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error('[password-reset] DB error:', err.message);
+    // Even on DB error we return the generic response to prevent enumeration.
+    res.json(genericResponse);
+  }
+});
+
+// Phase B B6: confirm a reset token is valid (used by the reset-password
+// page on load to show "valid" or "expired/invalid" state before user
+// types a new password). Public route.
+app.get('/api/auth/check-reset-token', async (req, res) => {
+  const token = String(req.query.token || '').trim();
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) {
+    return res.json({ valid: false, reason: 'invalid_format' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT user_id, expires_at, used_at FROM password_reset_tokens WHERE token = $1`,
+      [token]
+    );
+    if (!rows.length) return res.json({ valid: false, reason: 'not_found' });
+    const t = rows[0];
+    if (t.used_at)         return res.json({ valid: false, reason: 'already_used' });
+    if (new Date(t.expires_at) < new Date()) return res.json({ valid: false, reason: 'expired' });
+    res.json({ valid: true });
+  } catch (err) {
+    console.error('[password-reset] check-token error:', err.message);
+    res.json({ valid: false, reason: 'server_error' });
+  }
+});
+
+// Phase B B6: complete the password reset. Public route.
+app.post('/api/auth/reset-password', async (req, res) => {
+  const token = String(req.body.token || '').trim();
+  const password = String(req.body.password || '');
+
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) {
+    return res.status(400).json({ error: 'Invalid or missing token.' });
+  }
+  if (!password || password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Lock the token row so concurrent reset attempts can't race.
+    const { rows: tokenRows } = await client.query(
+      `SELECT user_id, expires_at, used_at FROM password_reset_tokens
+        WHERE token = $1 FOR UPDATE`,
+      [token]
+    );
+    if (!tokenRows.length) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This reset link is invalid.' });
+    }
+    const t = tokenRows[0];
+    if (t.used_at) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This reset link has already been used.' });
+    }
+    if (new Date(t.expires_at) < new Date()) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'This reset link has expired. Please request a new one.' });
+    }
+
+    const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    await client.query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2`,
+      [newHash, t.user_id]
+    );
+    await client.query(
+      `UPDATE password_reset_tokens SET used_at = NOW() WHERE token = $1`,
+      [token]
+    );
+
+    await client.query('COMMIT');
+    console.log('[password-reset] Password reset completed for user_id=' + t.user_id);
+    res.json({ success: true });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('[password-reset] reset error:', err.message);
+    res.status(500).json({ error: 'Could not reset password.' });
+  } finally {
+    client.release();
   }
 });
 
