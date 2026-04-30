@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment received — Modern Management</title>
+  <title>Setting up your workspace — Modern Management</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -15,103 +15,194 @@
       padding: 40px 16px;
     }
     .container { max-width: 540px; margin: 0 auto; }
-    .logo {
-      text-align: center; font-size: 1.4em; font-weight: 800;
-      color: #ff6b6b; margin-bottom: 24px;
+    .logo { text-align: center; font-size: 1.4em; font-weight: 800; color: #ff6b6b; margin-bottom: 24px; }
+    .card { background: white; border-radius: 14px; padding: 32px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05); }
+
+    .state { display: none; }
+    .state.active { display: block; }
+
+    .spinner {
+      width: 56px; height: 56px; margin: 0 auto 20px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #ff6b6b;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
     }
-    .card {
-      background: white; border-radius: 14px; padding: 32px;
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .check {
       width: 56px; height: 56px; border-radius: 50%;
       background: #dcfce7; color: #16a34a; font-size: 1.7em;
       display: flex; align-items: center; justify-content: center;
       margin: 0 auto 16px; font-weight: 800;
     }
+    .xmark {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #fee2e2; color: #dc2626; font-size: 1.7em;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-weight: 800;
+    }
+
     h1 { margin: 0 0 8px; font-size: 1.4em; color: #2d3748; text-align: center; }
     .subtitle { color: #94a3b8; font-size: 0.92em; margin-bottom: 24px; line-height: 1.5; text-align: center; }
-    .info-block {
-      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;
-      padding: 14px 16px; color: #9a3412; font-size: 0.88em;
+
+    .phone-block {
+      background: linear-gradient(135deg, #fff7ed, #ffedd5);
+      border: 1px solid #fed7aa; border-radius: 10px;
+      padding: 18px; margin: 22px 0; text-align: center;
+    }
+    .phone-label {
+      font-size: 0.78em; font-weight: 700; color: #9a3412;
+      text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+    }
+    .phone-number {
+      font-size: 1.6em; font-weight: 800; color: #c2410c;
+      letter-spacing: -0.3px;
+    }
+    .phone-help {
+      font-size: 0.85em; color: #9a3412; margin-top: 8px; line-height: 1.4;
+    }
+
+    .username-block {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 18px; font-size: 0.9em;
+      color: #475569;
+    }
+    .username-block strong { color: #2d3748; }
+
+    .error-block {
+      background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+      padding: 14px 16px; color: #991b1b; font-size: 0.9em;
       line-height: 1.55; margin-bottom: 18px;
     }
-    .debug-block {
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
-      padding: 14px 16px; font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-      font-size: 0.82em; line-height: 1.7; color: #475569;
-      margin-bottom: 18px;
-    }
-    .debug-block .key { color: #94a3b8; }
-    .debug-block .val { color: #2d3748; font-weight: 600; word-break: break-all; }
+
     .btn-primary {
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
       color: white; border: none; border-radius: 8px;
-      padding: 12px 22px; font-size: 0.94em; font-weight: 600; cursor: pointer;
+      padding: 12px 22px; font-size: 0.94em; font-weight: 600;
+      cursor: pointer; text-decoration: none; display: inline-block;
       font-family: inherit;
     }
-    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
     .btn-secondary {
       background: white; color: #475569; border: 1.5px solid #e2e8f0;
       border-radius: 8px; padding: 12px 22px;
       font-size: 0.94em; font-weight: 600; cursor: pointer;
       text-decoration: none; display: inline-block; font-family: inherit;
     }
-    .btn-row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+    .btn-row { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="logo">Modern Management</div>
     <div class="card">
-      <div class="check">&#10003;</div>
-      <h1>Payment received</h1>
-      <p class="subtitle">Thank you for subscribing. We're setting up your workspace.</p>
 
-      <div class="info-block">
-        <strong>Account creation arrives in Phase B4.</strong> Your subscription is active in Stripe; the workspace, dedicated phone number, and welcome email will be provisioned automatically once that pipeline ships. You'll get an email when your account is ready.
+      <div id="state-pending" class="state active">
+        <div class="spinner"></div>
+        <h1>Setting up your workspace</h1>
+        <p class="subtitle">
+          Payment received. We're creating your account, reserving your dedicated phone
+          number, and getting your workspace ready. This usually takes 5–15 seconds.
+        </p>
       </div>
 
-      <!-- DEBUG: remove before production. The debug block below echoes
-           Stripe's session_id and our draft_id so we can correlate
-           manual end-to-end tests across server logs, Stripe dashboard,
-           and the signup_drafts / stripe_events tables. -->
-      <div class="debug-block" id="debug-block">Loading&hellip;</div>
+      <div id="state-success" class="state">
+        <div class="check">&#10003;</div>
+        <h1>Your workspace is ready</h1>
+        <p class="subtitle">Welcome to Modern Management. Here's everything you need to get started.</p>
 
-      <div class="btn-row">
-        <button class="btn-primary" disabled title="Available once B4 ships account creation">Continue to your workspace</button>
-        <a href="/login" class="btn-secondary">Sign in</a>
+        <div class="phone-block">
+          <div class="phone-label">Your business phone number</div>
+          <div class="phone-number" id="success-phone">—</div>
+          <div class="phone-help">
+            Share this number with your tenants for SMS and voice. Our AI handles routine
+            inquiries; you'll get notified for the rest.
+          </div>
+        </div>
+
+        <div class="username-block">
+          Sign in as <strong id="success-username">—</strong> with the password you set during signup.
+          We've also sent a welcome email with these details.
+        </div>
+
+        <div class="btn-row">
+          <a href="/login" class="btn-primary">Continue to your workspace</a>
+        </div>
       </div>
+
+      <div id="state-failed" class="state">
+        <div class="xmark">!</div>
+        <h1>Something went wrong</h1>
+        <p class="subtitle">We hit a problem while setting up your workspace.</p>
+
+        <div class="error-block">
+          Your payment went through, but we couldn't finish creating your account
+          automatically. We've already been notified and will get this sorted within
+          one business day. You don't need to do anything — but if you'd like to
+          reach out, email <strong>support@modernmanagementapp.com</strong> and we'll
+          respond right away.
+        </div>
+
+        <div class="btn-row">
+          <a href="/" class="btn-secondary">Back to home</a>
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script>
-    function escapeHtml(s) {
-      return String(s).replace(/[<>&"']/g, c =>
-        ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c])
-      );
+    const POLL_INTERVAL_MS = 2000;
+    const POLL_TIMEOUT_MS  = 60000;
+
+    function show(stateId) {
+      ['state-pending', 'state-success', 'state-failed'].forEach(id => {
+        document.getElementById(id).classList.toggle('active', id === stateId);
+      });
     }
 
-    // Echo the URL params for debug visibility during B2 manual tests.
-    // Removes ?session_id and ?draft_id from view in production via the
-    // HTML comment above — this whole block can be deleted in B5 polish.
-    function renderDebug() {
-      const params = new URLSearchParams(window.location.search);
-      const session_id = params.get('session_id');
-      const draft_id   = params.get('draft_id');
-      const el = document.getElementById('debug-block');
-      el.innerHTML =
-        '<div><span class="key">DEBUG &mdash; remove before production:</span></div>' +
-        '<div><span class="key">session_id:</span> <span class="val">' + escapeHtml(session_id || '(missing)') + '</span></div>' +
-        '<div><span class="key">draft_id:</span> <span class="val">' + escapeHtml(draft_id || '(missing)') + '</span></div>';
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      renderDebug();
-      // Clear the form draft from sessionStorage — the user has paid;
-      // the form's old data shouldn't linger if they revisit /signup.
+    function showSuccess(data) {
+      const ws = data.workspace || {};
+      document.getElementById('success-phone').textContent = ws.twilio_phone_number || '(provisioned)';
+      document.getElementById('success-username').textContent = ws.username || '(your username)';
+      show('state-success');
       try { sessionStorage.removeItem('signupDraft'); } catch (e) {}
-    });
+    }
+
+    function showFailed() {
+      show('state-failed');
+      try { sessionStorage.removeItem('signupDraft'); } catch (e) {}
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+
+    let elapsed = 0;
+
+    async function pollStatus() {
+      if (!sessionId) {
+        showFailed();
+        return;
+      }
+      try {
+        const res = await fetch('/api/signup/status?session_id=' + encodeURIComponent(sessionId));
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'success') return showSuccess(data);
+          if (data.status === 'failed')  return showFailed();
+        }
+      } catch (e) {
+        // network blip; try again
+      }
+      elapsed += POLL_INTERVAL_MS;
+      if (elapsed >= POLL_TIMEOUT_MS) {
+        showFailed();
+        return;
+      }
+      setTimeout(pollStatus, POLL_INTERVAL_MS);
+    }
+
+    window.addEventListener('DOMContentLoaded', pollStatus);
   </script>
 </body>
 </html>

@@ -1073,6 +1073,83 @@ app.post('/api/signup/create-checkout-session', async (req, res) => {
   res.json({ url: session.url, session_id: session.id });
 });
 
+// Phase B B4 part 2: signup status endpoint. Polled by signup-success.html
+// to know when the orchestrator has finished provisioning the workspace.
+// Public (no auth) — keyed by session_id which is an unguessable token
+// from Stripe. Response shape:
+//   { status: 'pending' }                              still working
+//   { status: 'success', workspace: {...}, login_url } done, all clean
+//   { status: 'failed' }                               generic error
+//                                                       (we don't expose
+//                                                        internals to UI;
+//                                                        operator gets the
+//                                                        detailed alert)
+app.get('/api/signup/status', async (req, res) => {
+  const sessionId = String(req.query.session_id || '').trim();
+  if (!sessionId) return res.status(400).json({ error: 'session_id required' });
+  if (!/^cs_[A-Za-z0-9_]{10,200}$/.test(sessionId)) {
+    return res.status(400).json({ error: 'invalid session_id format' });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         processed_at,
+         event_data->>'_orchestrator_error' AS error_msg,
+         event_data->'data'->'object'->>'subscription' AS subscription_id
+       FROM stripe_events
+       WHERE event_type = 'checkout.session.completed'
+         AND event_data->'data'->'object'->>'id' = $1
+       ORDER BY received_at DESC
+       LIMIT 1`,
+      [sessionId]
+    );
+
+    if (!rows.length) return res.json({ status: 'pending' });
+
+    const row = rows[0];
+
+    if (row.error_msg) {
+      return res.json({ status: 'failed' });
+    }
+
+    if (!row.processed_at) {
+      return res.json({ status: 'pending' });
+    }
+
+    if (!row.subscription_id) {
+      console.warn('[signup-status] processed event has no subscription_id; session=', sessionId);
+      return res.json({ status: 'success' });
+    }
+
+    const { rows: wsRows } = await pool.query(
+      `SELECT w.business_name, w.twilio_phone_number, u.username
+         FROM workspaces w
+         JOIN users u ON u.id = w.owner_user_id
+        WHERE w.stripe_subscription_id = $1
+        LIMIT 1`,
+      [row.subscription_id]
+    );
+    if (!wsRows.length) {
+      console.warn('[signup-status] processed event has no workspace; session=', sessionId);
+      return res.json({ status: 'pending' });
+    }
+
+    res.json({
+      status: 'success',
+      workspace: {
+        business_name: wsRows[0].business_name,
+        twilio_phone_number: wsRows[0].twilio_phone_number,
+        username: wsRows[0].username,
+      },
+      login_url: '/login',
+    });
+  } catch (err) {
+    console.error('[signup-status] error:', err.message);
+    res.status(500).json({ error: 'Status check failed' });
+  }
+});
+
 // Phase B B2: Stripe webhook receiver (signup flow). Verifies signature,
 // stores relevant events idempotently in stripe_events for B4 to consume.
 // Other event types are acknowledged but not stored (avoids bloat).
