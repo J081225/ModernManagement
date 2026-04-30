@@ -379,6 +379,28 @@ async function runPeriodicEmailSync() {
 }
 setInterval(runPeriodicEmailSync, 5 * 60 * 1000); // 5 minutes
 
+// Phase B B5: cleanup of expired signup_drafts. Drafts have a 24h
+// expires_at default (migration 024). The orchestrator's draft lookup
+// already filters on expires_at > NOW(), so expired rows are functionally
+// invisible — but they hold bcrypt password hashes and should not linger.
+// Runs every 6 hours; cheap query (single DELETE on an indexed column).
+async function runSignupDraftCleanup() {
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM signup_drafts WHERE expires_at < NOW()'
+    );
+    if (rowCount > 0) {
+      console.log(`[draft-cleanup] Deleted ${rowCount} expired signup draft(s)`);
+    }
+  } catch (err) {
+    console.error('[draft-cleanup] error:', err.message);
+  }
+}
+setInterval(runSignupDraftCleanup, 6 * 60 * 60 * 1000); // every 6 hours
+// Run once at startup so the table doesn't accumulate cruft during
+// long-running dev sessions or after a deploy.
+runSignupDraftCleanup();
+
 async function initDB() {
   // Verify DB connection is alive before doing anything
   await pool.query('SELECT 1');
