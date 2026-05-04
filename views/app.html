@@ -4,10 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Modern Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;1,400;1,500;1,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Inter', sans-serif; display: flex; height: 100vh; background: #f7fafc; }
+      body {
+        font-family: 'Inter', sans-serif;
+        display: flex;
+        min-height: 100vh;
+        height: auto;
+        background:
+          radial-gradient(ellipse 70% 55% at 88% 5%, rgba(212,175,55,0.16) 0%, transparent 55%),
+          radial-gradient(ellipse 60% 45% at 12% 95%, rgba(45,134,89,0.18) 0%, transparent 55%),
+          radial-gradient(ellipse 50% 40% at 50% 50%, rgba(26,95,63,0.08) 0%, transparent 70%),
+          linear-gradient(180deg, #0f1c2e 0%, #14253a 50%, #0a1a28 100%);
+        background-attachment: fixed;
+        color: #e2e8f0;
+      }
+      html { background: #0f1c2e; }
 
       /* Sidebar */
       #sidebar {
@@ -111,7 +126,11 @@
         font-weight: 400;
       }
 
-      #content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+      #content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 32px 40px 64px;
+      }
 
       /* Pages */
       .page { display: none; animation: fadeIn 0.2s ease; }
@@ -120,37 +139,243 @@
 
       /* Cards */
       .card {
-        background: white;
-        border-radius: 16px;
-        border: 1px solid rgba(226,232,240,0.8);
-        padding: 24px 28px;
-        margin-bottom: 22px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.03);
-        transition: box-shadow 0.2s;
+        background:
+          linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
+        backdrop-filter: blur(24px) saturate(140%);
+        -webkit-backdrop-filter: blur(24px) saturate(140%);
+        border-radius: 18px;
+        border: 1px solid rgba(212,175,55,0.22);
+        padding: 28px 32px;
+        margin-bottom: 64px;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          0 1px 2px rgba(0,0,0,0.30),
+          0 12px 32px rgba(0,0,0,0.40),
+          0 36px 72px -16px rgba(0,0,0,0.55);
+        transition: box-shadow 0.35s ease, border-color 0.35s ease, transform 0.35s ease;
+        position: relative;
+        color: #e2e8f0;
       }
-      .card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.07); }
-      .card h2 {
-        margin-bottom: 18px;
-        color: #2d3748;
-        font-size: 0.75em;
-        text-transform: uppercase;
-        letter-spacing: 1.2px;
-        font-weight: 700;
-        padding-bottom: 14px;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+      .card:hover {
+        border-color: rgba(212,175,55,0.42);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          0 1px 2px rgba(0,0,0,0.30),
+          0 18px 44px rgba(212,175,55,0.16),
+          0 48px 96px -20px rgba(0,0,0,0.60);
       }
-      .card h2::before {
-        content: '';
-        display: inline-block;
-        width: 3px;
-        height: 14px;
-        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-        border-radius: 2px;
+      /* Card-level title — sits INSIDE the card, sized below section-label tier */
+      .card-title {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1.4em;
+        color: #f5e6d3;
+        letter-spacing: -0.4px;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+      .card-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.88em;
+        color: #94a3b8;
+        font-weight: 400;
+        margin-bottom: 16px;
       }
 
+      /* ============================================================
+         Card-internal header system
+         Used in place of <h2> inside any .card. Mirrors the
+         Home-page hero card pattern (.hero-avatar / .hero-title /
+         .hero-subtitle) so settings cards match the editorial feel
+         of the Home cards.
+         ============================================================ */
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .card-head-tile {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1a5f3f 0%, #2d8659 50%, #d4af37 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: #0a1828;
+        box-shadow:
+          0 6px 20px rgba(212,175,55,0.40),
+          inset 0 1px 0 rgba(255,255,255,0.18);
+        position: relative;
+      }
+      .card-head-tile::after {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border-radius: 18px;
+        background: radial-gradient(circle, rgba(212,175,55,0.40) 0%, rgba(45,134,89,0.18) 40%, transparent 70%);
+        z-index: -1;
+        pointer-events: none;
+        filter: blur(4px);
+      }
+      .card-head-tile svg {
+        width: 20px;
+        height: 20px;
+        stroke: #0a1828;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+      .card-head-titles { flex: 1; min-width: 0; }
+      .card-head-title {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1.4em;
+        color: #f5e6d3;
+        letter-spacing: -0.3px;
+        line-height: 1.2;
+      }
+      .card-head-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.86em;
+        color: rgba(232,222,194,0.62);
+        margin-top: 4px;
+        line-height: 1.55;
+        font-weight: 400;
+      }
+      .card-head-rule {
+        height: 1px;
+        background: linear-gradient(90deg, rgba(212,175,55,0.55), rgba(212,175,55,0.05));
+        margin: 18px 0 22px;
+      }
+
+      /* Compact variant for cards inside a 2-column page (Tasks / Calendar
+         sidebars) where the standard 46px tile feels heavy. */
+      .card-head.is-compact .card-head-tile { width: 36px; height: 36px; border-radius: 10px; }
+      .card-head.is-compact .card-head-tile svg { width: 16px; height: 16px; }
+      .card-head.is-compact .card-head-title { font-size: 1.15em; }
+
+      /* Settings rows + form blocks (used inside the asymmetric layouts
+         in Step 6). */
+      .settings-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 13px 0;
+        border-bottom: 0.5px solid rgba(212,175,55,0.10);
+      }
+      .settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
+      .settings-row-label {
+        color: #e8dec2;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .settings-row-hint {
+        display: block;
+        color: rgba(232,222,194,0.55);
+        font-size: 12px;
+        margin-top: 3px;
+        line-height: 1.45;
+      }
+      .form-block { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+      .form-block:first-child { margin-top: 0; }
+      .form-block-label {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.18em;
+        color: #d4af37;
+        text-transform: uppercase;
+      }
+      .form-block input,
+      .form-block input[type="email"],
+      .form-block input[type="tel"],
+      .form-block input[type="text"] {
+        background: rgba(10,20,32,0.55) !important;
+        border: 1px solid rgba(212,175,55,0.28) !important;
+        color: #f3ead8 !important;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 13px;
+        margin: 0;
+      }
+      .form-block input:focus {
+        border-color: #d4af37 !important;
+        box-shadow: 0 0 0 3px rgba(212,175,55,0.18) !important;
+        background: rgba(10,20,32,0.75) !important;
+      }
+
+      /* Routing pills — used in Phone & Email Routing card. */
+      .routing-pill {
+        background: rgba(10,20,32,0.55);
+        border: 1px solid rgba(212,175,55,0.28);
+        border-radius: 10px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .routing-pill-kicker {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        color: #d4af37;
+        text-transform: uppercase;
+      }
+      .routing-pill-value {
+        color: #f3ead8;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+      }
+      .routing-pill-hint {
+        color: rgba(232,222,194,0.55);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      /* Mode card — used in Automation Settings. Replaces the inline
+         border colors set by updateModeUI(). The .mode-card.selected
+         class is now what indicates selection; the JS keeps toggling
+         inline styles on #label-auto / #label-review (untouched), but
+         we update those JS color values in Step 5 so they match brass. */
+      .mode-card {
+        background: rgba(10,20,32,0.55);
+        border: 1px solid rgba(212,175,55,0.28);
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        cursor: pointer;
+        transition: all 0.18s ease;
+      }
+      .mode-card .mode-card-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #f3ead8;
+        font-family: 'Inter', sans-serif;
+      }
+      .mode-card .mode-card-hint {
+        color: rgba(232,222,194,0.55);
+        font-size: 12px;
+        line-height: 1.45;
+        font-family: 'Inter', sans-serif;
+      }
+
+      /* Mobile collapse — every asymmetric grid in this file uses this
+         inline class, and falls back to single-column under 768px. */
+      @media (max-width: 768px) {
+        .asymmetric-2col,
+        .asymmetric-1-1 {
+          grid-template-columns: 1fr !important;
+          gap: 16px !important;
+        }
+      }
       /* Stat chips for topbar */
       .topbar-chip {
         background: #f1f5f9;
@@ -226,11 +451,11 @@
         letter-spacing: 0.1px;
       }
       .btn-primary {
-        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-        color: white;
-        box-shadow: 0 3px 10px rgba(255,107,107,0.35);
+        background: linear-gradient(135deg, #1a5f3f 0%, #2d8659 50%, #d4af37 100%);
+        color: #f5e6d3;
+        box-shadow: 0 3px 10px rgba(212,175,55,0.40);
       }
-      .btn-primary:hover { box-shadow: 0 6px 18px rgba(255,107,107,0.45); transform: translateY(-1px); }
+      .btn-primary:hover { box-shadow: 0 6px 18px rgba(212,175,55,0.40); transform: translateY(-1px); }
       .btn-success {
         background: linear-gradient(135deg, #27ae60, #2ecc71);
         color: white;
@@ -301,6 +526,701 @@
       @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
       @keyframes micPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(1.4); } }
       @keyframes spin { to { transform: rotate(360deg); } }
+      /* AI response flair (typewriter, thinking dots, markdown, action chips) */
+      @keyframes aiThinkDot {
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+        30% { transform: translateY(-4px); opacity: 1; }
+      }
+      @keyframes aiChipPop {
+        0% { opacity: 0; transform: scale(0.7) translateY(4px); }
+        60% { transform: scale(1.05) translateY(0); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+      }
+      @keyframes aiCursorBlink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+      }
+      .ai-thinking {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ai-thinking-bubble {
+        background: #f1f5f9;
+        border-radius: 14px;
+        border-bottom-left-radius: 4px;
+        padding: 12px 16px;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .ai-thinking-bubble span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        display: inline-block;
+        animation: aiThinkDot 1.2s infinite;
+      }
+      .ai-thinking-bubble span:nth-child(2) { animation-delay: 0.15s; }
+      .ai-thinking-bubble span:nth-child(3) { animation-delay: 0.3s; }
+      .ai-response-body { line-height: 1.65; color: #2d3748; }
+      .ai-response-body p { margin: 0 0 10px; }
+      .ai-response-body p:last-child { margin-bottom: 0; }
+      .ai-response-body strong { color: #1a2e4a; font-weight: 700; }
+      .ai-response-body em { font-style: italic; color: #475569; }
+      .ai-response-body ul, .ai-response-body ol {
+        margin: 6px 0 10px;
+        padding-left: 22px;
+      }
+      .ai-response-body li { margin: 3px 0; }
+      .ai-response-body code {
+        background: #eef2ff;
+        color: #4f46e5;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-family: 'SFMono-Regular', Consolas, monospace;
+        font-size: 0.88em;
+      }
+      .ai-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background: #ff6b6b;
+        vertical-align: text-bottom;
+        margin-left: 2px;
+        animation: aiCursorBlink 0.9s infinite;
+      }
+      .ai-action-chip {
+        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        border-radius: 8px;
+        padding: 5px 11px 5px 8px;
+        font-size: 0.82em;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        opacity: 0;
+        animation: aiChipPop 0.35s ease forwards;
+      }
+      .ai-action-chip-warn {
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        border: 1px solid #fde68a;
+        color: #92400e;
+      }
+      .ai-action-chip .chip-check {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #10b981;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+      .ai-action-chip-warn .chip-check {
+        background: #f59e0b;
+      }
+      .ai-actions-row {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e8edf4;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      /* Navy/green/gold scheme: dark-glass typography utilities + animated banner title */
+      @keyframes bannerGradientShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+      .hero-title {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1.4em;
+        color: #f5e6d3;
+        letter-spacing: -0.4px;
+        line-height: 1.2;
+      }
+      .hero-subtitle {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.88em;
+        color: #94a3b8;
+        margin-top: 4px;
+        font-weight: 400;
+      }
+      .display-banner-title {
+        font-family: 'Playfair Display', serif !important;
+        font-weight: 700 !important;
+        font-size: 2.8em !important;
+        letter-spacing: -1.2px !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f5e6d3 25%, #d4af37 55%, #2d8659 85%, #1a5f3f 100%) !important;
+        background-size: 200% auto !important;
+        animation: bannerGradientShift 10s ease-in-out infinite !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
+        color: transparent !important;
+        line-height: 1.1 !important;
+        text-shadow: none !important;
+      }
+      .display-banner-sub {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.95em !important;
+        font-weight: 400 !important;
+        color: rgba(226,232,240,0.78) !important;
+        margin-top: 10px !important;
+        letter-spacing: 0.2px !important;
+      }
+      /* Avatar halo recolored to gold/forest */
+      .hero-avatar {
+        position: relative;
+      }
+      .hero-avatar::after {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border-radius: 18px;
+        background: radial-gradient(circle, rgba(212,175,55,0.40) 0%, rgba(45,134,89,0.18) 40%, transparent 70%);
+        z-index: -1;
+        pointer-events: none;
+        filter: blur(4px);
+      }
+      /* Ask AI input on dark glass card (navy + gold border) */
+      #homeCommandInput {
+        background: rgba(10,20,32,0.60) !important;
+        border: 1.5px solid rgba(212,175,55,0.30) !important;
+        color: #f5e6d3 !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: all 0.25s ease !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      #homeCommandInput:focus {
+        background: rgba(10,20,32,0.80) !important;
+        border-color: #d4af37 !important;
+        box-shadow:
+          0 0 0 4px rgba(212,175,55,0.18),
+          0 0 28px rgba(212,175,55,0.32) !important;
+      }
+      #homeCommandInput::placeholder {
+        color: rgba(148,163,184,0.7) !important;
+        font-style: italic;
+      }
+      /* Mic button recolored */
+      #micBtn {
+        background: rgba(10,20,32,0.60) !important;
+        border-color: rgba(212,175,55,0.30) !important;
+        color: #f5e6d3 !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      #micBtn:hover {
+        border-color: #d4af37 !important;
+      }
+      /* Response area: dark glass with gold accent */
+      #homeCommandResponse {
+        background: linear-gradient(135deg, rgba(20,38,58,0.70) 0%, rgba(15,28,46,0.70) 100%) !important;
+        border: 1px solid rgba(212,175,55,0.25) !important;
+        border-left: 3px solid #d4af37 !important;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 2px 12px rgba(0,0,0,0.30) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        color: #e2e8f0 !important;
+        font-family: 'Inter', sans-serif !important;
+      }
+      /* AI response markdown text adapts to dark bg */
+      .ai-response-body { color: #e2e8f0 !important; }
+      .ai-response-body strong { color: #d4af37 !important; }
+      .ai-response-body em { color: #cbd5e1 !important; }
+      .ai-response-body code {
+        background: rgba(45,134,89,0.22) !important;
+        color: #6ee7b7 !important;
+      }
+      .ai-thinking-bubble {
+        background: rgba(10,20,32,0.60) !important;
+        border: 1px solid rgba(212,175,55,0.22);
+      }
+      .ai-thinking-bubble span {
+        background: linear-gradient(135deg, #2d8659, #d4af37) !important;
+      }
+      .ai-cursor { background: #d4af37 !important; }
+      .ai-action-chip {
+        background: linear-gradient(135deg, rgba(45,134,89,0.22), rgba(26,95,63,0.22)) !important;
+        border: 1px solid rgba(45,134,89,0.45) !important;
+        color: #86efac !important;
+      }
+      .ai-action-chip-warn {
+        background: linear-gradient(135deg, rgba(212,175,55,0.22), rgba(180,140,40,0.22)) !important;
+        border: 1px solid rgba(212,175,55,0.45) !important;
+        color: #fde68a !important;
+      }
+      .ai-action-chip .chip-check { background: #2d8659; }
+      .ai-action-chip-warn .chip-check { background: #d4af37; }
+      .ai-actions-row { border-top-color: rgba(212,175,55,0.22) !important; }
+      /* Topbar: navy glass with gold accent */
+      #topbar {
+        background: linear-gradient(180deg, rgba(15,28,46,0.80) 0%, rgba(10,20,32,0.80) 100%) !important;
+        backdrop-filter: blur(24px) saturate(140%) !important;
+        -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
+        border-bottom: 1px solid rgba(212,175,55,0.22) !important;
+        color: #f5e6d3 !important;
+        box-shadow: 0 4px 32px rgba(0,0,0,0.50) !important;
+      }
+      #topbar-time {
+        background: rgba(212,175,55,0.16) !important;
+        color: #f5e6d3 !important;
+        font-weight: 500 !important;
+        border: 1px solid rgba(212,175,55,0.30);
+      }
+      #topbar h2, #topbar > div { color: #f5e6d3 !important; }
+      #topbar button {
+        color: #cbd5e1;
+      }
+      #topbar button:hover {
+        color: #f5e6d3;
+      }
+      /* Sidebar — deep navy + forest green/gold accents */
+      #sidebar {
+        background: linear-gradient(180deg, #0a1828 0%, #061220 100%) !important;
+        border-right: 1px solid rgba(212,175,55,0.18) !important;
+        box-shadow:
+          inset -1px 0 0 rgba(255,255,255,0.02),
+          4px 0 32px rgba(0,0,0,0.50) !important;
+        position: relative;
+      }
+      #sidebar::after {
+        content: '';
+        position: absolute;
+        top: 10%;
+        right: 0;
+        bottom: 10%;
+        width: 1px;
+        background: linear-gradient(180deg,
+          transparent 0%,
+          rgba(212,175,55,0.50) 50%,
+          transparent 100%);
+        pointer-events: none;
+      }
+      /* Sidebar logo block */
+      #sidebar > div:first-child {
+        border-bottom: 1px solid rgba(212,175,55,0.18) !important;
+      }
+      #sidebar > div:first-child > div:nth-child(2) > div:first-child {
+        font-family: 'Fraunces', serif !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.3px !important;
+        color: #f5e6d3 !important;
+      }
+      #sidebar > div:first-child > div:nth-child(2) > div:nth-child(2) {
+        color: #d4af37 !important;
+        font-size: 0.65em !important;
+        letter-spacing: 2px !important;
+        font-weight: 600 !important;
+      }
+      /* Sidebar logo MM tile — forest to gold gradient */
+      #sidebar > div:first-child > div:first-child {
+        background: linear-gradient(135deg, #1a5f3f 0%, #2d8659 50%, #d4af37 100%) !important;
+        box-shadow:
+          0 4px 16px rgba(212,175,55,0.40),
+          inset 0 1px 0 rgba(255,255,255,0.20) !important;
+      }
+      /* WORKSPACE label */
+      #sidebar nav > div:first-child {
+        color: #d4af37 !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 0.62em !important;
+        letter-spacing: 2.4px !important;
+        font-weight: 700 !important;
+        opacity: 0.95;
+      }
+      /* Nav items */
+      #sidebar nav a {
+        color: #cbd5e1 !important;
+        font-family: 'Inter', sans-serif !important;
+        border-radius: 10px !important;
+        margin-bottom: 2px !important;
+        transition: all 0.2s ease !important;
+        position: relative;
+        overflow: hidden;
+      }
+      #sidebar nav a:hover {
+        background: rgba(212,175,55,0.10) !important;
+        color: #f5e6d3 !important;
+      }
+      /* Active nav item with gold/forest gradient indicator */
+      #sidebar nav a.active,
+      #sidebar nav a[style*="background"] {
+        background: linear-gradient(90deg,
+          rgba(212,175,55,0.20) 0%,
+          rgba(45,134,89,0.10) 100%) !important;
+        color: #f5e6d3 !important;
+        font-weight: 600 !important;
+        position: relative;
+      }
+      #sidebar nav a.active::before,
+      #sidebar nav a[style*="background"]::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 6px;
+        bottom: 6px;
+        width: 3px;
+        background: linear-gradient(180deg, #d4af37 0%, #2d8659 100%);
+        border-radius: 0 3px 3px 0;
+        box-shadow: 0 0 12px rgba(212,175,55,0.65);
+      }
+      /* Tasks badge "10" pill */
+      #sidebar nav a span[style*="background:#ef4444"],
+      #sidebar nav a span[style*="background: #ef4444"] {
+        background: linear-gradient(135deg, #d4af37 0%, #2d8659 100%) !important;
+        box-shadow: 0 2px 8px rgba(212,175,55,0.45) !important;
+        color: #0a1828 !important;
+      }
+      /* Sidebar footer */
+      #sidebar > div:last-child {
+        border-top: 1px solid rgba(212,175,55,0.18) !important;
+        color: #94a3b8 !important;
+      }
+      /* Lease expirations card list items adapt */
+      #leaseExpirationsList { color: #cbd5e1; }
+
+      /* ==================================================================
+         Global Layout — Magazine container, page heroes, header hierarchy
+         Tier 1: section-label (largest, outside cards)
+         Tier 2: card-title / hero-title / .card h2 (inside cards)
+         Tier 3: card-subtitle / hero-subtitle (descriptions)
+         ================================================================== */
+
+      .page-content {
+        max-width: 1000px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      .page-hero {
+        position: relative;
+        width: 100%;
+        height: 220px;
+        border-radius: 20px;
+        overflow: hidden;
+        margin-bottom: 48px;
+        background: linear-gradient(135deg, #0a1828 0%, #14253a 50%, #0a1422 100%);
+        display: flex;
+        align-items: flex-end;
+        border: 1px solid rgba(212,175,55,0.25);
+        box-shadow:
+          0 24px 64px -16px rgba(212,175,55,0.20),
+          0 12px 36px rgba(0,0,0,0.50),
+          inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .page-hero-overlay-dark {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(45,134,89,0.10) 50%, rgba(0,0,0,0.15) 100%);
+        pointer-events: none;
+      }
+      .page-hero-glow {
+        position: absolute;
+        top: -80px;
+        right: -60px;
+        width: 340px;
+        height: 340px;
+        background: radial-gradient(circle, rgba(212,175,55,0.30) 0%, rgba(45,134,89,0.14) 40%, transparent 70%);
+        pointer-events: none;
+      }
+      .page-hero-content {
+        position: relative;
+        padding: 40px 44px;
+        flex: 1;
+      }
+      .page-hero-title {
+        font-family: 'Playfair Display', serif;
+        font-weight: 700;
+        font-size: 2.6em;
+        letter-spacing: -1.2px;
+        line-height: 1.1;
+        background: linear-gradient(135deg, #ffffff 0%, #f5e6d3 25%, #d4af37 55%, #2d8659 85%, #1a5f3f 100%);
+        background-size: 200% auto;
+        animation: bannerGradientShift 10s ease-in-out infinite;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
+      }
+      .page-hero-sub {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.98em;
+        font-weight: 400;
+        color: rgba(226,232,240,0.78);
+        margin-top: 12px;
+        letter-spacing: 0.2px;
+      }
+
+      /* TIER 1 — Section labels (largest text on the page, outside cards) */
+      .section-label {
+        display: flex !important;
+        align-items: baseline !important;
+        gap: 18px !important;
+        margin: 60px 0 28px !important;
+        font-family: 'Inter', sans-serif !important;
+        font-size: 1.55em !important;
+        font-weight: 800 !important;
+        color: #f5e6d3 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2.6px !important;
+      }
+      .section-label:first-child { margin-top: 12px !important; }
+      .section-label::after {
+        content: '';
+        flex: 1;
+        height: 2px;
+        background: linear-gradient(to right, rgba(212,175,55,0.65), rgba(212,175,55,0)) !important;
+        align-self: center;
+      }
+      .section-label .dot {
+        width: 12px !important;
+        height: 12px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, #d4af37, #2d8659) !important;
+        flex-shrink: 0 !important;
+        box-shadow: 0 0 18px rgba(212,175,55,0.75) !important;
+        align-self: center !important;
+      }
+      .section-label .accent {
+        font-family: 'Playfair Display', serif !important;
+        font-style: italic !important;
+        font-weight: 400 !important;
+        text-transform: none !important;
+        letter-spacing: 0 !important;
+        font-size: 0.92em !important;
+        color: rgba(212,175,55,0.75) !important;
+        margin-left: 2px !important;
+      }
+
+      /* Card spacing */
+      .card { margin-bottom: 64px !important; }
+
+      /* Page width */
+      .page { width: 100%; }
+
+      /* Page-hero action buttons (used by Home banner and any future banner-with-actions) */
+      .page-hero-actions {
+        position: relative;
+        padding: 24px 28px;
+        display: flex;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .page-hero-btn {
+        background: rgba(10,20,32,0.60);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(212,175,55,0.35);
+        color: #f5e6d3;
+        padding: 9px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.84em;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+      }
+      .page-hero-btn:hover {
+        border-color: rgba(212,175,55,0.65);
+        background: rgba(10,20,32,0.8);
+      }
+      /* Hero card variant: thin gradient strip across top, more padding */
+      @keyframes heroShimmer {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+      }
+      .card-hero {
+        position: relative;
+        padding: 32px 34px;
+        overflow: hidden;
+      }
+      .card-hero::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #1a5f3f 0%, #2d8659 25%, #d4af37 50%, #2d8659 75%, #1a5f3f 100%);
+        background-size: 200% 100%;
+        animation: heroShimmer 9s linear infinite;
+      }
+      .card-hero::after {
+        content: '';
+        position: absolute;
+        top: -100px;
+        right: -100px;
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(212,175,55,0.16) 0%, rgba(45,134,89,0.10) 40%, transparent 70%);
+        pointer-events: none;
+      }
+
+      /* Stat tile refinement (smaller cards in the Overview zone) */
+      .stat-tile {
+        background: linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border-radius: 16px;
+        border: 1px solid rgba(212,175,55,0.22);
+        padding: 22px 24px;
+        cursor: pointer;
+        transition: all 0.35s ease;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 1px 2px rgba(0,0,0,0.25),
+          0 8px 22px rgba(0,0,0,0.35),
+          0 24px 48px -16px rgba(0,0,0,0.45);
+        position: relative;
+        overflow: hidden;
+      }
+      .stat-tile::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.55) 50%, transparent 100%);
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+      .stat-tile:hover {
+        transform: translateY(-3px);
+        border-color: rgba(212,175,55,0.45);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          0 1px 2px rgba(0,0,0,0.25),
+          0 14px 32px rgba(212,175,55,0.18),
+          0 36px 64px -16px rgba(45,134,89,0.18);
+      }
+      .stat-tile:hover::before { opacity: 1; }
+      .stat-tile-icon {
+        font-size: 1.5em;
+        margin-bottom: 10px;
+        opacity: 0.85;
+        filter: drop-shadow(0 0 8px rgba(212,175,55,0.35));
+      }
+      .stat-tile-num {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.7em;
+        font-weight: 700;
+        background: linear-gradient(135deg, #ffffff 0%, #d4af37 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+        letter-spacing: -1.2px;
+      }
+      .stat-tile-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.72em;
+        color: #94a3b8;
+        margin-top: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1.4px;
+      }
+
+      /* Quick-access tile (the bottom grid: Inbox, Operations, etc.) */
+      .quick-tile {
+        background: linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        border-radius: 16px;
+        border: 1px solid rgba(212,175,55,0.22);
+        padding: 24px 24px;
+        cursor: pointer;
+        transition: all 0.35s ease;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          0 1px 2px rgba(0,0,0,0.25),
+          0 8px 22px rgba(0,0,0,0.35),
+          0 24px 48px -16px rgba(0,0,0,0.45);
+        position: relative;
+        overflow: hidden;
+      }
+      .quick-tile::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(180deg, #1a5f3f 0%, #2d8659 50%, #d4af37 100%);
+        transform: scaleY(0);
+        transform-origin: top;
+        transition: transform 0.35s ease;
+      }
+      .quick-tile:hover {
+        transform: translateY(-3px);
+        border-color: rgba(212,175,55,0.45);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.08),
+          0 1px 2px rgba(0,0,0,0.25),
+          0 14px 32px rgba(212,175,55,0.18),
+          0 36px 64px -16px rgba(45,134,89,0.16);
+      }
+      .quick-tile:hover::before { transform: scaleY(1); }
+      .quick-tile-icon {
+        font-size: 1.6em;
+        margin-bottom: 12px;
+        opacity: 0.9;
+        filter: drop-shadow(0 0 8px rgba(212,175,55,0.35));
+      }
+      .quick-tile-title {
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        color: #f5e6d3;
+        font-size: 1.22em;
+        margin-bottom: 5px;
+        letter-spacing: -0.3px;
+      }
+      .quick-tile-desc {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.84em;
+        color: #94a3b8;
+        line-height: 1.5;
+      }
+
+      /* Staggered entrance fade for home page sections */
+      @keyframes homeFadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      #page-home.active .home-fade {
+        animation: homeFadeUp 0.5s ease backwards;
+      }
+      #page-home.active .home-fade:nth-child(1) { animation-delay: 0.00s; }
+      #page-home.active .home-fade:nth-child(2) { animation-delay: 0.06s; }
+      #page-home.active .home-fade:nth-child(3) { animation-delay: 0.12s; }
+      #page-home.active .home-fade:nth-child(4) { animation-delay: 0.18s; }
+      #page-home.active .home-fade:nth-child(5) { animation-delay: 0.24s; }
+      #page-home.active .home-fade:nth-child(6) { animation-delay: 0.30s; }
+      #page-home.active .home-fade:nth-child(7) { animation-delay: 0.36s; }
+      #page-home.active .home-fade:nth-child(8) { animation-delay: 0.42s; }
+
+      /* Home banner: stronger shadow, refined border */
+      #homeBanner {
+        box-shadow:
+          0 1px 2px rgba(40,20,10,0.06),
+          0 8px 24px rgba(40,20,10,0.10),
+          0 24px 56px -12px rgba(40,20,10,0.14) !important;
+      }
       #micBtn.listening { background:linear-gradient(135deg,#ff6b6b,#ff8e53) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px rgba(255,107,107,0.2); animation:micPulse 1.2s infinite; }
       .modal h3 { font-size: 1.1em; font-weight: 700; color: #080f1e; margin-bottom: 20px; }
       .modal label { font-size: 0.83em; font-weight: 600; color: #475569; display: block; margin-bottom: 2px; }
@@ -621,160 +1541,164 @@
 
         <!-- HOME PAGE -->
         <div class="page active" id="page-home">
+          <div class="page-content">
           <!-- Hero Banner -->
-          <div id="homeBanner" style="position:relative;width:100%;height:220px;border-radius:16px;overflow:hidden;margin-bottom:24px;background:linear-gradient(135deg,#2d3748,#4a5568);display:flex;align-items:flex-end;">
+          <div id="homeBanner" class="home-fade" style="position:relative;width:100%;height:280px;border-radius:20px;overflow:hidden;margin-bottom:48px;background:linear-gradient(135deg,#0a1828 0%,#14253a 50%,#0a1422 100%);display:flex;align-items:flex-end;border:1px solid rgba(212,175,55,0.25);box-shadow:0 24px 64px -16px rgba(212,175,55,0.20),0 12px 36px rgba(0,0,0,0.50);">
             <img id="bannerImg" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;" />
-            <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 60%);"></div>
-            <div style="position:relative;padding:24px 28px;flex:1;">
-              <div id="homePropertyName" style="font-size:1.6em;font-weight:700;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.4);">Welcome to Modern Management</div>
-              <div id="homePropertySub" style="color:rgba(255,255,255,0.75);font-size:0.9em;margin-top:4px;">Your property dashboard</div>
+            <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(45,134,89,0.10) 50%, rgba(0,0,0,0.15) 100%);"></div>
+            <div style="position:absolute;top:-80px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(212,175,55,0.30) 0%,rgba(45,134,89,0.14) 40%,transparent 70%);pointer-events:none;"></div>
+            <div style="position:relative;padding:32px 36px;flex:1;">
+              <div id="homePropertyName" class="display-banner-title">Welcome to Modern Management</div>
+              <div id="homePropertySub" class="display-banner-sub">Your property dashboard</div>
             </div>
-            <div style="position:relative;padding:16px 20px;display:flex;gap:8px;">
-              <label style="background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8em;font-family:inherit;">
+            <div style="position:relative;padding:20px 24px;display:flex;gap:10px;">
+              <label style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:#f5e6d3;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">
                 &#128247; Change Photo
                 <input type="file" accept="image/*" style="display:none;" onchange="uploadBannerPhoto(this)" />
               </label>
-              <button onclick="editPropertyName()" style="background:rgba(255,255,255,0.15);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.8em;font-family:inherit;">&#9998; Edit Name</button>
+              <button onclick="editPropertyName()" style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:#f5e6d3;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">&#9998; Edit Name</button>
             </div>
           </div>
+
+          <!-- Section: Overview -->
+          <div class="section-label home-fade"><span class="dot"></span>Overview<span class="accent">at a glance</span></div>
 
           <!-- Quick Stats -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
-            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
-              <div style="font-size:1.8em;margin-bottom:6px;">&#9993;</div>
-              <div id="stat-inbox" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
-              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">New Messages</div>
+          <div class="home-fade" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px;">
+            <div class="stat-tile" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))">
+              <div class="stat-tile-icon">&#9993;</div>
+              <div id="stat-inbox" class="stat-tile-num">—</div>
+              <div class="stat-tile-label">New Messages</div>
             </div>
-            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
-              <div style="font-size:1.8em;margin-bottom:6px;">&#10003;</div>
-              <div id="stat-tasks" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
-              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Pending Tasks</div>
+            <div class="stat-tile" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))">
+              <div class="stat-tile-icon">&#10003;</div>
+              <div id="stat-tasks" class="stat-tile-num">—</div>
+              <div class="stat-tile-label">Pending Tasks</div>
             </div>
-            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
-              <div style="font-size:1.8em;margin-bottom:6px;">&#128100;</div>
-              <div id="stat-contacts" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
-              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Contacts</div>
+            <div class="stat-tile" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
+              <div class="stat-tile-icon">&#128100;</div>
+              <div id="stat-contacts" class="stat-tile-num">—</div>
+              <div class="stat-tile-label">Contacts</div>
             </div>
-            <div class="card" style="padding:18px 20px;cursor:pointer;transition:box-shadow 0.2s;" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.2)'" onmouseout="this.style.boxShadow=''">
-              <div style="font-size:1.8em;margin-bottom:6px;">&#128197;</div>
-              <div id="stat-events" style="font-size:1.6em;font-weight:700;color:#2d3748;">—</div>
-              <div style="font-size:0.8em;color:#94a3b8;margin-top:2px;">Upcoming Events</div>
+            <div class="stat-tile" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
+              <div class="stat-tile-icon">&#128197;</div>
+              <div id="stat-events" class="stat-tile-num">—</div>
+              <div class="stat-tile-label">Upcoming Events</div>
             </div>
           </div>
 
+          <!-- Section: AI Tools -->
+          <div class="section-label home-fade"><span class="dot"></span>AI Tools<span class="accent">your assistant</span></div>
+
           <!-- AI Command Bar -->
-          <div class="card" style="margin-bottom:24px;padding:22px 24px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-              <div style="width:34px;height:34px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#129302;</div>
+          <div class="card card-hero home-fade" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;position:relative;">
+              <div class="hero-avatar" style="width:46px;height:46px;background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;box-shadow:0 6px 20px rgba(212,175,55,0.50),inset 0 1px 0 rgba(255,255,255,0.20);">&#129302;</div>
               <div>
-                <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Ask AI</div>
-                <div style="font-size:0.77em;color:#94a3b8;">Type or speak — add events, create tasks, compose messages</div>
+                <div class="hero-title">Ask AI</div>
+                <div class="hero-subtitle">Type or speak — add events, create tasks, compose messages</div>
               </div>
             </div>
-            <div style="display:flex;gap:10px;align-items:center;">
+            <div style="display:flex;gap:10px;align-items:center;position:relative;">
               <input id="homeCommandInput" type="text" placeholder='e.g. "Add a board meeting on May 5th" or tap the mic and speak...'
-                style="flex:1;margin:0;padding:12px 16px;border-radius:10px;font-size:0.93em;"
+                style="flex:1;margin:0;padding:13px 16px;border-radius:10px;font-size:0.93em;"
                 onkeydown="if(event.key==='Enter')submitHomeCommand()" />
-              <!-- Mic button -->
               <button id="micBtn" onclick="toggleDictation()" title="Click to speak"
-                style="width:46px;height:46px;border-radius:10px;border:1.5px solid #e2e8f0;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
-                onmouseover="if(!window.micActive)this.style.borderColor='#ff6b6b'" onmouseout="if(!window.micActive)this.style.borderColor='#e2e8f0'">
+                style="width:48px;height:48px;border-radius:10px;border:1.5px solid #e8dcd2;background:#fffefb;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
+                onmouseover="if(!window.micActive)this.style.borderColor='#ff6b6b'" onmouseout="if(!window.micActive)this.style.borderColor='#e8dcd2'">
                 &#127908;
               </button>
-              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:12px 20px;white-space:nowrap;border-radius:10px;">Send &#9654;</button>
+              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border:none;color:#f5e6d3;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);font-weight:600;">Send &#9654;</button>
             </div>
-            <!-- Listening indicator -->
-            <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:#ff6b6b;align-items:center;gap:7px;">
+            <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:#ff6b6b;align-items:center;gap:7px;position:relative;">
               <span style="width:8px;height:8px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
               <span id="micStatusText">Listening... speak now</span>
             </div>
-            <!-- Quick prompt chips -->
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128197; Add calendar event</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#10003; Create a task</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#9993; Compose a message</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128181; Generate rent for this month</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128295; Create a maintenance ticket</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128200; Log an expense</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128101; Who hasn't paid rent?</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127968; Add a unit</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#128100; Assign a tenant</button>
-              <button onclick="homePrompt(this)" class="btn-secondary" style="font-size:0.78em;padding:5px 12px;border-radius:20px;">&#127970; Show me what's vacant</button>
-            </div>
-            <!-- Response area -->
-            <div id="homeCommandResponse" style="display:none;margin-top:16px;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf4;border-radius:10px;font-size:0.9em;color:#2d3748;line-height:1.65;"></div>
+            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:#2d3748;line-height:1.65;position:relative;"></div>
           </div>
 
-          <!-- Daily Report -->
-          <div class="card" style="margin-bottom:24px;padding:22px 24px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:34px;height:34px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#128196;</div>
+          <!-- Property Report -->
+          <div class="card card-hero home-fade" style="margin-bottom:24px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div class="hero-avatar" style="width:46px;height:46px;background:linear-gradient(135deg,#0f3a26 0%,#1a5f3f 50%,#2d8659 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;box-shadow:0 6px 20px rgba(45,134,89,0.50),inset 0 1px 0 rgba(255,255,255,0.20);">&#128196;</div>
                 <div>
-                  <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Property Report</div>
-                  <div style="font-size:0.77em;color:#94a3b8;">AI-generated report — tasks, insights, market tips, and workflow suggestions</div>
+                  <div class="hero-title">Property Report</div>
+                  <div class="hero-subtitle">AI-generated report — tasks, insights, market tips, and workflow suggestions</div>
                 </div>
               </div>
-              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);border:none;padding:10px 20px;white-space:nowrap;">
+              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border:none;padding:11px 22px;white-space:nowrap;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);color:#f5e6d3;font-weight:600;">
                 &#128196; Generate Report
               </button>
             </div>
-            <!-- Report output -->
-            <div id="reportOutput" style="display:none;margin-top:20px;"></div>
+            <div id="reportOutput" style="display:none;margin-top:20px;position:relative;"></div>
           </div>
 
+          <!-- Section: At a Glance -->
+          <div class="section-label home-fade"><span class="dot"></span>At a Glance<span class="accent">explore</span></div>
+
           <!-- Lease Expirations Card -->
-          <div class="card" id="leaseCard" style="margin-bottom:24px;padding:22px 24px;display:none;">
+          <div class="card home-fade" id="leaseCard" style="margin-bottom:24px;display:none;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#ef4444);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1em;flex-shrink:0;">&#128196;</div>
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div class="hero-avatar" style="width:42px;height:42px;background:linear-gradient(135deg,#d4af37 0%,#b8941f 50%,#1a5f3f 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.15em;flex-shrink:0;box-shadow:0 6px 20px rgba(212,175,55,0.45),inset 0 1px 0 rgba(255,255,255,0.20);">&#128196;</div>
                 <div>
-                  <div style="font-weight:700;color:#1a2e4a;font-size:0.97em;">Lease Expirations</div>
-                  <div style="font-size:0.77em;color:#94a3b8;">Residents expiring in the next 90 days</div>
+                  <div class="hero-title" style="font-size:1.2em;">Lease Expirations</div>
+                  <div class="hero-subtitle">Residents expiring in the next 90 days</div>
                 </div>
               </div>
-              <button onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" class="btn-secondary" style="font-size:0.82em;padding:7px 14px;">View All</button>
+              <button onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" class="btn-secondary" style="font-size:0.82em;padding:8px 14px;">View All</button>
             </div>
             <div id="leaseExpirationsList"></div>
           </div>
 
           <!-- Quick Access Grid -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#9993;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Inbox</div>
-              <div style="font-size:0.82em;color:#94a3b8;">View and respond to resident messages</div>
+          <div class="home-fade" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+            <div class="quick-tile" onclick="showPage('inbox','&#9993;',document.getElementById('nav-inbox'))">
+              <div class="quick-tile-icon">&#9993;</div>
+              <div class="quick-tile-title">Inbox</div>
+              <div class="quick-tile-desc">View and respond to resident messages</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('operations','&#9881;',document.querySelector('#sidebar nav a:nth-child(3)'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#9881;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Operations</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Automation settings and knowledge base</div>
+            <div class="quick-tile" onclick="showPage('operations','&#9881;',document.querySelector('#sidebar nav a:nth-child(3)'))">
+              <div class="quick-tile-icon">&#9881;</div>
+              <div class="quick-tile-title">Operations</div>
+              <div class="quick-tile-desc">Automation settings and knowledge base</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#128197;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Calendar</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Events, tasks and scheduling</div>
+            <div class="quick-tile" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
+              <div class="quick-tile-icon">&#128197;</div>
+              <div class="quick-tile-title">Calendar</div>
+              <div class="quick-tile-desc">Events, tasks and scheduling</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('admin','&#128188;',document.querySelector('#sidebar nav a:nth-child(5)'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#128188;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Admin</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Rent, invoices and budget</div>
+            <div class="quick-tile" onclick="showPage('admin','&#128188;',document.querySelector('#sidebar nav a:nth-child(5)'))">
+              <div class="quick-tile-icon">&#128188;</div>
+              <div class="quick-tile-title">Admin</div>
+              <div class="quick-tile-desc">Rent, invoices and budget</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#128100;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Contacts</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Residents, vendors and staff</div>
+            <div class="quick-tile" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
+              <div class="quick-tile-icon">&#128100;</div>
+              <div class="quick-tile-title">Contacts</div>
+              <div class="quick-tile-desc">Residents, vendors and staff</div>
             </div>
-            <div class="card" style="padding:20px;cursor:pointer;" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))">
-              <div style="font-size:1.4em;margin-bottom:8px;">&#10003;</div>
-              <div style="font-weight:600;color:#2d3748;margin-bottom:4px;">Tasks</div>
-              <div style="font-size:0.82em;color:#94a3b8;">Track and manage open work items</div>
+            <div class="quick-tile" onclick="showPage('tasks','&#10003;',document.getElementById('nav-tasks'))">
+              <div class="quick-tile-icon">&#10003;</div>
+              <div class="quick-tile-title">Tasks</div>
+              <div class="quick-tile-desc">Track and manage open work items</div>
             </div>
+          </div>
           </div>
         </div>
 
         <!-- INBOX PAGE -->
         <div class="page" id="page-inbox">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Inbox</div>
+                <div class="page-hero-sub">Resident messages, notifications and conversations</div>
+              </div>
+            </div>
           <div class="inbox-layout">
             <!-- Folder sidebar -->
             <div class="inbox-folders card" style="padding:12px 8px;">
@@ -788,45 +1712,91 @@
             </div>
             <!-- Message list -->
             <div class="inbox-list card">
-              <h2 id="folderTitle">Inbox</h2>
+              <div class="card-head">
+                <div class="card-head-tile">
+                  <svg viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                </div>
+                <div class="card-head-titles">
+                  <div class="card-head-title" id="folderTitle">Inbox</div>
+                  <div class="card-head-subtitle">Resident messages, notifications and conversations.</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
               <div id="messageList"></div>
             </div>
             <!-- Message detail -->
             <div class="inbox-detail card" id="detailPanel">
-              <h2>Message Details</h2>
+              <div class="card-head is-compact">
+                <div class="card-head-tile">
+                  <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Message details</div>
+                  <div class="card-head-subtitle">Select a message from the list to read and reply.</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
               <div id="messageDetail" style="color:#888;">Select a message to view details.</div>
             </div>
+          </div>
           </div>
         </div>
 
         <!-- OPERATIONS PAGE -->
         <div class="page" id="page-operations">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Operations</div>
+                <div class="page-hero-sub">Automation settings, email connection, and your AI knowledge base</div>
+              </div>
+            </div>
           <div class="card">
-            <h2>Automation Settings</h2>
-            <p style="color:#94a3b8;font-size:0.85em;margin-bottom:16px;">Choose how incoming messages are handled:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
-              <label id="label-auto" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
-                <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:#ff6b6b;width:16px;height:16px;" />
-                <div>
-                  <div style="font-weight:600;font-size:0.88em;color:#1a2e4a;">&#9889; Auto Response</div>
-                  <div style="font-size:0.76em;color:#94a3b8;margin-top:2px;">AI replies instantly</div>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Automation settings</div>
+                <div class="card-head-subtitle">Decide whether the AI replies on its own or routes everything to you first.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
+
+            <div class="asymmetric-1-1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+              <label id="label-auto" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid rgba(212,175,55,0.28);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:#d4af37;width:16px;height:16px;" />
+                  <span class="mode-card-title">Auto-reply</span>
                 </div>
+                <span class="mode-card-hint" style="padding-left:26px;">AI sends responses immediately under your name. Use after you trust the knowledge base.</span>
               </label>
-              <label id="label-review" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:10px;cursor:pointer;transition:all 0.15s;">
-                <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:#ff6b6b;width:16px;height:16px;" />
-                <div>
-                  <div style="font-weight:600;font-size:0.88em;color:#1a2e4a;">&#128065; Manager Review</div>
-                  <div style="font-size:0.76em;color:#94a3b8;margin-top:2px;">You review before sending</div>
+              <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid rgba(212,175,55,0.28);">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:#d4af37;width:16px;height:16px;" />
+                  <span class="mode-card-title">Manager review</span>
                 </div>
+                <span class="mode-card-hint" style="padding-left:26px;">AI drafts every reply; nothing leaves until you approve. Recommended default.</span>
               </label>
             </div>
-            <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save Settings</button>
+
+            <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save settings</button>
           </div>
 
           <!-- Connected Email Account -->
           <div class="card">
-            <h2>📧 Property Email Connection</h2>
-            <p style="color:#94a3b8;font-size:0.9em;margin-bottom:14px;">Connect a dedicated property email so resident messages flow into your Modern Management inbox, and replies go out from your real address.</p>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Property email connection</div>
+                <div class="card-head-subtitle">Connect a dedicated property email so resident messages flow into your inbox, and replies go out from your real address.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
 
             <div id="emailConnStatus"></div>
 
@@ -905,7 +1875,16 @@
           </div>
 
           <div class="card">
-            <h2>Knowledge Base</h2>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Knowledge base</div>
+                <div class="card-head-subtitle">Documents, policies and procedures the AI references when drafting replies.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
             <div id="knowledgeList" style="margin-bottom:16px;"></div>
             <hr style="margin-bottom:16px;">
 
@@ -929,10 +1908,20 @@
               <button type="submit" class="btn-primary">Add Document</button>
             </form>
           </div>
+          </div>
         </div>
 
         <!-- CALENDAR PAGE -->
         <div class="page" id="page-calendar">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Calendar</div>
+                <div class="page-hero-sub">Events, scheduling and upcoming appointments</div>
+              </div>
+            </div>
           <div style="display:flex;gap:22px;">
 
             <!-- Calendar grid -->
@@ -957,11 +1946,21 @@
             </div>
 
           </div>
+          </div>
         </div>
 
         <!-- COMMAND CENTER PAGE -->
         <!-- CONTACTS PAGE -->
         <div class="page" id="page-contacts">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Contacts</div>
+                <div class="page-hero-sub">Residents, vendors, staff and important relationships</div>
+              </div>
+            </div>
 
           <!-- Search + Add -->
           <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
@@ -997,16 +1996,35 @@
 
           <!-- Broadcast history -->
           <div class="card" style="margin-top:22px;">
-            <h2>&#128226; Broadcast History</h2>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Broadcast history</div>
+                <div class="card-head-subtitle">Group emails and SMS you've sent to residents and vendors.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
             <div id="broadcastHistory" style="display:flex;flex-direction:column;gap:10px;">
               <div style="font-size:0.87em;color:#94a3b8;text-align:center;padding:20px 0;">No broadcasts sent yet.</div>
             </div>
           </div>
 
+          </div>
         </div>
 
         <!-- INVENTORY PAGE -->
         <div class="page" id="page-inventory">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Inventory</div>
+                <div class="page-hero-sub">Units, properties and physical asset management</div>
+              </div>
+            </div>
 
           <!-- Header row — breadcrumb + action buttons -->
           <div style="display:flex;gap:14px;margin-bottom:22px;align-items:center;">
@@ -1058,10 +2076,20 @@
           <!-- Property detail pane (hidden in list mode; populated by openPropertyDetail) -->
           <div id="inventoryDetailPane" style="display:none;"></div>
 
+          </div>
         </div>
 
         <!-- TASKS PAGE -->
         <div class="page" id="page-tasks">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Tasks</div>
+                <div class="page-hero-sub">Open work items, deadlines and assignments</div>
+              </div>
+            </div>
 
           <!-- Summary row -->
           <div style="display:flex;gap:16px;margin-bottom:22px;flex-wrap:wrap;" id="taskSummaryRow"></div>
@@ -1085,7 +2113,16 @@
             <!-- Task list -->
             <div style="flex:1.4;">
               <div class="card">
-                <h2>All Tasks</h2>
+                <div class="card-head">
+                  <div class="card-head-tile">
+                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                  <div class="card-head-titles">
+                    <div class="card-head-title">All tasks</div>
+                    <div class="card-head-subtitle">Open work items across the property — sorted by due date.</div>
+                  </div>
+                </div>
+                <div class="card-head-rule"></div>
 
                 <!-- Filters -->
                 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
@@ -1102,7 +2139,16 @@
             <!-- Add task form -->
             <div style="flex:1;">
               <div class="card">
-                <h2>New Task</h2>
+                <div class="card-head is-compact">
+                  <div class="card-head-tile">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </div>
+                  <div class="card-head-titles">
+                    <div class="card-head-title">New task</div>
+                    <div class="card-head-subtitle">Capture a follow-up so it doesn't slip through the cracks.</div>
+                  </div>
+                </div>
+                <div class="card-head-rule"></div>
                 <form onsubmit="event.preventDefault(); addTask();">
                   <label style="font-size:0.85em;font-weight:600;color:#475569;">Title</label>
                   <input id="taskTitle" placeholder="e.g. Alert vendors of insurance renewal" required />
@@ -1128,16 +2174,35 @@
 
               <!-- Upcoming tasks -->
               <div class="card">
-                <h2>Due This Week</h2>
+                <div class="card-head is-compact">
+                  <div class="card-head-tile">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <div class="card-head-titles">
+                    <div class="card-head-title">Due this week</div>
+                    <div class="card-head-subtitle">Tasks reaching their deadline in the next seven days.</div>
+                  </div>
+                </div>
+                <div class="card-head-rule"></div>
                 <div id="tasksDueThisWeek"></div>
               </div>
             </div>
 
           </div>
+          </div>
         </div>
 
         <!-- MAINTENANCE PAGE -->
         <div class="page" id="page-maintenance">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Maintenance</div>
+                <div class="page-hero-sub">Work orders, repair requests and vendor coordination</div>
+              </div>
+            </div>
 
           <!-- Emergency banner -->
           <div id="emergencyBanner" style="display:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
@@ -1164,71 +2229,110 @@
           <!-- Ticket list -->
           <div id="maintTicketList" style="display:flex;flex-direction:column;gap:14px;"></div>
 
+          </div>
         </div>
 
         <!-- ADMIN PAGE -->
         <div class="page" id="page-admin">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Admin</div>
+                <div class="page-hero-sub">Rent, invoices, budget and financial management</div>
+              </div>
+            </div>
 
           <!-- Notification Settings -->
-          <div class="card" style="margin-bottom:22px;">
-            <h2>&#128276; Notification Settings</h2>
-            <p style="font-size:0.88em;color:#64748b;margin-bottom:18px;">Get an email whenever a new message arrives in your inbox — whether it's an email, SMS, or voicemail.</p>
-
-            <div style="display:flex;align-items:center;justify-content:space-between;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
-              <div>
-                <div style="font-size:0.92em;font-weight:600;color:#0f172a;">Email notifications</div>
-                <div style="font-size:0.78em;color:#94a3b8;margin-top:2px;">Send me an alert when a new message arrives</div>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
               </div>
-              <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;">
-                <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
-                <span id="notifToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
-                <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
-              </label>
+              <div class="card-head-titles">
+                <div class="card-head-title">Notification settings</div>
+                <div class="card-head-subtitle">Choose how the property reaches you when something needs attention.</div>
+              </div>
             </div>
+            <div class="card-head-rule"></div>
 
-            <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Notification email address</label>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <input type="email" id="notifEmail" placeholder="you@example.com" style="flex:1;margin:0;" oninput="notifEmailDirty=true" />
-              <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
-            </div>
-            <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#27ae60;margin-top:8px;font-weight:500;">&#10003; Settings saved</div>
+            <div class="asymmetric-2col" style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start;">
 
-            <!-- Sub-step C: Emergency alert phone (Layer 1 fallback target). -->
-            <label style="font-size:0.82em;font-weight:600;color:#475569;display:block;margin:18px 0 4px;">Emergency alert phone (mobile)</label>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <input type="tel" id="alertPhone" placeholder="+15551234567" style="flex:1;margin:0;" />
-              <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save</button>
-            </div>
-            <div style="font-size:0.78em;color:#94a3b8;margin-top:6px;line-height:1.5;">
-              Modern Management will text this number when a tenant message is held for manual review (emergency keywords detected). Falls back to your notification email if blank.
+              <div>
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-row-label">Email notifications</div>
+                    <span class="settings-row-hint">Alert me when a new message arrives in my inbox.</span>
+                  </div>
+                  <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
+                    <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
+                    <span id="notifToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
+                    <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <div class="form-block">
+                  <span class="form-block-label">Notification email</span>
+                  <input type="email" id="notifEmail" placeholder="you@example.com" oninput="notifEmailDirty=true" />
+                </div>
+                <div class="form-block">
+                  <span class="form-block-label">Emergency alert phone</span>
+                  <input type="tel" id="alertPhone" placeholder="+15551234567" />
+                </div>
+                <div style="margin-top:18px;display:flex;align-items:center;gap:12px;">
+                  <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save settings</button>
+                  <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#86efac;font-weight:500;">&#10003; Settings saved</div>
+                </div>
+                <div style="font-size:11px;color:rgba(232,222,194,0.45);margin-top:14px;line-height:1.5;">
+                  We'll text the emergency phone when a tenant message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
+                </div>
+              </div>
+
             </div>
           </div>
 
           <!-- Phone & Email Routing -->
-          <div class="card" style="margin-bottom:22px;">
-            <h2>📞 Phone &amp; Email Routing</h2>
-            <p style="font-size:0.88em;color:#64748b;margin-bottom:14px;">These are the addresses where inbound messages are routed to your workspace. SMS and voicemails from your Twilio number, and emails to your inbound alias, will appear in your inbox.</p>
-            <div style="display:flex;flex-direction:column;gap:10px;" id="routingInfo">
-              <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;">
-                <div>
-                  <div style="font-size:0.72em;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.6px;">Twilio Phone Number</div>
-                  <div id="routingPhone" style="font-weight:600;color:#1e293b;font-size:0.92em;margin-top:3px;">Not assigned</div>
-                </div>
-                <span style="font-size:0.78em;color:#94a3b8;">Assigned by admin</span>
+          <div class="card">
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;">
-                <div>
-                  <div style="font-size:0.72em;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.6px;">Inbound Email Alias</div>
-                  <div id="routingEmail" style="font-weight:600;color:#1e293b;font-size:0.92em;margin-top:3px;">Loading...</div>
-                </div>
-                <span style="font-size:0.78em;color:#94a3b8;">Auto-generated</span>
+              <div class="card-head-titles">
+                <div class="card-head-title">Phone &amp; email routing</div>
+                <div class="card-head-subtitle">Where inbound messages land in your workspace. SMS and voicemails arrive through your Twilio number; emails arrive at your inbound alias.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
+
+            <div class="asymmetric-1-1" id="routingInfo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="routing-pill">
+                <span class="routing-pill-kicker">Twilio number</span>
+                <span class="routing-pill-value" id="routingPhone">Not assigned</span>
+                <span class="routing-pill-hint">Tenant SMS &amp; voicemails arrive here. Assigned by your administrator.</span>
+              </div>
+              <div class="routing-pill">
+                <span class="routing-pill-kicker">Inbound email alias</span>
+                <span class="routing-pill-value" id="routingEmail">Loading...</span>
+                <span class="routing-pill-hint">Auto-generated. Forward your business email here.</span>
               </div>
             </div>
           </div>
 
           <!-- Billing -->
           <div class="card" style="margin-bottom:22px;" id="billingCard">
-            <h2>&#128179; Plan &amp; Billing</h2>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Plan &amp; billing</div>
+                <div class="card-head-subtitle">Your current plan, payment method and subscription status.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
             <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
               <div id="planBadge" style="display:inline-flex;align-items:center;gap:8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.85em;font-weight:600;color:#475569;">
                 <span id="planIcon">&#10003;</span> <span id="planName">Free plan</span>
@@ -1240,8 +2344,16 @@
 
           <!-- Payment Auto-Match -->
           <div class="card">
-            <h2>💸 Auto-Match Payments</h2>
-            <p style="color:#94a3b8;font-size:0.9em;margin-bottom:14px;">Forward payment confirmation emails (Zelle, Venmo, Chase, AppFolio, etc.) to your unique address below. AI will read each email, match it to a resident, and auto-mark their rent paid.</p>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Auto-match payments</div>
+                <div class="card-head-subtitle">Forward payment confirmation emails and the AI will match each one to a resident automatically.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
 
             <div id="forwardingInfo" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
               <div style="font-size:0.72em;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Your forwarding address</div>
@@ -1276,7 +2388,16 @@
 
           <!-- Rent Payments -->
           <div class="card">
-            <h2>Rent Payments</h2>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Rent payments</div>
+                <div class="card-head-subtitle">Monthly rent roll for residents — collected, pending and overdue.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
 
             <!-- Controls row -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
@@ -1319,9 +2440,17 @@
 
           <!-- Invoices -->
           <div class="card">
-            <h2>Invoices & Vendor Payments</h2>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <span style="font-size:0.9em;color:#888;">Review and approve vendor invoices.</span>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Invoices &amp; vendor payments</div>
+                <div class="card-head-subtitle">Review and approve vendor invoices.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
+            <div style="margin-bottom:16px;display:flex;justify-content:flex-end;">
               <button class="btn-primary" onclick="openAddInvoice()">+ Add Invoice</button>
             </div>
             <div class="table-scroll-wrap">
@@ -1343,7 +2472,16 @@
 
           <!-- Budget -->
           <div class="card">
-            <h2>&#128200; Budget Tracker</h2>
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Budget tracker</div>
+                <div class="card-head-subtitle">Income, expenses and running balance for the month.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
 
             <!-- Summary cards -->
             <div id="budgetSummary" style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;"></div>
@@ -1390,6 +2528,7 @@
             <div id="budgetBreakdown" style="margin-top:20px;"></div>
           </div>
 
+          </div>
         </div>
 
       </div>
@@ -1754,10 +2893,13 @@
       // --- Operations ---
       function updateModeUI() {
         const isAuto = document.getElementById('autoReply').checked;
-        document.getElementById('label-auto').style.borderColor = isAuto ? '#ff6b6b' : '#eee';
-        document.getElementById('label-auto').style.background = isAuto ? '#fff8f8' : '';
-        document.getElementById('label-review').style.borderColor = isAuto ? '#eee' : '#ff6b6b';
-        document.getElementById('label-review').style.background = isAuto ? '' : '#fff8f8';
+        const onColor = '#d4af37';
+        const offColor = 'rgba(212,175,55,0.28)';
+        const onBg = 'rgba(45,134,89,0.18)';
+        document.getElementById('label-auto').style.borderColor = isAuto ? onColor : offColor;
+        document.getElementById('label-auto').style.background = isAuto ? onBg : '';
+        document.getElementById('label-review').style.borderColor = isAuto ? offColor : onColor;
+        document.getElementById('label-review').style.background = isAuto ? '' : onBg;
       }
 
       // --- Notification settings ---
@@ -2116,7 +3258,16 @@
           : '<p style="color:#94a3b8;font-size:0.83em;">No tasks.</p>';
 
         document.getElementById('dayDetailPanel').innerHTML = `
-          <h2 style="font-size:0.8em;">${label}</h2>
+          <div class="card-head is-compact">
+            <div class="card-head-tile">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="card-head-titles">
+              <div class="card-head-title">${label}</div>
+              <div class="card-head-subtitle">Events and tasks for this day.</div>
+            </div>
+          </div>
+          <div class="card-head-rule"></div>
           <p style="font-size:0.75em;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Events</p>
           ${eventsHtml}
           <p style="font-size:0.75em;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin:12px 0 8px;">Tasks</p>
@@ -3711,6 +4862,138 @@
         recognition.start();
       }
 
+      // --- AI response rendering helpers (markdown-lite + typewriter) ---
+      // Lightweight markdown parser for AI responses. Handles: **bold**,
+      // *italic*, `inline code`, line breaks, blank-line paragraph breaks,
+      // - bulleted lists, and 1. numbered lists. Escapes HTML first to
+      // prevent injection from AI output.
+      function renderMarkdownLite(rawText) {
+        if (!rawText) return '';
+        // 1. HTML-escape everything first
+        let s = String(rawText)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        // 2. Inline code (backticks) — do this BEFORE bold/italic so * inside code is preserved
+        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // 3. Bold (** **) — must run before italic to avoid * matching inside **
+        s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+
+        // 4. Italic (* *) — single asterisks, not matching ** that's already converted
+        s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+
+        // 5. Lists: split into lines and group consecutive list items
+        const lines = s.split('\n');
+        const out = [];
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i];
+          const ulMatch = line.match(/^\s*[-•]\s+(.+)$/);
+          const olMatch = line.match(/^\s*\d+\.\s+(.+)$/);
+          if (ulMatch) {
+            const items = [];
+            while (i < lines.length) {
+              const m = lines[i].match(/^\s*[-•]\s+(.+)$/);
+              if (!m) break;
+              items.push('<li>' + m[1] + '</li>');
+              i++;
+            }
+            out.push('<ul>' + items.join('') + '</ul>');
+            continue;
+          }
+          if (olMatch) {
+            const items = [];
+            while (i < lines.length) {
+              const m = lines[i].match(/^\s*\d+\.\s+(.+)$/);
+              if (!m) break;
+              items.push('<li>' + m[1] + '</li>');
+              i++;
+            }
+            out.push('<ol>' + items.join('') + '</ol>');
+            continue;
+          }
+          out.push(line);
+          i++;
+        }
+        s = out.join('\n');
+
+        // 6. Paragraph breaks (blank lines) and single-line breaks
+        s = s.replace(/\n{2,}/g, '</p><p>').replace(/\n/g, '<br>');
+        // Wrap in a paragraph if there's any content not already block-level
+        if (s && !/^<(ul|ol|p)/.test(s.trim())) {
+          s = '<p>' + s + '</p>';
+        } else {
+          // Ensure leading <p> if it starts with text after a list-only response
+          s = s.replace(/^([^<])/, '<p>$1').replace(/([^>])$/, '$1</p>');
+          // Clean up empty <p></p>
+          s = s.replace(/<p>\s*<\/p>/g, '');
+        }
+        return s;
+      }
+
+      // Typewriter animation: progressively reveals the rendered HTML by
+      // streaming the original plain text into a target element, then
+      // swapping in the fully-rendered markdown HTML when done. Calls
+      // `onComplete` after the animation finishes.
+      // Speed: ~25ms per character, with shorter delay on whitespace.
+      function typewriterReveal(targetEl, plainText, onComplete) {
+        const renderedHtml = renderMarkdownLite(plainText);
+        targetEl.innerHTML = '<span class="ai-response-body" data-stream></span><span class="ai-cursor"></span>';
+        const streamEl = targetEl.querySelector('[data-stream]');
+        let idx = 0;
+        const len = plainText.length;
+        // Skip animation entirely for very long responses (>800 chars)
+        // so the user isn't stuck watching for many seconds.
+        if (len > 800) {
+          streamEl.innerHTML = renderedHtml;
+          const cursor = targetEl.querySelector('.ai-cursor');
+          if (cursor) cursor.remove();
+          if (onComplete) onComplete();
+          return;
+        }
+        function step() {
+          if (idx >= len) {
+            // Replace plain text with fully rendered markdown HTML
+            streamEl.innerHTML = renderedHtml;
+            const cursor = targetEl.querySelector('.ai-cursor');
+            if (cursor) cursor.remove();
+            if (onComplete) onComplete();
+            return;
+          }
+          // Append next character. Escape <, >, & on the fly so streaming
+          // text doesn't accidentally render partial tags.
+          const ch = plainText[idx];
+          let safe = ch;
+          if (ch === '<') safe = '&lt;';
+          else if (ch === '>') safe = '&gt;';
+          else if (ch === '&') safe = '&amp;';
+          streamEl.insertAdjacentHTML('beforeend', safe);
+          idx++;
+          // Slightly faster on whitespace, slower on punctuation for natural feel
+          let delay = 18;
+          if (ch === ' ' || ch === '\n') delay = 8;
+          else if (ch === '.' || ch === ',' || ch === '!' || ch === '?') delay = 60;
+          setTimeout(step, delay);
+        }
+        step();
+      }
+
+      // Render an action chip with a checkmark icon and pop animation.
+      // Detects warning chips by leading "⚠" symbol (HTML entity &#9888;)
+      // in the original action text and styles them differently.
+      function renderActionChip(actionHtml, indexForDelay) {
+        const isWarn = /&#9888;|⚠/.test(actionHtml);
+        // Strip the leading icon entity (first HTML entity / emoji) since
+        // we're replacing it with our own circle-checkmark.
+        const cleaned = actionHtml.replace(/^(\s*&#\d+;\s*)+/, '').trim();
+        const cls = isWarn ? 'ai-action-chip ai-action-chip-warn' : 'ai-action-chip';
+        const icon = isWarn ? '!' : '\u2713';
+        const delay = (indexForDelay || 0) * 80;
+        return `<span class="${cls}" style="animation-delay:${delay}ms;"><span class="chip-check">${icon}</span>${cleaned}</span>`;
+      }
+
       // --- AI Command Bar (Home page) ---
       function homePrompt(btn) {
         document.getElementById('homeCommandInput').value = btn.textContent.replace(/^[^\w]+/, '').trim();
@@ -3797,13 +5080,86 @@
             renderCalendar();
             actionLog.push(`&#128197; Added event: "${action.title}" on ${action.date}`);
 
+          } else if (action.type === 'delete_calendar_event') {
+            // Fuzzy-match against the loaded calEvents by title (and optional date).
+            const q = String(action.event || '').toLowerCase().trim();
+            let matches = (calEvents || []).filter(e => String(e.title || '').toLowerCase().includes(q));
+            if (action.date) matches = matches.filter(e => e.date === action.date);
+            if (!matches.length) {
+              actionLog.push(`&#9888; Could not find event matching: "${action.event}"${action.date ? ' on ' + action.date : ''}`);
+            } else {
+              const target = matches[0];
+              const r = await fetch('/api/calevents/' + target.id, { method: 'DELETE' });
+              if (!r.ok) {
+                actionLog.push(`&#9888; Could not delete event: "${target.title}" (HTTP ${r.status})`);
+              } else {
+                await loadCalEvents();
+                renderCalendar();
+                actionLog.push(`&#128197; Deleted event: "${target.title}" (${target.date})`);
+              }
+            }
+
           } else if (action.type === 'add_task') {
-            await api('tasks', 'POST', { title: action.title, category: action.category || 'other', dueDate: action.dueDate, notes: action.notes || '' });
+            // Client-side defaults mirror the add_task tool schema and the
+            // POST /api/tasks server-side safety net: dueDate -> +7 days,
+            // category -> 'other'.
+            let _dueDate = action.dueDate;
+            if (!_dueDate) {
+              const d = new Date(); d.setDate(d.getDate() + 7);
+              _dueDate = d.toISOString().split('T')[0];
+            }
+            const _cat = (action.category && String(action.category).trim()) || 'other';
+            await api('tasks', 'POST', { title: action.title, category: _cat, dueDate: _dueDate, notes: action.notes || '' });
             await loadTasks();
             actionLog.push(`&#10003; Created task: "${action.title}"`);
 
+          } else if (action.type === 'update_task') {
+            // Fuzzy-match against the loaded tasks by title.
+            const q = String(action.task || '').toLowerCase().trim();
+            const matches = (tasks || []).filter(t => String(t.title || '').toLowerCase().includes(q));
+            if (!matches.length) {
+              actionLog.push(`&#9888; Could not find task matching: "${action.task}"`);
+            } else {
+              const target = matches[0];
+              const payload = {
+                title: action.title !== undefined ? action.title : target.title,
+                category: action.category !== undefined ? action.category : target.category,
+                dueDate: action.dueDate !== undefined ? action.dueDate : target.dueDate,
+                notes: action.notes !== undefined ? action.notes : (target.notes || ''),
+                done: action.status !== undefined ? (action.status === 'done') : !!target.done,
+              };
+              const r = await fetch('/api/tasks/' + target.id, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              if (!r.ok) {
+                actionLog.push(`&#9888; Could not update task "${target.title}" (HTTP ${r.status})`);
+              } else {
+                await loadTasks();
+                const changed = [];
+                if (action.status !== undefined) changed.push('status: ' + action.status);
+                if (action.title !== undefined) changed.push('title');
+                if (action.dueDate !== undefined) changed.push('dueDate');
+                if (action.category !== undefined) changed.push('category');
+                if (action.notes !== undefined) changed.push('notes');
+                actionLog.push(`&#10003; Updated task: "${target.title}"${changed.length ? ' \u2192 ' + changed.join(', ') : ''}`);
+              }
+            }
+
           } else if (action.type === 'compose_message') {
-            await api('messages', 'POST', { resident: action.to, subject: action.subject, category: 'general', text: action.body });
+            // Derive subject if AI omitted one. Mirrors the POST /api/messages
+            // server-side safety net.
+            let _subject = (action.subject && String(action.subject).trim()) || '';
+            if (!_subject && action.body) {
+              const oneLine = String(action.body).replace(/\s+/g, ' ').trim();
+              if (oneLine.length <= 50) _subject = oneLine;
+              else {
+                const cut = oneLine.slice(0, 50);
+                const lastSpace = cut.lastIndexOf(' ');
+                _subject = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut) + '...';
+              }
+            }
+            await api('messages', 'POST', { resident: action.to, subject: _subject, category: 'general', text: action.body });
             await loadInbox();
             actionLog.push(`&#9993; Composed message to ${action.to}`);
 
@@ -3817,6 +5173,43 @@
             await loadContacts();
             loadLeases();
             actionLog.push(`&#128100; Added contact: ${action.name} (${action.type || 'resident'})`);
+
+          } else if (action.type === 'update_contact') {
+            // Fuzzy-match against the loaded contacts by name.
+            const q = String(action.contact || '').toLowerCase().trim();
+            const matches = (contacts || []).filter(c => String(c.name || '').toLowerCase().includes(q));
+            if (!matches.length) {
+              actionLog.push(`&#9888; Could not find contact matching: "${action.contact}"`);
+            } else {
+              const target = matches[0];
+              // Build payload from current values; overlay only fields the AI provided.
+              const payload = {
+                name: action.name !== undefined ? action.name : target.name,
+                type: action.contact_type !== undefined ? action.contact_type : target.type,
+                email: action.email !== undefined ? action.email : (target.email || ''),
+                phone: action.phone !== undefined ? action.phone : (target.phone || ''),
+                unit: action.unit !== undefined ? action.unit : (target.unit || ''),
+                notes: action.notes !== undefined ? action.notes : (target.notes || ''),
+                lease_start: action.lease_start !== undefined ? action.lease_start : (target.lease_start || ''),
+                lease_end: action.lease_end !== undefined ? action.lease_end : (target.lease_end || ''),
+                monthly_rent: action.monthly_rent !== undefined ? action.monthly_rent : (target.monthly_rent || 0),
+              };
+              const r = await fetch('/api/contacts/' + target.id, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+              if (!r.ok) {
+                actionLog.push(`&#9888; Could not update contact "${target.name}" (HTTP ${r.status})`);
+              } else {
+                await loadContacts();
+                loadLeases();
+                const changed = [];
+                for (const f of ['name','contact_type','email','phone','unit','notes','lease_start','lease_end','monthly_rent']) {
+                  if (action[f] !== undefined) changed.push(f === 'contact_type' ? 'type' : f);
+                }
+                actionLog.push(`&#128100; Updated ${target.name}${changed.length ? ': ' + changed.join(', ') : ''}`);
+              }
+            }
 
           } else if (action.type === 'mark_rent_paid') {
             // Find matching rent record by resident name
@@ -3851,12 +5244,15 @@
 
           } else if (action.type === 'add_budget_transaction') {
             const txType = action.transaction_type || 'expense';
+            // Default date to today if AI omitted it. Mirrors the
+            // POST /api/budget server-side safety net.
+            const _date = (action.date && String(action.date).trim()) || new Date().toISOString().split('T')[0];
             await api('budget', 'POST', {
               type: txType,
               category: action.category || 'Other',
               description: action.description,
               amount: action.amount,
-              date: action.date,
+              date: _date,
               notes: action.notes || ''
             });
             loadBudget();
@@ -4112,7 +5508,13 @@
 
         const responseBox = document.getElementById('homeCommandResponse');
         responseBox.style.display = 'block';
-        responseBox.innerHTML = '<span style="color:#94a3b8;">&#129302; Thinking...</span>';
+        responseBox.innerHTML = `
+          <div class="ai-thinking">
+              <div style="width:28px;height:28px;background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;box-shadow:0 4px 10px rgba(212,175,55,0.45);">&#129302;</div>
+            <div class="ai-thinking-bubble">
+              <span></span><span></span><span></span>
+            </div>
+          </div>`;
 
         try {
           // Fetch fresh rent + maintenance for context, and ensure
@@ -4190,14 +5592,21 @@
           if (res.ok) await applyActions(data.actions, actionLog);
 
           const replyText = res.ok ? data.reply : `Sorry, something went wrong: ${data.error || 'Unknown error'}`;
-          const actionsHtml = actionLog.length
-            ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8edf4;display:flex;flex-wrap:wrap;gap:6px;">${actionLog.map(a => `<span style="background:#eef2ff;color:#4f46e5;border-radius:6px;padding:3px 10px;font-size:0.82em;">${a}</span>`).join('')}</div>`
-            : '';
+          // Build the response shell — avatar on left, body on right.
+          // The body gets typewriter-revealed, then chips animate in after.
           responseBox.innerHTML = `
             <div style="display:flex;gap:10px;align-items:flex-start;">
-              <div style="width:28px;height:28px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
-              <div style="flex:1;">${replyText}${actionsHtml}</div>
+              <div style="width:28px;height:28px;background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;box-shadow:0 4px 10px rgba(212,175,55,0.45);">&#129302;</div>
+              <div style="flex:1;min-width:0;" id="aiResponseBodyHost"></div>
             </div>`;
+          const bodyHost = document.getElementById('aiResponseBodyHost');
+          typewriterReveal(bodyHost, replyText, () => {
+            // After typing finishes, render action chips with staggered pop-in
+            if (actionLog.length) {
+              const chips = actionLog.map((a, i) => renderActionChip(a, i)).join('');
+              bodyHost.insertAdjacentHTML('beforeend', `<div class="ai-actions-row">${chips}</div>`);
+            }
+          });
         } catch (err) {
           responseBox.innerHTML = `<span style="color:#e74c3c;">Error: ${err.message}</span>`;
         }

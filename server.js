@@ -1890,7 +1890,6 @@ app.post('/api/entities', requireAuth, async (req, res) => {
   const name = (req.body.name || '').trim();
   const address = (req.body.address || '').trim();
   if (!name) return res.status(400).json({ error: 'name is required' });
-  if (!address) return res.status(400).json({ error: 'address is required' });
 
   try {
     const { rows } = await pool.query(
@@ -2586,9 +2585,18 @@ app.get('/api/tasks', async (req, res) => {
 
 app.post('/api/tasks', async (req, res) => {
   const { title, category, dueDate, notes, suggested, aiReason } = req.body;
+  // Server-side safety-net defaults so the AI / clients can submit
+  // partial input. Mirrors the optional-field defaults declared in the
+  // add_task tool schema and applyActions client default.
+  const _category = (category && String(category).trim()) || 'other';
+  let _dueDate = dueDate;
+  if (!_dueDate) {
+    const d = new Date(); d.setDate(d.getDate() + 7);
+    _dueDate = d.toISOString().split('T')[0];
+  }
   const { rows } = await pool.query(
     'INSERT INTO tasks (user_id, title, category, "dueDate", notes, done, suggested, "aiReason") VALUES ($1,$2,$3,$4,$5,false,$6,$7) RETURNING *',
-    [req.session.userId, title, category, dueDate, notes || '', suggested || false, aiReason || '']
+    [req.session.userId, title, _category, _dueDate, notes || '', suggested || false, aiReason || '']
   );
   res.status(201).json(rows[0]);
 });
@@ -2742,9 +2750,14 @@ app.get('/api/budget', async (req, res) => {
 
 app.post('/api/budget', async (req, res) => {
   const { type, category, description, amount, date, notes } = req.body;
+  // Server-side safety-net defaults so the AI / clients can submit
+  // partial input. Mirrors the optional-field defaults declared in the
+  // add_budget_transaction tool schema and applyActions client default.
+  const _category = (category && String(category).trim()) || 'Other';
+  const _date = (date && String(date).trim()) || new Date().toISOString().split('T')[0];
   const { rows } = await pool.query(
     'INSERT INTO budget_transactions (user_id, type, category, description, amount, date, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-    [req.session.userId, type, category, description || '', Number(amount), date, notes || '']
+    [req.session.userId, type, _category, description || '', Number(amount), _date, notes || '']
   );
   res.status(201).json(rows[0]);
 });
@@ -2879,9 +2892,21 @@ app.post('/api/messages/:id/clear-emergency', requireAuth, async (req, res) => {
 
 app.post('/api/messages', async (req, res) => {
   const { resident, subject, category, text } = req.body;
+  // Server-side safety-net default: derive a subject from the body if
+  // the caller (e.g. the AI compose_message tool) omitted it.
+  let _subject = (subject && String(subject).trim()) || '';
+  if (!_subject && text) {
+    const oneLine = String(text).replace(/\s+/g, ' ').trim();
+    if (oneLine.length <= 50) _subject = oneLine;
+    else {
+      const cut = oneLine.slice(0, 50);
+      const lastSpace = cut.lastIndexOf(' ');
+      _subject = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut) + '...';
+    }
+  }
   const { rows } = await pool.query(
     'INSERT INTO messages (user_id, resident, subject, category, text, status, folder) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-    [req.session.userId, resident, subject, category, text, 'new', 'inbox']
+    [req.session.userId, resident, _subject || '(no subject)', category, text, 'new', 'inbox']
   );
   res.status(201).json(rows[0]);
 });
@@ -3196,17 +3221,45 @@ ${units && units.length ? units.map(u => {
       }
     },
     {
+      name: 'delete_calendar_event',
+      description: 'Delete a calendar event. Use this when the user wants to cancel, remove, or delete an event. The user identifies the event by its title and optionally a date (e.g. "cancel the board meeting", "delete the inspector visit on May 5"). Use fuzzy matching against the calendar events in context.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          event: { type: 'string', description: 'Title or partial title of the event to delete.' },
+          date: { type: 'string', description: 'Optional. Date in YYYY-MM-DD format to disambiguate when multiple events have similar titles.' }
+        },
+        required: ['event']
+      }
+    },
+    {
       name: 'add_task',
       description: 'Create a new task in the task list',
       input_schema: {
         type: 'object',
         properties: {
           title: { type: 'string', description: 'Task title' },
-          category: { type: 'string', enum: ['vendor', 'maintenance', 'lease', 'finance', 'other'] },
-          dueDate: { type: 'string', description: 'Due date in YYYY-MM-DD format' },
+          category: { type: 'string', enum: ['vendor', 'maintenance', 'lease', 'finance', 'other'], description: "Optional. Category of the task. Defaults to 'other' if not provided." },
+          dueDate: { type: 'string', description: "Optional. Due date in YYYY-MM-DD format. If a date is mentioned in natural language ('tomorrow', 'next Friday'), interpret it. Defaults to 7 days from today if not provided." },
           notes: { type: 'string', description: 'Optional notes' }
         },
-        required: ['title', 'category', 'dueDate']
+        required: ['title']
+      }
+    },
+    {
+      name: 'update_task',
+      description: 'Update an existing task — change its status (mark done, mark pending), update its title, due date, category, or notes. Use this when the user wants to mark a task complete, reopen a task, or modify task details. The user typically refers to a task by its title or by a description matching its title (e.g. "mark the insurance task done", "the electrician task").',
+      input_schema: {
+        type: 'object',
+        properties: {
+          task: { type: 'string', description: 'Title or description identifying the task. Use fuzzy matching against the task list in context.' },
+          status: { type: 'string', enum: ['pending', 'done'], description: 'Optional. New status for the task. Use "done" to mark a task complete, "pending" to reopen.' },
+          title: { type: 'string', description: 'Optional. New title for the task.' },
+          dueDate: { type: 'string', description: 'Optional. New due date in YYYY-MM-DD format.' },
+          category: { type: 'string', description: 'Optional. New category.' },
+          notes: { type: 'string', description: 'Optional. New notes for the task.' }
+        },
+        required: ['task']
       }
     },
     {
@@ -3216,10 +3269,10 @@ ${units && units.length ? units.map(u => {
         type: 'object',
         properties: {
           to: { type: 'string', description: 'Recipient name (must match a contact name)' },
-          subject: { type: 'string', description: 'Message subject' },
+          subject: { type: 'string', description: 'Optional. Message subject. If omitted, a sensible subject is derived from the first words of the body.' },
           body: { type: 'string', description: 'Full message body — write a complete, professional message' }
         },
-        required: ['to', 'subject', 'body']
+        required: ['to', 'body']
       }
     },
     {
@@ -3239,6 +3292,26 @@ ${units && units.length ? units.map(u => {
           notes: { type: 'string', description: 'Optional notes' }
         },
         required: ['name', 'contact_type']
+      }
+    },
+    {
+      name: 'update_contact',
+      description: 'Update an existing contact (resident, vendor, staff, or other). Use this for changes like updating a phone number, email, lease dates, monthly rent, unit assignment, or notes. The user identifies the contact by name (e.g. "set Maria\'s phone to ...", "update Alex Rivera\'s lease end date to ..."). Use fuzzy matching against the contact list in context.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          contact: { type: 'string', description: 'Name or partial name identifying the contact.' },
+          name: { type: 'string', description: 'Optional. New name for the contact.' },
+          contact_type: { type: 'string', description: 'Optional. New type (resident, vendor, staff, important).' },
+          email: { type: 'string', description: 'Optional. New email address.' },
+          phone: { type: 'string', description: 'Optional. New phone number.' },
+          unit: { type: 'string', description: 'Optional. New unit assignment.' },
+          monthly_rent: { type: 'number', description: 'Optional. New monthly rent amount.' },
+          lease_start: { type: 'string', description: 'Optional. New lease start date (YYYY-MM-DD).' },
+          lease_end: { type: 'string', description: 'Optional. New lease end date (YYYY-MM-DD).' },
+          notes: { type: 'string', description: 'Optional. New notes for the contact.' }
+        },
+        required: ['contact']
       }
     },
     {
@@ -3272,13 +3345,13 @@ ${units && units.length ? units.map(u => {
         type: 'object',
         properties: {
           transaction_type: { type: 'string', enum: ['income', 'expense'], description: 'Income or expense' },
-          category: { type: 'string', description: 'Category, e.g. Rent, Repairs, Utilities, Insurance, Landscaping' },
+          category: { type: 'string', description: "Optional. Category, e.g. Rent, Repairs, Utilities, Insurance, Landscaping. Defaults to 'Other' if not provided." },
           description: { type: 'string', description: 'What the transaction is for' },
           amount: { type: 'number', description: 'Dollar amount (positive number)' },
-          date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
+          date: { type: 'string', description: 'Optional. Date in YYYY-MM-DD format. Defaults to today if not provided.' },
           notes: { type: 'string', description: 'Optional notes' }
         },
-        required: ['transaction_type', 'category', 'description', 'amount', 'date']
+        required: ['transaction_type', 'description', 'amount']
       }
     },
     {
@@ -3484,9 +3557,12 @@ Today's date is ${new Date().toISOString().split('T')[0]}.
 
 You have access to the following tools. Use them proactively when the user's intent is clear:
 - add_calendar_event: schedule events and appointments
+- delete_calendar_event: cancel/delete a calendar event by title (and optionally date)
 - add_task: create tasks with categories and due dates
+- update_task: change a task's status (mark done / pending), title, due date, category, or notes
 - compose_message: draft and save messages to residents or contacts
 - add_contact: add residents, vendors, or important contacts (including lease dates and monthly rent)
+- update_contact: change phone, email, unit, lease dates, monthly rent, notes, or type on an existing contact
 - mark_rent_paid: mark a resident's rent as paid — match by name from the rent records
 - send_late_notice: send a payment reminder to an unpaid resident
 - add_budget_transaction: log income or expenses to the budget tracker
@@ -3500,6 +3576,8 @@ You have access to the following tools. Use them proactively when the user's int
 
 You can use multiple tools in one response if needed (e.g. "add Maria and generate May rent" → add_contact + generate_rent).
 Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.
+
+IMPORTANT — when you call tools, the actual execution happens after this conversation completes, on the user's device. You will receive a placeholder confirmation in the tool result, but you do NOT yet know whether the action succeeded. In your follow-up reply, never claim "Done!" or "I've created the X". Instead, acknowledge what you attempted in past tense ("Queued the new task...", "Sent the request to update Maria's phone..."). The user will see the actual outcome in the green or amber action chips that appear below your message. If a chip turns amber, that means the action did not succeed and the user should retry or rephrase.
 
 CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
 
@@ -3527,7 +3605,7 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
       const toolResults = actions.map(a => ({
         type: 'tool_result',
         tool_use_id: response.content.find(b => b.type === 'tool_use' && b.name === a.type)?.id || '',
-        content: `Successfully executed ${a.type}`
+        content: `Action ${a.type} has been queued for client-side execution with the provided parameters. The result is not yet known. Do not claim the action succeeded — instead, briefly acknowledge what was attempted and let the user know the result will appear in the action chips below.`
       }));
 
       const followUp = await anthropic.messages.create({
