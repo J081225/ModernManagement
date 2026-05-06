@@ -1,0 +1,26 @@
+-- migrations/phase1-additive/031_drop_orphan_columns.sql
+--
+-- D7 drift cleanup.
+--
+-- workspaces.subscription_tier was an orphan column added in earlier
+-- multi-tenant work (migration 023). D3's processSubscriptionUpdatedEvent
+-- wrote to it, but no code ever read it for decisions — D4 read from
+-- workspaces.plan (added in D1, migration 029). D6 documented the cleanup
+-- intent. D7 removes both the JS writebacks and the column.
+--
+-- Before running this migration: confirm that lib/subscription-lifecycle.js
+-- and lib/signup-orchestrator.js no longer reference subscription_tier.
+-- The orchestrator's INSERT was switched to write `plan` directly in the
+-- D7 code changes; D3's lifecycle handler no longer adds subscription_tier
+-- to its dynamic UPDATE.
+--
+-- Existing test workspaces have non-null subscription_tier values but
+-- workspaces.plan was kept in sync by D3's lifecycle handler, so dropping
+-- the column is safe — no data loss for any currently-functional code path.
+--
+-- Per the codebase audit (2026-05-06), there is no auto-running migration
+-- system in this codebase. After deployment, paste this SQL into the Neon
+-- SQL Editor and run it manually. The IF EXISTS clause makes the file safe
+-- to re-run.
+
+ALTER TABLE workspaces DROP COLUMN IF EXISTS subscription_tier;

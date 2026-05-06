@@ -35,6 +35,12 @@ const nodemailer = require('nodemailer');
 const { ImapFlow } = require('imapflow');
 const { Pool } = require('pg');
 const pgSession = require('connect-pg-simple')(session);
+// LEGACY: STRIPE_SECRET_KEY is no longer referenced after D7's route
+// retirement. The `stripe` client below is unused as of D8. Kept for now
+// (the `null` fallback makes a missing env var non-fatal). Future env-var
+// consolidation can remove both the env var and this client. Do NOT add
+// new code that uses this client — use `stripeSignup` (STRIPE_TEST_SECRET_KEY)
+// for all new Stripe work.
 const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 // Phase B B2: separate Stripe client for the new signup flow. Uses
@@ -53,7 +59,72 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 // call time so this module stays leaf (no server.js dependency).
 const { processCheckoutCompletedEvent } = require('./lib/signup-orchestrator');
 
-// SESSION_SECRET is required — refuse to start with a weak default
+// Session D3: subscription lifecycle event processors. Handle
+// customer.subscription.updated, customer.subscription.deleted, and
+// invoice.payment_failed so workspaces.subscription_status tracks
+// Stripe's source-of-truth state instead of staying 'active' forever.
+const subscriptionLifecycle = require('./lib/subscription-lifecycle');
+
+// Session B1: populate the AI tool registry at startup. Tool modules
+// in lib/tools/ self-register when imported. The registry is dormant
+// until Session B2 wires it into /api/command — until then this is a
+// no-op for runtime behavior but exposes the tools for verification.
+require('./lib/tools');
+
+// Session D1: central pricing/capability config. Loaded at startup so
+// future enforcement paths can require('./lib/plans') from anywhere.
+// No enforcement happens in D1 — this is foundation only.
+const plans = require('./lib/plans');
+
+// Session D2: usage tracking helpers (best-effort upsert counters).
+// /api/command increments per successful AI request; report-creation
+// paths increment once per saved report.
+const usage = require('./lib/usage');
+
+// Session D4: plan enforcement layer. Bundles plans + usage with
+// workspace-fetch + status-check semantics. Route handlers call into
+// this module to gate AI commands, report generation, and resource
+// creation on subscription status, feature flags, and usage caps.
+const planEnforcement = require('./lib/plan-enforcement');
+
+// Session D7: central app config. Single source of truth for the
+// Anthropic model name (used to be hardcoded in 8 call sites here).
+const config = require('./lib/config');
+
+// Session D8: validate critical env vars at startup. Fail loudly if any
+// are missing so misconfigured deployments error before serving traffic
+// rather than failing later when the missing credential is first used.
+//
+// The list intentionally excludes legacy STRIPE_SECRET_KEY (D7 retirement)
+// and optional toggles (NODE_ENV, ENABLE_DEBUG_ENDPOINTS, APP_URL, PORT,
+// PUBLIC_BASE_URL, MAINTENANCE_PHONE, NOTIFICATION_EMAIL, SENTRY_DSN,
+// ADMIN_USERNAME, ADMIN_PASSWORD).
+function validateRequiredEnv() {
+  const required = [
+    'DATABASE_URL',
+    'SESSION_SECRET',
+    'ANTHROPIC_API_KEY',
+    'TWILIO_ACCOUNT_SID',
+    'TWILIO_AUTH_TOKEN',
+    'TWILIO_PHONE_NUMBER',
+    'SENDGRID_API_KEY',
+    'SENDGRID_FROM_EMAIL',
+    'STRIPE_TEST_SECRET_KEY',     // new-flow Stripe client
+    'STRIPE_TEST_WEBHOOK_SECRET', // new-flow Stripe webhook signature secret
+  ];
+  const missing = required.filter(name => !process.env[name]);
+  if (missing.length > 0) {
+    console.error('[startup] FATAL: Missing required env vars:', missing.join(', '));
+    console.error('[startup] Server cannot start without these. Configure them in your environment, then restart.');
+    process.exit(1);
+  }
+  console.log('[startup] Env validation passed.');
+}
+validateRequiredEnv();
+
+// SESSION_SECRET is required — refuse to start with a weak default.
+// Belt-and-suspenders: validateRequiredEnv() above also catches this,
+// but the explicit message here gives the user the generate-one command.
 if (!process.env.SESSION_SECRET) {
   console.error('FATAL: SESSION_SECRET environment variable is not set.');
   console.error('Generate one with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"');
@@ -1317,22 +1388,35 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   const success_url = `${proto}://${host}/signup/success?session_id={CHECKOUT_SESSION_ID}&draft_id=${draft_id}`;
   const cancel_url  = `${proto}://${host}/signup/canceled?draft_id=${draft_id}`;
 
+  // Session D3: optional 7-day trial gating. The flag is opt-in and
+  // applies ONLY to the Solo plan — Team and Enterprise never receive
+  // a trial regardless of the flag. The current signup form does not
+  // pass `trial`, so behavior is unchanged for existing callers; a
+  // future trial-CTA flow can pass `trial: true` to activate it.
+  const wantsTrial = req.body && (req.body.trial === true || req.body.trial === 'true');
+  const shouldApplyTrial = wantsTrial && plan === 'solo';
+
+  const sessionConfig = {
+    mode: 'subscription',
+    line_items: [{ price: price_id, quantity: 1 }],
+    customer_email: email,
+    client_reference_id: draft_id,
+    metadata: {
+      draft_id,
+      signup_username: username,
+      signup_email: email,
+    },
+    success_url,
+    cancel_url,
+  };
+  if (shouldApplyTrial) {
+    sessionConfig.subscription_data = { trial_period_days: 7 };
+  }
+
   // Create Stripe Checkout session
   let session;
   try {
-    session = await stripeSignup.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: price_id, quantity: 1 }],
-      customer_email: email,
-      client_reference_id: draft_id,
-      metadata: {
-        draft_id,
-        signup_username: username,
-        signup_email: email,
-      },
-      success_url,
-      cancel_url,
-    });
+    session = await stripeSignup.checkout.sessions.create(sessionConfig);
   } catch (err) {
     console.error('[signup-checkout] Stripe session creation failed:', err.message);
     return res.status(500).json({ error: 'Could not create checkout session' });
@@ -1474,17 +1558,64 @@ app.post('/api/stripe/webhook', async (req, res) => {
     // before we 200 to Stripe. The orchestrator handles its own
     // idempotency (SELECT ... FOR UPDATE on stripe_events.processed_at)
     // so duplicate webhook deliveries from Stripe become no-op skips.
-    // Other event types (customer.subscription.*, invoice.payment_*) are
-    // logged-only for now; B4 only acts on checkout.session.completed.
-    if (event.type === 'checkout.session.completed') {
-      try {
-        const result = await processCheckoutCompletedEvent(event, pool);
-        console.log('[stripe-webhook] orchestrator result:', JSON.stringify(result));
-      } catch (orchErr) {
-        // Should not throw — processCheckoutCompletedEvent catches its own
-        // errors and returns { ok: false }. But defensive in case of bug.
-        console.error('[stripe-webhook] orchestrator threw unexpectedly:', orchErr.message);
+    //
+    // Session D3: subscription.updated, subscription.deleted, and
+    // invoice.payment_failed now dispatch to lib/subscription-lifecycle
+    // so workspace state stays in sync with Stripe. Each handler is
+    // idempotent and best-effort on the audit_log writes. Errors here
+    // return 500 so Stripe retries — except for processCheckoutCompleted
+    // which catches its own errors (legacy contract preserved).
+    const lifecycleCtx = { sms: twilioClient, env: process.env };
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        try {
+          const result = await processCheckoutCompletedEvent(event, pool);
+          console.log('[stripe-webhook] orchestrator result:', JSON.stringify(result));
+        } catch (orchErr) {
+          // Should not throw — processCheckoutCompletedEvent catches its own
+          // errors and returns { ok: false }. But defensive in case of bug.
+          console.error('[stripe-webhook] orchestrator threw unexpectedly:', orchErr.message);
+        }
+        break;
       }
+      case 'customer.subscription.updated': {
+        try {
+          const result = await subscriptionLifecycle.processSubscriptionUpdatedEvent(
+            event, pool, stripeSignup, lifecycleCtx
+          );
+          console.log('[stripe-webhook] subscription.updated →', JSON.stringify(result));
+        } catch (err) {
+          console.error('[stripe-webhook] subscription.updated handler error:', err.message);
+          return res.status(500).json({ error: 'processing failed' });
+        }
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        try {
+          const result = await subscriptionLifecycle.processSubscriptionDeletedEvent(
+            event, pool, lifecycleCtx
+          );
+          console.log('[stripe-webhook] subscription.deleted →', JSON.stringify(result));
+        } catch (err) {
+          console.error('[stripe-webhook] subscription.deleted handler error:', err.message);
+          return res.status(500).json({ error: 'processing failed' });
+        }
+        break;
+      }
+      case 'invoice.payment_failed': {
+        try {
+          const result = await subscriptionLifecycle.processInvoicePaymentFailedEvent(
+            event, pool, lifecycleCtx
+          );
+          console.log('[stripe-webhook] invoice.payment_failed →', JSON.stringify(result));
+        } catch (err) {
+          console.error('[stripe-webhook] invoice.payment_failed handler error:', err.message);
+          return res.status(500).json({ error: 'processing failed' });
+        }
+        break;
+      }
+      default:
+        console.log('[stripe-webhook] event stored, no handler:', event.type, event.id);
     }
   } else {
     console.log('[stripe-webhook] received (not stored):', event.type, event.id);
@@ -1534,6 +1665,120 @@ app.get('/api/me', requireAuth, async (req, res) => {
 app.put('/api/me/onboarding', requireAuth, async (req, res) => {
   await pool.query('UPDATE users SET onboarding_completed=true WHERE id=$1', [req.session.userId]);
   res.json({ success: true });
+});
+
+// Session D5: single-call summary of current plan, status, limits,
+// features, and live usage counters. Frontend caches the response in
+// window._planSummary and re-fetches after actions that change counts
+// (resource creation, AI command, report generation).
+//
+// Resource counts mirror the D4 gate counting logic:
+//   - properties: workspace_id-scoped, archived_at IS NULL
+//   - units: workspace_id-scoped, status != 'retired'
+//   - contacts: user_id-scoped (legacy table, no workspace_id)
+app.get('/api/plan-summary', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) {
+      return res.status(404).json({ error: 'workspace_not_found' });
+    }
+
+    const planInfo = await planEnforcement.getWorkspacePlanInfo(pool, workspaceId);
+    if (!planInfo) {
+      return res.status(404).json({ error: 'workspace_not_found' });
+    }
+    const planName = planInfo.plan || 'team';
+    const planConfig = plans.getPlan(planName);
+
+    const aiCommandsToday = await usage.getAICommandCountToday(pool, {
+      workspaceId, userId,
+    });
+    const reportsThisMonth = await usage.getReportCountThisMonth(pool, {
+      workspaceId,
+    });
+
+    let propertiesCount = 0;
+    let unitsCount = 0;
+    let contactsCount = 0;
+    try {
+      const r1 = await pool.query(
+        `SELECT COUNT(*) AS c FROM entities WHERE workspace_id = $1 AND archived_at IS NULL`,
+        [workspaceId]
+      );
+      propertiesCount = parseInt(r1.rows[0].c, 10);
+      const r2 = await pool.query(
+        `SELECT COUNT(*) AS c FROM offerings WHERE workspace_id = $1 AND status != 'retired'`,
+        [workspaceId]
+      );
+      unitsCount = parseInt(r2.rows[0].c, 10);
+      const r3 = await pool.query(
+        `SELECT COUNT(*) AS c FROM contacts WHERE user_id = $1`,
+        [userId]
+      );
+      contactsCount = parseInt(r3.rows[0].c, 10);
+    } catch (err) {
+      console.error('[plan-summary] resource count failed:', err.message);
+    }
+
+    res.json({
+      plan: planName,
+      plan_display_name: planConfig.displayName,
+      monthly_price: planConfig.monthlyPrice,
+      subscription_status: planInfo.subscription_status || 'active',
+      limits: planConfig.limits,
+      features: planConfig.features,
+      usage: {
+        ai_commands_today: aiCommandsToday || 0,
+        reports_this_month: reportsThisMonth || 0,
+        properties: propertiesCount,
+        units: unitsCount,
+        contacts: contactsCount,
+      },
+    });
+  } catch (err) {
+    console.error('[plan-summary] error:', err);
+    res.status(500).json({ error: 'plan_summary_failed' });
+  }
+});
+
+// Session D5: Stripe Customer Portal session for self-serve plan
+// management. Distinct from the legacy GET /api/billing/portal route
+// (which uses the legacy `stripe` client and stays untouched). This
+// endpoint uses the new-flow `stripeSignup` client and looks up the
+// customer ID set by the signup orchestrator at users.stripe_customer_id.
+app.post('/api/billing/portal-session', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { rows } = await pool.query(
+      `SELECT stripe_customer_id FROM users WHERE id = $1`,
+      [userId]
+    );
+    const customerId = rows[0] && rows[0].stripe_customer_id;
+    if (!customerId) {
+      return res.status(400).json({
+        error: 'no_stripe_customer',
+        message: 'No billing record on file. Please contact support.',
+      });
+    }
+    if (!stripeSignup) {
+      return res.status(500).json({
+        error: 'billing_not_configured',
+        message: 'Billing is not configured on this server. Please contact support.',
+      });
+    }
+
+    const proto = req.protocol || 'http';
+    const host = req.headers.host || 'localhost:4000';
+    const session = await stripeSignup.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${proto}://${host}/workspace`,
+    });
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error('[billing portal-session] error:', err.message);
+    res.status(500).json({ error: 'portal_session_failed' });
+  }
 });
 
 // --- Connected Email Account (IMAP/SMTP) ---
@@ -1764,6 +2009,28 @@ app.get('/api/contacts', async (req, res) => {
 
 app.post('/api/contacts', async (req, res) => {
   const { name, type, unit, email, phone, notes } = req.body;
+
+  // Session D4: subscription status + maxContacts cap (user_id-scoped)
+  const _workspaceIdContacts = await getWorkspaceId(req);
+  const _planInfoContacts = await planEnforcement.getWorkspacePlanInfo(pool, _workspaceIdContacts);
+  const _statusCheckContacts = planEnforcement.checkSubscriptionStatus(_planInfoContacts);
+  if (!_statusCheckContacts.allowed) {
+    return res.status(403).json({ error: _statusCheckContacts.reason, message: _statusCheckContacts.suggestion });
+  }
+  try {
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) AS c FROM contacts WHERE user_id = $1`,
+      [req.session.userId]
+    );
+    const _currentCountContacts = parseInt(countRows[0].c, 10);
+    const _limitCheckContacts = planEnforcement.checkResourceLimit(_planInfoContacts, 'maxContacts', _currentCountContacts);
+    if (!_limitCheckContacts.allowed) {
+      return res.status(403).json({ error: _limitCheckContacts.reason, message: _limitCheckContacts.suggestion });
+    }
+  } catch (e) {
+    console.error('[plan-enforcement] contacts count failed:', e.message);
+  }
+
   const { rows } = await pool.query(
     'INSERT INTO contacts (user_id, name, type, unit, email, phone, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
     [req.session.userId, name, type, unit || '', email || '', phone || '', notes || '']
@@ -1890,6 +2157,28 @@ app.post('/api/entities', requireAuth, async (req, res) => {
   const name = (req.body.name || '').trim();
   const address = (req.body.address || '').trim();
   if (!name) return res.status(400).json({ error: 'name is required' });
+
+  // Session D4: subscription status + maxProperties cap
+  const _planInfoEntities = await planEnforcement.getWorkspacePlanInfo(pool, workspaceId);
+  const _statusCheckEntities = planEnforcement.checkSubscriptionStatus(_planInfoEntities);
+  if (!_statusCheckEntities.allowed) {
+    return res.status(403).json({ error: _statusCheckEntities.reason, message: _statusCheckEntities.suggestion });
+  }
+  try {
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) AS c FROM entities
+       WHERE workspace_id = $1 AND archived_at IS NULL`,
+      [workspaceId]
+    );
+    const _currentCountEntities = parseInt(countRows[0].c, 10);
+    const _limitCheckEntities = planEnforcement.checkResourceLimit(_planInfoEntities, 'maxProperties', _currentCountEntities);
+    if (!_limitCheckEntities.allowed) {
+      return res.status(403).json({ error: _limitCheckEntities.reason, message: _limitCheckEntities.suggestion });
+    }
+  } catch (e) {
+    // Best-effort: if the count query itself fails, allow the create.
+    console.error('[plan-enforcement] entities count failed:', e.message);
+  }
 
   try {
     const { rows } = await pool.query(
@@ -2073,6 +2362,27 @@ app.post('/api/offerings', requireAuth, async (req, res) => {
   const name = (req.body.name || '').trim();
   const entityId = Number(req.body.entity_id);
   if (!name) return res.status(400).json({ error: 'name is required' });
+
+  // Session D4: subscription status + maxUnits cap (workspace-wide)
+  const _planInfoOfferings = await planEnforcement.getWorkspacePlanInfo(pool, workspaceId);
+  const _statusCheckOfferings = planEnforcement.checkSubscriptionStatus(_planInfoOfferings);
+  if (!_statusCheckOfferings.allowed) {
+    return res.status(403).json({ error: _statusCheckOfferings.reason, message: _statusCheckOfferings.suggestion });
+  }
+  try {
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) AS c FROM offerings
+       WHERE workspace_id = $1 AND status != 'retired'`,
+      [workspaceId]
+    );
+    const _currentCountOfferings = parseInt(countRows[0].c, 10);
+    const _limitCheckOfferings = planEnforcement.checkResourceLimit(_planInfoOfferings, 'maxUnits', _currentCountOfferings);
+    if (!_limitCheckOfferings.allowed) {
+      return res.status(403).json({ error: _limitCheckOfferings.reason, message: _limitCheckOfferings.suggestion });
+    }
+  } catch (e) {
+    console.error('[plan-enforcement] offerings count failed:', e.message);
+  }
   if (!entityId || !Number.isInteger(entityId)) {
     return res.status(400).json({ error: 'entity_id is required and must be a number' });
   }
@@ -3130,7 +3440,7 @@ app.post('/api/generate', async (req, res) => {
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.
 
@@ -3161,8 +3471,142 @@ Guidelines:
 });
 
 // --- AI: Command center ---
+const registry = require('./lib/tool-registry');
+
+// Session C1: shared helper to build the executor `ctx` for any code
+// path that needs to run a registered tool (currently /api/command and
+// the approval-queue approve endpoint). Mirrors the ctx shape from B4.
+async function buildExecutorContext(req) {
+  const workspaceId = await getWorkspaceId(req);
+  let workspaceRow = { id: workspaceId, vertical: 'property-management' };
+  if (workspaceId) {
+    try {
+      const wRes = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+      if (wRes.rows[0]) workspaceRow = wRes.rows[0];
+    } catch (e) { /* fall through with default */ }
+  }
+  return {
+    workspace: workspaceRow,
+    user: { id: req.session.userId },
+    db: pool,
+    logger: console,
+    mailer: sgMail,
+    sms: twilioClient,
+    env: process.env,
+    generateReportContent,
+  };
+}
+
+// Session C1: human-readable description of a pending action for the
+// approval queue UI and the inline chip in the AI response.
+function buildPendingActionSummary(toolName, input) {
+  switch (toolName) {
+    case 'compose_message':
+      return `Compose ${input.channel || 'message'} to ${input.to || 'recipient'}: "${_c1Truncate(input.body || input.subject || '', 80)}"`;
+    case 'send_late_notice':
+      return `Send late notice to ${input.resident || 'tenant'}${input.unit ? ` (unit ${input.unit})` : ''}`;
+    // Session C3: outbound communication tools
+    case 'send_sms':
+      return `Send SMS to ${input.to || 'recipient'}: "${_c1Truncate(input.body || '', 80)}"`;
+    case 'send_email':
+      return `Send email to ${input.to || 'recipient'} — "${_c1Truncate(input.subject || '', 60)}"`;
+    case 'send_broadcast': {
+      const aud = input.audience || 'all residents';
+      const ch = (input.channel || 'message').toUpperCase();
+      const subj = input.subject ? ` — "${_c1Truncate(input.subject, 50)}"` : '';
+      return `Send ${ch} broadcast to ${aud}${subj}: "${_c1Truncate(input.body || '', 60)}"`;
+    }
+    case 'reply_to_message':
+      return `Reply to ${input.message_reference || 'message'}: "${_c1Truncate(input.body || '', 80)}"`;
+    default:
+      return `${toolName}: ${_c1Truncate(JSON.stringify(input), 80)}`;
+  }
+}
+
+function _c1Truncate(str, max) {
+  const s = String(str || '');
+  return s.length > max ? s.slice(0, max - 3) + '...' : s;
+}
+
+// Session B5: server picks one navigation target from a multi-tool batch.
+//   - Iterates executionResults in order; last eligible success wins (last-wins).
+//   - 'auto' policy fires from any page; 'home_only' only fires when the user
+//     was on the home page; 'never' tools are skipped entirely.
+//   - resolveNavigateTo replaces any focus value of the form '$field' with
+//     result.data[field], so tool-specific fields (date, id, etc.) are
+//     baked in at response time. Static values pass through unchanged.
+function resolveNavigateTo(template, result) {
+  if (!template || !template.page) return null;
+  const focusTemplate = template.focus || {};
+  const resolvedFocus = {};
+  for (const [key, val] of Object.entries(focusTemplate)) {
+    if (typeof val === 'string' && val.startsWith('$')) {
+      const fieldName = val.slice(1);
+      const data = result && result.data ? result.data : {};
+      resolvedFocus[key] = data[fieldName];
+    } else {
+      resolvedFocus[key] = val;
+    }
+  }
+  return { page: template.page, focus: resolvedFocus };
+}
+
+function selectNavigation(executionResults, currentPage, registry) {
+  let chosen = null;
+  for (const entry of executionResults) {
+    if (!entry || !entry.result || entry.result.success !== true) continue;
+    const action = entry.action;
+    if (!action || !action.type) continue;
+    const tool = registry.getTool(action.type);
+    if (!tool) continue;
+    const policy = tool.navigationPolicy;
+    if (!policy || policy === 'never') continue;
+    if (policy === 'home_only' && currentPage !== 'home') continue;
+    if (policy !== 'auto' && policy !== 'home_only') continue;
+    if (!tool.navigateTo) continue;
+    chosen = resolveNavigateTo(tool.navigateTo, entry.result);
+  }
+  return chosen;
+}
+
 app.post('/api/command', requireAuth, async (req, res) => {
-  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets, properties, units } = req.body;
+  const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets, properties, units, currentPage } = req.body;
+
+  // Session B2: load the workspace row so we can resolve the
+  // workspace.vertical column (added in migration 026). Defensive
+  // SELECT * — if the column doesn't exist yet (migration not run),
+  // `vertical` is undefined and we fall back to 'property-management'
+  // below. The userId is what legacy ctx executors actually scope by.
+  const workspaceId = await getWorkspaceId(req);
+  let _workspaceRow = { id: workspaceId, vertical: 'property-management' };
+  if (workspaceId) {
+    try {
+      const wRes = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+      if (wRes.rows[0]) _workspaceRow = wRes.rows[0];
+    } catch (e) { /* fall through with default */ }
+  }
+
+  // Session D4: enforcement gates (subscription status + daily AI quota).
+  // Run BEFORE any Anthropic call so blocked requests don't burn tokens.
+  // The _workspaceRow already contains plan + subscription_status from the
+  // SELECT * above; reuse it as planInfo (avoids a redundant lookup).
+  const planInfo = _workspaceRow && _workspaceRow.id ? _workspaceRow : null;
+  const statusCheck = planEnforcement.checkSubscriptionStatus(planInfo);
+  if (!statusCheck.allowed) {
+    return res.status(403).json({
+      error: statusCheck.reason,
+      message: statusCheck.suggestion,
+    });
+  }
+  const quotaCheck = await planEnforcement.checkAICommandQuota(pool, planInfo, req.session.userId);
+  if (!quotaCheck.allowed) {
+    return res.status(429).json({
+      error: quotaCheck.reason,
+      message: quotaCheck.suggestion,
+      count: quotaCheck.count,
+      limit: quotaCheck.limit,
+    });
+  }
 
   const knowledgeDocs = await getKnowledge(req.session.userId);
   const knowledgeSection = knowledgeDocs.length
@@ -3187,8 +3631,19 @@ ${msgList && msgList.length ? msgList.map(m => `- #${m.id}: From ${m.resident} �
 ### Rent Records (this month)
 ${rentRecords && rentRecords.length ? rentRecords.map(r => `- ${r.resident}${r.unit ? ` Unit ${r.unit}` : ''}: $${r.amount} due ${r.due_date} [${r.status}]`).join('\n') : 'No rent records loaded.'}
 
-### Open Maintenance Tickets
-${maintenanceTickets && maintenanceTickets.length ? maintenanceTickets.filter(t => t.status === 'open').map(t => `- #${t.id}: ${t.title}${t.unit ? ` (Unit ${t.unit})` : ''} [${t.priority}]`).join('\n') : 'No open tickets.'}
+### Active Maintenance Tickets
+${(() => {
+  // Session C2.5: include all unresolved statuses so the AI can reason
+  // about resolve_maintenance_ticket / update_maintenance_ticket on
+  // tickets that have moved past 'open'.
+  // Filter: status IN ('open', 'in_progress', 'on_hold')
+  const ACTIVE_MAINTENANCE_STATUSES = ['open', 'in_progress', 'on_hold'];
+  if (!maintenanceTickets || !maintenanceTickets.length) return 'No active tickets.';
+  const active = maintenanceTickets.filter(t => ACTIVE_MAINTENANCE_STATUSES.includes(t.status));
+  return active.length
+    ? active.map(t => `- #${t.id}: ${t.title}${t.unit ? ` (Unit ${t.unit})` : ''} [${t.status}, ${t.priority}]`).join('\n')
+    : 'No active tickets.';
+})()}
 
 ### Properties (Inventory)
 ${properties && properties.length ? properties.map(p => `- #${p.id} "${p.name}"${p.address ? ` at ${p.address}` : ''}${p.building_type ? `, ${p.building_type}` : ''}${p.year_built ? `, built ${p.year_built}` : ''}${p.number_of_floors ? `, ${p.number_of_floors} floors` : ''}${p.total_unit_count ? `, ${p.total_unit_count} total units` : ''}`).join('\n') : 'No properties.'}
@@ -3207,346 +3662,20 @@ ${units && units.length ? units.map(u => {
   // The frontend builds the units array in submitHomeCommand (views/
   // app.html) — same cap target there.
 
-  const tools = [
-    {
-      name: 'add_calendar_event',
-      description: 'Add an event to the calendar',
-      input_schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'Event title' },
-          date: { type: 'string', description: 'Date in YYYY-MM-DD format' }
-        },
-        required: ['title', 'date']
-      }
-    },
-    {
-      name: 'delete_calendar_event',
-      description: 'Delete a calendar event. Use this when the user wants to cancel, remove, or delete an event. The user identifies the event by its title and optionally a date (e.g. "cancel the board meeting", "delete the inspector visit on May 5"). Use fuzzy matching against the calendar events in context.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          event: { type: 'string', description: 'Title or partial title of the event to delete.' },
-          date: { type: 'string', description: 'Optional. Date in YYYY-MM-DD format to disambiguate when multiple events have similar titles.' }
-        },
-        required: ['event']
-      }
-    },
-    {
-      name: 'add_task',
-      description: 'Create a new task in the task list',
-      input_schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'Task title' },
-          category: { type: 'string', enum: ['vendor', 'maintenance', 'lease', 'finance', 'other'], description: "Optional. Category of the task. Defaults to 'other' if not provided." },
-          dueDate: { type: 'string', description: "Optional. Due date in YYYY-MM-DD format. If a date is mentioned in natural language ('tomorrow', 'next Friday'), interpret it. Defaults to 7 days from today if not provided." },
-          notes: { type: 'string', description: 'Optional notes' }
-        },
-        required: ['title']
-      }
-    },
-    {
-      name: 'update_task',
-      description: 'Update an existing task — change its status (mark done, mark pending), update its title, due date, category, or notes. Use this when the user wants to mark a task complete, reopen a task, or modify task details. The user typically refers to a task by its title or by a description matching its title (e.g. "mark the insurance task done", "the electrician task").',
-      input_schema: {
-        type: 'object',
-        properties: {
-          task: { type: 'string', description: 'Title or description identifying the task. Use fuzzy matching against the task list in context.' },
-          status: { type: 'string', enum: ['pending', 'done'], description: 'Optional. New status for the task. Use "done" to mark a task complete, "pending" to reopen.' },
-          title: { type: 'string', description: 'Optional. New title for the task.' },
-          dueDate: { type: 'string', description: 'Optional. New due date in YYYY-MM-DD format.' },
-          category: { type: 'string', description: 'Optional. New category.' },
-          notes: { type: 'string', description: 'Optional. New notes for the task.' }
-        },
-        required: ['task']
-      }
-    },
-    {
-      name: 'compose_message',
-      description: 'Compose and save a message to a resident or contact in the inbox',
-      input_schema: {
-        type: 'object',
-        properties: {
-          to: { type: 'string', description: 'Recipient name (must match a contact name)' },
-          subject: { type: 'string', description: 'Optional. Message subject. If omitted, a sensible subject is derived from the first words of the body.' },
-          body: { type: 'string', description: 'Full message body — write a complete, professional message' }
-        },
-        required: ['to', 'body']
-      }
-    },
-    {
-      name: 'add_contact',
-      description: 'Add a new contact (resident, vendor, or important person)',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Full name' },
-          contact_type: { type: 'string', enum: ['resident', 'vendor', 'important'], description: 'Contact type' },
-          unit: { type: 'string', description: 'Unit number (residents only)' },
-          email: { type: 'string', description: 'Email address' },
-          phone: { type: 'string', description: 'Phone number' },
-          monthly_rent: { type: 'number', description: 'Monthly rent amount in dollars (residents only)' },
-          lease_start: { type: 'string', description: 'Lease start date YYYY-MM-DD (residents only)' },
-          lease_end: { type: 'string', description: 'Lease end date YYYY-MM-DD (residents only)' },
-          notes: { type: 'string', description: 'Optional notes' }
-        },
-        required: ['name', 'contact_type']
-      }
-    },
-    {
-      name: 'update_contact',
-      description: 'Update an existing contact (resident, vendor, staff, or other). Use this for changes like updating a phone number, email, lease dates, monthly rent, unit assignment, or notes. The user identifies the contact by name (e.g. "set Maria\'s phone to ...", "update Alex Rivera\'s lease end date to ..."). Use fuzzy matching against the contact list in context.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          contact: { type: 'string', description: 'Name or partial name identifying the contact.' },
-          name: { type: 'string', description: 'Optional. New name for the contact.' },
-          contact_type: { type: 'string', description: 'Optional. New type (resident, vendor, staff, important).' },
-          email: { type: 'string', description: 'Optional. New email address.' },
-          phone: { type: 'string', description: 'Optional. New phone number.' },
-          unit: { type: 'string', description: 'Optional. New unit assignment.' },
-          monthly_rent: { type: 'number', description: 'Optional. New monthly rent amount.' },
-          lease_start: { type: 'string', description: 'Optional. New lease start date (YYYY-MM-DD).' },
-          lease_end: { type: 'string', description: 'Optional. New lease end date (YYYY-MM-DD).' },
-          notes: { type: 'string', description: 'Optional. New notes for the contact.' }
-        },
-        required: ['contact']
-      }
-    },
-    {
-      name: 'mark_rent_paid',
-      description: 'Mark a resident\'s rent as paid. Use the resident name and/or unit from the rent records.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          resident: { type: 'string', description: 'Resident name (partial match ok)' },
-          unit: { type: 'string', description: 'Unit number (optional, helps narrow down)' }
-        },
-        required: ['resident']
-      }
-    },
-    {
-      name: 'send_late_notice',
-      description: 'Send a late payment notice to a resident who has not paid rent',
-      input_schema: {
-        type: 'object',
-        properties: {
-          resident: { type: 'string', description: 'Resident name (partial match ok)' },
-          unit: { type: 'string', description: 'Unit number (optional)' }
-        },
-        required: ['resident']
-      }
-    },
-    {
-      name: 'add_budget_transaction',
-      description: 'Log an income or expense transaction in the budget tracker',
-      input_schema: {
-        type: 'object',
-        properties: {
-          transaction_type: { type: 'string', enum: ['income', 'expense'], description: 'Income or expense' },
-          category: { type: 'string', description: "Optional. Category, e.g. Rent, Repairs, Utilities, Insurance, Landscaping. Defaults to 'Other' if not provided." },
-          description: { type: 'string', description: 'What the transaction is for' },
-          amount: { type: 'number', description: 'Dollar amount (positive number)' },
-          date: { type: 'string', description: 'Optional. Date in YYYY-MM-DD format. Defaults to today if not provided.' },
-          notes: { type: 'string', description: 'Optional notes' }
-        },
-        required: ['transaction_type', 'description', 'amount']
-      }
-    },
-    {
-      name: 'add_maintenance_ticket',
-      description: 'Create a maintenance ticket for a repair or issue at the property',
-      input_schema: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'Brief title of the issue' },
-          description: { type: 'string', description: 'Full description of the problem' },
-          unit: { type: 'string', description: 'Unit number where the issue is' },
-          resident: { type: 'string', description: 'Resident name reporting the issue' },
-          category: { type: 'string', enum: ['plumbing', 'electrical', 'hvac', 'appliance', 'structural', 'pest', 'general'], description: 'Issue category' }
-        },
-        required: ['title']
-      }
-    },
-    {
-      name: 'generate_rent',
-      description: 'Generate monthly rent records for all residents who have a monthly rent amount set on their contact. Creates one pending record per resident.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          month: { type: 'number', description: 'Month number 1-12' },
-          year: { type: 'number', description: 'Four-digit year' },
-          due_day: { type: 'number', description: 'Day of month rent is due (1-28, default 1)' }
-        },
-        required: ['month', 'year']
-      }
-    },
-    // --- Inventory tools (Properties / Units / Engagements) ---
-    {
-      name: 'create_property',
-      description: 'Create a new property (building or location). Use when the user asks to add or create a property.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', description: 'Property name' },
-          address: { type: 'string', description: 'Full address' },
-          building_type: { type: 'string', description: 'e.g. apartment, condo, single-family, townhouse, mixed-use' },
-          year_built: { type: 'number' },
-          number_of_floors: { type: 'number' },
-          total_unit_count: { type: 'number' },
-          description: { type: 'string' }
-        },
-        required: ['name']
-      }
-    },
-    {
-      name: 'update_property',
-      description: 'Update fields on an existing property. Identify the property by its name from the snapshot. If multiple properties match the name, ask the user to clarify rather than guessing.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          property: { type: 'string', description: 'Property name (must match a property in the snapshot)' },
-          name: { type: 'string', description: 'New name (only when renaming)' },
-          address: { type: 'string' },
-          description: { type: 'string' },
-          building_type: { type: 'string' },
-          year_built: { type: 'number' },
-          number_of_floors: { type: 'number' },
-          total_unit_count: { type: 'number' },
-          heating_system: { type: 'string' },
-          water_source: { type: 'string' },
-          parking_setup: { type: 'string' },
-          pet_policy: { type: 'string' },
-          smoking_policy: { type: 'string' }
-        },
-        required: ['property']
-      }
-    },
-    {
-      name: 'archive_property',
-      description: 'Soft-delete (archive) a property. The property is hidden from default lists but its data is preserved. Identify by property name.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          property: { type: 'string', description: 'Property name' }
-        },
-        required: ['property']
-      }
-    },
-    {
-      name: 'create_unit',
-      description: 'Create a new unit (rental space) within a property. Use when the user asks to add a unit, apartment, suite, or room.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          property: { type: 'string', description: 'Parent property name (must match a property in the snapshot)' },
-          name: { type: 'string', description: 'Unit identifier, e.g. "Unit 301", "Apartment 2B", "Studio A"' },
-          description: { type: 'string' },
-          floor: { type: 'string', description: 'Floor designation, e.g. "2", "Ground", "Penthouse"' },
-          rent: { type: 'number', description: 'Rent or price amount in dollars' },
-          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'], description: 'Rent frequency (default monthly)' },
-          bedrooms: { type: 'number' },
-          bathrooms: { type: 'number' },
-          sqft: { type: 'number' },
-          amenities: { type: 'array', items: { type: 'string' }, description: 'Amenities like balcony, dishwasher, in-unit laundry' },
-          notes: { type: 'string' }
-        },
-        required: ['property', 'name']
-      }
-    },
-    {
-      name: 'update_unit',
-      description: 'Update fields on an existing unit. Identify by unit name; include the property name when the unit name alone is ambiguous.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          unit: { type: 'string', description: 'Unit name (must match a unit in the snapshot)' },
-          property: { type: 'string', description: 'Parent property name (required when unit name alone is ambiguous)' },
-          name: { type: 'string', description: 'New name (only when renaming)' },
-          description: { type: 'string' },
-          floor: { type: 'string' },
-          rent: { type: 'number' },
-          frequency: { type: 'string', enum: ['monthly', 'quarterly', 'annual', 'hourly', 'one-time'] },
-          bedrooms: { type: 'number' },
-          bathrooms: { type: 'number' },
-          sqft: { type: 'number' },
-          amenities: { type: 'array', items: { type: 'string' } },
-          notes: { type: 'string' }
-        },
-        required: ['unit']
-      }
-    },
-    {
-      name: 'set_unit_off_market',
-      description: 'Toggle a unit on or off the market. Off-market = under repair, in renovation, or otherwise not currently rentable. Does NOT terminate any active tenancy.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          unit: { type: 'string' },
-          property: { type: 'string', description: 'Required when unit name alone is ambiguous' },
-          off_market: { type: 'boolean', description: 'true to mark off-market; false to bring back to vacant' }
-        },
-        required: ['unit', 'off_market']
-      }
-    },
-    {
-      name: 'retire_unit',
-      description: 'Soft-delete (retire) a unit. The unit is hidden from default lists but its history is preserved. Use when a unit is decommissioned permanently.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          unit: { type: 'string' },
-          property: { type: 'string', description: 'Required when unit name alone is ambiguous' }
-        },
-        required: ['unit']
-      }
-    },
-    {
-      name: 'assign_tenant_to_unit',
-      description: 'Assign a tenant (existing contact) to a unit by creating an active engagement. The contact must already exist (use add_contact first if not). If multiple contacts or units match the names, ASK FOR CLARIFICATION rather than guessing.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tenant: { type: 'string', description: 'Tenant contact name' },
-          unit: { type: 'string', description: 'Unit name' },
-          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' },
-          start_date: { type: 'string', description: 'Tenancy start date YYYY-MM-DD (default: contact lease_start or today)' },
-          end_date: { type: 'string', description: 'Tenancy end date YYYY-MM-DD (default: contact lease_end or none)' },
-          rent: { type: 'number', description: 'Override current price (default: contact monthly_rent if set, else unit rent)' }
-        },
-        required: ['tenant', 'unit']
-      }
-    },
-    {
-      name: 'move_tenant_to_unit',
-      description: 'Move an existing tenant from their current unit to a new unit. Atomically terminates the old engagement and creates a new active one. If the tenant has no current unit, behaves like assign_tenant_to_unit.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tenant: { type: 'string' },
-          unit: { type: 'string', description: 'New unit name' },
-          property: { type: 'string', description: 'Parent property (required when unit name is ambiguous)' }
-        },
-        required: ['tenant', 'unit']
-      }
-    },
-    {
-      name: 'end_tenant_assignment',
-      description: 'End a tenant\'s current unit assignment (terminate the active engagement). Use for move-outs, evictions, or lease terminations.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          tenant: { type: 'string' }
-        },
-        required: ['tenant']
-      }
-    }
-  ];
+
+  // Session B3: every tool now lives in lib/tools/* and runs server-side.
+  // The inline tools = [...] array was deleted along with the hybrid filter.
+  // Session D4: filter by plan as well as vertical so the AI on a Solo
+  // workspace doesn't even see send_broadcast (and any future
+  // plan-gated tools). Falls back to the vertical-only filter if plan
+  // is missing (legacy workspaces stay unrestricted).
+  const vertical = _workspaceRow.vertical || 'property-management';
+  const planForTools = planInfo && planInfo.plan ? planInfo.plan : null;
+  const toolsForAI = registry.getAnthropicSchemaForPlan(vertical, planForTools);
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: `You are an AI command center assistant for a property management app called Modern Management.
 You help property managers get things done by taking action within the app.
@@ -3577,12 +3706,14 @@ You have access to the following tools. Use them proactively when the user's int
 You can use multiple tools in one response if needed (e.g. "add Maria and generate May rent" → add_contact + generate_rent).
 Always explain what you did clearly. For mark_rent_paid and send_late_notice, identify the closest matching resident from the rent records. If no match, say so.
 
-IMPORTANT — when you call tools, the actual execution happens after this conversation completes, on the user's device. You will receive a placeholder confirmation in the tool result, but you do NOT yet know whether the action succeeded. In your follow-up reply, never claim "Done!" or "I've created the X". Instead, acknowledge what you attempted in past tense ("Queued the new task...", "Sent the request to update Maria's phone..."). The user will see the actual outcome in the green or amber action chips that appear below your message. If a chip turns amber, that means the action did not succeed and the user should retry or rephrase.
+Tool execution: tools execute server-side as part of this request. The tool_result you receive in the follow-up call reflects the actual outcome — if it says "success" the action happened; if it reports failure, explain to the user what went wrong rather than claiming success. Never say "Done" or "I've created X" without seeing a successful tool_result.
+
+Multi-action requests: when the user asks for multiple actions in one message ("create a unit and assign a tenant to it", "add three tasks", "create a property and add two units to it"), call ALL relevant tools in your initial response — not just the first one. Do not announce future actions you intend to take ("I will now do X") and then stop without executing them. If you announce an action, you must execute it via a tool call in the same turn. Sequential dependencies are fine: tools execute in the order you call them, so a later tool can depend on an earlier one's result. The only exception is when a later action genuinely needs information you don't yet have (e.g., the user gave you ambiguous input that requires clarification first) — in that case, ask the user, do not announce-and-fail.
 
 CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
 
 For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`,
-      tools,
+      tools: toolsForAI,
       messages: [{ role: 'user', content: prompt }]
     });
 
@@ -3602,17 +3733,96 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
     }
 
     if (actions.length && response.stop_reason === 'tool_use') {
-      const toolResults = actions.map(a => ({
+      // Session B2 mixed-mode dispatch:
+      //   - Registered tools (lib/tools/*) execute server-side via
+      //     tool.execute(action, ctx) and the AI sees real outcomes
+      const ctx = {
+        workspace: _workspaceRow,
+        user: { id: req.session.userId },
+        db: pool,
+        logger: console,
+        mailer: sgMail,            // SendGrid client (for late notices, etc.)
+        sms: twilioClient,         // Twilio client (for late notices, emergency SMS)
+        env: process.env,          // for TWILIO_PHONE_NUMBER, SENDGRID_FROM_EMAIL, MAINTENANCE_PHONE
+        generateReportContent,     // Session B4: shared report-generation helper
+      };
+
+      const executionResults = [];
+      for (const action of actions) {
+        const tool = registry.getTool(action.type);
+        if (!tool) {
+          // Should never happen since the AI only sees registered tools,
+          // but defensive: surface a clean error rather than crashing.
+          executionResults.push({
+            action,
+            result: { success: false, message: `Unknown tool: ${action.type}` },
+          });
+          continue;
+        }
+
+        // Session C1: tools tagged requiresApproval are queued instead
+        // of executed. The user must approve before the executor runs.
+        if (tool.requiresApproval) {
+          try {
+            const summary = buildPendingActionSummary(action.type, action);
+            const inserted = await pool.query(
+              `INSERT INTO pending_actions (workspace_id, user_id, tool_name, input, ai_summary, status)
+               VALUES ($1, $2, $3, $4, $5, 'pending')
+               RETURNING id, tool_name, ai_summary, created_at`,
+              [
+                ctx.workspace.id,
+                ctx.user.id,
+                action.type,
+                JSON.stringify(action),
+                summary,
+              ]
+            );
+            const pending = inserted.rows[0];
+            executionResults.push({
+              action,
+              result: {
+                success: true,
+                queued: true,
+                pendingId: pending.id,
+                summary,
+                message: `Queued for approval: ${summary}`,
+                data: { pending_action_id: pending.id, tool_name: action.type },
+              },
+            });
+          } catch (err) {
+            console.error(`[command] Failed to queue ${action.type}:`, err);
+            executionResults.push({
+              action,
+              result: { success: false, message: `Failed to queue action: ${err.message}` },
+            });
+          }
+          continue;
+        }
+
+        try {
+          const result = await tool.execute(action, ctx);
+          executionResults.push({ action, result });
+        } catch (err) {
+          console.error(`[command] Tool ${action.type} threw:`, err);
+          executionResults.push({
+            action,
+            result: { success: false, message: `Error executing ${action.type}: ${err.message}` },
+          });
+        }
+      }
+
+      const toolResults = executionResults.map(({ action, result }) => ({
         type: 'tool_result',
-        tool_use_id: response.content.find(b => b.type === 'tool_use' && b.name === a.type)?.id || '',
-        content: `Action ${a.type} has been queued for client-side execution with the provided parameters. The result is not yet known. Do not claim the action succeeded — instead, briefly acknowledge what was attempted and let the user know the result will appear in the action chips below.`
+        tool_use_id: response.content.find(b => b.type === 'tool_use' && b.name === action.type)?.id || '',
+        content: result.message || (result.success ? `Completed ${action.type}` : `Failed: ${action.type}`),
+        is_error: !result.success,
       }));
 
       const followUp = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
+        model: config.ANTHROPIC_MODEL,
         max_tokens: 512,
         system: `You are an AI command center assistant for Modern Management. Be brief and friendly.`,
-        tools,
+        tools: toolsForAI,
         messages: [
           { role: 'user', content: prompt },
           { role: 'assistant', content: response.content },
@@ -3622,9 +3832,48 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
 
       const followText = followUp.content.find(b => b.type === 'text');
       if (followText) reply = followText.text;
+
+      // Build action chips for the frontend — every chip reflects a real
+      // server-side outcome since there is no client-side dispatch path.
+      // Session C1: queued/pendingId/summary surface so the frontend can
+      // render approve/reject buttons inline for requiresApproval tools.
+      const actionChips = executionResults.map(({ action, result }) => ({
+        type: action.type,
+        success: result.success,
+        message: result.message,
+        data: result.data || null,
+        queued: !!result.queued,
+        pendingId: result.pendingId || null,
+        summary: result.summary || null,
+      }));
+
+      const navigation = selectNavigation(executionResults, currentPage, registry);
+      // Session D2: count this AI command toward the daily cap. Approval-
+      // queued tools count too — the Anthropic API call itself is what
+      // the daily cap is meant to limit. Best-effort: increment failures
+      // are logged but never break the response.
+      try {
+        await usage.incrementAICommand(pool, {
+          workspaceId: _workspaceRow.id,
+          userId: req.session.userId,
+        });
+      } catch (err) {
+        console.error('[command] Counter increment failed (non-fatal):', err.message);
+      }
+      return res.json({ reply: reply || 'Done!', actions: actionChips, navigation });
     }
 
-    res.json({ reply: reply || 'Done!', actions });
+    // Session D2: text-only AI reply (no tools called) still consumed
+    // an Anthropic call; count it toward the daily cap.
+    try {
+      await usage.incrementAICommand(pool, {
+        workspaceId: _workspaceRow.id,
+        userId: req.session.userId,
+      });
+    } catch (err) {
+      console.error('[command] Counter increment failed (non-fatal):', err.message);
+    }
+    res.json({ reply: reply || 'Done!', actions, navigation: null });
   } catch (err) {
     console.error('Command error:', err.message);
     res.status(500).json({ error: 'Command failed', details: err.message });
@@ -3636,7 +3885,7 @@ async function suggestTasksFromConversation(message, replyText, userId) {
   const today = new Date().toISOString().split('T')[0];
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: 600,
       system: `You are a property management assistant that identifies follow-up tasks from resident communications. Return ONLY a valid JSON array of task objects, or [] if no tasks are needed. Each object must have: title (string), category (one of: maintenance, vendor, lease, finance, other), dueDate (YYYY-MM-DD), notes (string), aiReason (string explaining why this task is needed).`,
       messages: [{
@@ -3809,7 +4058,7 @@ async function autoReplyToMessage(message, userId) {
       : `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: isVoicemail ? 100 : 1024,
       system: systemPrompt,
       messages: [{ role: 'user', content: isVoicemail
@@ -3863,7 +4112,7 @@ Today's date is ${new Date().toISOString().split('T')[0]}. Return ONLY the JSON,
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: 300,
       system: systemPrompt,
       messages: [{ role: 'user', content: `FROM: ${from}\nSUBJECT: ${subject}\n\nBODY:\n${body}` }]
@@ -4271,6 +4520,261 @@ app.post('/api/voice/transcription', async (req, res) => {
   res.sendStatus(200);
 });
 
+// ============================================================
+// Reports — saved AI-generated reports (Session B4)
+//
+// Two callers share generateReportContent():
+//   1. POST /api/reports (manual New Report from the Reports page)
+//   2. The generate_report AI tool (lib/tools/generate_report.js),
+//      threaded via ctx.generateReportContent in /api/command's ctx.
+// `function` declarations (not const) so they hoist above the
+// /api/command route handler that captures them by reference.
+// ============================================================
+
+function capitalizeFirst(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+async function deriveReportTitle({ type, prompt }) {
+  if (prompt) {
+    const trimmed = String(prompt).trim();
+    if (trimmed.length <= 60) return capitalizeFirst(trimmed);
+    const cutoff = trimmed.slice(0, 50);
+    const lastSpace = cutoff.lastIndexOf(' ');
+    return capitalizeFirst((lastSpace > 30 ? cutoff.slice(0, lastSpace) : cutoff)) + '...';
+  }
+  return `${capitalizeFirst(type)} Report — ${new Date().toLocaleDateString()}`;
+}
+
+// Build the structured data slice the AI sees when writing a report.
+// Different types pull different table slices. Always includes the
+// workspace row (vertical column added in migration 026, may be absent
+// on workspaces created before that ran).
+//
+// Schema notes:
+//   - budget_transactions / cal_events / tasks / contacts / maintenance_tickets
+//     / rent_payments / invoices are user_id-scoped (legacy). Resolve via
+//     workspaces.owner_user_id.
+//   - entities / offerings / engagements are workspace_id-scoped.
+//   - tasks has no created_at; use "dueDate" as the time anchor.
+//   - cal_events has only (user_id, date, title); no event_time, no category.
+//   - offerings.bedrooms / .bathrooms / .rent live in the metadata JSONB.
+async function buildReportSnapshot({ workspaceId, type, parameters }) {
+  const snapshot = { type, generated_at: new Date().toISOString() };
+  if (parameters) snapshot.parameters = parameters;
+
+  // Workspace row (defensive: vertical column may not exist on this row)
+  let ownerUserId = null;
+  try {
+    const ws = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (ws.rows[0]) {
+      snapshot.workspace = { id: ws.rows[0].id, vertical: ws.rows[0].vertical || 'property-management' };
+      ownerUserId = ws.rows[0].owner_user_id;
+    } else {
+      snapshot.workspace = { id: workspaceId };
+    }
+  } catch (e) {
+    snapshot.workspace = { id: workspaceId };
+  }
+
+  // BUDGET / GENERAL — financial slices
+  if (type === 'budget' || type === 'general') {
+    const budgetRows = ownerUserId ? (await pool.query(
+      `SELECT type, category, description, amount, date
+       FROM budget_transactions
+       WHERE user_id = $1
+       ORDER BY date DESC LIMIT 100`,
+      [ownerUserId]
+    )).rows : [];
+    const rentRows = ownerUserId ? (await pool.query(
+      `SELECT resident, unit, amount, due_date, status, paid_date
+       FROM rent_payments
+       WHERE user_id = $1
+       ORDER BY due_date DESC LIMIT 100`,
+      [ownerUserId]
+    )).rows : [];
+    const invoiceRows = ownerUserId ? (await pool.query(
+      `SELECT vendor, amount, status, description, date
+       FROM invoices
+       WHERE user_id = $1
+       ORDER BY date DESC LIMIT 50`,
+      [ownerUserId]
+    )).rows : [];
+    snapshot.budget = {
+      recent_transactions: budgetRows,
+      rent_records: rentRows,
+      invoices: invoiceRows,
+    };
+  }
+
+  // TENANT / GENERAL — residents only
+  if (type === 'tenant' || type === 'general') {
+    const residents = ownerUserId ? (await pool.query(
+      `SELECT name, unit, email, phone, monthly_rent, lease_start, lease_end
+       FROM contacts
+       WHERE user_id = $1 AND type = 'resident'
+       ORDER BY name LIMIT 200`,
+      [ownerUserId]
+    )).rows : [];
+    snapshot.tenants = { residents };
+  }
+
+  // INVENTORY / GENERAL — properties + units + active engagements
+  if (type === 'inventory' || type === 'general') {
+    const properties = (await pool.query(
+      `SELECT id, name, address, building_type, total_unit_count
+       FROM entities
+       WHERE workspace_id = $1 AND archived_at IS NULL
+       ORDER BY name LIMIT 100`,
+      [workspaceId]
+    )).rows;
+    const units = (await pool.query(
+      `SELECT o.id, o.name, o.entity_id, o.metadata, o.price_amount, o.price_frequency, o.status,
+              e.name AS property_name
+       FROM offerings o
+       JOIN entities e ON e.id = o.entity_id
+       WHERE o.workspace_id = $1 AND o.status != 'retired'
+       ORDER BY e.name, o.name LIMIT 500`,
+      [workspaceId]
+    )).rows;
+    const engagements = (await pool.query(
+      `SELECT eng.contact_id, eng.offering_id, eng.status, eng.start_date, eng.end_date,
+              c.name AS tenant_name, o.name AS unit_name
+       FROM engagements eng
+       LEFT JOIN contacts c ON c.id = eng.contact_id
+       LEFT JOIN offerings o ON o.id = eng.offering_id
+       WHERE eng.workspace_id = $1 AND eng.status = 'active'
+       ORDER BY o.name LIMIT 500`,
+      [workspaceId]
+    )).rows;
+    // Flatten metadata so the AI doesn't have to interpret JSONB structure
+    const flatUnits = units.map(u => {
+      const md = u.metadata || {};
+      return {
+        id: u.id,
+        name: u.name,
+        property_name: u.property_name,
+        bedrooms: md.bedrooms ?? null,
+        bathrooms: md.bathrooms ?? null,
+        sqft: md.sqft ?? null,
+        rent: u.price_amount,
+        frequency: u.price_frequency,
+        status: u.status,
+      };
+    });
+    snapshot.inventory = {
+      properties,
+      units: flatUnits,
+      active_engagements: engagements,
+      occupancy_rate: flatUnits.length > 0
+        ? Math.round((engagements.length / flatUnits.length) * 100)
+        : 0,
+    };
+  }
+
+  // ACTIVITY / GENERAL — recent events + tickets + tasks
+  if (type === 'activity' || type === 'general') {
+    const recentEvents = ownerUserId ? (await pool.query(
+      `SELECT title, date FROM cal_events
+       WHERE user_id = $1 AND date >= (NOW() - INTERVAL '30 days')::date::text
+       ORDER BY date DESC LIMIT 50`,
+      [ownerUserId]
+    )).rows : [];
+    const recentTickets = (await pool.query(
+      `SELECT title, description, status, priority, unit, resident, "createdAt"
+       FROM maintenance_tickets
+       WHERE user_id = $1 AND "createdAt" >= NOW() - INTERVAL '30 days'
+       ORDER BY "createdAt" DESC LIMIT 50`,
+      [ownerUserId]
+    )).rows;
+    const recentTasks = ownerUserId ? (await pool.query(
+      `SELECT title, done, "dueDate", category FROM tasks
+       WHERE user_id = $1 AND "dueDate" >= (NOW() - INTERVAL '30 days')::date::text
+       ORDER BY "dueDate" DESC LIMIT 50`,
+      [ownerUserId]
+    )).rows : [];
+    snapshot.activity = {
+      events_last_30_days: recentEvents,
+      tickets_last_30_days: recentTickets,
+      tasks_last_30_days: recentTasks,
+    };
+  }
+
+  return snapshot;
+}
+
+async function generateReportContent({ workspaceId, type, prompt, parameters }) {
+  // Session D4: enforce subscription status + monthly report quota
+  // BEFORE generating. Both upstream callers (POST /api/reports manual
+  // UI Mode A AND the generate_report AI tool) funnel through here, so
+  // one gate covers both. Failures throw so existing try/catch wrappers
+  // in the callers surface a clean error to the user.
+  const planInfo = await planEnforcement.getWorkspacePlanInfo(pool, workspaceId);
+  const statusCheck = planEnforcement.checkSubscriptionStatus(planInfo);
+  if (!statusCheck.allowed) {
+    const err = new Error(statusCheck.suggestion || 'Subscription not active.');
+    err.code = statusCheck.reason;
+    throw err;
+  }
+  const reportQuotaCheck = await planEnforcement.checkReportQuota(pool, planInfo);
+  if (!reportQuotaCheck.allowed) {
+    const err = new Error(reportQuotaCheck.suggestion || 'Report quota exceeded.');
+    err.code = reportQuotaCheck.reason;
+    throw err;
+  }
+
+  const snapshot = await buildReportSnapshot({ workspaceId, type, parameters });
+
+  const systemPrompt = `You are an expert property management advisor writing a written report for a property manager.
+
+Write the report in well-formatted markdown. Use headers (##), bullet lists, and bold text where helpful. Keep paragraphs short and scannable. Open with a one-paragraph executive summary, then dig into the relevant sections.
+
+Report type: ${type}
+User's request: ${prompt || 'Generate a default report of this type.'}
+
+The data snapshot below contains the workspace's current state. Use only data present here — do not invent numbers or events. If the data shows zero of something (no overdue tenants, no recent maintenance), say so plainly rather than padding.
+
+When writing budget content, always include actionable suggestions ("Consider X because Y").
+When writing tenant content, surface anyone whose lease is expiring soon or whose rent is overdue.
+When writing inventory content, call out occupancy rate and any vacant units.
+When writing activity content, summarize what happened in the relevant time window.
+When writing general content, give a balanced cross-cutting overview.
+
+Data snapshot:
+${JSON.stringify(snapshot, null, 2)}`;
+
+  const userMessage = prompt || `Generate a ${type} report for the current state of the property.`;
+
+  const response = await anthropic.messages.create({
+    model: config.ANTHROPIC_MODEL,
+    max_tokens: 4000,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const content = response.content
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n\n');
+
+  const title = await deriveReportTitle({ type, prompt });
+
+  // Session D2: count this report toward the monthly cap. Both report
+  // creation paths (manual UI POST /api/reports Mode A, AND the AI
+  // generate_report tool) invoke this helper before INSERTing, so one
+  // increment here covers both. Best-effort: never throws.
+  // Known gap: POST /api/reports Mode B (caller-provides-content, no
+  // prompt) skips this helper and is not counted; no current frontend
+  // caller exercises Mode B, so it's a theoretical gap only.
+  try {
+    await usage.incrementReport(pool, { workspaceId });
+  } catch (err) {
+    console.error('[reports] Counter increment failed (non-fatal):', err.message);
+  }
+
+  return { title, content, data_snapshot: snapshot };
+}
+
 // --- Property Report ---
 app.post('/api/report', async (req, res) => {
   const { tasks, messages, calEvents, contacts, budget } = req.body;
@@ -4332,7 +4836,7 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
+      model: config.ANTHROPIC_MODEL,
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }]
     });
@@ -4340,6 +4844,256 @@ Keep the tone professional but direct. Be genuinely useful — not generic.`;
   } catch (err) {
     console.error('Report generation error:', err.message);
     res.status(500).json({ error: 'Failed to generate report', details: err.message });
+  }
+});
+
+// ============================================================
+// Reports CRUD endpoints (Session B4)
+//
+// All workspace-scoped via getWorkspaceId(req). Match the auth
+// pattern other workspace-scoped resources use (requireAuth +
+// resolved workspace id, not raw req.user — that shape doesn't
+// exist in this codebase).
+// ============================================================
+app.get('/api/reports', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const type = req.query.type;
+    let limit = parseInt(req.query.limit, 10) || 20;
+    if (limit > 100) limit = 100;
+
+    let query = `SELECT id, title, type, prompt, created_at, updated_at FROM reports WHERE workspace_id = $1`;
+    const params = [workspaceId];
+    if (type) {
+      query += ` AND type = $2`;
+      params.push(type);
+    }
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[GET /api/reports]', err);
+    res.status(500).json({ error: 'Failed to load reports' });
+  }
+});
+
+app.get('/api/reports/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid report id' });
+
+    const result = await pool.query(
+      `SELECT * FROM reports WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[GET /api/reports/:id]', err);
+    res.status(500).json({ error: 'Failed to load report' });
+  }
+});
+
+app.post('/api/reports', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const userId = req.session.userId;
+    const body = req.body || {};
+
+    let { title, type, prompt, content, data_snapshot, parameters } = body;
+    type = type || 'general';
+
+    // Mode A: prompt-only — generate content via AI
+    if (prompt && !content) {
+      const generated = await generateReportContent({
+        workspaceId,
+        type,
+        prompt,
+        parameters: parameters || null,
+      });
+      content = generated.content;
+      data_snapshot = generated.data_snapshot;
+      if (!title) title = generated.title;
+    }
+
+    if (!content) {
+      return res.status(400).json({ error: 'Either content or prompt must be provided' });
+    }
+    if (!title) {
+      title = `${type.charAt(0).toUpperCase() + type.slice(1)} Report`;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO reports (workspace_id, user_id, title, type, prompt, content, data_snapshot, parameters)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        workspaceId, userId, title, type, prompt || null, content,
+        data_snapshot ? JSON.stringify(data_snapshot) : null,
+        parameters ? JSON.stringify(parameters) : null,
+      ]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    // Session D5: D4's plan gates inside generateReportContent throw with
+    // err.code set. Translate to 403/429 so the frontend's handlePlanError
+    // surfaces the upgrade prompt.
+    const PLAN_ERR = new Set([
+      'subscription_canceled', 'feature_not_in_plan', 'limit_reached',
+      'ai_quota_exceeded', 'report_quota_exceeded',
+    ]);
+    if (err && err.code && PLAN_ERR.has(err.code)) {
+      const status = err.code === 'report_quota_exceeded' ? 429 : 403;
+      return res.status(status).json({ error: err.code, message: err.message });
+    }
+    console.error('[POST /api/reports]', err);
+    res.status(500).json({ error: 'Failed to create report' });
+  }
+});
+
+app.delete('/api/reports/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid report id' });
+
+    const result = await pool.query(
+      `DELETE FROM reports WHERE id = $1 AND workspace_id = $2 RETURNING id`,
+      [id, workspaceId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error('[DELETE /api/reports/:id]', err);
+    res.status(500).json({ error: 'Failed to delete report' });
+  }
+});
+
+// --- Pending Actions (Approval Queue) — Session C1 ---
+//
+// Workspace-scoped queue of AI tool calls that need human approval
+// before execution. /api/command stores them; these endpoints list,
+// approve, and reject. Approving runs the executor with the same ctx
+// the command bar would have used.
+
+app.get('/api/pending-actions', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const status = req.query.status || 'pending';
+
+    const result = await pool.query(
+      `SELECT id, tool_name, ai_summary, status, created_at, resolved_at, result
+       FROM pending_actions
+       WHERE workspace_id = $1 AND status = $2
+       ORDER BY created_at DESC LIMIT 100`,
+      [workspaceId, status]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[GET /api/pending-actions]', err);
+    res.status(500).json({ error: 'Failed to load pending actions' });
+  }
+});
+
+app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const userId = req.session.userId;
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid action id' });
+
+    const fetch = await pool.query(
+      `SELECT * FROM pending_actions WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (fetch.rows.length === 0) {
+      return res.status(404).json({ error: 'Action not found' });
+    }
+    const pending = fetch.rows[0];
+    if (pending.status !== 'pending') {
+      return res.status(400).json({ error: `Action is already ${pending.status}` });
+    }
+
+    await pool.query(
+      `UPDATE pending_actions
+         SET status = 'approved', resolved_at = NOW(), resolved_by = $1
+       WHERE id = $2 AND workspace_id = $3`,
+      [userId, id, workspaceId]
+    );
+
+    const tool = registry.getTool(pending.tool_name);
+    if (!tool) {
+      await pool.query(
+        `UPDATE pending_actions SET status = 'failed', result = $1 WHERE id = $2 AND workspace_id = $3`,
+        [JSON.stringify({ success: false, message: `Tool no longer registered: ${pending.tool_name}` }), id, workspaceId]
+      );
+      return res.status(500).json({ error: 'Tool no longer registered' });
+    }
+
+    const ctx = await buildExecutorContext(req);
+    let result;
+    try {
+      result = await tool.execute(pending.input, ctx);
+    } catch (err) {
+      console.error(`[approve ${id}] Tool ${pending.tool_name} threw:`, err);
+      result = { success: false, message: `Error: ${err.message}` };
+    }
+
+    const finalStatus = result.success ? 'executed' : 'failed';
+    await pool.query(
+      `UPDATE pending_actions SET status = $1, result = $2 WHERE id = $3 AND workspace_id = $4`,
+      [finalStatus, JSON.stringify(result), id, workspaceId]
+    );
+
+    res.json({ success: result.success, status: finalStatus, result });
+  } catch (err) {
+    console.error('[POST /api/pending-actions/:id/approve]', err);
+    res.status(500).json({ error: 'Failed to approve action' });
+  }
+});
+
+app.post('/api/pending-actions/:id/reject', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const userId = req.session.userId;
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid action id' });
+
+    const fetch = await pool.query(
+      `SELECT status FROM pending_actions WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (fetch.rows.length === 0) {
+      return res.status(404).json({ error: 'Action not found' });
+    }
+    if (fetch.rows[0].status !== 'pending') {
+      return res.status(400).json({ error: `Action is already ${fetch.rows[0].status}` });
+    }
+
+    await pool.query(
+      `UPDATE pending_actions
+         SET status = 'rejected', resolved_at = NOW(), resolved_by = $1
+       WHERE id = $2 AND workspace_id = $3`,
+      [userId, id, workspaceId]
+    );
+    res.json({ success: true, status: 'rejected' });
+  } catch (err) {
+    console.error('[POST /api/pending-actions/:id/reject]', err);
+    res.status(500).json({ error: 'Failed to reject action' });
   }
 });
 
@@ -4640,99 +5394,54 @@ app.post('/api/contacts/import', upload.single('file'), async (req, res) => {
   }
 });
 
-// --- Stripe Billing ---
-app.post('/api/billing/create-checkout', requireAuth, async (req, res) => {
-  if (!stripe) return res.status(503).json({ error: 'Billing not configured' });
-  const appUrl = process.env.APP_URL || 'https://modernmanagement.onrender.com';
-  try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE id=$1', [req.session.userId]);
-    const user = rows[0];
-    // Reuse existing customer or create new
-    let customerId = user.stripe_customer_id;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email || undefined,
-        metadata: { userId: String(user.id), username: user.username }
-      });
-      customerId = customer.id;
-      await pool.query('UPDATE users SET stripe_customer_id=$1 WHERE id=$2', [customerId, user.id]);
-    }
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      line_items: [{ price: process.env.STRIPE_PRO_PRICE_ID, quantity: 1 }],
-      success_url: `${appUrl}/workspace?upgraded=1`,
-      cancel_url: `${appUrl}/workspace`,
-      allow_promotion_codes: true,
-      subscription_data: { trial_period_days: 14 }
-    });
-    res.json({ url: session.url });
-  } catch (err) {
-    console.error('Stripe checkout error:', err.message);
-    res.status(500).json({ error: 'Failed to create checkout session', details: err.message });
-  }
+// --- Stripe Billing (legacy — retired in Session D7) ---
+//
+// These three routes were the original single-tenant billing flow:
+//   POST /api/billing/create-checkout — created Stripe customer + checkout
+//                                       session with hardcoded Pro price
+//   GET  /api/billing/portal           — opened Stripe Customer Portal
+//   POST /api/billing/webhook          — processed checkout.session.completed,
+//                                       customer.subscription.updated/deleted
+//                                       and updated users.plan to 'pro'/'free'
+//
+// All of them used the legacy `stripe` client (STRIPE_SECRET_KEY) and the
+// legacy users.plan vocabulary ('free'/'pro'/'admin'). The new flow lives
+// at /api/signup/create-checkout-session, /api/billing/portal-session, and
+// /api/stripe/webhook (using `stripeSignup`, the new tier names, and
+// workspaces.plan / workspaces.subscription_status as the source of truth).
+//
+// The handlers below stay registered (rather than being deleted) so that
+// any caller — including a misconfigured Stripe Dashboard webhook still
+// pointed at the old URL — gets an explanatory response instead of a 404
+// the operator might mistake for a routing bug.
+//
+// To migrate Stripe Dashboard config: delete the webhook endpoint that
+// points to /api/billing/webhook. Only /api/stripe/webhook should remain.
+app.post('/api/billing/create-checkout', requireAuth, async (_req, res) => {
+  return res.status(410).json({
+    error: 'route_retired',
+    message: 'This signup endpoint has been replaced. New signups go through /api/signup/create-checkout-session.',
+  });
 });
 
-app.get('/api/billing/portal', requireAuth, async (req, res) => {
-  if (!stripe) return res.status(503).json({ error: 'Billing not configured' });
-  const appUrl = process.env.APP_URL || 'https://modernmanagement.onrender.com';
-  try {
-    const { rows } = await pool.query('SELECT stripe_customer_id FROM users WHERE id=$1', [req.session.userId]);
-    const customerId = rows[0]?.stripe_customer_id;
-    if (!customerId) return res.status(400).json({ error: 'No billing account found' });
-    const portal = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${appUrl}/workspace`
-    });
-    res.json({ url: portal.url });
-  } catch (err) {
-    console.error('Stripe portal error:', err.message);
-    res.status(500).json({ error: 'Failed to open billing portal', details: err.message });
-  }
+app.get('/api/billing/portal', requireAuth, async (_req, res) => {
+  return res.status(410).json({
+    error: 'route_retired',
+    message: 'This billing portal endpoint has been replaced. Use POST /api/billing/portal-session instead.',
+  });
 });
 
-// Stripe webhook — must use raw body
+// Stripe webhook — must use raw body (the app.use at the top of server.js
+// already mounts express.raw for this path; preserved here for clarity).
 app.post('/api/billing/webhook',
   express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    if (!stripe) return res.sendStatus(200);
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-      console.error('Stripe webhook signature error:', err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    try {
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const customerId = session.customer;
-        await pool.query(
-          'UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE stripe_customer_id=$3',
-          ['pro', session.subscription, customerId]
-        );
-        console.log('User upgraded to Pro:', customerId);
-      } else if (event.type === 'customer.subscription.deleted') {
-        const sub = event.data.object;
-        await pool.query(
-          'UPDATE users SET plan=$1, stripe_subscription_id=$2 WHERE stripe_customer_id=$3',
-          ['free', '', sub.customer]
-        );
-        console.log('User downgraded to free:', sub.customer);
-      } else if (event.type === 'customer.subscription.updated') {
-        const sub = event.data.object;
-        const plan = sub.status === 'active' || sub.status === 'trialing' ? 'pro' : 'free';
-        await pool.query(
-          'UPDATE users SET plan=$1 WHERE stripe_customer_id=$2',
-          [plan, sub.customer]
-        );
-      }
-    } catch (err) {
-      console.error('Stripe webhook handler error:', err.message);
-    }
-    res.sendStatus(200);
+  async (_req, res) => {
+    // Acknowledge with 200 so Stripe doesn't retry indefinitely. Log a
+    // warning so we know if the Stripe Dashboard is still routing events
+    // to the legacy URL — that means the operator needs to delete the
+    // legacy webhook config in Stripe.
+    console.warn('[legacy billing webhook] Received event after retirement (D7). The Stripe Dashboard webhook config should point to /api/stripe/webhook only — delete the legacy endpoint there.');
+    return res.status(200).json({ received: true, retired: true });
   }
 );
 
@@ -4740,17 +5449,25 @@ app.post('/api/billing/webhook',
 // Enabled when ENABLE_DEBUG_ENDPOINTS is any truthy-looking value.
 // Protected by requireAuth so anonymous requests can't spam errors.
 // After verifying Sentry captures the test event, unset the env var to disable.
+//
+// Session D8: hardened with an outer NODE_ENV !== 'production' guard so the
+// route is unreachable in production even if ENABLE_DEBUG_ENDPOINTS is
+// accidentally set there. Belt and suspenders.
 const debugRaw = process.env.ENABLE_DEBUG_ENDPOINTS;
 const debugEnabled = ['true', '1', 'yes', 'on'].includes(
   (debugRaw || '').trim().toLowerCase()
 );
-if (debugEnabled) {
-  app.get('/api/debug/trigger-error', requireAuth, (_req, _res) => {
-    throw new Error('Intentional Sentry test error at ' + new Date().toISOString());
-  });
-  console.log('Debug endpoints ENABLED: GET /api/debug/trigger-error');
+if (process.env.NODE_ENV !== 'production') {
+  if (debugEnabled) {
+    app.get('/api/debug/trigger-error', requireAuth, (_req, _res) => {
+      throw new Error('Intentional Sentry test error at ' + new Date().toISOString());
+    });
+    console.log('Debug endpoints ENABLED: GET /api/debug/trigger-error');
+  } else {
+    console.log('Debug endpoints disabled (ENABLE_DEBUG_ENDPOINTS=' + JSON.stringify(debugRaw) + ')');
+  }
 } else {
-  console.log('Debug endpoints disabled (ENABLE_DEBUG_ENDPOINTS=' + JSON.stringify(debugRaw) + ')');
+  console.log('Debug endpoints disabled in production (NODE_ENV=production)');
 }
 
 // --- Sentry Express error handler ---
@@ -4799,6 +5516,23 @@ async function initDBWithRetry(attempt = 1) {
     } else {
       console.error('DB init failed after 5 attempts. Routes that need the DB will return 500 until the DB is reachable.');
     }
+    return;
+  }
+
+  // Session D8: file-based migration runner. Reads migrations/phase1-additive
+  // and applies any not yet recorded in schema_migrations. Fail-loud: any
+  // migration error halts startup with process.exit(1). Runs AFTER initDB()
+  // so the legacy inline schema (CREATE TABLE IF NOT EXISTS, ALTERs via the
+  // migrate() helper) is in place before the file-based deltas apply.
+  try {
+    const migrations = require('./lib/migrations');
+    const result = await migrations.runPendingMigrations(pool);
+    if (result.applied.length > 0) {
+      console.log(`[migrations] Auto-applied: ${result.applied.join(', ')}`);
+    }
+  } catch (err) {
+    console.error('[migrations] FATAL:', err.message);
+    process.exit(1);
   }
 }
 initDBWithRetry();

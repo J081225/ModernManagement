@@ -241,7 +241,7 @@
       .card-head-subtitle {
         font-family: 'Inter', sans-serif;
         font-size: 0.86em;
-        color: rgba(232,222,194,0.62);
+        color: #e2e8f0;
         margin-top: 4px;
         line-height: 1.55;
         font-weight: 400;
@@ -276,7 +276,7 @@
       }
       .settings-row-hint {
         display: block;
-        color: rgba(232,222,194,0.55);
+        color: #94a3b8;
         font-size: 12px;
         margin-top: 3px;
         line-height: 1.45;
@@ -327,13 +327,13 @@
         text-transform: uppercase;
       }
       .routing-pill-value {
-        color: #f3ead8;
+        color: #f5e6d3;
         font-size: 14px;
         font-weight: 500;
         font-family: 'Inter', sans-serif;
       }
       .routing-pill-hint {
-        color: rgba(232,222,194,0.55);
+        color: #94a3b8;
         font-size: 12px;
         line-height: 1.45;
       }
@@ -357,11 +357,11 @@
       .mode-card .mode-card-title {
         font-size: 14px;
         font-weight: 500;
-        color: #f3ead8;
+        color: #f5e6d3;
         font-family: 'Inter', sans-serif;
       }
       .mode-card .mode-card-hint {
-        color: rgba(232,222,194,0.55);
+        color: #e2e8f0;
         font-size: 12px;
         line-height: 1.45;
         font-family: 'Inter', sans-serif;
@@ -634,6 +634,74 @@
         flex-wrap: wrap;
         gap: 6px;
       }
+      /* B5: AI response follow-along banner. Uses only the four-tier
+         text-color hierarchy from B4.5 (ivory / gold / light-gray /
+         muted-gray) on a faint gold tint so it sits on top of any
+         page background without clashing. Manual dismiss only. */
+      .b5-ai-banner {
+        position: relative;
+        margin: 0 0 18px;
+        padding: 14px 44px 14px 18px;
+        background: rgba(212, 175, 55, 0.08);
+        border: 1px solid rgba(212, 175, 55, 0.28);
+        border-radius: 10px;
+        color: #f5e6d3;
+        font-size: 0.92em;
+        line-height: 1.55;
+        animation: b5BannerIn 0.32s ease;
+      }
+      .b5-ai-banner-reply {
+        color: #f5e6d3;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      .b5-ai-banner-chips {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(212, 175, 55, 0.18);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .b5-ai-banner-chip {
+        font-size: 0.8em;
+        font-weight: 500;
+        color: #e2e8f0;
+        background: rgba(10, 20, 32, 0.45);
+        border: 1px solid rgba(212, 175, 55, 0.18);
+        border-radius: 6px;
+        padding: 4px 9px;
+      }
+      .b5-ai-banner-close {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        background: transparent;
+        border: none;
+        color: #94a3b8;
+        font-size: 1.4em;
+        line-height: 1;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: color 0.15s ease, background 0.15s ease;
+      }
+      .b5-ai-banner-close:hover {
+        color: #d4af37;
+        background: rgba(212, 175, 55, 0.08);
+      }
+      @keyframes b5BannerIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .b5-focus-flash {
+        animation: b5FocusFlash 1.4s ease;
+      }
+      @keyframes b5FocusFlash {
+        0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.55); }
+        50% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.32); }
+        100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+      }
       /* Navy/green/gold scheme: dark-glass typography utilities + animated banner title */
       @keyframes bannerGradientShift {
         0%, 100% { background-position: 0% 50%; }
@@ -673,7 +741,7 @@
         font-family: 'Inter', sans-serif !important;
         font-size: 0.95em !important;
         font-weight: 400 !important;
-        color: rgba(226,232,240,0.78) !important;
+        color: #e2e8f0 !important;
         margin-top: 10px !important;
         letter-spacing: 0.2px !important;
       }
@@ -738,11 +806,242 @@
       }
       /* AI response markdown text adapts to dark bg */
       .ai-response-body { color: #e2e8f0 !important; }
-      .ai-response-body strong { color: #d4af37 !important; }
-      .ai-response-body em { color: #cbd5e1 !important; }
+      .ai-response-body strong { color: #f5e6d3 !important; }
+      .ai-response-body em { color: #d4af37 !important; }
+      .ai-response-body h1,
+      .ai-response-body h2,
+      .ai-response-body h3,
+      .ai-response-body h4 {
+        color: #f5e6d3 !important;
+      }
       .ai-response-body code {
-        background: rgba(45,134,89,0.22) !important;
-        color: #6ee7b7 !important;
+        background: rgba(212,175,55,0.10) !important;
+        color: #d4af37 !important;
+      }
+      /* Session C2.5: Report Detail modal converted to dark navy so the
+         Tier 3 .ai-response-body colors render readably. */
+      #reportDetailModal .modal {
+        background:
+          linear-gradient(160deg, rgba(20,38,58,0.97) 0%, rgba(10,20,32,0.97) 100%) !important;
+        border: 1px solid rgba(212,175,55,0.28) !important;
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.06),
+          0 24px 60px rgba(0,0,0,0.55) !important;
+        color: #f5e6d3;
+      }
+      #reportDetailModal #reportDetailTitle {
+        color: #f5e6d3;
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+      }
+      #reportDetailModal #reportDetailMeta {
+        color: #94a3b8;
+      }
+      #reportDetailModal #reportDetailPrompt {
+        color: #e2e8f0;
+        background: rgba(212,175,55,0.08);
+        border-left: 3px solid #d4af37;
+      }
+      #reportDetailModal #reportDetailContent {
+        color: #e2e8f0;
+      }
+      /* ============================================================
+       * Session D5: customer-facing billing UI
+       * Plan badge (topbar chrome + admin card), subscription banner,
+       * plan & usage card, upgrade prompt modal. All colors taken from
+       * the C2.5 four-tier palette (#f5e6d3 / #d4af37 / #e2e8f0 / #94a3b8).
+       * ============================================================ */
+      .plan-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-left: 12px;
+        font-family: 'Fraunces', serif;
+      }
+      .plan-badge-trial {
+        background: rgba(212, 175, 55, 0.15);
+        color: #d4af37;
+        border: 1px solid rgba(212, 175, 55, 0.4);
+      }
+      .plan-badge-solo {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+      }
+      .plan-badge-team {
+        background: rgba(34, 197, 94, 0.15);
+        color: #86efac;
+        border: 1px solid rgba(34, 197, 94, 0.4);
+      }
+      .plan-badge-enterprise {
+        background: rgba(212, 175, 55, 0.2);
+        color: #f5e6d3;
+        border: 1px solid rgba(212, 175, 55, 0.6);
+        box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+      }
+
+      /* Subscription status banner (past_due / canceled) */
+      .subscription-banner {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        border-bottom: 1px solid;
+        gap: 16px;
+      }
+      .subscription-banner-past-due {
+        background: rgba(251, 146, 60, 0.15);
+        color: #fdba74;
+        border-bottom-color: rgba(251, 146, 60, 0.3);
+      }
+      .subscription-banner-canceled {
+        background: rgba(239, 68, 68, 0.15);
+        color: #fca5a5;
+        border-bottom-color: rgba(239, 68, 68, 0.3);
+      }
+      .subscription-banner-cta {
+        padding: 6px 14px;
+        background: rgba(212, 175, 55, 0.2);
+        color: #f5e6d3;
+        border: 1px solid rgba(212, 175, 55, 0.5);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        flex-shrink: 0;
+      }
+      .subscription-banner-cta:hover {
+        background: rgba(212, 175, 55, 0.3);
+      }
+
+      /* Plan & Usage card body (slots inside the existing card chrome) */
+      .plan-usage-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .plan-usage-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .plan-usage-price {
+        color: #94a3b8;
+        font-size: 14px;
+      }
+      .plan-usage-status {
+        font-size: 13px;
+        font-weight: 500;
+        text-transform: capitalize;
+      }
+      .plan-usage-status-active   { color: #86efac; }
+      .plan-usage-status-trial    { color: #d4af37; }
+      .plan-usage-status-past_due { color: #fdba74; }
+      .plan-usage-status-canceled { color: #fca5a5; }
+      .plan-usage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .plan-usage-stat {
+        padding: 12px 14px;
+        background: rgba(20, 38, 58, 0.5);
+        border: 1px solid rgba(212, 175, 55, 0.10);
+        border-radius: 8px;
+      }
+      .plan-usage-stat-label {
+        font-size: 11px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .plan-usage-stat-value {
+        font-size: 18px;
+        color: #f5e6d3;
+        font-family: 'Fraunces', serif;
+      }
+      .plan-usage-stat-value-warn  { color: #fdba74; }
+      .plan-usage-stat-value-limit { color: #fca5a5; }
+      .plan-usage-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .plan-usage-feature {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #e2e8f0;
+      }
+      .plan-usage-feature::before {
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .plan-usage-feature-included::before {
+        content: '\2713';
+        color: #86efac;
+      }
+      .plan-usage-feature-excluded {
+        color: #64748b;
+      }
+      .plan-usage-feature-excluded::before {
+        content: '\2715';
+        color: #64748b;
+      }
+      .plan-usage-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      /* Upgrade prompt modal — uses the C2.5 dark-navy aesthetic */
+      .modal-content-dark {
+        background: linear-gradient(160deg, rgba(20,38,58,0.97) 0%, rgba(10,20,32,0.97) 100%);
+        border: 1px solid rgba(212,175,55,0.28);
+        color: #e2e8f0;
+        border-radius: 16px;
+        padding: 28px 32px;
+        max-width: 480px;
+        width: 96vw;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.55);
+      }
+      .upgrade-prompt-title {
+        margin: 0 0 12px;
+        font-family: 'Fraunces', serif;
+        font-size: 20px;
+        color: #f5e6d3;
+      }
+      .upgrade-prompt-message {
+        color: #e2e8f0;
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0 0 24px;
+      }
+      .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
       }
       .ai-thinking-bubble {
         background: rgba(10,20,32,0.60) !important;
@@ -959,7 +1258,7 @@
         font-family: 'Inter', sans-serif;
         font-size: 0.98em;
         font-weight: 400;
-        color: rgba(226,232,240,0.78);
+        color: #e2e8f0;
         margin-top: 12px;
         letter-spacing: 0.2px;
       }
@@ -1001,7 +1300,7 @@
         text-transform: none !important;
         letter-spacing: 0 !important;
         font-size: 0.92em !important;
-        color: rgba(212,175,55,0.75) !important;
+        color: #d4af37 !important;
         margin-left: 2px !important;
       }
 
@@ -1129,7 +1428,7 @@
       .stat-tile-label {
         font-family: 'Inter', sans-serif;
         font-size: 0.72em;
-        color: #94a3b8;
+        color: #d4af37;
         margin-top: 6px;
         font-weight: 600;
         text-transform: uppercase;
@@ -1303,7 +1602,7 @@
       .avatar-vendor   { background: linear-gradient(135deg, #667eea, #764ba2); }
       .avatar-important { background: linear-gradient(135deg, #f093fb, #f5576c); }
       .contact-info { flex: 1; min-width: 0; }
-      .contact-name { font-weight: 600; font-size: 0.93em; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .contact-name { font-weight: 600; font-size: 0.93em; color: #f5e6d3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .contact-sub { font-size: 0.78em; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .contact-type-tag {
         font-size: 0.68em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
@@ -1353,9 +1652,9 @@
       .task-check:hover { border-color: #4a90e2; background: #eef4ff; }
       .task-check.checked { background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-color: transparent; color: white; font-size: 0.75em; }
       .task-body { flex: 1; }
-      .task-title { font-size: 0.92em; font-weight: 600; color: #0f172a; margin-bottom: 3px; }
+      .task-title { font-size: 0.92em; font-weight: 600; color: #f5e6d3; margin-bottom: 3px; }
       .task-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
-      .task-due { font-size: 0.78em; color: #64748b; }
+      .task-due { font-size: 0.78em; color: #94a3b8; }
       .task-cat {
         font-size: 0.7em;
         font-weight: 600;
@@ -1517,11 +1816,12 @@
         <div class="nav-label">Workspace</div>
         <a href="#" class="active" onclick="showPage('home', '&#127968;', this)" id="nav-home"><span class="nav-icon">&#127968;</span> Home</a>
         <a href="#" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
-        <a href="#" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
-        <a href="#" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
-        <a href="#" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
+        <a href="#" id="nav-operations" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
+        <a href="#" id="nav-calendar" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
+        <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
+        <a href="#" id="nav-admin" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
         <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
-        <a href="#" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
+        <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
         <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
@@ -1535,7 +1835,13 @@
         <span id="topbar-icon">&#9993;</span>
         <span id="topbar-title">Inbox</span>
         <span class="topbar-chip" id="topbar-time"></span>
+        <span id="planBadge" class="plan-badge" style="display:none;"><span class="plan-badge-label">—</span></span>
         <a href="/api/logout" style="margin-left:12px;font-size:0.78em;font-weight:600;color:#94a3b8;text-decoration:none;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;transition:all 0.2s;" onmouseover="this.style.color='#e74c3c';this.style.borderColor='#e74c3c';" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#e2e8f0';">Sign Out</a>
+      </div>
+      <!-- Session D5: subscription status banner (sticky, only shown when past_due / canceled) -->
+      <div id="subscriptionBanner" class="subscription-banner" style="display:none;">
+        <span id="subscriptionBannerText"></span>
+        <button id="subscriptionBannerCta" class="subscription-banner-cta">Manage Billing</button>
       </div>
       <div id="content">
 
@@ -1617,18 +1923,36 @@
             <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:#2d3748;line-height:1.65;position:relative;"></div>
           </div>
 
+          <!-- Approval Queue (Session C1) -->
+          <div id="approvalQueueCard" class="card home-fade" style="display:none;margin-bottom:20px;">
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <div class="card-head-titles">
+                <div class="card-head-title">Pending Approvals <span id="approvalQueueCount" style="background:#d4af37;color:#0a1420;font-size:0.7em;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px;vertical-align:middle;"></span></div>
+                <div class="card-head-subtitle">Actions the AI wants to take on your behalf. Review each one before it executes.</div>
+              </div>
+            </div>
+            <div class="card-head-rule"></div>
+            <div id="approvalQueueList" style="min-height:60px;"></div>
+          </div>
+
           <!-- Property Report -->
           <div class="card card-hero home-fade" style="margin-bottom:24px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;">
               <div style="display:flex;align-items:center;gap:14px;">
                 <div class="hero-avatar" style="width:46px;height:46px;background:linear-gradient(135deg,#0f3a26 0%,#1a5f3f 50%,#2d8659 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;box-shadow:0 6px 20px rgba(45,134,89,0.50),inset 0 1px 0 rgba(255,255,255,0.20);">&#128196;</div>
                 <div>
-                  <div class="hero-title">Property Report</div>
-                  <div class="hero-subtitle">AI-generated report — tasks, insights, market tips, and workflow suggestions</div>
+                  <div class="hero-title">Quick Snapshot Report</div>
+                  <div class="hero-subtitle">A fast AI-generated overview of your property. For detailed reports — budget, tenant, inventory, activity — use the Reports page.</div>
                 </div>
               </div>
               <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 50%,#d4af37 100%);border:none;padding:11px 22px;white-space:nowrap;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);color:#f5e6d3;font-weight:600;">
-                &#128196; Generate Report
+                &#128196; Generate Snapshot
               </button>
             </div>
             <div id="reportOutput" style="display:none;margin-top:20px;position:relative;"></div>
@@ -1946,6 +2270,51 @@
             </div>
 
           </div>
+          </div>
+        </div>
+
+        <!-- REPORTS PAGE — see #page-reports -->
+        <div class="page" id="page-reports">
+          <div class="page-content">
+            <div class="page-hero">
+              <div class="page-hero-overlay-dark"></div>
+              <div class="page-hero-glow"></div>
+              <div class="page-hero-content">
+                <div class="page-hero-title">Reports</div>
+                <div class="page-hero-sub">AI-generated reports on your property — budgets, tenants, inventory, activity, and custom analyses.</div>
+              </div>
+            </div>
+
+            <div class="section-label"><span class="dot"></span>Saved reports<span class="accent">your archive</span></div>
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-head-tile">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">All reports</div>
+                  <div class="card-head-subtitle">Reports you've generated, newest first. Click any report to view it. Use the New Report button or the AI command bar to create more.</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap;">
+                <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f5e6d3;font-family:inherit;cursor:pointer;">
+                  <option value="">All types</option>
+                  <option value="budget">Budget</option>
+                  <option value="tenant">Tenant</option>
+                  <option value="inventory">Inventory</option>
+                  <option value="activity">Activity</option>
+                  <option value="general">General</option>
+                </select>
+                <button class="btn-primary" onclick="openNewReportModal()">+ New Report</button>
+              </div>
+
+              <div id="reportsList" style="min-height:120px;">
+                <div style="text-align:center;padding:32px;color:#94a3b8;font-style:italic;">Loading...</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -2286,7 +2655,7 @@
                   <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save settings</button>
                   <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#86efac;font-weight:500;">&#10003; Settings saved</div>
                 </div>
-                <div style="font-size:11px;color:rgba(232,222,194,0.45);margin-top:14px;line-height:1.5;">
+                <div style="font-size:11px;color:#94a3b8;margin-top:14px;line-height:1.5;">
                   We'll text the emergency phone when a tenant message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
                 </div>
               </div>
@@ -2322,24 +2691,31 @@
           </div>
 
           <!-- Billing -->
-          <div class="card" style="margin-bottom:22px;" id="billingCard">
+          <!-- Session D5: Plan & Usage card (replaces legacy Pro/Free billing card) -->
+          <div class="card" style="margin-bottom:22px;" id="planUsageCard">
             <div class="card-head">
               <div class="card-head-tile">
                 <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
               </div>
               <div class="card-head-titles">
-                <div class="card-head-title">Plan &amp; billing</div>
-                <div class="card-head-subtitle">Your current plan, payment method and subscription status.</div>
+                <div class="card-head-title">Plan &amp; usage</div>
+                <div class="card-head-subtitle">Current plan, status, and how much of your monthly capacity you've used.</div>
               </div>
             </div>
             <div class="card-head-rule"></div>
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
-              <div id="planBadge" style="display:inline-flex;align-items:center;gap:8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.85em;font-weight:600;color:#475569;">
-                <span id="planIcon">&#10003;</span> <span id="planName">Free plan</span>
+            <div class="plan-usage-header">
+              <div class="plan-usage-title">
+                <span id="planUsageCardBadge" class="plan-badge"><span class="plan-badge-label">—</span></span>
+                <span class="plan-usage-price" id="planUsagePrice"></span>
               </div>
-              <div id="planDesc" style="font-size:0.85em;color:#94a3b8;"></div>
+              <div class="plan-usage-status" id="planUsageStatus"></div>
             </div>
-            <div id="billingActions"></div>
+            <div class="plan-usage-grid" id="planUsageGrid"></div>
+            <div class="plan-usage-features" id="planUsageFeatures"></div>
+            <div class="plan-usage-actions">
+              <button class="btn-secondary" onclick="openBillingPortal()">Manage Billing</button>
+              <button class="btn-primary" onclick="openBillingPortal()">Upgrade Plan</button>
+            </div>
           </div>
 
           <!-- Payment Auto-Match -->
@@ -2545,16 +2921,229 @@
       ];
 
       // --- Navigation ---
+      // Icon map for pages — used when showPage is invoked without an
+      // explicit (icon, link) pair (e.g., from B5's handlePostActionNavigation).
+      const PAGE_ICONS = {
+        home: '&#127968;', inbox: '&#9993;', operations: '&#9881;',
+        calendar: '&#128197;', reports: '&#128203;', admin: '&#128188;',
+        maintenance: '&#128295;', contacts: '&#128100;',
+        inventory: '&#127970;', tasks: '&#10003;'
+      };
+
       function showPage(name, icon, link) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
-        document.getElementById('page-' + name).classList.add('active');
-        link.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory' };
-        if (name === 'home') { loadHomeStats(); loadLeases(); }
+        const pageEl = document.getElementById('page-' + name);
+        if (pageEl) pageEl.classList.add('active');
+        // Resolve the sidebar link if not provided. B5 nav calls showPage(name)
+        // without click context — fall back to id="nav-<name>".
+        const navLink = link || document.getElementById('nav-' + name);
+        if (navLink) navLink.classList.add('active');
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports' };
+        if (name === 'home') {
+          loadHomeStats();
+          loadLeases();
+          if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
+        }
         if (name === 'inventory') loadInventory();
-        document.getElementById('topbar-icon').innerHTML = icon;
-        document.getElementById('topbar-title').textContent = titles[name];
+        if (name === 'reports') loadReports();
+        const resolvedIcon = icon || PAGE_ICONS[name] || '';
+        document.getElementById('topbar-icon').innerHTML = resolvedIcon;
+        document.getElementById('topbar-title').textContent = titles[name] || name;
+        // B5: replay the most-recent AI response as a banner if it
+        // names this page (or has no preferred page) and is fresh.
+        if (typeof maybeShowAIResponseOnPage === 'function') {
+          maybeShowAIResponseOnPage(name);
+        }
+      }
+
+      // ====================================================================
+      // B5 — Auto-Navigation & AI Response Follow-Along
+      //
+      // Server-side selectNavigation picks at most one navigation target
+      // from a multi-tool batch. Frontend mirrors that as a navigation
+      // payload: { page: <slug>, focus: { type, ...fields } } or null.
+      //
+      // recordAIResponse caches the AI reply for a short window (5s) so
+      // that when the user lands on a different page, a banner replays
+      // the AI's text response inline. The cache is one-shot per page.
+      // ====================================================================
+      let _lastAIResponse = null;
+      const _AI_RESPONSE_TTL_MS = 5000;
+
+      function recordAIResponse(reply, actions, navigation) {
+        if (!reply) {
+          _lastAIResponse = null;
+          return;
+        }
+        _lastAIResponse = {
+          reply: String(reply),
+          actions: Array.isArray(actions) ? actions : [],
+          navigation: navigation || null,
+          recordedAt: Date.now(),
+          shownOn: new Set(),
+        };
+      }
+
+      function maybeShowAIResponseOnPage(pageName) {
+        if (!_lastAIResponse) return;
+        if ((Date.now() - _lastAIResponse.recordedAt) > _AI_RESPONSE_TTL_MS) {
+          _lastAIResponse = null;
+          return;
+        }
+        // Don't replay on home — the response is already visible there.
+        if (pageName === 'home') return;
+        // One-shot per page within the TTL window.
+        if (_lastAIResponse.shownOn.has(pageName)) return;
+        // Only replay on the navigation target page (or any page if no
+        // explicit target was returned).
+        const navTarget = _lastAIResponse.navigation && _lastAIResponse.navigation.page;
+        if (navTarget && navTarget !== pageName) return;
+        renderAIResponseBanner(pageName, _lastAIResponse);
+        _lastAIResponse.shownOn.add(pageName);
+      }
+
+      function renderAIResponseBanner(pageName, payload) {
+        const pageEl = document.getElementById('page-' + pageName);
+        if (!pageEl) return;
+        // Remove any existing banner first.
+        const existing = pageEl.querySelector('.b5-ai-banner');
+        if (existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.className = 'b5-ai-banner';
+
+        const replyDiv = document.createElement('div');
+        replyDiv.className = 'b5-ai-banner-reply';
+        replyDiv.textContent = payload.reply;
+        banner.appendChild(replyDiv);
+
+        if (payload.actions && payload.actions.length) {
+          const chipsDiv = document.createElement('div');
+          chipsDiv.className = 'b5-ai-banner-chips';
+          for (const a of payload.actions) {
+            const chip = document.createElement('span');
+            chip.className = 'b5-ai-banner-chip';
+            const ok = a.success !== false;
+            chip.textContent = (ok ? '\u2713 ' : '\u26A0 ') + (a.message || a.type || '');
+            chipsDiv.appendChild(chip);
+          }
+          banner.appendChild(chipsDiv);
+        }
+
+        const close = document.createElement('button');
+        close.className = 'b5-ai-banner-close';
+        close.type = 'button';
+        close.setAttribute('aria-label', 'Dismiss AI response');
+        close.innerHTML = '&times;';
+        close.addEventListener('click', () => banner.remove());
+        banner.appendChild(close);
+
+        // Insert into the .page-content wrapper if present, else the page.
+        const host = pageEl.querySelector('.page-content') || pageEl;
+        host.insertBefore(banner, host.firstChild);
+      }
+
+      // --- Post-action navigation ---
+      // Called from submitHomeCommand AFTER applyActions completes (so
+      // refreshPageData has already run and the target list is fresh).
+      function handlePostActionNavigation(navigation) {
+        if (!navigation || !navigation.page) return;
+        const targetPage = navigation.page;
+        const currentPage = document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
+        if (currentPage !== targetPage) {
+          showPage(targetPage);
+        }
+        // Apply the focus on the (now active) target page. Defer so the
+        // page's own load handlers (loadInventory, loadReports, etc.)
+        // have a chance to render their lists first.
+        setTimeout(() => applyNavigationFocus(targetPage, navigation.focus || {}), 250);
+      }
+
+      function applyNavigationFocus(pageName, focus) {
+        if (!focus || !focus.type) return;
+        switch (focus.type) {
+          case 'newest_property':
+            _focusNewestInList('#inventoryPropertiesGrid', '[data-property-id]', 'data-property-id');
+            break;
+          case 'newest_unit':
+            // Units render inside per-property detail panes; surface the
+            // newest property card so the user can drill in.
+            _focusNewestInList('#inventoryPropertiesGrid', '[data-property-id]', 'data-property-id');
+            break;
+          case 'newest_contact':
+            _focusNewestInList('#contactGrid', '[data-contact-id]', 'data-contact-id');
+            break;
+          case 'newest_ticket':
+            _focusNewestInList('#maintTicketList', '[data-ticket-id]', 'data-ticket-id');
+            break;
+          case 'specific_report':
+            if (focus.reportId) viewReport(focus.reportId);
+            break;
+          case 'date':
+            if (focus.date) scrollCalendarToDate(focus.date);
+            break;
+          case 'tab':
+            if (focus.tab) activateAdminTab(focus.tab);
+            break;
+        }
+      }
+
+      // _focusNewestInList — find the child of `containerSel` matching
+      // `itemSel` with the highest numeric value of `dataAttr`, scroll
+      // it into view, and add a brief flash class.
+      function _focusNewestInList(containerSel, itemSel, dataAttr) {
+        const container = document.querySelector(containerSel);
+        if (!container) return;
+        const items = container.querySelectorAll(itemSel);
+        if (!items.length) return;
+        let target = null;
+        let maxId = -Infinity;
+        for (const el of items) {
+          const v = Number(el.getAttribute(dataAttr));
+          if (Number.isFinite(v) && v > maxId) { maxId = v; target = el; }
+        }
+        if (!target) target = items[0];
+        try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch { target.scrollIntoView(); }
+        target.classList.add('b5-focus-flash');
+        setTimeout(() => target.classList.remove('b5-focus-flash'), 1600);
+      }
+
+      // Calendar: jump to the month containing `dateStr` (YYYY-MM-DD)
+      // and select the day. Reuses the existing selectDay/renderCalendar
+      // helpers so behaviour stays in sync with manual navigation.
+      function scrollCalendarToDate(dateStr) {
+        if (!dateStr || typeof dateStr !== 'string') return;
+        const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return;
+        const y = Number(m[1]);
+        const mon = Number(m[2]) - 1;
+        if (typeof calYear !== 'undefined' && typeof calMonth !== 'undefined') {
+          if (calYear !== y || calMonth !== mon) {
+            calYear = y;
+            calMonth = mon;
+          }
+        }
+        if (typeof selectDay === 'function') {
+          selectDay(dateStr);
+        } else if (typeof renderCalendar === 'function') {
+          renderCalendar();
+        }
+      }
+
+      // Admin: best-effort tab activation. The Admin page may not have
+      // formal tabs yet — fall back to scrolling into view by id.
+      function activateAdminTab(tab) {
+        if (!tab) return;
+        const explicit = document.querySelector(`#page-admin [data-admin-tab="${tab}"]`);
+        if (explicit) {
+          try { explicit.click(); } catch {}
+          return;
+        }
+        const section = document.getElementById('admin-' + tab) || document.getElementById(tab + '-section');
+        if (section) {
+          try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch { section.scrollIntoView(); }
+        }
       }
 
       function updateClock() {
@@ -3077,10 +3666,10 @@
           const typeColor = d.type === 'uploaded' ? '#667eea' : d.type === 'procedure' ? '#f59e0b' : '#ff6b6b';
           return `<div style="border-bottom:1px solid #eee;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;color:#2d3748;font-size:0.95em;">${d.title}
+              <div style="font-weight:700;color:#f5e6d3;font-size:0.95em;">${d.title}
                 <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;background:${typeColor}18;color:${typeColor};font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;vertical-align:1px;">${d.type}</span>
               </div>
-              <p style="margin-top:6px;font-size:0.86em;color:#64748b;line-height:1.55;">${preview}${more}</p>
+              <p style="margin-top:6px;font-size:0.86em;color:#e2e8f0;line-height:1.55;">${preview}${more}</p>
             </div>
             <button onclick="deleteKnowledge(${d.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.05em;padding:4px 6px;flex-shrink:0;" title="Remove">🗑</button>
           </div>`;
@@ -3911,7 +4500,7 @@
           const statusColor = statusColors[t.status] || '#94a3b8';
           const created = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
-          return `<div class="card" style="border-left:4px solid ${isEmergency ? '#dc2626' : statusColor};padding:18px 20px;">
+          return `<div class="card" data-ticket-id="${t.id}" style="border-left:4px solid ${isEmergency ? '#dc2626' : statusColor};padding:18px 20px;">
             <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
               <div style="flex:1;min-width:220px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
@@ -3920,12 +4509,12 @@
                   <span style="background:#f1f5f9;color:#64748b;border-radius:5px;padding:2px 8px;font-size:0.75em;">${t.category}</span>
                   ${t.requires_action ? '<span style="background:#fff7ed;color:#ea580c;border-radius:5px;padding:2px 8px;font-size:0.75em;font-weight:600;">⚠ Office Action Required</span>' : ''}
                 </div>
-                <div style="font-size:1.02em;font-weight:700;color:#1a2e4a;margin-bottom:4px;">${t.title}</div>
-                <div style="font-size:0.82em;color:#64748b;margin-bottom:6px;">
+                <div style="font-size:1.02em;font-weight:700;color:#f5e6d3;margin-bottom:4px;">${t.title}</div>
+                <div style="font-size:0.82em;color:#94a3b8;margin-bottom:6px;">
                   ${t.unit ? `Unit ${t.unit} · ` : ''}${t.resident || ''} · Created ${created}
-                  ${t.emergency_sms_sent ? ' · <span style="color:#27ae60;">✓ Emergency SMS sent</span>' : ''}
+                  ${t.emergency_sms_sent ? ' · <span style="color:#86efac;">✓ Emergency SMS sent</span>' : ''}
                 </div>
-                ${t.description ? `<div style="font-size:0.88em;color:#475569;margin-bottom:8px;">${t.description}</div>` : ''}
+                ${t.description ? `<div style="font-size:0.88em;color:#e2e8f0;margin-bottom:8px;">${t.description}</div>` : ''}
                 ${t.outcome ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#166534;margin-bottom:8px;"><strong>Maintenance Outcome:</strong> ${t.outcome}</div>` : ''}
                 ${t.action_notes ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#9a3412;"><strong>Office Action Notes:</strong> ${t.action_notes}</div>` : ''}
               </div>
@@ -4056,7 +4645,7 @@
               leaseBadge = `<span class="lease-badge ${cls}">${days <= 0 ? 'Expired' : days + 'd'}</span>`;
             }
           }
-          return `<div class="contact-card ${isSelected ? 'selected' : ''}" onclick="selectContact(${c.id})">
+          return `<div class="contact-card ${isSelected ? 'selected' : ''}" data-contact-id="${c.id}" onclick="selectContact(${c.id})">
             <div class="contact-avatar avatar-${c.type}">${initials}</div>
             <div class="contact-info">
               <div class="contact-name">${c.name}</div>
@@ -4355,6 +4944,9 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
             });
+            // Session D5: surface D4 maxContacts / canceled errors as upgrade prompt
+            const _planErr = await handlePlanError(res);
+            if (_planErr) return;
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
               alert('Failed to add contact:\n\n' + (body.error || 'HTTP ' + res.status));
@@ -4443,6 +5035,176 @@
         loadLeases();
       }
 
+      // ============================================================
+      // REPORTS PAGE (Session B4)
+      // ============================================================
+      let _currentReportId = null;
+
+      async function loadReports() {
+        // Called by showPage('reports') and refreshPageData('reports')
+        return loadReportsList();
+      }
+
+      async function loadReportsList() {
+        const filter = document.getElementById('reportTypeFilter');
+        const type = filter ? filter.value : '';
+        const list = document.getElementById('reportsList');
+        if (!list) return;
+        list.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-style:italic;">Loading...</div>';
+        try {
+          const url = type ? `/api/reports?type=${encodeURIComponent(type)}` : '/api/reports';
+          const res = await fetch(url, { credentials: 'include' });
+          if (!res.ok) throw new Error('Failed to load reports');
+          const reports = await res.json();
+          renderReportsList(reports);
+        } catch (err) {
+          console.error('[loadReportsList]', err);
+          list.innerHTML = '<div style="text-align:center;padding:32px;color:#f87171;">Failed to load reports.</div>';
+        }
+      }
+
+      function renderReportsList(reports) {
+        const list = document.getElementById('reportsList');
+        if (!list) return;
+        if (!reports || reports.length === 0) {
+          list.innerHTML = `
+            <div style="text-align:center;padding:48px 24px;color:#e2e8f0;">
+              <div style="font-size:2.4em;margin-bottom:12px;opacity:0.6;">&#128203;</div>
+              <div style="font-family:'Fraunces',serif;font-size:1.15em;color:#f5e6d3;margin-bottom:6px;">No reports yet</div>
+              <div style="font-size:0.88em;line-height:1.5;">Click <strong>+ New Report</strong> above, or ask the AI from the Home page command bar &mdash; for example: <em>"Generate me a budget report with suggestions for next quarter"</em>.</div>
+            </div>`;
+          return;
+        }
+        list.innerHTML = reports.map(r => `
+          <div data-report-id="${r.id}" onclick="viewReport(${r.id})" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:all 0.18s ease;" onmouseover="this.style.borderColor='rgba(212,175,55,0.45)';this.style.background='rgba(10,20,32,0.65)';" onmouseout="this.style.borderColor='rgba(212,175,55,0.18)';this.style.background='rgba(10,20,32,0.45)';">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-family:'Fraunces',serif;font-weight:600;color:#f5e6d3;font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
+                <div style="font-size:0.78em;color:#94a3b8;">${escapeHtmlForChip(r.type)} &middot; ${formatReportDate(r.created_at)}</div>
+                ${r.prompt ? `<div style="font-size:0.85em;color:#cbd5e1;margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
+              </div>
+              <div style="font-size:0.75em;color:rgba(212,175,55,0.65);font-weight:500;letter-spacing:0.18em;text-transform:uppercase;flex-shrink:0;padding-top:4px;">${escapeHtmlForChip(r.type)}</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      function formatReportDate(iso) {
+        if (!iso) return '';
+        try {
+          const d = new Date(iso);
+          return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        } catch {
+          return iso;
+        }
+      }
+
+      async function viewReport(id) {
+        try {
+          const res = await fetch(`/api/reports/${id}`, { credentials: 'include' });
+          if (!res.ok) throw new Error('Failed to load report');
+          const report = await res.json();
+          _currentReportId = report.id;
+          document.getElementById('reportDetailTitle').textContent = report.title;
+          document.getElementById('reportDetailMeta').textContent = `${report.type} \u00b7 ${formatReportDate(report.created_at)}`;
+          const promptEl = document.getElementById('reportDetailPrompt');
+          if (report.prompt) {
+            promptEl.textContent = report.prompt;
+            promptEl.style.display = '';
+          } else {
+            promptEl.style.display = 'none';
+          }
+          document.getElementById('reportDetailContent').innerHTML = renderMarkdownLite(report.content);
+          document.getElementById('reportDetailModal').style.display = 'flex';
+        } catch (err) {
+          console.error('[viewReport]', err);
+          alert('Failed to load report.');
+        }
+      }
+
+      function closeReportDetailModal() {
+        document.getElementById('reportDetailModal').style.display = 'none';
+        _currentReportId = null;
+      }
+
+      async function deleteCurrentReport() {
+        if (!_currentReportId) return;
+        if (!confirm('Delete this report? This cannot be undone.')) return;
+        try {
+          const res = await fetch(`/api/reports/${_currentReportId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          if (!res.ok) throw new Error('Delete failed');
+          closeReportDetailModal();
+          loadReportsList();
+        } catch (err) {
+          console.error('[deleteCurrentReport]', err);
+          alert('Failed to delete report.');
+        }
+      }
+
+      function openNewReportModal() {
+        document.getElementById('newReportDescription').value = '';
+        document.getElementById('newReportType').value = '';
+        document.getElementById('newReportDateRange').value = '';
+        document.getElementById('newReportTitle').value = '';
+        document.getElementById('newReportModal').style.display = 'flex';
+        setTimeout(() => document.getElementById('newReportDescription').focus(), 100);
+      }
+
+      function closeNewReportModal() {
+        document.getElementById('newReportModal').style.display = 'none';
+      }
+
+      async function submitNewReport() {
+        const description = document.getElementById('newReportDescription').value.trim();
+        if (!description) {
+          alert('Please describe the report you want.');
+          return;
+        }
+        const type = document.getElementById('newReportType').value || undefined;
+        const dateRange = document.getElementById('newReportDateRange').value.trim() || undefined;
+        const title = document.getElementById('newReportTitle').value.trim() || undefined;
+
+        const btn = document.getElementById('submitNewReportBtn');
+        const oldText = btn.textContent;
+        btn.textContent = 'Generating...';
+        btn.disabled = true;
+        try {
+          const body = { prompt: description };
+          if (type) body.type = type;
+          if (title) body.title = title;
+          if (dateRange) body.parameters = { date_range: dateRange };
+          const res = await fetch('/api/reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+          });
+          // Session D5: surface D4 report-quota / canceled errors as upgrade prompt
+          const _planErr = await handlePlanError(res);
+          if (_planErr) {
+            closeNewReportModal();
+            return;
+          }
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to create report');
+          }
+          const created = await res.json();
+          closeNewReportModal();
+          await loadReportsList();
+          if (created && created.id) viewReport(created.id);
+        } catch (err) {
+          console.error('[submitNewReport]', err);
+          alert('Failed to create report: ' + err.message);
+        } finally {
+          btn.textContent = oldText;
+          btn.disabled = false;
+        }
+      }
+
       async function loadLeases() {
         const leases = await api('leases') || [];
         const card = document.getElementById('leaseCard');
@@ -4512,61 +5274,194 @@
         document.getElementById('onboardingModal').style.display = 'none';
       }
 
-      // --- Billing ---
-      async function loadBillingStatus() {
-        const user = await api('me');
-        if (!user) return;
-        updatePlanUI(user.plan || 'free');
-      }
+      // --- Billing & plan UI (Session D5) ---
+      // The legacy loadBillingStatus / updatePlanUI / startUpgrade / pre-D5
+      // openBillingPortal lived here. Replaced wholesale to read from the
+      // new /api/plan-summary (D5) instead of users.plan, and to use the
+      // new /api/billing/portal-session endpoint instead of the legacy
+      // /api/billing/portal. The legacy "Pro plan / Free plan" framing is
+      // dead per the D-series audit; tiers are now Solo / Team / Enterprise.
 
-      function updatePlanUI(plan) {
-        const badge = document.getElementById('planBadge');
-        const icon = document.getElementById('planIcon');
-        const name = document.getElementById('planName');
-        const desc = document.getElementById('planDesc');
-        const actions = document.getElementById('billingActions');
-        if (!badge) return;
+      // Cached plan summary used across UI components. Refreshed on initial
+      // page load and after actions that might change counts.
+      window._planSummary = null;
 
-        if (plan === 'pro' || plan === 'admin') {
-          badge.style.background = 'linear-gradient(135deg,rgba(255,107,107,0.12),rgba(255,142,83,0.08))';
-          badge.style.border = '1px solid rgba(255,107,107,0.3)';
-          badge.style.color = '#ff6b6b';
-          icon.textContent = '⭐';
-          name.textContent = plan === 'admin' ? 'Admin' : 'Pro plan';
-          desc.textContent = plan === 'admin' ? 'Full access — all features unlocked.' : 'All features unlocked. Thank you!';
-          actions.innerHTML = plan === 'admin' ? '' :
-            `<button class="btn-secondary" onclick="openBillingPortal()" style="font-size:0.85em;">Manage subscription &rarr;</button>`;
-        } else {
-          icon.textContent = '○';
-          name.textContent = 'Free plan';
-          desc.textContent = 'Upgrade to Pro for unlimited AI, voicemail, reports & more.';
-          actions.innerHTML = `
-            <div style="background:linear-gradient(135deg,rgba(255,107,107,0.06),rgba(255,142,83,0.04));border:1px solid rgba(255,107,107,0.15);border-radius:12px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-              <div>
-                <div style="font-weight:700;font-size:0.93em;color:#0f172a;">Upgrade to Pro — $49/month</div>
-                <div style="font-size:0.8em;color:#64748b;margin-top:3px;">Unlimited AI replies, voicemail, reports, maintenance, budget tracker &amp; more. 14-day free trial.</div>
-              </div>
-              <button class="btn-primary" onclick="startUpgrade()" style="white-space:nowrap;">Upgrade now &rarr;</button>
-            </div>`;
+      async function loadPlanSummary() {
+        try {
+          const res = await fetch('/api/plan-summary', { credentials: 'include' });
+          if (!res.ok) return;
+          const data = await res.json();
+          window._planSummary = data;
+
+          const badge = document.getElementById('planBadge');
+          if (badge) {
+            badge.style.display = '';
+            badge.classList.remove('plan-badge-trial', 'plan-badge-solo', 'plan-badge-team', 'plan-badge-enterprise');
+            badge.classList.add('plan-badge-' + data.plan);
+            const label = badge.querySelector('.plan-badge-label');
+            if (label) label.textContent = data.plan_display_name;
+          }
+
+          renderSubscriptionStatusBanner(data);
+          renderPlanUsagePanel(data);
+        } catch (err) {
+          console.error('[plan-summary] load failed:', err);
         }
       }
 
-      async function startUpgrade() {
-        const btn = event.target;
-        btn.disabled = true; btn.textContent = 'Loading…';
-        const data = await api('billing/create-checkout', 'POST', {});
-        if (data && data.url) {
-          window.location.href = data.url;
+      // Kept as a thin wrapper so existing window.onload reference still works.
+      async function loadBillingStatus() {
+        return loadPlanSummary();
+      }
+
+      // Legacy stub — element targets no longer exist; kept callable in case
+      // any latent code path still calls it. Real plan UI is rendered by
+      // renderPlanUsagePanel from D5's plan-summary response.
+      function updatePlanUI(_plan) { /* no-op */ }
+
+      function renderSubscriptionStatusBanner(planData) {
+        const banner = document.getElementById('subscriptionBanner');
+        const text = document.getElementById('subscriptionBannerText');
+        const cta = document.getElementById('subscriptionBannerCta');
+        if (!banner || !text) return;
+
+        banner.classList.remove('subscription-banner-past-due', 'subscription-banner-canceled');
+        const status = planData && planData.subscription_status;
+
+        if (status === 'past_due') {
+          banner.style.display = '';
+          banner.classList.add('subscription-banner-past-due');
+          text.textContent = 'Your last payment failed. Please update your payment method to keep your account active.';
+        } else if (status === 'canceled') {
+          banner.style.display = '';
+          banner.classList.add('subscription-banner-canceled');
+          text.textContent = 'Your subscription has been canceled. Reactivate to continue creating new content. Your existing data is still accessible.';
         } else {
-          alert('Billing is not yet configured. Please contact support.');
-          btn.disabled = false; btn.textContent = 'Upgrade now →';
+          banner.style.display = 'none';
+          return;
+        }
+
+        if (cta && !cta.dataset.wired) {
+          cta.dataset.wired = '1';
+          cta.addEventListener('click', openBillingPortal);
+        }
+      }
+
+      function renderPlanUsagePanel(data) {
+        if (!data) return;
+        const cardBadge = document.getElementById('planUsageCardBadge');
+        if (cardBadge) {
+          cardBadge.classList.remove('plan-badge-trial', 'plan-badge-solo', 'plan-badge-team', 'plan-badge-enterprise');
+          cardBadge.classList.add('plan-badge-' + data.plan);
+          const label = cardBadge.querySelector('.plan-badge-label');
+          if (label) label.textContent = data.plan_display_name;
+        }
+        const priceEl = document.getElementById('planUsagePrice');
+        if (priceEl) {
+          priceEl.textContent = data.monthly_price > 0 ? '$' + data.monthly_price + '/mo' : 'Free';
+        }
+        const statusEl = document.getElementById('planUsageStatus');
+        if (statusEl) {
+          const status = data.subscription_status || 'active';
+          statusEl.className = 'plan-usage-status plan-usage-status-' + status;
+          statusEl.textContent = status.replace('_', ' ');
+        }
+
+        const grid = document.getElementById('planUsageGrid');
+        if (grid) {
+          const stats = [
+            { label: 'AI Commands Today', current: data.usage.ai_commands_today, limit: data.limits.aiCommandsPerDayPerUser },
+            { label: 'Reports This Month', current: data.usage.reports_this_month, limit: data.limits.reportsPerMonth },
+            { label: 'Properties', current: data.usage.properties, limit: data.limits.maxProperties },
+            { label: 'Units', current: data.usage.units, limit: data.limits.maxUnits },
+            { label: 'Contacts', current: data.usage.contacts, limit: data.limits.maxContacts }
+          ];
+          grid.innerHTML = stats.map(s => {
+            const isUnlimited = (s.limit === null || s.limit === undefined);
+            const display = isUnlimited
+              ? (s.current + ' / unlimited')
+              : (s.current + ' / ' + s.limit);
+            let valueClass = 'plan-usage-stat-value';
+            if (!isUnlimited && s.current >= s.limit) valueClass += ' plan-usage-stat-value-limit';
+            else if (!isUnlimited && s.current >= s.limit * 0.8) valueClass += ' plan-usage-stat-value-warn';
+            return '<div class="plan-usage-stat">'
+              + '<div class="plan-usage-stat-label">' + s.label + '</div>'
+              + '<div class="' + valueClass + '">' + display + '</div>'
+              + '</div>';
+          }).join('');
+        }
+
+        const featuresEl = document.getElementById('planUsageFeatures');
+        if (featuresEl) {
+          const featureLabels = {
+            broadcast: 'Broadcast Messaging',
+            autoResponse: 'Auto-Response',
+            dailyBriefing: 'Daily Briefing',
+            apiAccess: 'API Access',
+            customAITraining: 'Custom AI Training',
+            dedicatedCSM: 'Dedicated Success Manager'
+          };
+          featuresEl.innerHTML = Object.entries(featureLabels).map(([key, label]) => {
+            const included = !!(data.features && data.features[key]);
+            const cls = included ? 'plan-usage-feature plan-usage-feature-included'
+                                  : 'plan-usage-feature plan-usage-feature-excluded';
+            return '<div class="' + cls + '">' + label + '</div>';
+          }).join('');
         }
       }
 
       async function openBillingPortal() {
-        const data = await api('billing/portal', 'GET');
-        if (data && data.url) window.open(data.url, '_blank');
-        else alert('Could not open billing portal.');
+        try {
+          const res = await fetch('/api/billing/portal-session', { method: 'POST', credentials: 'include' });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || 'Could not open billing portal. Please contact support.');
+            return;
+          }
+          const data = await res.json();
+          if (data && data.url) window.location.href = data.url;
+          else alert('Could not open billing portal.');
+        } catch (err) {
+          console.error('[billing portal] error:', err);
+          alert('Could not open billing portal.');
+        }
+      }
+
+      // --- Plan-error interception (D5) ---
+      // Call after any fetch that hits a D4-gated endpoint. If the response
+      // is 403/429 with a plan-error code, displays the upgrade modal and
+      // returns the parsed body. Caller should then `return` (don't surface
+      // a second error message).
+      const PLAN_ERROR_CODES = new Set([
+        'subscription_canceled',
+        'feature_not_in_plan',
+        'limit_reached',
+        'ai_quota_exceeded',
+        'report_quota_exceeded'
+      ]);
+      async function handlePlanError(response) {
+        if (!response || response.ok) return null;
+        if (response.status !== 403 && response.status !== 429) return null;
+        let body = {};
+        try { body = await response.clone().json(); } catch (e) { return null; }
+        if (!body || !PLAN_ERROR_CODES.has(body.error)) return null;
+        showUpgradePrompt(body.message || "You've reached a limit on your current plan.", body.error);
+        return body;
+      }
+
+      function showUpgradePrompt(message, _errorCode) {
+        const modal = document.getElementById('upgradePromptModal');
+        const messageEl = document.getElementById('upgradePromptMessage');
+        if (modal && messageEl) {
+          messageEl.textContent = message;
+          modal.style.display = 'flex';
+        } else {
+          alert(message);
+        }
+      }
+      function closeUpgradePrompt() {
+        const modal = document.getElementById('upgradePromptModal');
+        if (modal) modal.style.display = 'none';
       }
 
       // Check for ?upgraded=1 in URL
@@ -4983,15 +5878,222 @@
       // Render an action chip with a checkmark icon and pop animation.
       // Detects warning chips by leading "⚠" symbol (HTML entity &#9888;)
       // in the original action text and styles them differently.
-      function renderActionChip(actionHtml, indexForDelay) {
+      function renderActionChip(entry, indexForDelay) {
+        const delay = (indexForDelay || 0) * 80;
+        // Session C1: queued entries are objects with approve/reject UI.
+        if (entry && typeof entry === 'object' && entry.queued && entry.pendingId) {
+          const summary = escapeHtmlForChip(entry.summary || entry.message || entry.type || '');
+          return `
+            <div class="ai-action-chip ai-action-chip-queued" data-pending-id="${entry.pendingId}" style="display:block;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);padding:10px 14px;border-radius:10px;margin-top:6px;animation-delay:${delay}ms;">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:180px;">
+                  <div style="font-size:0.72em;color:#d4af37;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:3px;">Awaiting approval</div>
+                  <div style="color:#f5e6d3;font-size:0.9em;line-height:1.4;">${summary}</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 100%);color:#f5e6d3;border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
+                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        // Existing string-based chip path (success / warn).
+        const actionHtml = String(entry || '');
         const isWarn = /&#9888;|⚠/.test(actionHtml);
         // Strip the leading icon entity (first HTML entity / emoji) since
         // we're replacing it with our own circle-checkmark.
         const cleaned = actionHtml.replace(/^(\s*&#\d+;\s*)+/, '').trim();
         const cls = isWarn ? 'ai-action-chip ai-action-chip-warn' : 'ai-action-chip';
         const icon = isWarn ? '!' : '\u2713';
-        const delay = (indexForDelay || 0) * 80;
         return `<span class="${cls}" style="animation-delay:${delay}ms;"><span class="chip-check">${icon}</span>${cleaned}</span>`;
+      }
+
+      // ============================================================
+      // APPROVAL QUEUE (Session C1)
+      //
+      // Workspace-scoped queue of AI tool calls awaiting human approval.
+      // Surfaces both as a Home-page card and inline approve/reject
+      // buttons in the AI response. Auto-hides when empty.
+      // ============================================================
+
+      async function loadApprovalQueue() {
+        const card = document.getElementById('approvalQueueCard');
+        const list = document.getElementById('approvalQueueList');
+        const countEl = document.getElementById('approvalQueueCount');
+        if (!card || !list) return;
+
+        try {
+          const res = await fetch('/api/pending-actions?status=pending', { credentials: 'include' });
+          if (!res.ok) throw new Error('Failed to load pending actions');
+          const pending = await res.json();
+
+          if (!pending || pending.length === 0) {
+            card.style.display = 'none';
+            if (countEl) countEl.textContent = '';
+            return;
+          }
+
+          card.style.display = '';
+          if (countEl) countEl.textContent = pending.length;
+
+          list.innerHTML = pending.map(p => `
+            <div class="pending-action-row" data-pending-id="${p.id}" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:200px;">
+                  <div style="font-size:0.78em;color:#d4af37;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">${escapeHtmlForChip(p.tool_name)}</div>
+                  <div style="color:#f5e6d3;font-size:0.95em;line-height:1.45;">${escapeHtmlForChip(p.ai_summary || p.tool_name)}</div>
+                  <div style="color:#94a3b8;font-size:0.78em;margin-top:6px;">Queued ${formatPendingTime(p.created_at)}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-shrink:0;">
+                  <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:linear-gradient(135deg,#1a5f3f 0%,#2d8659 100%);color:#f5e6d3;border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
+                  <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
+                </div>
+              </div>
+            </div>
+          `).join('');
+        } catch (err) {
+          console.error('[loadApprovalQueue]', err);
+          card.style.display = '';
+          list.innerHTML = '<div style="color:#fca5a5;padding:14px;">Failed to load pending actions.</div>';
+        }
+      }
+
+      function formatPendingTime(iso) {
+        if (!iso) return '';
+        try {
+          const then = new Date(iso).getTime();
+          const now = Date.now();
+          const seconds = Math.floor((now - then) / 1000);
+          if (seconds < 60) return 'just now';
+          if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+          if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+          return new Date(iso).toLocaleDateString();
+        } catch {
+          return '';
+        }
+      }
+
+      async function approvePendingAction(id) {
+        const row = document.querySelector(`.pending-action-row[data-pending-id="${id}"]`);
+        if (row) row.style.opacity = '0.5';
+
+        try {
+          const res = await fetch(`/api/pending-actions/${id}/approve`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+          const data = await res.json();
+          if (!res.ok || data.success === false) {
+            throw new Error(data.error || (data.result && data.result.message) || 'Approval failed');
+          }
+          if (row) row.remove();
+          await loadApprovalQueue();
+          if (typeof refreshPageData === 'function') {
+            refreshPageData('inbox');
+            refreshPageData('admin');
+            refreshPageData('home');
+          }
+        } catch (err) {
+          console.error('[approvePendingAction]', err);
+          if (row) row.style.opacity = '';
+          alert('Failed to approve: ' + err.message);
+        }
+      }
+
+      async function rejectPendingAction(id) {
+        const row = document.querySelector(`.pending-action-row[data-pending-id="${id}"]`);
+        if (!confirm('Reject this action? It will not be executed.')) return;
+        if (row) row.style.opacity = '0.5';
+
+        try {
+          const res = await fetch(`/api/pending-actions/${id}/reject`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Reject failed');
+          }
+          if (row) row.remove();
+          await loadApprovalQueue();
+        } catch (err) {
+          console.error('[rejectPendingAction]', err);
+          if (row) row.style.opacity = '';
+          alert('Failed to reject: ' + err.message);
+        }
+      }
+
+      // Inline-chip variants: same network calls, but they update the
+      // chip in the AI response so the user gets visual confirmation
+      // without the chip vanishing.
+      async function approvePendingActionFromChip(buttonEl, id) {
+        const chip = buttonEl.closest('.ai-action-chip-queued');
+        if (chip) {
+          chip.style.opacity = '0.5';
+          chip.querySelectorAll('button').forEach(b => b.disabled = true);
+        }
+        try {
+          const res = await fetch(`/api/pending-actions/${id}/approve`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+          const data = await res.json();
+          if (!res.ok || data.success === false) {
+            throw new Error(data.error || (data.result && data.result.message) || 'Approval failed');
+          }
+          if (chip) {
+            chip.style.opacity = '';
+            chip.style.background = 'rgba(45,134,89,0.15)';
+            chip.style.borderColor = 'rgba(45,134,89,0.4)';
+            chip.innerHTML = `<div style="color:#86efac;font-weight:600;font-size:0.9em;">&#10003; Approved and executed</div>`;
+          }
+          if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
+          if (typeof refreshPageData === 'function') {
+            refreshPageData('inbox');
+            refreshPageData('admin');
+          }
+        } catch (err) {
+          console.error('[approvePendingActionFromChip]', err);
+          if (chip) {
+            chip.style.opacity = '';
+            chip.querySelectorAll('button').forEach(b => b.disabled = false);
+          }
+          alert('Failed to approve: ' + err.message);
+        }
+      }
+
+      async function rejectPendingActionFromChip(buttonEl, id) {
+        if (!confirm('Reject this action?')) return;
+        const chip = buttonEl.closest('.ai-action-chip-queued');
+        if (chip) {
+          chip.style.opacity = '0.5';
+          chip.querySelectorAll('button').forEach(b => b.disabled = true);
+        }
+        try {
+          const res = await fetch(`/api/pending-actions/${id}/reject`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Reject failed');
+          }
+          if (chip) {
+            chip.style.opacity = '';
+            chip.style.background = 'rgba(248,113,113,0.10)';
+            chip.style.borderColor = 'rgba(248,113,113,0.3)';
+            chip.innerHTML = `<div style="color:#fca5a5;font-weight:600;font-size:0.9em;">&times; Rejected</div>`;
+          }
+          if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
+        } catch (err) {
+          console.error('[rejectPendingActionFromChip]', err);
+          if (chip) {
+            chip.style.opacity = '';
+            chip.querySelectorAll('button').forEach(b => b.disabled = false);
+          }
+          alert('Failed to reject: ' + err.message);
+        }
       }
 
       // --- AI Command Bar (Home page) ---
@@ -5069,433 +6171,129 @@
         return { match: set[0] };
       }
 
+      // Session B3: chip-text safety helper — used by applyActions to
+      // safely escape result messages from server-side tool executors.
+      function escapeHtmlForChip(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+      }
+
+      // Session B3.5: tool → affected pages mapping. Single source of
+      // truth for cache invalidation after AI actions. When a tool
+      // succeeds, every page in its list gets a refresh call so the
+      // user sees fresh data on next visit (or immediately if they
+      // happen to be on that page now).
+      const TOOL_PAGE_MAP = {
+        add_calendar_event:     ['calendar'],
+        delete_calendar_event:  ['calendar'],
+        add_task:               ['tasks', 'home'],
+        update_task:            ['tasks', 'home'],
+        add_contact:            ['contacts', 'home'],
+        update_contact:         ['contacts'],
+        compose_message:        ['inbox', 'home'],
+        add_budget_transaction: ['admin'],
+        add_maintenance_ticket: ['maintenance'],
+        mark_rent_paid:         ['admin'],
+        send_late_notice:       ['admin', 'home'],
+        generate_rent:          ['admin'],
+        create_property:        ['inventory'],
+        update_property:        ['inventory'],
+        archive_property:       ['inventory'],
+        create_unit:            ['inventory'],
+        update_unit:            ['inventory'],
+        set_unit_off_market:    ['inventory'],
+        retire_unit:            ['inventory'],
+        assign_tenant_to_unit:  ['inventory', 'contacts'],
+        move_tenant_to_unit:    ['inventory', 'contacts'],
+        end_tenant_assignment:  ['inventory', 'contacts'],
+        generate_report:        ['reports', 'home'],
+        // Session C2: maintenance lifecycle + invoice tools
+        update_maintenance_ticket:  ['maintenance'],
+        resolve_maintenance_ticket: ['maintenance'],
+        add_invoice:                ['admin'],
+        update_invoice_status:      ['admin'],
+      };
+
+      // Session B3.5: dispatch to existing per-page load functions.
+      // Soft-fail (typeof checks + try/catch) so a missing function
+      // name only causes stale data, not a thrown error.
+      async function refreshPageData(pageName) {
+        try {
+          switch (pageName) {
+            case 'home':
+              if (typeof loadHomeStats === 'function') await loadHomeStats();
+              if (typeof loadLeases === 'function') await loadLeases();
+              if (typeof loadApprovalQueue === 'function') await loadApprovalQueue();
+              break;
+            case 'inbox':
+              if (typeof loadInbox === 'function') await loadInbox();
+              break;
+            case 'calendar':
+              // loadCalEvents() fetches data and re-renders the grid.
+              if (typeof loadCalEvents === 'function') await loadCalEvents();
+              else if (typeof renderCalendar === 'function') renderCalendar();
+              break;
+            case 'admin':
+              if (typeof loadRentTable === 'function') await loadRentTable();
+              if (typeof loadInvoiceTable === 'function') await loadInvoiceTable();
+              if (typeof loadBudget === 'function') await loadBudget();
+              break;
+            case 'maintenance':
+              if (typeof loadMaintenance === 'function') await loadMaintenance();
+              break;
+            case 'contacts':
+              if (typeof loadContacts === 'function') await loadContacts();
+              break;
+            case 'inventory':
+              // loadInventory() fetches entities/offerings/engagements/contacts
+              // and overwrites the cached arrays the AI snapshot reads from.
+              if (typeof loadInventory === 'function') await loadInventory();
+              break;
+            case 'tasks':
+              if (typeof loadTasks === 'function') await loadTasks();
+              break;
+            case 'reports':
+              if (typeof loadReports === 'function') await loadReports();
+              break;
+          }
+        } catch (err) {
+          console.warn('[refreshPageData] Failed for page:', pageName, err);
+          // Fail silently — stale data is annoying but not broken.
+        }
+      }
+
+      // Session B3.5: every tool executes server-side via lib/tools/*.
+      // applyActions renders chips from the structured results and
+      // refreshes any pages whose data the actions changed.
       async function applyActions(actions, actionLog) {
         if (!actions || !actions.length) return;
-        let inventoryDirty = false;
-        for (const action of actions) {
-
-          if (action.type === 'add_calendar_event') {
-            await api('calevents', 'POST', { date: action.date, title: action.title });
-            await loadCalEvents();
-            renderCalendar();
-            actionLog.push(`&#128197; Added event: "${action.title}" on ${action.date}`);
-
-          } else if (action.type === 'delete_calendar_event') {
-            // Fuzzy-match against the loaded calEvents by title (and optional date).
-            const q = String(action.event || '').toLowerCase().trim();
-            let matches = (calEvents || []).filter(e => String(e.title || '').toLowerCase().includes(q));
-            if (action.date) matches = matches.filter(e => e.date === action.date);
-            if (!matches.length) {
-              actionLog.push(`&#9888; Could not find event matching: "${action.event}"${action.date ? ' on ' + action.date : ''}`);
-            } else {
-              const target = matches[0];
-              const r = await fetch('/api/calevents/' + target.id, { method: 'DELETE' });
-              if (!r.ok) {
-                actionLog.push(`&#9888; Could not delete event: "${target.title}" (HTTP ${r.status})`);
-              } else {
-                await loadCalEvents();
-                renderCalendar();
-                actionLog.push(`&#128197; Deleted event: "${target.title}" (${target.date})`);
-              }
-            }
-
-          } else if (action.type === 'add_task') {
-            // Client-side defaults mirror the add_task tool schema and the
-            // POST /api/tasks server-side safety net: dueDate -> +7 days,
-            // category -> 'other'.
-            let _dueDate = action.dueDate;
-            if (!_dueDate) {
-              const d = new Date(); d.setDate(d.getDate() + 7);
-              _dueDate = d.toISOString().split('T')[0];
-            }
-            const _cat = (action.category && String(action.category).trim()) || 'other';
-            await api('tasks', 'POST', { title: action.title, category: _cat, dueDate: _dueDate, notes: action.notes || '' });
-            await loadTasks();
-            actionLog.push(`&#10003; Created task: "${action.title}"`);
-
-          } else if (action.type === 'update_task') {
-            // Fuzzy-match against the loaded tasks by title.
-            const q = String(action.task || '').toLowerCase().trim();
-            const matches = (tasks || []).filter(t => String(t.title || '').toLowerCase().includes(q));
-            if (!matches.length) {
-              actionLog.push(`&#9888; Could not find task matching: "${action.task}"`);
-            } else {
-              const target = matches[0];
-              const payload = {
-                title: action.title !== undefined ? action.title : target.title,
-                category: action.category !== undefined ? action.category : target.category,
-                dueDate: action.dueDate !== undefined ? action.dueDate : target.dueDate,
-                notes: action.notes !== undefined ? action.notes : (target.notes || ''),
-                done: action.status !== undefined ? (action.status === 'done') : !!target.done,
-              };
-              const r = await fetch('/api/tasks/' + target.id, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-              if (!r.ok) {
-                actionLog.push(`&#9888; Could not update task "${target.title}" (HTTP ${r.status})`);
-              } else {
-                await loadTasks();
-                const changed = [];
-                if (action.status !== undefined) changed.push('status: ' + action.status);
-                if (action.title !== undefined) changed.push('title');
-                if (action.dueDate !== undefined) changed.push('dueDate');
-                if (action.category !== undefined) changed.push('category');
-                if (action.notes !== undefined) changed.push('notes');
-                actionLog.push(`&#10003; Updated task: "${target.title}"${changed.length ? ' \u2192 ' + changed.join(', ') : ''}`);
-              }
-            }
-
-          } else if (action.type === 'compose_message') {
-            // Derive subject if AI omitted one. Mirrors the POST /api/messages
-            // server-side safety net.
-            let _subject = (action.subject && String(action.subject).trim()) || '';
-            if (!_subject && action.body) {
-              const oneLine = String(action.body).replace(/\s+/g, ' ').trim();
-              if (oneLine.length <= 50) _subject = oneLine;
-              else {
-                const cut = oneLine.slice(0, 50);
-                const lastSpace = cut.lastIndexOf(' ');
-                _subject = (lastSpace > 20 ? cut.slice(0, lastSpace) : cut) + '...';
-              }
-            }
-            await api('messages', 'POST', { resident: action.to, subject: _subject, category: 'general', text: action.body });
-            await loadInbox();
-            actionLog.push(`&#9993; Composed message to ${action.to}`);
-
-          } else if (action.type === 'add_contact') {
-            await api('contacts', 'POST', {
-              name: action.name, type: action.contact_type || 'resident',
-              unit: action.unit || '', email: action.email || '', phone: action.phone || '',
-              notes: action.notes || '', lease_start: action.lease_start || '',
-              lease_end: action.lease_end || '', monthly_rent: action.monthly_rent || 0
+        const pagesToRefresh = new Set();
+        for (const a of actions) {
+          // Session C1: queued chips carry an object so renderActionChip
+          // can render approve/reject buttons. Also refresh home so the
+          // approval queue card picks up the new pending row.
+          if (a.queued && a.pendingId) {
+            actionLog.push({
+              queued: true,
+              pendingId: a.pendingId,
+              summary: a.summary || a.message,
+              type: a.type,
             });
-            await loadContacts();
-            loadLeases();
-            actionLog.push(`&#128100; Added contact: ${action.name} (${action.type || 'resident'})`);
-
-          } else if (action.type === 'update_contact') {
-            // Fuzzy-match against the loaded contacts by name.
-            const q = String(action.contact || '').toLowerCase().trim();
-            const matches = (contacts || []).filter(c => String(c.name || '').toLowerCase().includes(q));
-            if (!matches.length) {
-              actionLog.push(`&#9888; Could not find contact matching: "${action.contact}"`);
-            } else {
-              const target = matches[0];
-              // Build payload from current values; overlay only fields the AI provided.
-              const payload = {
-                name: action.name !== undefined ? action.name : target.name,
-                type: action.contact_type !== undefined ? action.contact_type : target.type,
-                email: action.email !== undefined ? action.email : (target.email || ''),
-                phone: action.phone !== undefined ? action.phone : (target.phone || ''),
-                unit: action.unit !== undefined ? action.unit : (target.unit || ''),
-                notes: action.notes !== undefined ? action.notes : (target.notes || ''),
-                lease_start: action.lease_start !== undefined ? action.lease_start : (target.lease_start || ''),
-                lease_end: action.lease_end !== undefined ? action.lease_end : (target.lease_end || ''),
-                monthly_rent: action.monthly_rent !== undefined ? action.monthly_rent : (target.monthly_rent || 0),
-              };
-              const r = await fetch('/api/contacts/' + target.id, {
-                method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-              if (!r.ok) {
-                actionLog.push(`&#9888; Could not update contact "${target.name}" (HTTP ${r.status})`);
-              } else {
-                await loadContacts();
-                loadLeases();
-                const changed = [];
-                for (const f of ['name','contact_type','email','phone','unit','notes','lease_start','lease_end','monthly_rent']) {
-                  if (action[f] !== undefined) changed.push(f === 'contact_type' ? 'type' : f);
-                }
-                actionLog.push(`&#128100; Updated ${target.name}${changed.length ? ': ' + changed.join(', ') : ''}`);
-              }
-            }
-
-          } else if (action.type === 'mark_rent_paid') {
-            // Find matching rent record by resident name
-            const rentRows = await fetch('/api/rent').then(r => r.json()).catch(() => []);
-            const match = rentRows.find(r =>
-              r.status !== 'paid' &&
-              r.resident.toLowerCase().includes(action.resident.toLowerCase()) ||
-              (action.unit && r.unit === action.unit)
-            );
-            if (match) {
-              await api(`rent/${match.id}`, 'PUT', { status: 'paid', amount: match.amount, due_date: match.due_date });
-              loadRentTable();
-              actionLog.push(`&#10003; Marked ${match.resident} (Unit ${match.unit || '—'}) rent as paid`);
-            } else {
-              actionLog.push(`&#9888; Could not find unpaid rent record for "${action.resident}"`);
-            }
-
-          } else if (action.type === 'send_late_notice') {
-            const rentRows = await fetch('/api/rent').then(r => r.json()).catch(() => []);
-            const match = rentRows.find(r =>
-              r.status !== 'paid' &&
-              r.resident.toLowerCase().includes(action.resident.toLowerCase())
-            );
-            if (match) {
-              const result = await api(`rent/${match.id}/late-notice`, 'POST', {});
-              loadRentTable();
-              const channel = result?.channel || 'unknown';
-              actionLog.push(`&#128232; Late notice sent to ${match.resident} via ${channel}`);
-            } else {
-              actionLog.push(`&#9888; No unpaid rent record found for "${action.resident}"`);
-            }
-
-          } else if (action.type === 'add_budget_transaction') {
-            const txType = action.transaction_type || 'expense';
-            // Default date to today if AI omitted it. Mirrors the
-            // POST /api/budget server-side safety net.
-            const _date = (action.date && String(action.date).trim()) || new Date().toISOString().split('T')[0];
-            await api('budget', 'POST', {
-              type: txType,
-              category: action.category || 'Other',
-              description: action.description,
-              amount: action.amount,
-              date: _date,
-              notes: action.notes || ''
-            });
-            loadBudget();
-            const sign = txType === 'income' ? '+' : '-';
-            actionLog.push(`&#128200; Logged ${txType}: ${action.description} (${sign}$${Number(action.amount).toLocaleString()})`);
-
-          } else if (action.type === 'add_maintenance_ticket') {
-            await api('maintenance', 'POST', {
-              title: action.title,
-              description: action.description || '',
-              unit: action.unit || '',
-              resident: action.resident || '',
-              category: action.category || 'general'
-            });
-            loadMaintenance();
-            actionLog.push(`&#128295; Created maintenance ticket: "${action.title}"${action.unit ? ' (Unit ' + action.unit + ')' : ''}`);
-
-          } else if (action.type === 'generate_rent') {
-            const result = await api('rent/generate-month', 'POST', {
-              month: action.month,
-              year: action.year,
-              due_day: action.due_day || 1
-            });
-            loadRentTable();
-            if (result) {
-              actionLog.push(`&#128181; Generated rent: ${result.created} record${result.created !== 1 ? 's' : ''} created${result.skipped ? `, ${result.skipped} already existed` : ''}`);
-            }
-
-          // --- Inventory actions (chunk: AI command-bar inventory wiring) ---
-          } else if (action.type === 'create_property') {
-            const body = { name: action.name };
-            if (action.address) body.address = action.address;
-            if (action.building_type) body.building_type = action.building_type;
-            if (action.year_built) body.year_built = action.year_built;
-            if (action.number_of_floors) body.number_of_floors = action.number_of_floors;
-            if (action.total_unit_count) body.total_unit_count = action.total_unit_count;
-            if (action.description) body.description = action.description;
-            const r = await fetch('/api/entities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) { actionLog.push(`&#9888; Could not create property: ${rb.error || 'HTTP ' + r.status}`); continue; }
-            actionLog.push(`&#127970; Created property: ${rb.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'update_property') {
-            const propRes = _aiFindProperty(action.property);
-            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
-            const body = {};
-            for (const f of ['name', 'address', 'description', 'building_type', 'year_built', 'number_of_floors', 'total_unit_count', 'heating_system', 'water_source', 'parking_setup', 'pet_policy', 'smoking_policy']) {
-              if (action[f] !== undefined && action[f] !== null && action[f] !== '') body[f] = action[f];
-            }
-            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${propRes.match.name}.`); continue; }
-            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) { actionLog.push(`&#9888; Could not update ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
-            actionLog.push(`&#9998; Updated ${propRes.match.name}: ${Object.keys(body).join(', ')}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'archive_property') {
-            const propRes = _aiFindProperty(action.property);
-            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
-            const r = await fetch('/api/entities/' + propRes.match.id, { method: 'DELETE' });
-            if (!r.ok) {
-              const rb = await r.json().catch(() => ({}));
-              actionLog.push(`&#9888; Could not archive ${propRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
-              continue;
-            }
-            actionLog.push(`&#128465; Archived property: ${propRes.match.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'create_unit') {
-            const propRes = _aiFindProperty(action.property);
-            if (propRes.error) { actionLog.push(`&#9888; ${propRes.error}`); continue; }
-            const body = { entity_id: propRes.match.id, name: action.name, status: 'available' };
-            if (action.description) body.description = action.description;
-            if (action.floor) body.floor = action.floor;
-            if (action.rent != null) body.price_amount = action.rent;
-            if (action.frequency) body.price_frequency = action.frequency;
-            const md = {};
-            if (action.bedrooms != null) md.bedrooms = action.bedrooms;
-            if (action.bathrooms != null) md.bathrooms = action.bathrooms;
-            if (action.sqft != null) md.sqft = action.sqft;
-            if (Array.isArray(action.amenities) && action.amenities.length) md.amenities = action.amenities;
-            if (action.notes) md.notes = action.notes;
-            if (Object.keys(md).length) body.metadata = md;
-            const r = await fetch('/api/offerings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) { actionLog.push(`&#9888; Could not create unit: ${rb.error || 'HTTP ' + r.status}`); continue; }
-            actionLog.push(`&#127968; Created ${rb.name} in ${propRes.match.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'update_unit') {
-            const uRes = _aiFindUnit(action.unit, action.property);
-            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
-            const body = {};
-            if (action.name) body.name = action.name;
-            if (action.description !== undefined) body.description = action.description;
-            if (action.floor !== undefined) body.floor = action.floor;
-            if (action.rent != null) body.price_amount = action.rent;
-            if (action.frequency) body.price_frequency = action.frequency;
-            const originalMd = uRes.match.metadata || {};
-            const newMd = { ...originalMd };
-            let touchedMd = false;
-            if (action.bedrooms != null) { newMd.bedrooms = action.bedrooms; touchedMd = true; }
-            if (action.bathrooms != null) { newMd.bathrooms = action.bathrooms; touchedMd = true; }
-            if (action.sqft != null) { newMd.sqft = action.sqft; touchedMd = true; }
-            if (Array.isArray(action.amenities)) { newMd.amenities = action.amenities; touchedMd = true; }
-            if (action.notes !== undefined) { newMd.notes = action.notes; touchedMd = true; }
-            if (touchedMd) body.metadata = newMd;
-            if (!Object.keys(body).length) { actionLog.push(`&#9888; No fields to update on ${uRes.match.name}.`); continue; }
-            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) { actionLog.push(`&#9888; Could not update ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
-            actionLog.push(`&#9998; Updated ${uRes.match.name}: ${Object.keys(body).filter(k => k !== 'metadata').concat(touchedMd ? ['metadata'] : []).join(', ')}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'set_unit_off_market') {
-            const uRes = _aiFindUnit(action.unit, action.property);
-            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
-            if (uRes.match.status === 'retired') {
-              actionLog.push(`&#9888; ${uRes.match.name} is retired; restore it before changing off-market.`);
-              continue;
-            }
-            const targetStatus = action.off_market ? 'unavailable' : 'available';
-            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: targetStatus }) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) { actionLog.push(`&#9888; Could not change ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`); continue; }
-            actionLog.push(`&#127968; ${uRes.match.name} is now ${action.off_market ? 'Off-market' : 'Vacant'}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'retire_unit') {
-            const uRes = _aiFindUnit(action.unit, action.property);
-            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
-            const r = await fetch('/api/offerings/' + uRes.match.id, { method: 'DELETE' });
-            if (!r.ok) {
-              const rb = await r.json().catch(() => ({}));
-              actionLog.push(`&#9888; Could not retire ${uRes.match.name}: ${rb.error || 'HTTP ' + r.status}`);
-              continue;
-            }
-            actionLog.push(`&#128465; Retired unit: ${uRes.match.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'assign_tenant_to_unit') {
-            const cRes = _aiFindContact(action.tenant);
-            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
-            const uRes = _aiFindUnit(action.unit, action.property);
-            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
-            const offering = uRes.match;
-            const monthlyRent = Number(cRes.match.monthly_rent || 0);
-            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
-            const fallbackPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
-            const body = {
-              contact_id: cRes.match.id,
-              offering_id: offering.id,
-              status: 'active',
-              start_date: action.start_date || cRes.match.lease_start || _todayISODate(),
-              end_date: action.end_date || cRes.match.lease_end || null,
-              current_price: action.rent != null ? action.rent : fallbackPrice,
-            };
-            const r = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const rb = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              if (r.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
-              else actionLog.push(`&#9888; Could not assign ${cRes.match.name} to ${offering.name}: ${rb.error || 'HTTP ' + r.status}`);
-              continue;
-            }
-            actionLog.push(`&#127968; Assigned ${cRes.match.name} to ${offering.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'move_tenant_to_unit') {
-            const cRes = _aiFindContact(action.tenant);
-            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
-            const uRes = _aiFindUnit(action.unit, action.property);
-            if (uRes.error) { actionLog.push(`&#9888; ${uRes.error}`); continue; }
-            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
-            if (oldEng && oldEng.offering_id === uRes.match.id) {
-              actionLog.push(`&#9888; ${cRes.match.name} is already assigned to ${uRes.match.name}.`);
-              continue;
-            }
-            // Terminate the old engagement (if any) before creating the new one.
-            if (oldEng) {
-              const tr = await fetch('/api/engagements/' + oldEng.id, {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
-              });
-              if (!tr.ok) {
-                const trb = await tr.json().catch(() => ({}));
-                actionLog.push(`&#9888; Could not end ${cRes.match.name}'s previous unit assignment: ${trb.error || 'HTTP ' + tr.status}`);
-                continue;
-              }
-            }
-            const offering = uRes.match;
-            const monthlyRent = Number(cRes.match.monthly_rent || 0);
-            const offeringPrice = offering.price_amount != null ? Number(offering.price_amount) : 0;
-            const currentPrice = (Number.isFinite(monthlyRent) && monthlyRent > 0) ? monthlyRent : offeringPrice;
-            const body = {
-              contact_id: cRes.match.id,
-              offering_id: offering.id,
-              status: 'active',
-              start_date: _todayISODate(),
-              end_date: cRes.match.lease_end || null,
-              current_price: currentPrice,
-            };
-            const cr = await fetch('/api/engagements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-            const crb = await cr.json().catch(() => ({}));
-            if (!cr.ok) {
-              if (cr.status === 409) actionLog.push(`&#9888; ${cRes.match.name} already has an active engagement on ${offering.name}.`);
-              else actionLog.push(`&#9888; Old assignment ended but could not move ${cRes.match.name} to ${offering.name}: ${crb.error || 'HTTP ' + cr.status}`);
-              continue;
-            }
-            actionLog.push(`&#127968; Moved ${cRes.match.name} ${oldEng ? 'to ' : 'into '}${offering.name}`);
-            inventoryDirty = true;
-
-          } else if (action.type === 'end_tenant_assignment') {
-            const cRes = _aiFindContact(action.tenant);
-            if (cRes.error) { actionLog.push(`&#9888; ${cRes.error}`); continue; }
-            const oldEng = inventoryActiveEngagements.find(e => e.contact_id === cRes.match.id) || null;
-            if (!oldEng) {
-              actionLog.push(`&#9888; ${cRes.match.name} has no active unit assignment.`);
-              continue;
-            }
-            const r = await fetch('/api/engagements/' + oldEng.id, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'terminated', end_date: _todayISODate() }),
-            });
-            if (!r.ok) {
-              const rb = await r.json().catch(() => ({}));
-              actionLog.push(`&#9888; Could not end ${cRes.match.name}'s assignment: ${rb.error || 'HTTP ' + r.status}`);
-              continue;
-            }
-            actionLog.push(`&#127968; Ended ${cRes.match.name}'s unit assignment`);
-            inventoryDirty = true;
+            pagesToRefresh.add('home');
+            continue;
+          }
+          if (a.success) {
+            actionLog.push(`&#9989; ${escapeHtmlForChip(a.message || a.type)}`);
+            const pages = TOOL_PAGE_MAP[a.type] || [];
+            for (const p of pages) pagesToRefresh.add(p);
+          } else {
+            actionLog.push(`&#9888; ${escapeHtmlForChip(a.message || a.type)}`);
           }
         }
-
-        // Refresh inventory caches once if any inventory action ran, so
-        // subsequent renders (units list occupancy, contact-modal dropdown
-        // pre-selection, next AI snapshot) reflect the new state.
-        if (inventoryDirty) {
-          inventoryEntities = [];
-          inventoryOfferings = [];
-          inventoryActiveEngagements = [];
-          inventoryContacts = [];
-          await _invEnsureLoaded();
+        // After all chips are rendered, refresh affected pages. We await
+        // each refresh so any subsequent submitHomeCommand call reads
+        // fresh state into the AI snapshot.
+        for (const page of pagesToRefresh) {
+          await refreshPageData(page);
         }
       }
 
@@ -5572,11 +6370,15 @@
               };
             });
 
+          // Session B2: include currentPage so the server can apply
+          // per-tool navigationPolicy (e.g. home_only) in B5.
+          const currentPage = document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
           const res = await fetch('/api/command', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               prompt,
+              currentPage,
               contacts,
               calEvents,
               tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
@@ -5587,9 +6389,27 @@
               units: unitsSnap,
             })
           });
+          // Session D5: surface D4 plan-gate failures (canceled / quota exceeded)
+          // as the upgrade prompt modal instead of a silent failure.
+          const _planErr = await handlePlanError(res);
+          if (_planErr) {
+            responseBox.style.display = 'none';
+            input.disabled = false;
+            input.focus();
+            return;
+          }
           const data = await res.json();
           const actionLog = [];
           if (res.ok) await applyActions(data.actions, actionLog);
+
+          // B5: cache the response and trigger auto-navigation. Order
+          // matters — recordAIResponse first so maybeShowAIResponseOnPage
+          // (called inside handlePostActionNavigation → showPage) can
+          // read the fresh payload.
+          if (res.ok) {
+            recordAIResponse(data.reply, data.actions, data.navigation);
+            handlePostActionNavigation(data.navigation);
+          }
 
           const replyText = res.ok ? data.reply : `Sorry, something went wrong: ${data.error || 'Unknown error'}`;
           // Build the response shell — avatar on left, body on right.
@@ -5693,7 +6513,7 @@
           output.innerHTML = `<span style="color:#e74c3c;font-size:0.9em;">Error generating report: ${err.message}</span>`;
         }
         btn.disabled = false;
-        btn.innerHTML = '&#128196; Generate Report';
+        btn.innerHTML = '&#128196; Generate Snapshot';
       }
 
       // --- Home Page ---
@@ -5982,7 +6802,7 @@
 
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
-        loadBillingStatus(); checkOnboarding();
+        loadPlanSummary(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
         loadForwardingInfo(); loadPaymentEvents(); loadEmailAccount();
         // Init month/year selectors to current month
@@ -6083,10 +6903,10 @@
           const rateLabel = unitCount === 0 ? '&nbsp;' : `${rate}% occupied`;
 
           return `
-            <div class="card" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
-              <div style="font-weight:700;color:#2d3748;font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
-              <div style="font-size:0.85em;color:#94a3b8;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
-              <div style="display:flex;gap:14px;font-size:0.82em;color:#4a5568;flex-wrap:wrap;">
+            <div class="card" data-property-id="${e.id}" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
+              <div style="font-weight:700;color:#f5e6d3;font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
+              <div style="font-size:0.85em;color:#e2e8f0;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
+              <div style="display:flex;gap:14px;font-size:0.82em;color:#e2e8f0;flex-wrap:wrap;">
                 <div style="text-transform:capitalize;">${buildingType}</div>
                 <div>${unitLabel}</div>
                 <div style="color:${rateColor};font-weight:600;">${rateLabel}</div>
@@ -6151,6 +6971,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
+          // Session D5: surface D4 maxProperties / canceled errors as upgrade prompt
+          const _planErr = await handlePlanError(res);
+          if (_planErr) return;
           const body = await res.json().catch(() => ({}));
           if (!res.ok) {
             alert('Failed to create property:\n\n' + (body.error || ('HTTP ' + res.status)));
@@ -6261,8 +7084,8 @@
       function _invField(label, valueHtml) {
         return `
           <div>
-            <div style="font-size:0.72em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
-            <div style="color:#4a5568;font-size:0.95em;line-height:1.5;">${valueHtml}</div>
+            <div style="font-size:0.72em;font-weight:700;color:#d4af37;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
+            <div style="color:#e2e8f0;font-size:0.95em;line-height:1.5;">${valueHtml}</div>
           </div>
         `;
       }
@@ -6272,10 +7095,10 @@
           <div class="card" style="padding:28px 32px;">
 
             <!-- Title area -->
-            <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;margin-bottom:4px;">
+            <div style="font-size:1.5em;font-weight:800;color:#f5e6d3;letter-spacing:-0.3px;margin-bottom:4px;">
               ${escapeHtmlInv(e.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
             </div>
-            <div style="color:#94a3b8;font-size:0.92em;margin-bottom:24px;">
+            <div style="color:#e2e8f0;font-size:0.92em;margin-bottom:24px;">
               ${escapeHtmlInv(e.address) || _invEmpty()}
             </div>
 
@@ -6422,11 +7245,11 @@
 
           return `
             <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#2d3748;">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${bb}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${sqft}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${floor}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#4a5568;">${rent}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#f5e6d3;">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${bb}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${sqft}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${floor}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${rent}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${badge}</td>
             </tr>
           `;
@@ -6437,7 +7260,7 @@
             ${header}
             <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
               <thead>
-                <tr style="text-align:left;color:#94a3b8;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
+                <tr style="text-align:left;color:#d4af37;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
                   <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Unit</th>
                   <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">BR / BA</th>
                   <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Sq Ft</th>
@@ -6705,6 +7528,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
+          // Session D5: surface D4 maxUnits / canceled errors as upgrade prompt
+          const _planErr = await handlePlanError(res);
+          if (_planErr) return;
           const body = await res.json().catch(() => ({}));
           if (!res.ok) {
             alert('Failed to create unit:\n\n' + (body.error || ('HTTP ' + res.status)));
@@ -7651,6 +8477,17 @@
       }
     </script>
   <!-- Maintenance Ticket Modal -->
+  <!-- Session D5: Upgrade prompt modal — fired by handlePlanError on 403/429 from D4 gates -->
+  <div class="modal-overlay" id="upgradePromptModal" style="display:none;align-items:center;justify-content:center;" onclick="if(event.target===this)closeUpgradePrompt()">
+    <div class="modal modal-content-dark">
+      <h2 class="upgrade-prompt-title">Upgrade Your Plan</h2>
+      <p id="upgradePromptMessage" class="upgrade-prompt-message"></p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeUpgradePrompt()">Maybe Later</button>
+        <button class="btn-primary" onclick="closeUpgradePrompt(); openBillingPortal();">Upgrade Plan</button>
+      </div>
+    </div>
+  </div>
   <!-- Onboarding Modal -->
   <div class="modal-overlay" id="onboardingModal" style="display:none;align-items:center;justify-content:center;">
     <div class="modal" style="max-width:480px;text-align:center;">
@@ -8018,6 +8855,65 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeUnitModal()">Cancel</button>
         <button class="btn-primary" id="unitModalSaveBtn" onclick="submitUnitModal()">Add Unit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Report Modal (Session B4) -->
+  <div class="modal-overlay" id="newReportModal" onclick="if(event.target===this)closeNewReportModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:560px;">
+      <h3>&#128203; New Report</h3>
+      <p style="font-size:0.88em;color:#94a3b8;margin-bottom:18px;">Describe the report you want. The AI will generate it based on your current property data.</p>
+
+      <div class="form-block">
+        <label class="form-block-label">Description</label>
+        <textarea id="newReportDescription" rows="4" placeholder="e.g. 'Generate a budget report with suggestions for next quarter' or 'Summarize tenant activity over the last month'" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;font-size:0.95em;width:100%;resize:vertical;"></textarea>
+      </div>
+
+      <div class="form-block">
+        <label class="form-block-label">Type</label>
+        <select id="newReportType" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f5e6d3;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+          <option value="">Auto-detect</option>
+          <option value="budget">Budget</option>
+          <option value="tenant">Tenant</option>
+          <option value="inventory">Inventory</option>
+          <option value="activity">Activity</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+
+      <div class="form-block">
+        <label class="form-block-label">Date range (optional)</label>
+        <input type="text" id="newReportDateRange" placeholder="e.g. 'last 30 days', 'Q1 2026'" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+      </div>
+
+      <div class="form-block">
+        <label class="form-block-label">Title (optional)</label>
+        <input type="text" id="newReportTitle" placeholder="Will be auto-generated if blank" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;">
+        <button onclick="closeNewReportModal()" class="btn-secondary">Cancel</button>
+        <button onclick="submitNewReport()" class="btn-primary" id="submitNewReportBtn">Generate Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Detail Modal (Session B4; Session C2.5: dark-navy aesthetic) -->
+  <div class="modal-overlay" id="reportDetailModal" onclick="if(event.target===this)closeReportDetailModal()" style="display:none;align-items:center;justify-content:center;">
+    <div class="modal" style="max-width:760px;max-height:85vh;display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:8px;">
+        <div style="flex:1;min-width:0;">
+          <h3 id="reportDetailTitle" style="margin:0 0 4px;"></h3>
+          <div id="reportDetailMeta" style="font-size:0.82em;"></div>
+        </div>
+        <button onclick="closeReportDetailModal()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+      </div>
+      <div id="reportDetailPrompt" style="font-size:0.85em;padding:10px 14px;border-radius:8px;margin:12px 0;font-style:italic;"></div>
+      <div id="reportDetailContent" class="ai-response-body" style="flex:1;overflow-y:auto;padding:12px 0 16px;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid rgba(212,175,55,0.18);padding-top:14px;margin-top:8px;">
+        <button id="reportDetailDeleteBtn" onclick="deleteCurrentReport()" class="btn-secondary" style="color:#f87171;">Delete</button>
+        <button onclick="closeReportDetailModal()" class="btn-primary">Close</button>
       </div>
     </div>
   </div>
