@@ -286,6 +286,22 @@
   </div>
 
   <script>
+    // === Vertical (E1) ===
+    // Read the chosen vertical from ?vertical=... when the visitor
+    // arrives from /signup/vertical. Defaults to property-management
+    // for direct /signup loads, preserving the pre-E1 behavior.
+    // Server re-validates against the allowed list — bogus values
+    // fall back to property-management.
+    const KNOWN_VERTICALS = ['property-management', 'professional-services'];
+    function readVerticalFromUrl() {
+      try {
+        const v = new URLSearchParams(window.location.search).get('vertical');
+        if (v && KNOWN_VERTICALS.indexOf(v) !== -1) return v;
+      } catch (e) { /* ignore */ }
+      return 'property-management';
+    }
+    const SIGNUP_VERTICAL = readVerticalFromUrl();
+
     // === sessionStorage draft state ===
     // Key dies with the tab — privacy-friendly. Server-side persistence
     // arrives in B2 when Stripe redirect needs to survive cross-origin.
@@ -531,6 +547,9 @@
           alert_phone:      draft.alert_phone || '',
           billing:          draft.billing || 'monthly',
           plan:             draft.plan,
+          // E1: vertical chosen on /signup/vertical and passed via
+          // ?vertical=... query string. Defaults to property-management.
+          vertical:         SIGNUP_VERTICAL,
         };
 
         try {

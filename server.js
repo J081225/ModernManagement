@@ -59,6 +59,11 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 // call time so this module stays leaf (no server.js dependency).
 const { processCheckoutCompletedEvent } = require('./lib/signup-orchestrator');
 
+// Session E1: vertical registry. Backs /api/verticals and /signup/vertical,
+// validates the vertical slug coming in via /api/signup/create-checkout-session
+// before forwarding it to Stripe metadata.
+const verticals = require('./lib/verticals');
+
 // Session D3: subscription lifecycle event processors. Handle
 // customer.subscription.updated, customer.subscription.deleted, and
 // invoice.payment_failed so workspaces.subscription_status tracks
@@ -250,6 +255,15 @@ app.get('/signup', (req, res) => {
   // The legacy single-screen public/signup.html is left on disk as a
   // backup but no longer routed.
   res.sendFile(path.join(__dirname, 'views', 'signup.html'));
+});
+
+// Session E1: vertical-selection page. New customers can land here to
+// pick their vertical (Property Management or Professional Services)
+// before continuing to /signup. The signup form itself reads the
+// chosen slug from ?vertical=... in the URL.
+app.get('/signup/vertical', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'views', 'signup-vertical.html'));
 });
 
 // Phase B B2: Stripe Checkout success-redirect destination. Stripe
@@ -1210,6 +1224,20 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
+// Session E1: list available verticals for the signup-vertical page.
+// Public (no auth) — the page is part of the pre-signup flow.
+app.get('/api/verticals', (req, res) => {
+  const list = verticals.listAvailableVerticals();
+  res.json({
+    verticals: list.map((v) => ({
+      slug: v.slug,
+      displayName: v.displayName,
+      tagline: v.tagline,
+      description: v.description,
+    })),
+  });
+});
+
 // Phase B B1: signup-form uniqueness pre-check endpoints. Public
 // (no auth) so the multi-screen form can validate inline as the user
 // types. Final uniqueness re-check happens at account-creation time
@@ -1311,6 +1339,10 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   const alert_phone     = String(body.alert_phone || '').trim();
   const billing         = String(body.billing || '');
   const plan            = String(body.plan || '');
+  // Session E1: optional vertical slug. validateVertical() falls back
+  // to the default ('property-management') for missing/unknown values,
+  // so legacy callers without this field continue working.
+  const verticalSlug    = verticals.validateVertical(String(body.vertical || ''));
 
   // Server-side re-validation (mirrors client regexes in views/signup.html).
   if (!/^[a-z0-9_]{3,30}$/.test(username))                  return res.status(400).json({ error: 'Invalid username format' });
@@ -1405,12 +1437,25 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
       draft_id,
       signup_username: username,
       signup_email: email,
+      // Session E1: orchestrator reads this to set workspaces.vertical
+      // on the new workspace.
+      vertical: verticalSlug,
     },
     success_url,
     cancel_url,
   };
+  // Session E1: also stamp vertical onto the subscription metadata so
+  // downstream Stripe events / dashboards can be filtered by vertical.
+  // subscription_data already exists for the D3 trial path; merge into it.
   if (shouldApplyTrial) {
-    sessionConfig.subscription_data = { trial_period_days: 7 };
+    sessionConfig.subscription_data = {
+      trial_period_days: 7,
+      metadata: { vertical: verticalSlug },
+    };
+  } else {
+    sessionConfig.subscription_data = {
+      metadata: { vertical: verticalSlug },
+    };
   }
 
   // Create Stripe Checkout session

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Choose your workspace — Modern Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #0a1420;
+      --bg-mid: #14263a;
+      --tier-1: #f5e6d3;
+      --tier-2: #d4af37;
+      --tier-3: #e2e8f0;
+      --tier-4: #94a3b8;
+      --forest: #86efac;
+      --gold: #d4af37;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg-deep);
+      color: var(--tier-1);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px 40px;
+    }
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-weight: 500;
+      font-size: 36px;
+      color: var(--tier-1);
+      text-align: center;
+      margin-bottom: 12px;
+      max-width: 700px;
+    }
+    .subtitle {
+      color: var(--tier-4);
+      font-size: 16px;
+      text-align: center;
+      max-width: 540px;
+      margin-bottom: 48px;
+      line-height: 1.6;
+    }
+    .verticals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      max-width: 800px;
+      width: 100%;
+    }
+    .vertical-card {
+      background: linear-gradient(160deg, rgba(20,38,58,0.8) 0%, rgba(10,20,32,0.9) 100%);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: 16px;
+      padding: 32px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+    }
+    .vertical-card:hover {
+      border-color: rgba(212, 175, 55, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .vertical-card-name {
+      font-family: 'Fraunces', serif;
+      font-size: 22px;
+      color: var(--tier-1);
+      margin-bottom: 8px;
+    }
+    .vertical-card-tagline {
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .vertical-card-description {
+      color: var(--tier-3);
+      font-size: 15px;
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 20px;
+    }
+    .vertical-card-cta {
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .footer {
+      margin-top: 40px;
+      color: var(--tier-4);
+      font-size: 13px;
+    }
+    .footer a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Choose your workspace</h1>
+  <p class="subtitle">
+    Modern Management is built for multiple types of businesses.
+    Pick the one that fits — you can change verticals later by contacting support.
+  </p>
+
+  <div class="verticals-grid" id="verticalsGrid"></div>
+
+  <div class="footer">
+    Already have an account? <a href="/login">Sign in</a>
+  </div>
+
+  <script>
+    function escapeHtml(s) {
+      return String(s).replace(/[<>&"']/g, function (c) {
+        return ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' })[c];
+      });
+    }
+
+    async function loadVerticals() {
+      try {
+        const res = await fetch('/api/verticals');
+        if (!res.ok) throw new Error('Failed to load verticals');
+        const data = await res.json();
+        const grid = document.getElementById('verticalsGrid');
+        grid.innerHTML = data.verticals.map(function (v) {
+          return [
+            '<a class="vertical-card" href="/signup?vertical=' + encodeURIComponent(v.slug) + '">',
+            '  <div class="vertical-card-name">' + escapeHtml(v.displayName) + '</div>',
+            '  <div class="vertical-card-tagline">' + escapeHtml(v.tagline) + '</div>',
+            '  <div class="vertical-card-description">' + escapeHtml(v.description) + '</div>',
+            '  <div class="vertical-card-cta">Continue &rarr;</div>',
+            '</a>',
+          ].join('');
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load verticals:', err);
+        document.getElementById('verticalsGrid').innerHTML =
+          '<p style="color: var(--tier-4)">Could not load options. Please refresh.</p>';
+      }
+    }
+    loadVerticals();
+  </script>
+</body>
+</html>
