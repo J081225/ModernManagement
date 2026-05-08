@@ -64,6 +64,13 @@ const { processCheckoutCompletedEvent } = require('./lib/signup-orchestrator');
 // before forwarding it to Stripe metadata.
 const verticals = require('./lib/verticals');
 
+// Session E2: appointment engine. Handles inbound SMS / voicemail for
+// PS workspaces with appointment_auto_respond=true. Runs ADDITIVELY in
+// /api/sms/incoming and /api/voice/transcription — when it returns
+// handled=false, the existing emergency-detection / auto-reply paths
+// fire as before.
+const appointmentEngine = require('./lib/appointment-engine');
+
 // Session D3: subscription lifecycle event processors. Handle
 // customer.subscription.updated, customer.subscription.deleted, and
 // invoice.payment_failed so workspaces.subscription_status tracks
@@ -4443,23 +4450,60 @@ app.post('/api/sms/incoming', async (req, res) => {
   if (rows[0]) {
     sendNotificationEmail(userId, rows[0]);
 
-    // Layer 1: emergency keyword gate (see /api/email/incoming above).
-    const matched = detectEmergency(rows[0].text);
-    if (matched.length) {
-      try {
-        await pool.query(
-          'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
-          [rows[0].id]
-        );
-        rows[0].emergency_flagged = true;
-      } catch (err) {
-        console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+    // Session E2: PS appointment routing — additive, falls through if
+    // not applicable. Loads the full workspace row, then invokes the
+    // engine for PS workspaces with appointment_auto_respond=true.
+    // When the engine handles the message, we short-circuit the
+    // existing emergency-detection / auto-reply / suggest-tasks paths
+    // for this turn (the engine has already replied to the customer
+    // and persisted an outbound row). When it doesn't handle, those
+    // paths run unchanged.
+    let _e2Handled = false;
+    try {
+      const { rows: wsRows } = await pool.query(
+        `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
+        [route.workspace_id]
+      );
+      const workspace = wsRows[0] || null;
+      if (workspace && workspace.vertical === 'professional-services' && workspace.appointment_auto_respond) {
+        const engineResult = await appointmentEngine.processInboundMessage({
+          workspace,
+          contact: null,
+          customer_phone: from,
+          customer_email: null,
+          channel: 'sms',
+          body,
+          db: pool,
+          twilio: twilioClient,
+          sendgrid: sgMail,
+          env: process.env,
+          logger: console,
+        });
+        _e2Handled = !!(engineResult && engineResult.handled);
       }
-      sendOwnerEmergencyAlert(userId, rows[0], matched);
-    } else {
-      const autoData = await getAutomation(userId);
-      if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
-      else suggestTasksFromConversation(rows[0], null, userId);
+    } catch (err) {
+      console.error('[sms/incoming] appointment engine error (falling through):', err.message);
+    }
+
+    if (!_e2Handled) {
+      // Layer 1: emergency keyword gate (see /api/email/incoming above).
+      const matched = detectEmergency(rows[0].text);
+      if (matched.length) {
+        try {
+          await pool.query(
+            'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+            [rows[0].id]
+          );
+          rows[0].emergency_flagged = true;
+        } catch (err) {
+          console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+        }
+        sendOwnerEmergencyAlert(userId, rows[0], matched);
+      } else {
+        const autoData = await getAutomation(userId);
+        if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
+        else suggestTasksFromConversation(rows[0], null, userId);
+      }
     }
   }
 });
@@ -4533,29 +4577,70 @@ app.post('/api/voice/transcription', async (req, res) => {
     if (rows.length) {
       sendNotificationEmail(userId, rows[0]);
 
-      // Layer 1: emergency keyword gate. Defensive short-circuit —
-      // if the row was already flagged by some other path (currently
-      // none, but defensive against future code), don't re-detect or
-      // re-alert. The owner has already been notified.
-      if (rows[0].emergency_flagged) {
-        console.log('[emergency-alert] Voicemail row', rows[0].id, 'already flagged — skipping re-detection');
-      } else {
-        const matched = detectEmergency(rows[0].text);
-        if (matched.length) {
-          try {
-            await pool.query(
-              'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
-              [rows[0].id]
-            );
-            rows[0].emergency_flagged = true;
-          } catch (err) {
-            console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+      // Session E2: PS appointment routing for voicemails. Same
+      // additive pattern as /api/sms/incoming: load the workspace,
+      // hand the transcript to the engine for PS workspaces with
+      // appointment_auto_respond=true, and short-circuit existing
+      // emergency / auto-reply paths only when the engine handles it.
+      // The transcript text is what we send to the engine — the
+      // outbound reply (if any) goes by SMS to the caller's number.
+      let _e2Handled = false;
+      try {
+        const { rows: wsRows } = await pool.query(
+          `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
+          [route.workspace_id]
+        );
+        const workspace = wsRows[0] || null;
+        if (workspace && workspace.vertical === 'professional-services' && workspace.appointment_auto_respond) {
+          const transcript = TranscriptionStatus === 'completed' && TranscriptionText
+            ? String(TranscriptionText)
+            : '';
+          if (transcript) {
+            const engineResult = await appointmentEngine.processInboundMessage({
+              workspace,
+              contact: null,
+              customer_phone: phone,
+              customer_email: null,
+              channel: 'voicemail',
+              body: transcript,
+              db: pool,
+              twilio: twilioClient,
+              sendgrid: sgMail,
+              env: process.env,
+              logger: console,
+            });
+            _e2Handled = !!(engineResult && engineResult.handled);
           }
-          sendOwnerEmergencyAlert(userId, rows[0], matched);
+        }
+      } catch (err) {
+        console.error('[voice/transcription] appointment engine error (falling through):', err.message);
+      }
+
+      if (!_e2Handled) {
+        // Layer 1: emergency keyword gate. Defensive short-circuit —
+        // if the row was already flagged by some other path (currently
+        // none, but defensive against future code), don't re-detect or
+        // re-alert. The owner has already been notified.
+        if (rows[0].emergency_flagged) {
+          console.log('[emergency-alert] Voicemail row', rows[0].id, 'already flagged — skipping re-detection');
         } else {
-          const autoData = await getAutomation(userId);
-          if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
-          else suggestTasksFromConversation(rows[0], null, userId);
+          const matched = detectEmergency(rows[0].text);
+          if (matched.length) {
+            try {
+              await pool.query(
+                'UPDATE messages SET emergency_flagged = TRUE WHERE id = $1',
+                [rows[0].id]
+              );
+              rows[0].emergency_flagged = true;
+            } catch (err) {
+              console.error('[emergency-alert] Failed to set emergency_flagged for msg', rows[0].id, err.message);
+            }
+            sendOwnerEmergencyAlert(userId, rows[0], matched);
+          } else {
+            const autoData = await getAutomation(userId);
+            if (autoData.autoReplyEnabled) await autoReplyToMessage(rows[0], userId);
+            else suggestTasksFromConversation(rows[0], null, userId);
+          }
         }
       }
     }
