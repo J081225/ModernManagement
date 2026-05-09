@@ -1820,6 +1820,7 @@
         <a href="#" id="nav-calendar" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
         <a href="#" id="nav-admin" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
+        <a href="#" id="nav-finances" onclick="showPage('finances', '&#128181;', this)"><span class="nav-icon">&#128181;</span> Finances</a>
         <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
         <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
@@ -2907,8 +2908,217 @@
           </div>
         </div>
 
+        <!-- =======================================================
+             FINANCES PAGE (E3) — vertical-aware
+             - PS: Transactions (NEW) + Invoices summary + Budget summary
+             - PM: Rent Payments summary + Invoices summary + Budget summary
+             Existing admin page sections (rent/invoices/budget) stay
+             intact. Finances is additive.
+             ======================================================= -->
+        <div class="page" id="page-finances">
+          <div class="page-content">
+
+            <div class="card">
+              <div class="card-head">
+                <div class="card-head-tile">&#128181;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Finances</div>
+                  <div class="card-head-subtitle">Money in, money out, and where it came from. <span id="financesVerticalTag" style="color:#94a3b8;font-size:0.85em;"></span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PS-only: Transactions section -->
+            <div class="card" id="transactionsCard" style="display:none;margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128176;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Transactions</div>
+                  <div class="card-head-subtitle">Sales, walk-ins, service completions, and refunds.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+                <input type="search" id="txSearch" placeholder="Search by customer, notes, or description&hellip;"
+                  style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                  oninput="loadTransactions()" />
+                <button onclick="loadTransactions()" style="padding:9px 14px;background:rgba(212,175,55,0.15);color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
+                <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:#e2e8f0;border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
+                <button onclick="openNewTransactionModal()" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">New transaction</button>
+              </div>
+
+              <details style="margin-bottom:14px;">
+                <summary style="color:#d4af37;cursor:pointer;font-size:0.85em;font-weight:600;padding:6px 0;">More filters</summary>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(148,163,184,0.15);border-radius:8px;">
+                  <div>
+                    <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Customer</label>
+                    <input type="text" id="txFilterCustomer" oninput="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">From</label>
+                    <input type="date" id="txFilterStart" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">To</label>
+                    <input type="date" id="txFilterEnd" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Payment</label>
+                    <select id="txFilterMethod" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                      <option value="">Any</option>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="venmo">Venmo</option>
+                      <option value="zelle">Zelle</option>
+                      <option value="gift_card">Gift card</option>
+                      <option value="other">Other</option>
+                      <option value="unpaid">Unpaid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Status</label>
+                    <select id="txFilterStatus" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                      <option value="">Any</option>
+                      <option value="draft">Draft</option>
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="partially_paid">Partially paid</option>
+                      <option value="unpaid">Unpaid</option>
+                      <option value="refunded">Refunded</option>
+                      <option value="voided">Voided</option>
+                    </select>
+                  </div>
+                </div>
+              </details>
+
+              <div id="transactionsList" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="color:#94a3b8;padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
+              </div>
+            </div>
+
+            <!-- Both verticals: Invoices summary -->
+            <div class="card" id="financesInvoicesCard" style="margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128196;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Invoices</div>
+                  <div class="card-head-subtitle">Vendor invoices and bills.</div>
+                </div>
+              </div>
+              <div id="financesInvoicesSummary" style="margin-bottom:12px;color:#94a3b8;font-size:0.92em;">Loading&hellip;</div>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Manage invoices in Admin &rarr;</a>
+            </div>
+
+            <!-- Both verticals: Budget summary -->
+            <div class="card" id="financesBudgetCard" style="margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128202;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Budget</div>
+                  <div class="card-head-subtitle">Income and expense ledger.</div>
+                </div>
+              </div>
+              <div id="financesBudgetSummary" style="margin-bottom:12px;color:#94a3b8;font-size:0.92em;">Loading&hellip;</div>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Open full budget in Admin &rarr;</a>
+            </div>
+
+            <!-- PM-only: Rent Payments summary -->
+            <div class="card" id="financesRentCard" style="display:none;margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#127968;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Rent Payments</div>
+                  <div class="card-head-subtitle">Monthly rent ledger across your portfolio.</div>
+                </div>
+              </div>
+              <div id="financesRentSummary" style="margin-bottom:12px;color:#94a3b8;font-size:0.92em;">Loading&hellip;</div>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Open rent ledger in Admin &rarr;</a>
+            </div>
+
+          </div>
+        </div>
+        <!-- ====================================================== -->
+
       </div>
     </div>
+
+    <!-- ============= TRANSACTION DETAIL MODAL (E3) ============= -->
+    <div class="modal-overlay" id="txDetailModal" onclick="if(event.target===this)closeTxDetailModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:8px;">
+          <div style="flex:1;min-width:0;">
+            <h3 id="txDetailTitle" style="margin:0 0 4px;color:#f5e6d3;">Transaction</h3>
+            <div id="txDetailMeta" style="font-size:0.82em;color:#94a3b8;"></div>
+          </div>
+          <button onclick="closeTxDetailModal()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+        </div>
+        <div id="txDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:#e2e8f0;font-size:0.92em;line-height:1.55;"></div>
+        <div id="txDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(212,175,55,0.18);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+
+    <!-- ============= REFUND MODAL (E3) ============= -->
+    <div class="modal-overlay" id="txRefundModal" onclick="if(event.target===this)closeTxRefundModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:480px;">
+        <h3 style="margin:0 0 8px;color:#f5e6d3;">Issue refund</h3>
+        <div id="txRefundContext" style="color:#94a3b8;font-size:0.85em;margin-bottom:14px;"></div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Amount (USD)</label>
+          <input type="number" id="txRefundAmount" step="0.01" min="0.01" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Reason</label>
+          <textarea id="txRefundReason" rows="3" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="closeTxRefundModal()" class="btn-secondary">Cancel</button>
+          <button id="txRefundConfirmBtn" onclick="submitRefund()" class="btn-primary">Confirm refund</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============= NEW TRANSACTION MODAL (E3) ============= -->
+    <div class="modal-overlay" id="txNewModal" onclick="if(event.target===this)closeNewTransactionModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:560px;">
+        <h3 style="margin:0 0 14px;color:#f5e6d3;">New transaction</h3>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Customer name</label>
+          <input type="text" id="newTxCustomer" placeholder="Walk-in" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Description</label>
+          <input type="text" id="newTxDescription" placeholder="Service or product" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Amount (USD)</label>
+            <input type="number" id="newTxAmount" step="0.01" min="0" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Payment</label>
+            <select id="newTxMethod" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+              <option value="">(unset)</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="venmo">Venmo</option>
+              <option value="zelle">Zelle</option>
+              <option value="gift_card">Gift card</option>
+              <option value="other">Other</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes (internal)</label>
+          <textarea id="newTxNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="closeNewTransactionModal()" class="btn-secondary">Cancel</button>
+          <button onclick="submitNewTransaction()" class="btn-primary">Create transaction</button>
+        </div>
+      </div>
+    </div>
+    <!-- ====================================================== -->
 
     <script>
       let selectedMessage;
@@ -2927,7 +3137,7 @@
         home: '&#127968;', inbox: '&#9993;', operations: '&#9881;',
         calendar: '&#128197;', reports: '&#128203;', admin: '&#128188;',
         maintenance: '&#128295;', contacts: '&#128100;',
-        inventory: '&#127970;', tasks: '&#10003;'
+        inventory: '&#127970;', tasks: '&#10003;', finances: '&#128181;'
       };
 
       function showPage(name, icon, link) {
@@ -2939,7 +3149,7 @@
         // without click context — fall back to id="nav-<name>".
         const navLink = link || document.getElementById('nav-' + name);
         if (navLink) navLink.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances' };
         if (name === 'home') {
           loadHomeStats();
           loadLeases();
@@ -2947,6 +3157,9 @@
         }
         if (name === 'inventory') loadInventory();
         if (name === 'reports') loadReports();
+        if (name === 'finances') {
+          if (typeof loadFinancesPage === 'function') loadFinancesPage();
+        }
         const resolvedIcon = icon || PAGE_ICONS[name] || '';
         document.getElementById('topbar-icon').innerHTML = resolvedIcon;
         document.getElementById('topbar-title').textContent = titles[name] || name;
@@ -8474,6 +8687,393 @@
           emergency_contacts: emergencyContacts,
           service_vendors: serviceVendors,
         };
+      }
+
+      // ====================================================================
+      // E3 — Finances page (transactions, invoices summary, budget summary,
+      // rent payments summary). Vertical-aware: PS sees Transactions; PM
+      // sees Rent Payments. Existing admin-page sections stay untouched.
+      // ====================================================================
+
+      // Cache for the open transaction in the detail modal
+      let _openTx = null;
+      let _financesVertical = null; // 'professional-services' | 'property-management'
+
+      async function loadFinancesPage() {
+        // Resolve vertical from the cached plan summary (D5) if present
+        let vertical = 'property-management';
+        try {
+          if (window._planSummary && window._planSummary.workspace_vertical) {
+            vertical = window._planSummary.workspace_vertical;
+          } else {
+            // Fallback: ask /api/me-style endpoint via /api/plan-summary
+            const r = await fetch('/api/plan-summary', { credentials: 'include' });
+            if (r.ok) {
+              const data = await r.json();
+              vertical = data.workspace_vertical || data.vertical || 'property-management';
+              window._planSummary = data;
+            }
+          }
+        } catch (e) {}
+        _financesVertical = vertical;
+
+        const isPS = vertical === 'professional-services';
+        document.getElementById('transactionsCard').style.display = isPS ? '' : 'none';
+        document.getElementById('financesRentCard').style.display = isPS ? 'none' : '';
+        document.getElementById('financesVerticalTag').textContent =
+          isPS ? '· Professional Services' : '· Property Management';
+
+        // Load summaries — call existing endpoints
+        loadFinancesInvoicesSummary();
+        loadFinancesBudgetSummary();
+        if (isPS) {
+          loadTransactions();
+        } else {
+          loadFinancesRentSummary();
+        }
+      }
+
+      async function loadFinancesInvoicesSummary() {
+        const el = document.getElementById('financesInvoicesSummary');
+        if (!el) return;
+        try {
+          const r = await fetch('/api/invoices', { credentials: 'include' });
+          if (!r.ok) { el.textContent = 'Could not load invoices.'; return; }
+          const list = await r.json();
+          if (!Array.isArray(list) || list.length === 0) {
+            el.textContent = 'No invoices on file.';
+            return;
+          }
+          const total = list.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+          const pending = list.filter(i => i.status === 'pending').length;
+          el.textContent = `${list.length} invoice${list.length === 1 ? '' : 's'} on file · $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })} total · ${pending} pending.`;
+        } catch (e) { el.textContent = 'Could not load invoices.'; }
+      }
+
+      async function loadFinancesBudgetSummary() {
+        const el = document.getElementById('financesBudgetSummary');
+        if (!el) return;
+        try {
+          const now = new Date();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const year = String(now.getFullYear());
+          const r = await fetch(`/api/budget?month=${month}&year=${year}`, { credentials: 'include' });
+          if (!r.ok) { el.textContent = 'Could not load budget.'; return; }
+          const list = await r.json();
+          if (!Array.isArray(list) || list.length === 0) {
+            el.textContent = 'No budget transactions yet this month.';
+            return;
+          }
+          const income = list.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+          const expense = list.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+          const net = income - expense;
+          el.textContent = `This month: $${income.toLocaleString('en-US', { minimumFractionDigits: 2 })} in · $${expense.toLocaleString('en-US', { minimumFractionDigits: 2 })} out · ${net >= 0 ? '+' : ''}$${net.toLocaleString('en-US', { minimumFractionDigits: 2 })} net.`;
+        } catch (e) { el.textContent = 'Could not load budget.'; }
+      }
+
+      async function loadFinancesRentSummary() {
+        const el = document.getElementById('financesRentSummary');
+        if (!el) return;
+        try {
+          const r = await fetch('/api/rent', { credentials: 'include' });
+          if (!r.ok) { el.textContent = 'Could not load rent ledger.'; return; }
+          const list = await r.json();
+          if (!Array.isArray(list) || list.length === 0) {
+            el.textContent = 'No rent records yet.';
+            return;
+          }
+          const paid = list.filter(r => r.status === 'paid').length;
+          const pending = list.filter(r => r.status === 'pending').length;
+          const late = list.filter(r => r.status === 'late').length;
+          el.textContent = `${list.length} rent record${list.length === 1 ? '' : 's'} · ${paid} paid · ${pending} pending · ${late} late.`;
+        } catch (e) { el.textContent = 'Could not load rent ledger.'; }
+      }
+
+      // ---------------- Transactions list ----------------
+
+      function _txStatusColor(status) {
+        switch (status) {
+          case 'paid': return '#86efac';
+          case 'partially_paid': return '#d4af37';
+          case 'pending': return '#d4af37';
+          case 'draft': return '#94a3b8';
+          case 'unpaid': return '#fca5a5';
+          case 'refunded': return '#94a3b8';
+          case 'voided': return '#94a3b8';
+          default: return '#e2e8f0';
+        }
+      }
+
+      function _txFormatCents(cents) {
+        if (cents == null) return '$0.00';
+        return '$' + (Number(cents) / 100).toFixed(2);
+      }
+
+      async function loadTransactions() {
+        const list = document.getElementById('transactionsList');
+        if (!list) return;
+        const params = new URLSearchParams();
+        const q = document.getElementById('txSearch').value.trim();
+        const customer = document.getElementById('txFilterCustomer').value.trim();
+        const start = document.getElementById('txFilterStart').value;
+        const end = document.getElementById('txFilterEnd').value;
+        const method = document.getElementById('txFilterMethod').value;
+        const status = document.getElementById('txFilterStatus').value;
+        if (q) params.set('q', q);
+        if (customer) params.set('customer_name', customer);
+        if (start) params.set('start_date', start);
+        if (end) params.set('end_date', end);
+        if (method) params.set('payment_method', method);
+        if (status) params.set('status', status);
+
+        try {
+          const r = await fetch('/api/transactions?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) { list.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load transactions.</div>'; return; }
+          const data = await r.json();
+          const txs = Array.isArray(data.transactions) ? data.transactions : [];
+          if (txs.length === 0) {
+            list.innerHTML = '<div style="color:#94a3b8;padding:30px;text-align:center;font-style:italic;">No transactions yet. Mark an appointment complete or create one manually.</div>';
+            return;
+          }
+          list.innerHTML = txs.map(t => {
+            const date = (t.payment_received_at || t.created_at || '').slice(0, 10);
+            const items = Array.isArray(t.line_items) ? t.line_items : [];
+            const summary = items[0] ? (items[0].description + (items.length > 1 ? ` +${items.length - 1} more` : '')) : '—';
+            const statusColor = _txStatusColor(t.status);
+            const refundTag = t.parent_transaction_id ? ' <span style="color:#94a3b8;font-size:0.78em;">(refund)</span>' : '';
+            const struck = t.status === 'voided' ? 'text-decoration:line-through;color:#94a3b8;' : '';
+            return `
+              <div onclick="openTxDetail(${t.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:90px 1fr 100px 100px 90px;gap:12px;align-items:center;${struck}">
+                <div style="color:#94a3b8;font-size:0.82em;">${date}</div>
+                <div>
+                  <div style="color:#f5e6d3;font-weight:600;font-size:0.92em;">${escapeHtmlForChip(t.customer_display_name)}${refundTag}</div>
+                  <div style="color:#94a3b8;font-size:0.82em;">${escapeHtmlForChip(summary)}</div>
+                </div>
+                <div style="color:#d4af37;font-weight:700;text-align:right;">${_txFormatCents(t.total_cents)}</div>
+                <div style="color:#94a3b8;font-size:0.82em;text-align:right;">${escapeHtmlForChip(t.payment_method || '—')}</div>
+                <div style="color:${statusColor};font-size:0.78em;font-weight:700;text-transform:uppercase;text-align:right;">${escapeHtmlForChip(t.status)}</div>
+              </div>`;
+          }).join('');
+        } catch (e) {
+          list.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load transactions.</div>';
+        }
+      }
+
+      function exportTransactionsCsv() {
+        const params = new URLSearchParams();
+        const q = document.getElementById('txSearch').value.trim();
+        const customer = document.getElementById('txFilterCustomer').value.trim();
+        const start = document.getElementById('txFilterStart').value;
+        const end = document.getElementById('txFilterEnd').value;
+        const method = document.getElementById('txFilterMethod').value;
+        const status = document.getElementById('txFilterStatus').value;
+        if (q) params.set('q', q);
+        if (customer) params.set('customer_name', customer);
+        if (start) params.set('start_date', start);
+        if (end) params.set('end_date', end);
+        if (method) params.set('payment_method', method);
+        if (status) params.set('status', status);
+        window.location.href = '/api/transactions/export.csv?' + params.toString();
+      }
+
+      // ---------------- Detail modal ----------------
+
+      async function openTxDetail(id) {
+        try {
+          const r = await fetch(`/api/transactions/${id}`, { credentials: 'include' });
+          if (!r.ok) { alert('Failed to load transaction.'); return; }
+          const data = await r.json();
+          _openTx = data.transaction;
+          renderTxDetail(data.transaction, data.refunds || []);
+          document.getElementById('txDetailModal').style.display = 'flex';
+        } catch (e) { alert('Failed to load transaction.'); }
+      }
+
+      function renderTxDetail(tx, refunds) {
+        document.getElementById('txDetailTitle').textContent =
+          `Transaction #${tx.id} — ${tx.customer_display_name}`;
+        const date = (tx.payment_received_at || tx.created_at || '').slice(0, 10);
+        const statusColor = _txStatusColor(tx.status);
+        document.getElementById('txDetailMeta').innerHTML =
+          `${date} · <span style="color:${statusColor};text-transform:uppercase;font-weight:700;">${escapeHtmlForChip(tx.status)}</span>${tx.payment_method ? ' · paid via ' + escapeHtmlForChip(tx.payment_method) : ''}${tx.source ? ' · source: ' + escapeHtmlForChip(tx.source) : ''}`;
+
+        const items = Array.isArray(tx.line_items) ? tx.line_items : [];
+        const itemsHtml = items.map(it => `
+          <tr>
+            <td style="padding:6px 0;color:#e2e8f0;">${escapeHtmlForChip(it.description || 'Item')}${it.quantity > 1 ? ' &times; ' + it.quantity : ''}</td>
+            <td style="padding:6px 0;text-align:right;color:#e2e8f0;">${_txFormatCents(it.total_cents)}</td>
+          </tr>`).join('');
+
+        const refundsHtml = refunds.length ? `
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
+            <div style="color:#94a3b8;font-size:0.78em;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Refunds</div>
+            ${refunds.map(r => `<div style="font-size:0.86em;color:#e2e8f0;margin-bottom:4px;">#${r.id} — ${_txFormatCents(Math.abs(r.total_cents))} on ${(r.created_at || '').slice(0, 10)}: ${escapeHtmlForChip(r.refund_reason || '')}</div>`).join('')}
+          </div>` : '';
+
+        const receiptHtml = tx.receipt_sent_via === 'email'
+          ? `<div style="color:#86efac;font-size:0.82em;margin-top:6px;">Receipt emailed${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
+          : tx.receipt_sent_via === 'sms'
+          ? `<div style="color:#86efac;font-size:0.82em;margin-top:6px;">Receipt sent via SMS${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
+          : tx.receipt_sent_via === 'none'
+          ? `<div style="color:#94a3b8;font-size:0.82em;margin-top:6px;">Receipt saved (no email or phone on file to send to).</div>`
+          : `<div style="color:#94a3b8;font-size:0.82em;margin-top:6px;">Receipt not yet sent.</div>`;
+
+        document.getElementById('txDetailBody').innerHTML = `
+          <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
+            <tbody>${itemsHtml || '<tr><td colspan="2" style="color:#94a3b8;padding:6px 0;">No itemized details</td></tr>'}</tbody>
+          </table>
+          <table style="width:100%;border-collapse:collapse;border-top:1px solid rgba(148,163,184,0.2);padding-top:6px;">
+            <tr><td style="color:#94a3b8;padding:3px 0;">Subtotal</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.subtotal_cents)}</td></tr>
+            ${tx.tax_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tax</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
+            ${tx.discount_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Discount</td><td style="text-align:right;color:#e2e8f0;">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
+            ${tx.tip_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tip</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
+            <tr><td style="color:#f5e6d3;font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
+            ${tx.amount_refunded_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:#94a3b8;font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
+          </table>
+          ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#d4af37;">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
+          ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#94a3b8;">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
+          ${receiptHtml}
+          ${tx.appointment_id ? `<div style="margin-top:12px;color:#94a3b8;font-size:0.82em;">Linked appointment: #${tx.appointment_id}</div>` : ''}
+          ${tx.parent_transaction_id ? `<div style="margin-top:6px;color:#94a3b8;font-size:0.82em;">This is a refund of <a href="#" onclick="event.preventDefault();openTxDetail(${tx.parent_transaction_id});" style="color:#d4af37;">transaction #${tx.parent_transaction_id}</a>.</div>` : ''}
+          ${refundsHtml}
+        `;
+
+        // Action buttons
+        const actions = document.getElementById('txDetailActions');
+        const canVoid = ['draft', 'pending', 'unpaid'].includes(tx.status);
+        const canRefund = ['paid', 'partially_paid'].includes(tx.status);
+        const remaining = (tx.total_cents - (tx.amount_refunded_cents || 0));
+        actions.innerHTML = [
+          `<button onclick="resendReceipt(${tx.id})" class="btn-secondary" style="font-size:0.85em;">Send/Resend receipt</button>`,
+          canRefund && remaining > 0
+            ? `<button onclick="openRefundModal(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fdba74;border-color:rgba(251,146,60,0.4);">Issue refund</button>`
+            : '',
+          canVoid
+            ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fca5a5;border-color:rgba(239,68,68,0.4);">Void</button>`
+            : '',
+          `<button onclick="closeTxDetailModal()" class="btn-primary" style="font-size:0.85em;">Close</button>`,
+        ].filter(Boolean).join('');
+      }
+
+      function closeTxDetailModal() {
+        document.getElementById('txDetailModal').style.display = 'none';
+        _openTx = null;
+      }
+
+      async function resendReceipt(id) {
+        try {
+          const r = await fetch(`/api/transactions/${id}/send-receipt`, { method: 'POST', credentials: 'include' });
+          const data = await r.json();
+          if (data.sent_via === 'email') alert('Receipt emailed.');
+          else if (data.sent_via === 'sms') alert('Receipt sent via SMS.');
+          else if (data.sent_via === 'none') alert('No email or phone on file. Receipt saved on the transaction.');
+          else alert('Receipt action: ' + (data.sent_via || 'unknown') + (data.reason ? ' — ' + data.reason : ''));
+          openTxDetail(id);
+        } catch (e) { alert('Failed to send receipt.'); }
+      }
+
+      async function voidFromDetail(id) {
+        const reason = prompt('Reason for voiding this transaction?');
+        if (!reason || !reason.trim()) return;
+        try {
+          // Use the AI tool path via /api/command? No — direct API isn't there for void.
+          // Easier: call the AI command endpoint with a void instruction. But that's heavy.
+          // Simpler: surface the void via a dedicated endpoint. For E3 we use the
+          // AI tool from the command bar by issuing a programmatic command.
+          const res = await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              prompt: `Void transaction ${id} with reason: ${reason.trim()}`,
+              currentPage: 'finances',
+            }),
+          });
+          if (!res.ok) { alert('Void failed.'); return; }
+          alert('Void requested. Refresh to see the updated status.');
+          closeTxDetailModal();
+          loadTransactions();
+        } catch (e) { alert('Void failed.'); }
+      }
+
+      // ---------------- Refund modal ----------------
+
+      function openRefundModal(txId) {
+        if (!_openTx || _openTx.id !== txId) return;
+        const remaining = (_openTx.total_cents - (_openTx.amount_refunded_cents || 0));
+        document.getElementById('txRefundContext').textContent =
+          `Refunding transaction #${_openTx.id} — ${_openTx.customer_display_name}. Remaining unrefunded: ${_txFormatCents(remaining)}.`;
+        document.getElementById('txRefundAmount').value = (remaining / 100).toFixed(2);
+        document.getElementById('txRefundReason').value = '';
+        document.getElementById('txRefundConfirmBtn').dataset.txid = txId;
+        document.getElementById('txRefundModal').style.display = 'flex';
+      }
+
+      function closeTxRefundModal() {
+        document.getElementById('txRefundModal').style.display = 'none';
+      }
+
+      async function submitRefund() {
+        const txId = parseInt(document.getElementById('txRefundConfirmBtn').dataset.txid, 10);
+        const dollars = parseFloat(document.getElementById('txRefundAmount').value);
+        const reason = document.getElementById('txRefundReason').value.trim();
+        if (!txId || isNaN(dollars) || dollars <= 0) { alert('Enter a valid refund amount.'); return; }
+        if (!reason) { alert('Please enter a reason.'); return; }
+        const cents = Math.round(dollars * 100);
+        try {
+          const r = await fetch(`/api/transactions/${txId}/refund`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ amount_cents: cents, reason }),
+          });
+          const data = await r.json();
+          if (!r.ok || !data.success) {
+            alert('Refund failed: ' + (data.error || 'unknown error'));
+            return;
+          }
+          closeTxRefundModal();
+          closeTxDetailModal();
+          loadTransactions();
+          alert(`Refund #${data.refund_transaction_id} created. Parent status: ${data.parent_status}.`);
+        } catch (e) { alert('Refund failed.'); }
+      }
+
+      // ---------------- New transaction modal ----------------
+
+      function openNewTransactionModal() {
+        document.getElementById('newTxCustomer').value = '';
+        document.getElementById('newTxDescription').value = '';
+        document.getElementById('newTxAmount').value = '';
+        document.getElementById('newTxMethod').value = '';
+        document.getElementById('newTxNotes').value = '';
+        document.getElementById('txNewModal').style.display = 'flex';
+      }
+      function closeNewTransactionModal() {
+        document.getElementById('txNewModal').style.display = 'none';
+      }
+
+      async function submitNewTransaction() {
+        const customer = document.getElementById('newTxCustomer').value.trim() || 'Walk-in';
+        const description = document.getElementById('newTxDescription').value.trim() || 'Sale';
+        const dollars = parseFloat(document.getElementById('newTxAmount').value);
+        const method = document.getElementById('newTxMethod').value || null;
+        const notes = document.getElementById('newTxNotes').value.trim();
+        if (isNaN(dollars) || dollars < 0) { alert('Enter a valid amount.'); return; }
+        const cents = Math.round(dollars * 100);
+        // Use the AI command path so create_transaction tool runs (works only on PS workspaces)
+        const prompt = `create_transaction with customer_name="${customer.replace(/"/g, '\\"')}", line_items=[{description:"${description.replace(/"/g, '\\"')}", quantity:1, unit_price_cents:${cents}, type:"service"}]${method ? ', payment_method="' + method + '"' : ''}${notes ? ', notes_internal="' + notes.replace(/"/g, '\\"') + '"' : ''}`;
+        try {
+          const r = await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prompt, currentPage: 'finances' }),
+          });
+          if (!r.ok) { alert('Create failed.'); return; }
+          closeNewTransactionModal();
+          loadTransactions();
+        } catch (e) { alert('Create failed.'); }
       }
     </script>
   <!-- Maintenance Ticket Modal -->

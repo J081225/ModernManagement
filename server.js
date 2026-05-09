@@ -77,6 +77,11 @@ const appointmentEngine = require('./lib/appointment-engine');
 // Stripe's source-of-truth state instead of staying 'active' forever.
 const subscriptionLifecycle = require('./lib/subscription-lifecycle');
 
+// Session E3: receipt formatting + delivery (email > SMS > save) for the
+// transactions table. Used by the complete_transaction AI tool and by the
+// /api/transactions/:id/send-receipt endpoint below.
+const receipts = require('./lib/receipts');
+
 // Session B1: populate the AI tool registry at startup. Tool modules
 // in lib/tools/ self-register when imported. The registry is dormant
 // until Session B2 wires it into /api/command — until then this is a
@@ -1794,11 +1799,20 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       console.error('[plan-summary] resource count failed:', err.message);
     }
 
+    // E3: include workspace vertical so the Finances page can render the
+    // correct sections (PS sees Transactions; PM sees Rent Payments).
+    let workspaceVertical = 'property-management';
+    try {
+      const wR = await pool.query(`SELECT vertical FROM workspaces WHERE id = $1`, [workspaceId]);
+      if (wR.rows[0] && wR.rows[0].vertical) workspaceVertical = wR.rows[0].vertical;
+    } catch (e) { /* fall through with default */ }
+
     res.json({
       plan: planName,
       plan_display_name: planConfig.displayName,
       monthly_price: planConfig.monthlyPrice,
       subscription_status: planInfo.subscription_status || 'active',
+      workspace_vertical: workspaceVertical,
       limits: planConfig.limits,
       features: planConfig.features,
       usage: {
@@ -5397,6 +5411,271 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
 app.delete('/api/invoices/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM invoices WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
+});
+
+// --- Transactions (E3, professional services) ---
+//
+// All endpoints workspace-scoped. The transactions table is workspace-scoped
+// snake_case (clean break from legacy user_id-scoped tables). The contact
+// link is soft (contacts is user_id-scoped legacy); customer_display_name
+// is always populated so the row is readable even if the contact is gone.
+
+// Helper: build a parameterized WHERE clause from query filters
+function _buildTxFilters(workspaceId, q) {
+  const where = ['t.workspace_id = $1'];
+  const params = [workspaceId];
+  let i = 2;
+  if (q.q && String(q.q).trim()) {
+    const term = '%' + String(q.q).toLowerCase().trim() + '%';
+    where.push(`(LOWER(t.customer_display_name) LIKE $${i} OR LOWER(COALESCE(t.notes_internal,'')) LIKE $${i} OR LOWER(COALESCE(t.notes_customer,'')) LIKE $${i})`);
+    params.push(term);
+    i++;
+  }
+  if (q.customer_name) {
+    where.push(`LOWER(t.customer_display_name) LIKE $${i++}`);
+    params.push('%' + String(q.customer_name).toLowerCase() + '%');
+  }
+  if (q.payment_method) {
+    where.push(`t.payment_method = $${i++}`);
+    params.push(String(q.payment_method).toLowerCase());
+  }
+  if (q.status) {
+    where.push(`t.status = $${i++}`);
+    params.push(String(q.status).toLowerCase());
+  }
+  if (q.start_date) {
+    where.push(`COALESCE(t.payment_received_at, t.created_at) >= $${i++}::timestamptz`);
+    params.push(q.start_date);
+  }
+  if (q.end_date) {
+    where.push(`COALESCE(t.payment_received_at, t.created_at) <= ($${i++}::date + INTERVAL '1 day')`);
+    params.push(q.end_date);
+  }
+  if (q.min_amount != null && q.min_amount !== '') {
+    where.push(`t.total_cents >= $${i++}`);
+    params.push(parseInt(q.min_amount, 10) || 0);
+  }
+  if (q.max_amount != null && q.max_amount !== '') {
+    where.push(`t.total_cents <= $${i++}`);
+    params.push(parseInt(q.max_amount, 10) || 0);
+  }
+  return { where: where.join(' AND '), params };
+}
+
+app.get('/api/transactions', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const { where, params } = _buildTxFilters(workspaceId, req.query);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    const countR = await pool.query(`SELECT COUNT(*) AS c FROM transactions t WHERE ${where}`, params);
+    const total = parseInt(countR.rows[0].c, 10);
+
+    const r = await pool.query(
+      `SELECT t.*
+         FROM transactions t
+        WHERE ${where}
+        ORDER BY COALESCE(t.payment_received_at, t.created_at) DESC, t.id DESC
+        LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+    res.json({ transactions: r.rows, total });
+  } catch (err) {
+    console.error('[GET /api/transactions]', err.message);
+    res.status(500).json({ error: 'Failed to load transactions' });
+  }
+});
+
+app.get('/api/transactions/export.csv', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const { where, params } = _buildTxFilters(workspaceId, req.query);
+    const r = await pool.query(
+      `SELECT t.*
+         FROM transactions t
+        WHERE ${where}
+        ORDER BY COALESCE(t.payment_received_at, t.created_at) DESC, t.id DESC`,
+      params
+    );
+
+    const escapeCsv = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+    const fmt = (cents) => cents == null ? '0.00' : (cents / 100).toFixed(2);
+    const header = ['Date', 'Customer Name', 'Service/Product Description', 'Subtotal', 'Tax', 'Tip', 'Total', 'Payment Method', 'Status', 'Notes', 'Transaction ID'];
+    const lines = [header.join(',')];
+    for (const t of r.rows) {
+      const date = (t.payment_received_at || t.created_at || new Date()).toISOString().slice(0, 10);
+      const items = Array.isArray(t.line_items) ? t.line_items : [];
+      const desc = items.map(it => `${it.description || ''}${it.quantity > 1 ? ' x' + it.quantity : ''}`).join('; ');
+      const notes = [t.notes_internal, t.notes_customer].filter(Boolean).join(' | ');
+      lines.push([
+        date,
+        escapeCsv(t.customer_display_name),
+        escapeCsv(desc),
+        fmt(t.subtotal_cents),
+        fmt(t.tax_cents),
+        fmt(t.tip_cents),
+        fmt(t.total_cents),
+        escapeCsv(t.payment_method || ''),
+        escapeCsv(t.status),
+        escapeCsv(notes),
+        t.id,
+      ].join(','));
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="transactions-${workspaceId}-${today}.csv"`);
+    res.send(lines.join('\n') + '\n');
+  } catch (err) {
+    console.error('[GET /api/transactions/export.csv]', err.message);
+    res.status(500).json({ error: 'Failed to export transactions' });
+  }
+});
+
+app.get('/api/transactions/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid transaction id' });
+    const r = await pool.query(
+      `SELECT * FROM transactions WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Transaction not found' });
+    // Also pull linked refund children
+    const children = await pool.query(
+      `SELECT id, total_cents, refund_reason, created_at, status
+         FROM transactions
+        WHERE parent_transaction_id = $1 AND workspace_id = $2
+        ORDER BY created_at DESC`,
+      [id, workspaceId]
+    );
+    res.json({ transaction: r.rows[0], refunds: children.rows });
+  } catch (err) {
+    console.error('[GET /api/transactions/:id]', err.message);
+    res.status(500).json({ error: 'Failed to load transaction' });
+  }
+});
+
+app.post('/api/transactions/:id/refund', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid transaction id' });
+    const amount_cents = parseInt(req.body && req.body.amount_cents, 10);
+    const reason = req.body && req.body.reason ? String(req.body.reason).trim() : '';
+    if (!amount_cents || amount_cents <= 0) {
+      return res.status(400).json({ error: 'amount_cents is required and must be positive' });
+    }
+    if (!reason) {
+      return res.status(400).json({ error: 'reason is required' });
+    }
+
+    const parentR = await pool.query(
+      `SELECT * FROM transactions WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
+      [id, workspaceId]
+    );
+    if (parentR.rows.length === 0) return res.status(404).json({ error: 'Transaction not found' });
+    const parent = parentR.rows[0];
+    if (!['paid', 'partially_paid'].includes(parent.status)) {
+      return res.status(400).json({ error: `Cannot refund a ${parent.status} transaction` });
+    }
+    const remaining = parent.total_cents - parent.amount_refunded_cents;
+    if (amount_cents > remaining) {
+      return res.status(400).json({ error: `Refund amount exceeds remaining unrefunded amount ($${(remaining / 100).toFixed(2)})` });
+    }
+
+    // Create the refund transaction (linked, source='refund')
+    const refundLineItems = [{
+      description: `Refund: ${reason}`,
+      quantity: 1,
+      unit_price_cents: -amount_cents,
+      total_cents: -amount_cents,
+      type: 'fee',
+    }];
+    const ins = await pool.query(
+      `INSERT INTO transactions
+         (workspace_id, contact_id, appointment_id, parent_transaction_id,
+          customer_display_name, line_items, subtotal_cents, total_cents,
+          amount_paid_cents, payment_method, status, source, refund_reason,
+          created_by_user_id, payment_received_at, notes_internal)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$7,$7,$8,'paid','refund',$9,$10,NOW(),$11)
+       RETURNING id`,
+      [workspaceId, parent.contact_id, parent.appointment_id, parent.id,
+       parent.customer_display_name, JSON.stringify(refundLineItems),
+       -amount_cents, parent.payment_method || 'other',
+       reason, req.session.userId,
+       `Refund of ${(amount_cents / 100).toFixed(2)} from transaction #${parent.id}`]
+    );
+    const refundId = ins.rows[0].id;
+
+    // Update parent: amount_refunded_cents += amount_cents; status flips to
+    // 'refunded' if fully refunded, otherwise stays paid/partially_paid
+    const newRefunded = parent.amount_refunded_cents + amount_cents;
+    const newStatus = newRefunded >= parent.total_cents ? 'refunded' : parent.status;
+    await pool.query(
+      `UPDATE transactions SET amount_refunded_cents = $1, status = $2, updated_at = NOW()
+        WHERE id = $3 AND workspace_id = $4`,
+      [newRefunded, newStatus, parent.id, workspaceId]
+    );
+
+    res.json({ success: true, refund_transaction_id: refundId, parent_status: newStatus });
+  } catch (err) {
+    console.error('[POST /api/transactions/:id/refund]', err.message);
+    res.status(500).json({ error: 'Failed to issue refund' });
+  }
+});
+
+app.post('/api/transactions/:id/send-receipt', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid transaction id' });
+
+    const txR = await pool.query(
+      `SELECT * FROM transactions WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (txR.rows.length === 0) return res.status(404).json({ error: 'Transaction not found' });
+    const tx = txR.rows[0];
+
+    const wsR = await pool.query(`SELECT * FROM workspaces WHERE id = $1`, [workspaceId]);
+    const workspace = wsR.rows[0] || { id: workspaceId };
+
+    let contact = null;
+    if (tx.contact_id) {
+      const c = await pool.query(
+        `SELECT * FROM contacts WHERE id = $1 AND user_id = $2`,
+        [tx.contact_id, workspace.owner_user_id]
+      );
+      contact = c.rows[0] || null;
+    }
+
+    const result = await receipts.sendReceipt({
+      transaction: tx,
+      workspace,
+      contact,
+      db: pool,
+      sendgrid: sgMail,
+      twilio: twilioClient,
+      env: process.env,
+      logger: console,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('[POST /api/transactions/:id/send-receipt]', err.message);
+    res.status(500).json({ error: 'Failed to send receipt' });
+  }
 });
 
 // --- Broadcasts ---
