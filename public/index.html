@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Management — AI-powered software for small businesses</title>
+  <meta name="description" content="Modern Management is an AI assistant that runs the operations of your business — customer communication, scheduling, records, reports, inventory, and the daily admin that drains your time." />
+  <meta property="og:title" content="Modern Management — An AI that runs your business while you do the work" />
+  <meta property="og:description" content="An AI that handles operations and surfaces what matters. Built for property managers and service businesses." />
+  <meta property="og:type" content="website" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Palette (locked):
+         Background dark navy: #0d1117 (from landing.html)
+         Tier 1 ivory:        #f5e6d3
+         Tier 2 gold:         #d4af37
+         Tier 3 light gray:   #e2e8f0
+         Tier 4 muted:        #94a3b8
+       No additional hex tokens. Translucent overlays use rgba(255,255,255, X) only. */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0d1117;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(16px);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none; color: #f5e6d3;
+      font-weight: 700; letter-spacing: -0.2px;
+    }
+    .nav-badge {
+      width: 34px; height: 34px;
+      background: #d4af37;
+      color: #0d1117;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.85em;
+    }
+    .nav-actions { display: flex; gap: 18px; align-items: center; }
+    .btn-nav-ghost {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.9em;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .btn-nav-ghost:hover { color: #f5e6d3; }
+    .btn-nav-primary {
+      background: #d4af37;
+      color: #0d1117;
+      text-decoration: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.88em;
+      font-weight: 700;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn-nav-primary:hover { transform: translateY(-1px); opacity: 0.92; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 110px 32px 70px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: clamp(2.4em, 5.2vw, 4em);
+      font-weight: 800;
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      color: #f5e6d3;
+      max-width: 820px;
+      margin: 0 auto 24px;
+    }
+    .hero-sub {
+      font-size: 1.15em;
+      color: #e2e8f0;
+      max-width: 640px;
+      line-height: 1.7;
+      margin: 0 auto;
+    }
+
+    /* ── Vertical chooser cards ── */
+    .vertical-grid {
+      max-width: 920px;
+      margin: 56px auto 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      padding: 0 32px;
+    }
+    .vertical-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148,163,184,0.25);
+      border-radius: 16px;
+      padding: 36px 32px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .vertical-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(212,175,55,0.55);
+      background: rgba(255,255,255,0.06);
+    }
+    .vertical-card-name {
+      font-size: 1.4em;
+      font-weight: 700;
+      color: #f5e6d3;
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .vertical-card-desc {
+      font-size: 0.97em;
+      color: #e2e8f0;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      flex: 1;
+    }
+    .vertical-card-cta {
+      color: #d4af37;
+      font-weight: 600;
+      font-size: 0.95em;
+    }
+
+    .signin-line {
+      text-align: center;
+      margin-top: 32px;
+      font-size: 0.92em;
+      color: #94a3b8;
+    }
+    .signin-line a { color: #d4af37; text-decoration: none; font-weight: 500; }
+    .signin-line a:hover { text-decoration: underline; }
+
+    /* ── How it works ── */
+    .section {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 90px 32px;
+    }
+    .section-label {
+      font-size: 0.78em;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #d4af37;
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(1.8em, 3.5vw, 2.4em);
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #f5e6d3;
+      text-align: center;
+      margin-bottom: 48px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .step {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    .step-num {
+      display: inline-block;
+      width: 32px; height: 32px;
+      background: rgba(212,175,55,0.15);
+      color: #d4af37;
+      border-radius: 8px;
+      text-align: center;
+      line-height: 32px;
+      font-weight: 700;
+      font-size: 0.9em;
+      margin-bottom: 14px;
+    }
+    .step h3 {
+      font-size: 1.05em;
+      font-weight: 700;
+      color: #f5e6d3;
+      margin-bottom: 8px;
+      letter-spacing: -0.2px;
+    }
+    .step p { color: #e2e8f0; font-size: 0.94em; line-height: 1.65; }
+
+    /* ── Different section ── */
+    .different-section {
+      background: rgba(255,255,255,0.025);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .different-body {
+      max-width: 720px;
+      margin: 0 auto 40px;
+      text-align: center;
+      color: #e2e8f0;
+      font-size: 1.05em;
+      line-height: 1.75;
+    }
+    .pills-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .pill {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px;
+      padding: 22px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .pill-icon {
+      font-size: 1.5em;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .pill p {
+      color: #e2e8f0;
+      font-size: 0.92em;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 56px 40px 36px;
+    }
+    .footer-grid {
+      max-width: 1080px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    .footer-col h4 {
+      font-size: 0.78em;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: #d4af37;
+      margin-bottom: 16px;
+    }
+    .footer-col a {
+      display: block;
+      color: #e2e8f0;
+      font-size: 0.93em;
+      text-decoration: none;
+      padding: 5px 0;
+      transition: color 0.15s;
+    }
+    .footer-col a:hover { color: #f5e6d3; }
+    .footer-col .btn-foot {
+      display: inline-block;
+      background: #d4af37;
+      color: #0d1117;
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.92em;
+      margin-top: 4px;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .footer-col .btn-foot:hover { transform: translateY(-1px); opacity: 0.92; }
+    .footer-bottom {
+      max-width: 1080px;
+      margin: 0 auto;
+      text-align: center;
+      padding-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      color: #94a3b8;
+      font-size: 0.85em;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-actions { gap: 10px; }
+      .nav-actions .btn-nav-ghost { display: none; }
+      .nav-actions .btn-nav-ghost.show-mobile { display: inline; }
+      .vertical-grid { grid-template-columns: 1fr; padding: 0 20px; gap: 16px; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .pills-row { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+      .hero { padding: 70px 20px 50px; }
+      .section { padding: 60px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="nav-badge">MM</div>
+      <span>Modern Management</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/property-management" class="btn-nav-ghost">Property Management</a>
+      <a href="/professional-services" class="btn-nav-ghost">Professional Services</a>
+      <a href="/login" class="btn-nav-ghost show-mobile">Sign in</a>
+      <a href="/signup/vertical" class="btn-nav-primary">Get started</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>An AI that runs your business while you do the work.</h1>
+    <p class="hero-sub">Modern Management is an AI assistant that handles the operations of your business — customer communication, scheduling, records, reports, inventory, and the daily admin that drains your time. It learns your business by reading what you teach it. Then it runs the busy work, surfaces what matters, and helps you decide what to do next.</p>
+  </section>
+
+  <!-- Vertical chooser -->
+  <section style="position:relative;">
+    <div class="vertical-grid">
+      <a href="/property-management" class="vertical-card">
+        <div class="vertical-card-name">For Property Managers</div>
+        <div class="vertical-card-desc">Tenants, rent, maintenance, broadcasts, and reports. AI handles tenant messages, drafts late notices, escalates emergencies, tracks every dollar, and tells you what's happening across your portfolio.</div>
+        <div class="vertical-card-cta">Property Management &rarr;</div>
+      </a>
+      <a href="/professional-services" class="vertical-card">
+        <div class="vertical-card-name">For Service Businesses</div>
+        <div class="vertical-card-desc">Appointments, customers, inventory, and operations. AI books bookings around your calendar, handles inbound customer texts, tracks supplies, drafts vendor messages, and surfaces patterns you'd otherwise miss.</div>
+        <div class="vertical-card-cta">Professional Services &rarr;</div>
+      </a>
+    </div>
+    <p class="signin-line">Already a customer? <a href="/login">Sign in &rarr;</a></p>
+  </section>
+
+  <!-- How it works -->
+  <section class="section">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Three steps to get started.</h2>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>You sign up.</h3>
+        <p>Pick your business type. We provision your own phone number for customer texts. Five minutes.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>You teach the AI.</h3>
+        <p>Write your hours, services, policies, and how you want things done — in plain English. The AI reads it before responding to anything.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>The AI handles the rest.</h3>
+        <p>Inbound texts. Bookings. Reports. Reminders. Inventory. Vendor messages. Daily summaries of what matters. The busy work runs itself; you decide what to do next.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- What makes this different -->
+  <section class="different-section">
+    <div class="section">
+      <div class="section-label">Why we built this</div>
+      <h2 class="section-title">This isn't a scheduling tool with AI bolted on. It's an AI brain that runs your business.</h2>
+      <p class="different-body">Most software adds AI as a feature. We built ours the other way: AI is the engine, and the features — scheduling, records, reports, inventory, communication — are what it does. Every customer text, every booking, every report, every reorder message goes through an AI that knows your business because you taught it. The result is software that doesn't just record what happened. It reads, decides, and acts.</p>
+      <div class="pills-row">
+        <div class="pill">
+          <div class="pill-icon">&#128737;&#65039;</div>
+          <p><strong style="color:#f5e6d3;">You're in control.</strong> Nothing happens without your approval. Sensitive actions wait for your tap.</p>
+        </div>
+        <div class="pill">
+          <div class="pill-icon">&#129504;</div>
+          <p><strong style="color:#f5e6d3;">Your AI knows your business.</strong> Train it on your hours, services, and policies in plain English.</p>
+        </div>
+        <div class="pill">
+          <div class="pill-icon">&#128241;</div>
+          <p><strong style="color:#f5e6d3;">Customers text. AI replies.</strong> Quiet by default, ready when you need it.</p>
+        </div>
+        <div class="pill">
+          <div class="pill-icon">&#128202;</div>
+          <p><strong style="color:#f5e6d3;">Reports on demand.</strong> Ask any question of your data. Get an answer, not a spreadsheet.</p>
+        </div>
+        <div class="pill">
+          <div class="pill-icon">&#128230;</div>
+          <p><strong style="color:#f5e6d3;">Inventory and vendors.</strong> Track what's running low. AI drafts reorder messages.</p>
+        </div>
+        <div class="pill">
+          <div class="pill-icon">&#128200;</div>
+          <p><strong style="color:#f5e6d3;">Strategy, not just records.</strong> Daily briefings. Trends. Suggestions. The patterns you'd otherwise miss.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="/property-management">Property Management</a>
+        <a href="/professional-services">Professional Services</a>
+        <a href="/login">Sign in</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/security">Security</a>
+      </div>
+      <div class="footer-col">
+        <h4>Get started</h4>
+        <a href="/signup/vertical" class="btn-foot">Pick your business type &rarr;</a>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy; 2026 Modern Management. Built in NYC.</div>
+  </footer>
+
+</body>
+</html>

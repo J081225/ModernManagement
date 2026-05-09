@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Management — AI Property Management Software for Landlords</title>
+  <meta name="description" content="An AI assistant that runs your property business. Tenants, rent, maintenance, finances, reports — all handled by an AI that knows your portfolio. Plans from $79/month, 7-day trial, cancel anytime." />
+  <meta property="og:title" content="Modern Management — An AI that runs your property business" />
+  <meta property="og:description" content="Tenants, rent, maintenance, finances, and reports — all handled by an AI that knows your portfolio." />
+  <meta property="og:type" content="website" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Palette: #0d1117 (bg), #f5e6d3 (ivory), #d4af37 (gold), #e2e8f0 (light gray), #94a3b8 (muted) */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0d1117;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* Nav */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 40px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(13,17,23,0.85);
+      backdrop-filter: blur(16px);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #f5e6d3; font-weight: 700; }
+    .nav-badge {
+      width: 34px; height: 34px; background: #d4af37; color: #0d1117;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.85em;
+    }
+    .nav-actions { display: flex; gap: 18px; align-items: center; }
+    .btn-nav-ghost { color: #94a3b8; text-decoration: none; font-size: 0.9em; font-weight: 500; }
+    .btn-nav-ghost:hover { color: #f5e6d3; }
+    .btn-nav-primary {
+      background: #d4af37; color: #0d1117; text-decoration: none;
+      padding: 9px 18px; border-radius: 8px; font-size: 0.88em; font-weight: 700;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn-nav-primary:hover { transform: translateY(-1px); opacity: 0.92; }
+
+    /* Hero */
+    .hero {
+      max-width: 980px; margin: 0 auto;
+      padding: 90px 32px 70px; text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      color: #d4af37; font-size: 0.78em; font-weight: 700;
+      letter-spacing: 1.6px; text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-size: clamp(2.4em, 5vw, 3.8em);
+      font-weight: 800; line-height: 1.08; letter-spacing: -1.5px;
+      color: #f5e6d3; max-width: 800px; margin: 0 auto 22px;
+    }
+    .hero-sub {
+      font-size: 1.13em; color: #e2e8f0;
+      max-width: 640px; margin: 0 auto 36px; line-height: 1.7;
+    }
+    .hero-ctas {
+      display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn-primary {
+      background: #d4af37; color: #0d1117; text-decoration: none;
+      padding: 14px 28px; border-radius: 10px; font-size: 1em; font-weight: 700;
+      transition: transform 0.15s, opacity 0.15s; display: inline-block;
+    }
+    .btn-primary:hover { transform: translateY(-1px); opacity: 0.92; }
+    .btn-secondary {
+      background: transparent; color: #d4af37; text-decoration: none;
+      padding: 14px 28px; border-radius: 10px; font-size: 1em; font-weight: 600;
+      border: 1px solid #d4af37;
+      transition: background 0.15s; display: inline-block;
+    }
+    .btn-secondary:hover { background: rgba(212,175,55,0.1); }
+
+    /* Sections */
+    .section { max-width: 1080px; margin: 0 auto; padding: 80px 32px; }
+    .section-label {
+      font-size: 0.78em; font-weight: 700; letter-spacing: 1.6px;
+      text-transform: uppercase; color: #d4af37;
+      text-align: center; margin-bottom: 14px;
+    }
+    .section-title {
+      font-size: clamp(1.8em, 3.5vw, 2.4em); font-weight: 800; letter-spacing: -1px;
+      color: #f5e6d3; text-align: center; margin-bottom: 16px;
+      max-width: 720px; margin-left: auto; margin-right: auto;
+    }
+    .section-sub {
+      text-align: center; color: #e2e8f0; font-size: 1.02em;
+      max-width: 640px; margin: 0 auto 50px; line-height: 1.7;
+    }
+
+    /* Benefits */
+    .benefits-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+    .benefit {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148,163,184,0.18);
+      border-radius: 14px; padding: 28px;
+    }
+    .benefit h3 {
+      font-size: 1.15em; font-weight: 700; color: #f5e6d3;
+      margin-bottom: 10px; letter-spacing: -0.2px;
+    }
+    .benefit p { color: #e2e8f0; font-size: 0.95em; line-height: 1.65; }
+
+    /* Fear-handler */
+    .fear-section {
+      background: rgba(255,255,255,0.025);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .fear-body {
+      max-width: 720px; margin: 0 auto 40px; text-align: center;
+      color: #e2e8f0; font-size: 1.05em; line-height: 1.75;
+    }
+    .approval-mock {
+      max-width: 520px; margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(148,163,184,0.25);
+      border-radius: 14px; padding: 22px 24px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+    }
+    .approval-label {
+      display: inline-block; font-size: 0.7em; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+      color: #d4af37; background: rgba(212,175,55,0.12);
+      padding: 3px 10px; border-radius: 6px; margin-bottom: 14px;
+    }
+    .approval-title {
+      color: #f5e6d3; font-weight: 700; font-size: 1em;
+      margin-bottom: 10px;
+    }
+    .approval-body {
+      color: #e2e8f0; font-size: 0.92em; line-height: 1.55;
+      padding: 12px 14px;
+      background: rgba(13,17,23,0.6);
+      border-radius: 8px;
+      border-left: 3px solid #d4af37;
+      margin-bottom: 16px;
+    }
+    .approval-actions { display: flex; gap: 10px; }
+    .approval-actions button {
+      flex: 1; padding: 9px 12px; border-radius: 7px;
+      font-weight: 700; font-size: 0.85em; cursor: pointer;
+      font-family: inherit; border: 1px solid transparent;
+      transition: opacity 0.15s;
+    }
+    .approval-actions .approve {
+      background: #d4af37; color: #0d1117; border-color: #d4af37;
+    }
+    .approval-actions .reject {
+      background: transparent; color: #94a3b8;
+      border-color: rgba(148,163,184,0.35);
+    }
+
+    /* Pricing */
+    .pricing-grid {
+      display: flex; gap: 22px; justify-content: center; flex-wrap: wrap;
+      align-items: stretch;
+    }
+    .pricing-card {
+      flex: 1 1 260px; max-width: 320px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 16px; padding: 32px 26px;
+      position: relative; display: flex; flex-direction: column;
+    }
+    .pricing-card.featured {
+      border-color: #d4af37;
+      background: rgba(212,175,55,0.06);
+    }
+    .popular-badge {
+      position: absolute; top: -12px; left: 50%;
+      transform: translateX(-50%);
+      background: #d4af37; color: #0d1117;
+      font-size: 0.7em; font-weight: 800;
+      letter-spacing: 1px; text-transform: uppercase;
+      padding: 4px 14px; border-radius: 14px; white-space: nowrap;
+    }
+    .plan-name {
+      font-size: 0.85em; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.4px; color: #94a3b8; margin-bottom: 12px;
+    }
+    .plan-price {
+      font-size: 2.6em; font-weight: 800; letter-spacing: -1.5px;
+      color: #f5e6d3; line-height: 1; margin-bottom: 4px;
+    }
+    .plan-price .period {
+      font-size: 0.34em; font-weight: 500; color: #94a3b8;
+      letter-spacing: 0; margin-left: 4px;
+    }
+    .plan-trial {
+      font-size: 0.82em; color: #d4af37; font-weight: 600; margin-bottom: 22px;
+    }
+    .plan-features {
+      list-style: none; display: flex; flex-direction: column; gap: 9px;
+      margin-bottom: 26px; flex: 1;
+    }
+    .plan-features li {
+      font-size: 0.9em; color: #e2e8f0;
+      display: flex; align-items: flex-start; gap: 8px;
+      line-height: 1.5;
+    }
+    .plan-features li::before {
+      content: '\2713'; color: #d4af37; font-weight: 700;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .plan-features li.muted { color: #94a3b8; }
+    .plan-features li.muted::before { content: '\2014'; color: #94a3b8; }
+    .btn-plan {
+      display: block; text-align: center; text-decoration: none;
+      padding: 13px; border-radius: 10px;
+      font-size: 0.95em; font-weight: 700;
+      background: #d4af37; color: #0d1117;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+    .btn-plan:hover { transform: translateY(-1px); opacity: 0.92; }
+    .pricing-note {
+      text-align: center; font-size: 0.9em; color: #94a3b8;
+      margin-top: 28px;
+    }
+
+    /* Final CTA */
+    .final-cta {
+      text-align: center; padding: 90px 32px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .final-cta h2 {
+      font-size: clamp(1.8em, 3.5vw, 2.4em); font-weight: 800;
+      letter-spacing: -1px; color: #f5e6d3; margin-bottom: 28px;
+      max-width: 720px; margin-left: auto; margin-right: auto;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 40px 40px 32px;
+      text-align: center;
+    }
+    .foot-links {
+      display: flex; gap: 22px; justify-content: center; flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .foot-links a {
+      color: #94a3b8; text-decoration: none; font-size: 0.9em;
+    }
+    .foot-links a:hover { color: #f5e6d3; }
+    .foot-copy { color: #94a3b8; font-size: 0.85em; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-actions { gap: 10px; }
+      .nav-actions .btn-nav-ghost { display: none; }
+      .nav-actions .btn-nav-ghost.show-mobile { display: inline; }
+      .hero { padding: 60px 20px 50px; }
+      .section { padding: 60px 20px; }
+      .benefits-grid { grid-template-columns: 1fr; }
+      .pricing-grid { flex-direction: column; align-items: stretch; }
+      .pricing-card { max-width: none; }
+      .hero-ctas { flex-direction: column; }
+      .hero-ctas .btn-primary, .hero-ctas .btn-secondary { width: 100%; text-align: center; }
+      .final-cta { padding: 60px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="nav-badge">MM</div>
+      <span>Modern Management</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/professional-services" class="btn-nav-ghost">Professional Services</a>
+      <a href="#pricing" class="btn-nav-ghost">Pricing</a>
+      <a href="/login" class="btn-nav-ghost show-mobile">Sign in</a>
+      <a href="/signup?vertical=property-management" class="btn-nav-primary">Start trial</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow">Property Management</div>
+    <h1>An AI that runs your property business.</h1>
+    <p class="hero-sub">Tenants, rent, maintenance, finances, and reports — all handled by an AI assistant that knows your portfolio. Modern Management tracks every property, processes every payment, escalates every emergency, and surfaces the operational and financial patterns that help you grow.</p>
+    <div class="hero-ctas">
+      <a href="/signup?vertical=property-management" class="btn-primary">Start free trial &rarr;</a>
+      <a href="#pricing" class="btn-secondary">See pricing</a>
+    </div>
+  </section>
+
+  <!-- Three benefits -->
+  <section class="section">
+    <div class="section-label">What it does</div>
+    <h2 class="section-title">Built for landlords who manage their own portfolio.</h2>
+    <div class="benefits-grid">
+      <div class="benefit">
+        <h3>Property records.</h3>
+        <p>Properties, units, leases, contacts, vendors. AI organizes everything in one place &mdash; and answers any question about it in plain English.</p>
+      </div>
+      <div class="benefit">
+        <h3>Tenant communication.</h3>
+        <p>Inbound SMS, email, and voicemail handled by AI. Routine messages handled automatically. Emergencies surfaced and escalated within seconds.</p>
+      </div>
+      <div class="benefit">
+        <h3>Rent and finances.</h3>
+        <p>Track payments, late status, and invoices. AI drafts late notices, processes inbound payment confirmations from email, and reconciles automatically.</p>
+      </div>
+      <div class="benefit">
+        <h3>Maintenance.</h3>
+        <p>Tickets come in by SMS, email, or voicemail. AI categorizes urgency, suggests vendors, schedules visits, and follows up. You only see what needs you.</p>
+      </div>
+      <div class="benefit">
+        <h3>Reports and insights.</h3>
+        <p>Ask for a quarterly report and get it. Vacancy, collections, maintenance costs, occupancy trends. Natural language in, accountant-ready out.</p>
+      </div>
+      <div class="benefit">
+        <h3>Daily briefing.</h3>
+        <p>What changed since yesterday. What needs your attention. What you can ignore. Surfaced every morning.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Fear-handler -->
+  <section class="fear-section">
+    <div class="section">
+      <div class="section-label">The honest answer</div>
+      <h2 class="section-title">You're worried AI will mess something up.</h2>
+      <p class="fear-body">So are we. That's why every action that touches a tenant &mdash; a late notice, a broadcast, a maintenance reply, a refund &mdash; waits for your approval. The AI proposes; you say yes. You're the boss; it's the assistant.<br><br>Beyond approvals, you teach the AI everything it needs to know about your business in plain English. Hours. Policies. Vendor preferences. The way you talk to tenants. The AI reads everything you wrote before it responds to anything. The more you teach it, the better it gets.</p>
+      <!-- REPLACE WITH IMAGE: screenshot of the in-app approval queue -->
+      <div class="approval-mock" aria-hidden="true">
+        <div class="approval-label">Pending approval</div>
+        <div class="approval-title">Send late notice to Alex Rivera (Unit 101)</div>
+        <div class="approval-body">"Hi Alex — quick reminder that February's rent is 5 days late. Let me know if there's anything I can help with. — Riverside Property Mgmt"</div>
+        <div class="approval-actions">
+          <button class="approve" type="button">Approve &amp; send</button>
+          <button class="reject" type="button">Reject</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="section" id="pricing">
+    <div class="section-label">Pricing</div>
+    <h2 class="section-title">Pick your plan.</h2>
+    <p class="section-sub">Single user accounts. Multi-user support is coming as a free upgrade for Team and Enterprise customers.</p>
+
+    <div class="pricing-grid">
+
+      <!-- Solo -->
+      <div class="pricing-card">
+        <div class="plan-name">Solo</div>
+        <div class="plan-price">$79<span class="period">/month</span></div>
+        <div class="plan-trial">7-day trial</div>
+        <ul class="plan-features">
+          <li>1 user</li>
+          <li>15 AI commands/day</li>
+          <li>5 reports/month</li>
+          <li>3 properties</li>
+          <li>10 units</li>
+          <li>25 contacts</li>
+          <li class="muted">Broadcast messaging</li>
+          <li class="muted">Auto-response</li>
+          <li class="muted">Daily briefing</li>
+          <li class="muted">API access</li>
+          <li class="muted">Custom AI training</li>
+          <li class="muted">Dedicated CSM</li>
+        </ul>
+        <a href="/signup?vertical=property-management&plan=solo" class="btn-plan">Start free trial &rarr;</a>
+      </div>
+
+      <!-- Team (featured) -->
+      <div class="pricing-card featured">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-name">Team</div>
+        <div class="plan-price">$149<span class="period">/month</span></div>
+        <div class="plan-trial">&mdash;</div>
+        <ul class="plan-features">
+          <li>1 user</li>
+          <li>30 AI commands/day</li>
+          <li>20 reports/month</li>
+          <li>10 properties</li>
+          <li>Unlimited units</li>
+          <li>Unlimited contacts</li>
+          <li>Broadcast messaging</li>
+          <li>Auto-response</li>
+          <li>Daily briefing</li>
+          <li class="muted">API access</li>
+          <li class="muted">Custom AI training</li>
+          <li class="muted">Dedicated CSM</li>
+        </ul>
+        <a href="/signup?vertical=property-management&plan=team" class="btn-plan">Start free trial &rarr;</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="pricing-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-price">$299<span class="period">/month</span></div>
+        <div class="plan-trial">&mdash;</div>
+        <ul class="plan-features">
+          <li>1 user</li>
+          <li>500 AI commands/day</li>
+          <li>Unlimited reports</li>
+          <li>Unlimited properties</li>
+          <li>Unlimited units</li>
+          <li>Unlimited contacts</li>
+          <li>Broadcast messaging</li>
+          <li>Auto-response</li>
+          <li>Daily briefing</li>
+          <li>API access</li>
+          <li>Custom AI training</li>
+          <li>Dedicated CSM</li>
+        </ul>
+        <a href="/signup?vertical=property-management&plan=enterprise" class="btn-plan">Start free trial &rarr;</a>
+      </div>
+
+    </div>
+
+    <p class="pricing-note">Annual billing available &mdash; save 15%.</p>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <h2>Ready to run your property business with an AI assistant?</h2>
+    <a href="/signup?vertical=property-management&plan=solo" class="btn-primary">Start your 7-day free trial &rarr;</a>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="foot-links">
+      <a href="/">Home</a>
+      <a href="/professional-services">Professional Services</a>
+      <a href="/login">Sign in</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/security">Security</a>
+    </div>
+    <div class="foot-copy">&copy; 2026 Modern Management. Built in NYC.</div>
+  </footer>
+
+</body>
+</html>

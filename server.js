@@ -248,8 +248,29 @@ async function getWorkspaceId(req) {
 }
 
 // --- Page routes ---
+
+// Session E2.5: parent landing (multi-vertical chooser). Replaces the old
+// PM-focused landing.html at /. The previous file is preserved at
+// /landing-legacy for reference but is no longer linked from anywhere
+// public-facing; it can be removed in a future cleanup.
 app.get('/', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Session E2.5: vertical-specific landing pages.
+app.get('/property-management', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'property-management.html'));
+});
+app.get('/professional-services', (req, res) => {
+  if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  res.sendFile(path.join(__dirname, 'public', 'professional-services.html'));
+});
+
+// Session E2.5: legacy single-vertical landing kept reachable for reference.
+// Not linked from any public surface. Safe to remove in a future cleanup.
+app.get('/landing-legacy', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 app.get('/login', (req, res) => {
