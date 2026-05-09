@@ -1801,11 +1801,20 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
 
     // E3: include workspace vertical so the Finances page can render the
     // correct sections (PS sees Transactions; PM sees Rent Payments).
+    // E4: also include inventory_tracking_enabled so the frontend knows
+    // whether to show the Inventory sidebar item (PS-only AND opt-in).
     let workspaceVertical = 'property-management';
+    let inventoryTrackingEnabled = false;
     try {
-      const wR = await pool.query(`SELECT vertical FROM workspaces WHERE id = $1`, [workspaceId]);
-      if (wR.rows[0] && wR.rows[0].vertical) workspaceVertical = wR.rows[0].vertical;
-    } catch (e) { /* fall through with default */ }
+      const wR = await pool.query(
+        `SELECT vertical, inventory_tracking_enabled FROM workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      if (wR.rows[0]) {
+        if (wR.rows[0].vertical) workspaceVertical = wR.rows[0].vertical;
+        inventoryTrackingEnabled = !!wR.rows[0].inventory_tracking_enabled;
+      }
+    } catch (e) { /* fall through with defaults */ }
 
     res.json({
       plan: planName,
@@ -1813,6 +1822,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       monthly_price: planConfig.monthlyPrice,
       subscription_status: planInfo.subscription_status || 'active',
       workspace_vertical: workspaceVertical,
+      inventory_tracking_enabled: inventoryTrackingEnabled,
       limits: planConfig.limits,
       features: planConfig.features,
       usage: {
@@ -5675,6 +5685,277 @@ app.post('/api/transactions/:id/send-receipt', requireAuth, async (req, res) => 
   } catch (err) {
     console.error('[POST /api/transactions/:id/send-receipt]', err.message);
     res.status(500).json({ error: 'Failed to send receipt' });
+  }
+});
+
+// --- Menu items / inventory items / vendors (E4) ---
+//
+// All workspace-scoped (snake_case, post-D7 convention). Soft-archive
+// pattern (archived_at TIMESTAMPTZ). The CRUD itself for menu_items goes
+// through the AI tools (add_menu_item etc.); these REST endpoints are for
+// the UI to LIST and DETAIL (and archive/unarchive for inventory + vendors).
+
+// ----- Menu items -----
+app.get('/api/menu-items', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const where = ['m.workspace_id = $1'];
+    const params = [workspaceId];
+    let i = 2;
+    if (req.query.type && ['service', 'product', 'addon'].includes(req.query.type)) {
+      where.push(`m.type = $${i++}`); params.push(req.query.type);
+    }
+    if (req.query.category) {
+      where.push(`LOWER(m.category) = $${i++}`); params.push(String(req.query.category).toLowerCase());
+    }
+    const activeOnly = req.query.active_only !== 'false';
+    if (activeOnly) {
+      where.push(`m.archived_at IS NULL AND m.active = TRUE`);
+    }
+    if (req.query.q && String(req.query.q).trim()) {
+      where.push(`(LOWER(m.name) LIKE $${i} OR LOWER(COALESCE(m.description,'')) LIKE $${i})`);
+      params.push('%' + String(req.query.q).toLowerCase().trim() + '%');
+      i++;
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const r = await pool.query(
+      `SELECT m.*, p.name AS parent_name, inv.name AS inventory_name
+         FROM menu_items m
+         LEFT JOIN menu_items p ON p.id = m.parent_menu_item_id
+         LEFT JOIN inventory_items inv ON inv.id = m.inventory_item_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY m.type ASC, m.category ASC, m.name ASC
+        LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+    res.json({ menu_items: r.rows });
+  } catch (err) {
+    console.error('[GET /api/menu-items]', err.message);
+    res.status(500).json({ error: 'Failed to load menu items' });
+  }
+});
+
+app.get('/api/menu-items/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid menu item id' });
+    const r = await pool.query(
+      `SELECT m.*, p.name AS parent_name, inv.name AS inventory_name
+         FROM menu_items m
+         LEFT JOIN menu_items p ON p.id = m.parent_menu_item_id
+         LEFT JOIN inventory_items inv ON inv.id = m.inventory_item_id
+        WHERE m.id = $1 AND m.workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Menu item not found' });
+    res.json({ menu_item: r.rows[0] });
+  } catch (err) {
+    console.error('[GET /api/menu-items/:id]', err.message);
+    res.status(500).json({ error: 'Failed to load menu item' });
+  }
+});
+
+// ----- Inventory items -----
+app.get('/api/inventory-items', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const where = ['workspace_id = $1', 'archived_at IS NULL'];
+    const params = [workspaceId];
+    let i = 2;
+    if (req.query.status && ['in_stock', 'low', 'out'].includes(req.query.status)) {
+      where.push(`status = $${i++}`); params.push(req.query.status);
+    }
+    if (req.query.category) {
+      where.push(`LOWER(category) = $${i++}`); params.push(String(req.query.category).toLowerCase());
+    }
+    if (req.query.q && String(req.query.q).trim()) {
+      where.push(`LOWER(name) LIKE $${i++}`);
+      params.push('%' + String(req.query.q).toLowerCase().trim() + '%');
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const r = await pool.query(
+      `SELECT i.*, v.name AS vendor_name
+         FROM inventory_items i
+         LEFT JOIN vendors v ON v.id = i.preferred_vendor_id
+        WHERE ${where.join(' AND ')}
+        ORDER BY i.status DESC, i.name ASC
+        LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+    res.json({ inventory_items: r.rows });
+  } catch (err) {
+    console.error('[GET /api/inventory-items]', err.message);
+    res.status(500).json({ error: 'Failed to load inventory' });
+  }
+});
+
+app.get('/api/inventory-items/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid inventory item id' });
+    const r = await pool.query(
+      `SELECT i.*, v.name AS vendor_name
+         FROM inventory_items i
+         LEFT JOIN vendors v ON v.id = i.preferred_vendor_id
+        WHERE i.id = $1 AND i.workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Inventory item not found' });
+    res.json({ inventory_item: r.rows[0] });
+  } catch (err) {
+    console.error('[GET /api/inventory-items/:id]', err.message);
+    res.status(500).json({ error: 'Failed to load inventory item' });
+  }
+});
+
+app.post('/api/inventory-items/:id/archive', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = await pool.query(
+      `UPDATE inventory_items SET archived_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2 AND archived_at IS NULL
+        RETURNING id`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found or already archived' });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[POST /api/inventory-items/:id/archive]', err.message);
+    res.status(500).json({ error: 'Failed to archive' });
+  }
+});
+
+app.post('/api/inventory-items/:id/unarchive', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = await pool.query(
+      `UPDATE inventory_items SET archived_at = NULL, updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2
+        RETURNING id`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[POST /api/inventory-items/:id/unarchive]', err.message);
+    res.status(500).json({ error: 'Failed to unarchive' });
+  }
+});
+
+// ----- Vendors -----
+app.get('/api/vendors', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const where = ['workspace_id = $1', 'archived_at IS NULL'];
+    const params = [workspaceId];
+    let i = 2;
+    if (req.query.q && String(req.query.q).trim()) {
+      where.push(`LOWER(name) LIKE $${i++}`);
+      params.push('%' + String(req.query.q).toLowerCase().trim() + '%');
+    }
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const r = await pool.query(
+      `SELECT * FROM vendors
+        WHERE ${where.join(' AND ')}
+        ORDER BY name ASC
+        LIMIT ${limit} OFFSET ${offset}`,
+      params
+    );
+    res.json({ vendors: r.rows });
+  } catch (err) {
+    console.error('[GET /api/vendors]', err.message);
+    res.status(500).json({ error: 'Failed to load vendors' });
+  }
+});
+
+app.get('/api/vendors/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid vendor id' });
+    const r = await pool.query(
+      `SELECT * FROM vendors WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Vendor not found' });
+    res.json({ vendor: r.rows[0] });
+  } catch (err) {
+    console.error('[GET /api/vendors/:id]', err.message);
+    res.status(500).json({ error: 'Failed to load vendor' });
+  }
+});
+
+app.post('/api/vendors/:id/archive', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = await pool.query(
+      `UPDATE vendors SET archived_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2 AND archived_at IS NULL
+        RETURNING id`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found or already archived' });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[POST /api/vendors/:id/archive]', err.message);
+    res.status(500).json({ error: 'Failed to archive' });
+  }
+});
+
+app.post('/api/vendors/:id/unarchive', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid id' });
+    const r = await pool.query(
+      `UPDATE vendors SET archived_at = NULL, updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2
+        RETURNING id`,
+      [id, workspaceId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[POST /api/vendors/:id/unarchive]', err.message);
+    res.status(500).json({ error: 'Failed to unarchive' });
+  }
+});
+
+// ----- Inventory tracking toggle (workspace-level setting) -----
+app.post('/api/workspace/inventory-tracking', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const enabled = req.body && (req.body.enabled === true || req.body.enabled === 'true');
+    await pool.query(
+      `UPDATE workspaces SET inventory_tracking_enabled = $1 WHERE id = $2`,
+      [enabled, workspaceId]
+    );
+    res.json({ enabled });
+  } catch (err) {
+    console.error('[POST /api/workspace/inventory-tracking]', err.message);
+    res.status(500).json({ error: 'Failed to toggle inventory tracking' });
   }
 });
 

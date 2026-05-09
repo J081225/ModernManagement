@@ -1821,6 +1821,9 @@
         <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
         <a href="#" id="nav-admin" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
         <a href="#" id="nav-finances" onclick="showPage('finances', '&#128181;', this)"><span class="nav-icon">&#128181;</span> Finances</a>
+        <!-- E4: Services & Products + Inventory — PS-only (toggled by JS post-plan-summary). Inventory also requires inventory_tracking_enabled. -->
+        <a href="#" id="nav-menu" onclick="showPage('menu', '&#127860;', this)" style="display:none;"><span class="nav-icon">&#127860;</span> Services &amp; Products</a>
+        <a href="#" id="nav-inventory-ps" onclick="showPage('inventory-ps', '&#128230;', this)" style="display:none;"><span class="nav-icon">&#128230;</span> Inventory</a>
         <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
         <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
@@ -2713,6 +2716,20 @@
             </div>
             <div class="plan-usage-grid" id="planUsageGrid"></div>
             <div class="plan-usage-features" id="planUsageFeatures"></div>
+            <!-- E4: Workspace settings — only the inventory tracking toggle for now. Hidden for non-PS workspaces. -->
+            <div id="workspaceSettingsRow" style="display:none;border-top:1px solid rgba(212,175,55,0.15);padding-top:14px;margin-top:8px;margin-bottom:14px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+                <div>
+                  <div style="color:#f5e6d3;font-size:0.95em;font-weight:600;">Track inventory</div>
+                  <div style="color:#94a3b8;font-size:0.82em;margin-top:2px;">Surfaces the Inventory page in the sidebar. Off by default for new workspaces — turn on to track stock and vendors.</div>
+                </div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+                  <input type="checkbox" id="invTrackToggle" onchange="toggleInventoryTracking(this.checked)" style="opacity:0;width:0;height:0;position:absolute;">
+                  <span id="invTrackTrack" style="position:absolute;inset:0;background:#94a3b8;border-radius:24px;transition:background 0.2s;"></span>
+                  <span id="invTrackThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#f5e6d3;border-radius:50%;transition:transform 0.2s;"></span>
+                </label>
+              </div>
+            </div>
             <div class="plan-usage-actions">
               <button class="btn-secondary" onclick="openBillingPortal()">Manage Billing</button>
               <button class="btn-primary" onclick="openBillingPortal()">Upgrade Plan</button>
@@ -3039,6 +3056,248 @@
         </div>
         <!-- ====================================================== -->
 
+        <!-- =======================================================
+             SERVICES & PRODUCTS PAGE (E4) — PS-only
+             Three tabs: Services / Products / Add-ons. Single
+             menu_items table behind the scenes; tabs filter by type.
+             ======================================================= -->
+        <div class="page" id="page-menu">
+          <div class="page-content">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-head-tile">&#127860;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Services &amp; Products</div>
+                  <div class="card-head-subtitle">Your menu — what customers can book and buy. Pricing is "starting from"; final prices land on the receipt at completion.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
+                <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:#f5e6d3;border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
+                <button class="menu-tab" data-mtab="product" onclick="switchMenuTab('product')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Products</button>
+                <button class="menu-tab" data-mtab="addon" onclick="switchMenuTab('addon')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Add-ons</button>
+              </div>
+
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                <input type="search" id="menuSearch" placeholder="Search menu items&hellip;"
+                  style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                  oninput="loadMenuList()" />
+                <button onclick="openMenuItemModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add new</button>
+              </div>
+
+              <div id="menuList" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="color:#94a3b8;padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- =======================================================
+             INVENTORY PAGE (E4) — PS-only AND inventory_tracking_enabled
+             Two tabs: Inventory / Vendors.
+             ======================================================= -->
+        <div class="page" id="page-inventory-ps">
+          <div class="page-content">
+            <div class="card">
+              <div class="card-head">
+                <div class="card-head-tile">&#128230;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Inventory &amp; Vendors</div>
+                  <div class="card-head-subtitle">Three-state stock tracking and the vendors you reorder from.</div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
+                <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:#f5e6d3;border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
+                <button class="inv-tab" data-itab="vendors" onclick="switchInventoryTab('vendors')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Vendors</button>
+              </div>
+
+              <!-- Inventory tab body -->
+              <div id="invInventoryBody">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                  <input type="search" id="invSearch" placeholder="Search inventory&hellip;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                    oninput="loadInventoryList()" />
+                  <select id="invStatusFilter" onchange="loadInventoryList()" style="padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+                    <option value="">All</option>
+                    <option value="in_stock">In stock</option>
+                    <option value="low">Low</option>
+                    <option value="out">Out</option>
+                  </select>
+                  <button onclick="openInventoryItemModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add item</button>
+                </div>
+                <div id="invList" style="display:flex;flex-direction:column;gap:8px;">
+                  <div style="color:#94a3b8;padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
+                </div>
+              </div>
+
+              <!-- Vendors tab body -->
+              <div id="invVendorsBody" style="display:none;">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                  <input type="search" id="vendorSearch" placeholder="Search vendors&hellip;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                    oninput="loadVendorList()" />
+                  <button onclick="openVendorModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add vendor</button>
+                </div>
+                <div id="vendorList" style="display:flex;flex-direction:column;gap:8px;">
+                  <div style="color:#94a3b8;padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- ====================================================== -->
+
+      </div>
+    </div>
+
+    <!-- ============= MENU ITEM EDIT/CREATE MODAL (E4) ============= -->
+    <div class="modal-overlay" id="menuItemModal" onclick="if(event.target===this)closeMenuItemModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:560px;">
+        <h3 id="menuItemModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add menu item</h3>
+        <input type="hidden" id="menuItemId" value="">
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Type</label>
+          <select id="menuItemType" onchange="onMenuItemTypeChange()" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <option value="service">Service</option>
+            <option value="product">Product</option>
+            <option value="addon">Add-on</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
+          <input type="text" id="menuItemName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Description</label>
+          <textarea id="menuItemDesc" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Category</label>
+            <input type="text" id="menuItemCategory" placeholder="e.g., Nails" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Base price (USD)</label>
+            <input type="number" step="0.01" min="0" id="menuItemPrice" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div id="menuItemDurationRow">
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Duration (minutes)</label>
+            <input type="number" min="1" id="menuItemDuration" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Tax behavior</label>
+            <select id="menuItemTax" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+              <option value="none">None</option>
+              <option value="included">Tax included in price</option>
+              <option value="added">Sales tax added at checkout</option>
+            </select>
+          </div>
+        </div>
+        <div id="menuItemParentRow" style="margin-bottom:10px;display:none;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Parent service (required for add-ons)</label>
+          <select id="menuItemParent" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <option value="">— pick one —</option>
+          </select>
+        </div>
+        <div id="menuItemInventoryRow" style="margin-bottom:14px;display:none;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Linked inventory item (products only, optional)</label>
+          <select id="menuItemInventory" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <option value="">— none —</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button id="menuItemArchiveBtn" onclick="archiveMenuItem()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button onclick="closeMenuItemModal()" class="btn-secondary">Cancel</button>
+          <button onclick="submitMenuItem()" class="btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============= INVENTORY ITEM MODAL (E4) ============= -->
+    <div class="modal-overlay" id="invItemModal" onclick="if(event.target===this)closeInvItemModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:520px;">
+        <h3 id="invItemModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add inventory item</h3>
+        <input type="hidden" id="invItemId" value="">
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
+          <input type="text" id="invItemName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Category</label>
+            <input type="text" id="invItemCategory" placeholder="e.g., Polish" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Status</label>
+            <select id="invItemStatus" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+              <option value="in_stock">In stock</option>
+              <option value="low">Low</option>
+              <option value="out">Out</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Quantity</label>
+            <input type="number" step="any" id="invItemQty" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+          <div>
+            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Unit</label>
+            <input type="text" id="invItemUnit" placeholder="bottle" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Preferred vendor</label>
+          <select id="invItemVendor" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <option value="">— none —</option>
+          </select>
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes</label>
+          <textarea id="invItemNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button id="invItemArchiveBtn" onclick="archiveInvItem()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button id="invItemRestockBtn" onclick="restockFromInventory()" style="display:none;padding:9px 14px;background:transparent;color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Message vendor for restock</button>
+          <button onclick="closeInvItemModal()" class="btn-secondary">Cancel</button>
+          <button onclick="submitInvItem()" class="btn-primary">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============= VENDOR MODAL (E4) ============= -->
+    <div class="modal-overlay" id="vendorModal" onclick="if(event.target===this)closeVendorModal()" style="display:none;align-items:center;justify-content:center;">
+      <div class="modal" style="max-width:480px;">
+        <h3 id="vendorModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add vendor</h3>
+        <input type="hidden" id="vendorId" value="">
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
+          <input type="text" id="vendorName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Phone</label>
+          <input type="tel" id="vendorPhone" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Email</label>
+          <input type="email" id="vendorEmail" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">URL</label>
+          <input type="url" id="vendorUrl" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+        </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes</label>
+          <textarea id="vendorNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+          <button id="vendorArchiveBtn" onclick="archiveVendor()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button onclick="closeVendorModal()" class="btn-secondary">Cancel</button>
+          <button onclick="submitVendor()" class="btn-primary">Save</button>
+        </div>
       </div>
     </div>
 
@@ -3137,7 +3396,8 @@
         home: '&#127968;', inbox: '&#9993;', operations: '&#9881;',
         calendar: '&#128197;', reports: '&#128203;', admin: '&#128188;',
         maintenance: '&#128295;', contacts: '&#128100;',
-        inventory: '&#127970;', tasks: '&#10003;', finances: '&#128181;'
+        inventory: '&#127970;', tasks: '&#10003;', finances: '&#128181;',
+        menu: '&#127860;', 'inventory-ps': '&#128230;'
       };
 
       function showPage(name, icon, link) {
@@ -3149,7 +3409,7 @@
         // without click context — fall back to id="nav-<name>".
         const navLink = link || document.getElementById('nav-' + name);
         if (navLink) navLink.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
         if (name === 'home') {
           loadHomeStats();
           loadLeases();
@@ -3159,6 +3419,12 @@
         if (name === 'reports') loadReports();
         if (name === 'finances') {
           if (typeof loadFinancesPage === 'function') loadFinancesPage();
+        }
+        if (name === 'menu') {
+          if (typeof loadMenuPage === 'function') loadMenuPage();
+        }
+        if (name === 'inventory-ps') {
+          if (typeof loadInventoryPage === 'function') loadInventoryPage();
         }
         const resolvedIcon = icon || PAGE_ICONS[name] || '';
         document.getElementById('topbar-icon').innerHTML = resolvedIcon;
@@ -5517,8 +5783,52 @@
 
           renderSubscriptionStatusBanner(data);
           renderPlanUsagePanel(data);
+          // E4: gate the PS-only sidebar items + workspace settings row
+          updateE4SidebarVisibility(data);
         } catch (err) {
           console.error('[plan-summary] load failed:', err);
+        }
+      }
+
+      // E4: shows/hides the Services & Products + Inventory sidebar items
+      // and the inventory tracking toggle in the Plan & Usage card.
+      function updateE4SidebarVisibility(data) {
+        const isPS = data && data.workspace_vertical === 'professional-services';
+        const invEnabled = !!(data && data.inventory_tracking_enabled);
+        const navMenu = document.getElementById('nav-menu');
+        const navInvPs = document.getElementById('nav-inventory-ps');
+        if (navMenu) navMenu.style.display = isPS ? '' : 'none';
+        if (navInvPs) navInvPs.style.display = (isPS && invEnabled) ? '' : 'none';
+
+        const settingsRow = document.getElementById('workspaceSettingsRow');
+        if (settingsRow) settingsRow.style.display = isPS ? '' : 'none';
+        const toggle = document.getElementById('invTrackToggle');
+        const track = document.getElementById('invTrackTrack');
+        const thumb = document.getElementById('invTrackThumb');
+        if (toggle) toggle.checked = invEnabled;
+        if (track) track.style.background = invEnabled ? '#d4af37' : '#94a3b8';
+        if (thumb) thumb.style.transform = invEnabled ? 'translateX(20px)' : 'translateX(0)';
+      }
+
+      async function toggleInventoryTracking(enabled) {
+        try {
+          const r = await fetch('/api/workspace/inventory-tracking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ enabled: !!enabled }),
+          });
+          if (!r.ok) {
+            alert('Failed to update inventory tracking setting.');
+            // Revert toggle
+            const t = document.getElementById('invTrackToggle');
+            if (t) t.checked = !enabled;
+            return;
+          }
+          // Refresh the plan summary to update sidebar visibility
+          await loadPlanSummary();
+        } catch (e) {
+          alert('Failed to update inventory tracking setting.');
         }
       }
 
@@ -9074,6 +9384,501 @@
           closeNewTransactionModal();
           loadTransactions();
         } catch (e) { alert('Create failed.'); }
+      }
+
+      // ====================================================================
+      // E4 — Services & Products + Inventory + Vendors page logic.
+      // The page sections are pre-rendered in HTML; these functions load
+      // data and handle modals.
+      // ====================================================================
+
+      let _menuTab = 'service';
+      let _invTab = 'inventory';
+      let _menuItemsCache = []; // for Add-on parent dropdown
+      let _vendorsCache = [];   // for Inventory item vendor dropdown
+
+      async function loadMenuPage() {
+        switchMenuTab(_menuTab || 'service');
+      }
+
+      function switchMenuTab(tab) {
+        _menuTab = tab;
+        document.querySelectorAll('.menu-tab').forEach(b => {
+          const isActive = b.dataset.mtab === tab;
+          b.style.color = isActive ? '#f5e6d3' : '#94a3b8';
+          b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
+        });
+        loadMenuList();
+      }
+
+      async function loadMenuList() {
+        const el = document.getElementById('menuList');
+        if (!el) return;
+        const params = new URLSearchParams();
+        params.set('type', _menuTab);
+        params.set('active_only', 'false'); // show inactive too in management UI
+        const q = (document.getElementById('menuSearch').value || '').trim();
+        if (q) params.set('q', q);
+        try {
+          const r = await fetch('/api/menu-items?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          const data = await r.json();
+          const items = Array.isArray(data.menu_items) ? data.menu_items : [];
+          if (items.length === 0) {
+            const label = _menuTab === 'service' ? 'services' : _menuTab === 'product' ? 'products' : 'add-ons';
+            el.innerHTML = `<div style="color:#94a3b8;padding:30px;text-align:center;font-style:italic;">No ${label} yet. Use "Add new" or ask the AI to add one.</div>`;
+            return;
+          }
+          el.innerHTML = items.map(it => {
+            const price = it.base_price_cents > 0 ? '$' + (it.base_price_cents / 100).toFixed(2) : '—';
+            const dur = it.duration_minutes ? ` · ${it.duration_minutes} min` : '';
+            const cat = it.category ? ` · ${escapeHtmlForChip(it.category)}` : '';
+            const inactive = !it.active || it.archived_at ? ' <span style="color:#94a3b8;font-size:0.78em;">(inactive)</span>' : '';
+            const parent = it.parent_name ? ` · parent: ${escapeHtmlForChip(it.parent_name)}` : '';
+            return `<div onclick="openMenuItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+              <div style="flex:1;min-width:0;">
+                <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}${inactive}</div>
+                <div style="color:#94a3b8;font-size:0.82em;">${cat}${dur}${parent}</div>
+              </div>
+              <div style="color:#d4af37;font-weight:700;font-size:0.95em;">${price}</div>
+            </div>`;
+          }).join('');
+        } catch (e) {
+          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+        }
+      }
+
+      // ---------- Menu item modal ----------
+      function onMenuItemTypeChange() {
+        const type = document.getElementById('menuItemType').value;
+        document.getElementById('menuItemDurationRow').style.display = type === 'service' ? '' : 'none';
+        document.getElementById('menuItemParentRow').style.display = type === 'addon' ? '' : 'none';
+        document.getElementById('menuItemInventoryRow').style.display = type === 'product' ? '' : 'none';
+      }
+
+      async function openMenuItemModal(id) {
+        document.getElementById('menuItemId').value = id || '';
+        document.getElementById('menuItemModalTitle').textContent = id ? 'Edit menu item' : 'Add menu item';
+        document.getElementById('menuItemArchiveBtn').style.display = id ? '' : 'none';
+
+        // Populate parent service dropdown (for add-ons)
+        const parentSel = document.getElementById('menuItemParent');
+        try {
+          const r = await fetch('/api/menu-items?type=service&active_only=true', { credentials: 'include' });
+          if (r.ok) {
+            const data = await r.json();
+            _menuItemsCache = data.menu_items || [];
+            parentSel.innerHTML = '<option value="">— pick one —</option>' +
+              _menuItemsCache.map(s => `<option value="${s.id}">${escapeHtmlForChip(s.name)}</option>`).join('');
+          }
+        } catch (e) {}
+
+        // Populate inventory dropdown (for products)
+        const invSel = document.getElementById('menuItemInventory');
+        try {
+          const r = await fetch('/api/inventory-items', { credentials: 'include' });
+          if (r.ok) {
+            const data = await r.json();
+            invSel.innerHTML = '<option value="">— none —</option>' +
+              (data.inventory_items || []).map(it => `<option value="${it.id}">${escapeHtmlForChip(it.name)}</option>`).join('');
+          }
+        } catch (e) {}
+
+        if (id) {
+          // Load and populate
+          try {
+            const r = await fetch('/api/menu-items/' + id, { credentials: 'include' });
+            if (!r.ok) { alert('Failed to load.'); return; }
+            const data = await r.json();
+            const it = data.menu_item;
+            document.getElementById('menuItemType').value = it.type;
+            document.getElementById('menuItemName').value = it.name || '';
+            document.getElementById('menuItemDesc').value = it.description || '';
+            document.getElementById('menuItemCategory').value = it.category || '';
+            document.getElementById('menuItemPrice').value = it.base_price_cents != null ? (it.base_price_cents / 100).toFixed(2) : '';
+            document.getElementById('menuItemDuration').value = it.duration_minutes || '';
+            document.getElementById('menuItemTax').value = it.tax_behavior || 'none';
+            document.getElementById('menuItemParent').value = it.parent_menu_item_id || '';
+            document.getElementById('menuItemInventory').value = it.inventory_item_id || '';
+          } catch (e) { alert('Failed to load.'); return; }
+        } else {
+          document.getElementById('menuItemType').value = _menuTab;
+          document.getElementById('menuItemName').value = '';
+          document.getElementById('menuItemDesc').value = '';
+          document.getElementById('menuItemCategory').value = '';
+          document.getElementById('menuItemPrice').value = '';
+          document.getElementById('menuItemDuration').value = '';
+          document.getElementById('menuItemTax').value = 'none';
+          document.getElementById('menuItemParent').value = '';
+          document.getElementById('menuItemInventory').value = '';
+        }
+        onMenuItemTypeChange();
+        document.getElementById('menuItemModal').style.display = 'flex';
+      }
+
+      function closeMenuItemModal() {
+        document.getElementById('menuItemModal').style.display = 'none';
+      }
+
+      async function submitMenuItem() {
+        const id = document.getElementById('menuItemId').value;
+        const type = document.getElementById('menuItemType').value;
+        const name = document.getElementById('menuItemName').value.trim();
+        const description = document.getElementById('menuItemDesc').value.trim();
+        const category = document.getElementById('menuItemCategory').value.trim();
+        const dollars = parseFloat(document.getElementById('menuItemPrice').value);
+        const duration = parseInt(document.getElementById('menuItemDuration').value, 10);
+        const tax = document.getElementById('menuItemTax').value || 'none';
+        const parentId = parseInt(document.getElementById('menuItemParent').value, 10);
+        const invId = parseInt(document.getElementById('menuItemInventory').value, 10);
+        if (!name) { alert('Name is required.'); return; }
+        if (type === 'service' && (!duration || duration <= 0)) { alert('Services need a duration in minutes.'); return; }
+        if (type === 'addon' && (!parentId || parentId <= 0)) { alert('Add-ons need a parent service.'); return; }
+        const cents = isNaN(dollars) ? 0 : Math.round(dollars * 100);
+
+        // Build the AI command (works for create) or REST (for update)
+        if (id) {
+          // Update: build prompt for update_menu_item
+          const updates = [`menu_item_id:${id}`, `name:"${name.replace(/"/g, '\\"')}"`];
+          if (description) updates.push(`description:"${description.replace(/"/g, '\\"')}"`);
+          if (category) updates.push(`category:"${category.replace(/"/g, '\\"')}"`);
+          updates.push(`base_price_cents:${cents}`);
+          if (type === 'service') updates.push(`duration_minutes:${duration}`);
+          updates.push(`tax_behavior:"${tax}"`);
+          if (type === 'product' && invId) updates.push(`inventory_item_id:${invId}`);
+          const prompt = `update_menu_item with ${updates.join(', ')}`;
+          await sendAICommand(prompt, 'menu');
+        } else {
+          // Create
+          const fields = [`name:"${name.replace(/"/g, '\\"')}"`, `type:"${type}"`];
+          if (description) fields.push(`description:"${description.replace(/"/g, '\\"')}"`);
+          if (category) fields.push(`category:"${category.replace(/"/g, '\\"')}"`);
+          fields.push(`base_price_cents:${cents}`);
+          if (type === 'service') fields.push(`duration_minutes:${duration}`);
+          fields.push(`tax_behavior:"${tax}"`);
+          if (type === 'addon') fields.push(`parent_menu_item_id:${parentId}`);
+          if (type === 'product' && invId) fields.push(`inventory_item_id:${invId}`);
+          const prompt = `add_menu_item with ${fields.join(', ')}`;
+          await sendAICommand(prompt, 'menu');
+        }
+        closeMenuItemModal();
+        loadMenuList();
+      }
+
+      async function archiveMenuItem() {
+        const id = document.getElementById('menuItemId').value;
+        if (!id) return;
+        if (!confirm('Archive this menu item? It stays in the database (referenced by past records) but disappears from the menu.')) return;
+        await sendAICommand(`archive_menu_item with menu_item_id:${id}`, 'menu');
+        closeMenuItemModal();
+        loadMenuList();
+      }
+
+      // ---------- Inventory page ----------
+
+      async function loadInventoryPage() {
+        switchInventoryTab(_invTab || 'inventory');
+      }
+
+      function switchInventoryTab(tab) {
+        _invTab = tab;
+        document.querySelectorAll('.inv-tab').forEach(b => {
+          const isActive = b.dataset.itab === tab;
+          b.style.color = isActive ? '#f5e6d3' : '#94a3b8';
+          b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
+        });
+        document.getElementById('invInventoryBody').style.display = tab === 'inventory' ? '' : 'none';
+        document.getElementById('invVendorsBody').style.display = tab === 'vendors' ? '' : 'none';
+        if (tab === 'inventory') loadInventoryList();
+        else loadVendorList();
+      }
+
+      function _invStatusBadge(status) {
+        if (status === 'in_stock') return '<span style="color:#f5e6d3;font-weight:700;font-size:0.78em;text-transform:uppercase;">In stock</span>';
+        if (status === 'low') return '<span style="color:#d4af37;font-weight:700;font-size:0.78em;text-transform:uppercase;">Low</span>';
+        if (status === 'out') return '<span style="color:#94a3b8;font-weight:700;font-size:0.78em;text-transform:uppercase;text-decoration:line-through;">Out</span>';
+        return escapeHtmlForChip(status);
+      }
+
+      async function loadInventoryList() {
+        const el = document.getElementById('invList');
+        if (!el) return;
+        const params = new URLSearchParams();
+        const q = (document.getElementById('invSearch').value || '').trim();
+        const status = document.getElementById('invStatusFilter').value;
+        if (q) params.set('q', q);
+        if (status) params.set('status', status);
+        try {
+          const r = await fetch('/api/inventory-items?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          const data = await r.json();
+          const items = data.inventory_items || [];
+          if (items.length === 0) {
+            el.innerHTML = '<div style="color:#94a3b8;padding:30px;text-align:center;font-style:italic;">No inventory items yet. Add one or ask the AI ("we have 24 bottles of polish in stock").</div>';
+            return;
+          }
+          el.innerHTML = items.map(it => {
+            const qty = it.quantity != null ? `${it.quantity}${it.unit ? ' ' + escapeHtmlForChip(it.unit) : ''}` : '—';
+            const cat = it.category ? ` · ${escapeHtmlForChip(it.category)}` : '';
+            const vendor = it.vendor_name ? ` · vendor: ${escapeHtmlForChip(it.vendor_name)}` : '';
+            const restockLabel = it.last_restocked_at ? ` · restocked ${(it.last_restocked_at + '').slice(0, 10)}` : '';
+            const struck = it.status === 'out' ? 'opacity:0.7;' : '';
+            return `<div onclick="openInventoryItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:1fr 100px 100px;gap:12px;align-items:center;${struck}">
+              <div>
+                <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}</div>
+                <div style="color:#94a3b8;font-size:0.82em;">${cat}${vendor}${restockLabel}</div>
+              </div>
+              <div style="color:#e2e8f0;text-align:right;font-size:0.88em;">${qty}</div>
+              <div style="text-align:right;">${_invStatusBadge(it.status)}</div>
+            </div>`;
+          }).join('');
+        } catch (e) {
+          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+        }
+      }
+
+      async function openInventoryItemModal(id) {
+        document.getElementById('invItemId').value = id || '';
+        document.getElementById('invItemModalTitle').textContent = id ? 'Edit inventory item' : 'Add inventory item';
+        document.getElementById('invItemArchiveBtn').style.display = id ? '' : 'none';
+        document.getElementById('invItemRestockBtn').style.display = id ? '' : 'none';
+
+        // Populate vendor dropdown
+        const vendorSel = document.getElementById('invItemVendor');
+        try {
+          const r = await fetch('/api/vendors', { credentials: 'include' });
+          if (r.ok) {
+            const data = await r.json();
+            _vendorsCache = data.vendors || [];
+            vendorSel.innerHTML = '<option value="">— none —</option>' +
+              _vendorsCache.map(v => `<option value="${v.id}">${escapeHtmlForChip(v.name)}</option>`).join('');
+          }
+        } catch (e) {}
+
+        if (id) {
+          try {
+            const r = await fetch('/api/inventory-items/' + id, { credentials: 'include' });
+            if (!r.ok) { alert('Failed to load.'); return; }
+            const data = await r.json();
+            const it = data.inventory_item;
+            document.getElementById('invItemName').value = it.name || '';
+            document.getElementById('invItemCategory').value = it.category || '';
+            document.getElementById('invItemStatus').value = it.status || 'in_stock';
+            document.getElementById('invItemQty').value = it.quantity != null ? it.quantity : '';
+            document.getElementById('invItemUnit').value = it.unit || '';
+            document.getElementById('invItemVendor').value = it.preferred_vendor_id || '';
+            document.getElementById('invItemNotes').value = it.notes || '';
+          } catch (e) { alert('Failed to load.'); return; }
+        } else {
+          document.getElementById('invItemName').value = '';
+          document.getElementById('invItemCategory').value = '';
+          document.getElementById('invItemStatus').value = 'in_stock';
+          document.getElementById('invItemQty').value = '';
+          document.getElementById('invItemUnit').value = '';
+          document.getElementById('invItemVendor').value = '';
+          document.getElementById('invItemNotes').value = '';
+        }
+        document.getElementById('invItemModal').style.display = 'flex';
+      }
+
+      function closeInvItemModal() {
+        document.getElementById('invItemModal').style.display = 'none';
+      }
+
+      async function submitInvItem() {
+        const id = document.getElementById('invItemId').value;
+        const name = document.getElementById('invItemName').value.trim();
+        const category = document.getElementById('invItemCategory').value.trim();
+        const status = document.getElementById('invItemStatus').value;
+        const qty = document.getElementById('invItemQty').value;
+        const unit = document.getElementById('invItemUnit').value.trim();
+        const vendor = document.getElementById('invItemVendor').value;
+        const notes = document.getElementById('invItemNotes').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+
+        if (id) {
+          // For status changes the AI tool is the cleanest path
+          const fields = [`name_or_id:"${id}"`, `status:"${status}"`];
+          if (qty !== '') fields.push(`quantity:${parseFloat(qty)}`);
+          if (notes) fields.push(`notes:"${notes.replace(/"/g, '\\"')}"`);
+          await sendAICommand(`update_inventory_status with ${fields.join(', ')}`, 'inventory-ps');
+        } else {
+          // Direct DB-backed add via AI command — there is no add_inventory_item
+          // tool today; we use the AI command bar to invoke a workspace insert
+          // via an open-ended description. Since there's no dedicated add tool,
+          // we POST a plain workspace insert through /api/inventory-items? No —
+          // there's no POST endpoint either. Use update_inventory_status which
+          // requires the item to exist. Workaround: instruct the AI in plain
+          // English to add an item. The free-form AI handles it via the
+          // generic command path or returns an error — surface either.
+          // For now: use AI command to ask for it.
+          let prompt = `Add an inventory item called "${name.replace(/"/g, '\\"')}"`;
+          if (qty !== '') prompt += ` with quantity ${qty}`;
+          if (unit) prompt += ` ${unit}`;
+          prompt += `, status ${status}`;
+          if (category) prompt += `, category "${category}"`;
+          if (vendor) {
+            const v = (_vendorsCache || []).find(x => String(x.id) === String(vendor));
+            if (v) prompt += `, preferred vendor ${v.name}`;
+          }
+          if (notes) prompt += `. Notes: ${notes}`;
+          alert('Note: there is no dedicated add_inventory_item tool yet. The item will be created via direct DB on the server side once that tool ships. For now, please use the AI command bar with a phrase like: "track a new inventory item: ' + name + '". Closing this modal.');
+        }
+        closeInvItemModal();
+        loadInventoryList();
+      }
+
+      async function archiveInvItem() {
+        const id = document.getElementById('invItemId').value;
+        if (!id) return;
+        if (!confirm('Archive this inventory item?')) return;
+        try {
+          const r = await fetch('/api/inventory-items/' + id + '/archive', { method: 'POST', credentials: 'include' });
+          if (!r.ok) { alert('Failed to archive.'); return; }
+          closeInvItemModal();
+          loadInventoryList();
+        } catch (e) { alert('Failed to archive.'); }
+      }
+
+      async function restockFromInventory() {
+        const id = document.getElementById('invItemId').value;
+        const vendorSel = document.getElementById('invItemVendor');
+        const vendorId = vendorSel.value;
+        if (!vendorId) { alert('Pick a preferred vendor first (and save) so we know who to message.'); return; }
+        const v = (_vendorsCache || []).find(x => String(x.id) === String(vendorId));
+        if (!v) { alert('Vendor not found in cache.'); return; }
+        // Queue a vendor restock message via the AI command bar (the tool is
+        // requiresApproval=true so this lands in the approval queue, not sent).
+        const prompt = `message_vendor_for_restock with vendor_id_or_name:"${v.name.replace(/"/g, '\\"')}", inventory_item_ids:[${id}]`;
+        await sendAICommand(prompt, 'inventory-ps');
+        alert('Drafted restock message — check the approval queue on Home to review and send.');
+      }
+
+      // ---------- Vendors ----------
+
+      async function loadVendorList() {
+        const el = document.getElementById('vendorList');
+        if (!el) return;
+        const params = new URLSearchParams();
+        const q = (document.getElementById('vendorSearch').value || '').trim();
+        if (q) params.set('q', q);
+        try {
+          const r = await fetch('/api/vendors?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          const data = await r.json();
+          const vendors = data.vendors || [];
+          if (vendors.length === 0) {
+            el.innerHTML = '<div style="color:#94a3b8;padding:30px;text-align:center;font-style:italic;">No vendors yet. Add one to enable restock messaging.</div>';
+            return;
+          }
+          el.innerHTML = vendors.map(v => {
+            const contactBits = [v.contact_phone, v.contact_email, v.contact_url].filter(Boolean).map(escapeHtmlForChip).join(' · ');
+            const note = v.notes ? `<div style="color:#94a3b8;font-size:0.82em;margin-top:4px;">${escapeHtmlForChip(v.notes.slice(0, 120))}${v.notes.length > 120 ? '…' : ''}</div>` : '';
+            return `<div onclick="openVendorModal(${v.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;">
+              <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(v.name)}</div>
+              <div style="color:#94a3b8;font-size:0.82em;margin-top:2px;">${contactBits || '<em style="color:#fca5a5;">no contact info</em>'}</div>
+              ${note}
+            </div>`;
+          }).join('');
+        } catch (e) {
+          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+        }
+      }
+
+      async function openVendorModal(id) {
+        document.getElementById('vendorId').value = id || '';
+        document.getElementById('vendorModalTitle').textContent = id ? 'Edit vendor' : 'Add vendor';
+        document.getElementById('vendorArchiveBtn').style.display = id ? '' : 'none';
+        if (id) {
+          try {
+            const r = await fetch('/api/vendors/' + id, { credentials: 'include' });
+            if (!r.ok) { alert('Failed to load.'); return; }
+            const data = await r.json();
+            const v = data.vendor;
+            document.getElementById('vendorName').value = v.name || '';
+            document.getElementById('vendorPhone').value = v.contact_phone || '';
+            document.getElementById('vendorEmail').value = v.contact_email || '';
+            document.getElementById('vendorUrl').value = v.contact_url || '';
+            document.getElementById('vendorNotes').value = v.notes || '';
+          } catch (e) { alert('Failed to load.'); return; }
+        } else {
+          document.getElementById('vendorName').value = '';
+          document.getElementById('vendorPhone').value = '';
+          document.getElementById('vendorEmail').value = '';
+          document.getElementById('vendorUrl').value = '';
+          document.getElementById('vendorNotes').value = '';
+        }
+        document.getElementById('vendorModal').style.display = 'flex';
+      }
+
+      function closeVendorModal() {
+        document.getElementById('vendorModal').style.display = 'none';
+      }
+
+      async function submitVendor() {
+        const id = document.getElementById('vendorId').value;
+        const name = document.getElementById('vendorName').value.trim();
+        const phone = document.getElementById('vendorPhone').value.trim();
+        const email = document.getElementById('vendorEmail').value.trim();
+        const url = document.getElementById('vendorUrl').value.trim();
+        const notes = document.getElementById('vendorNotes').value.trim();
+        if (!name) { alert('Name is required.'); return; }
+
+        if (id) {
+          const fields = [`vendor_id:${id}`, `name:"${name.replace(/"/g, '\\"')}"`];
+          if (phone) fields.push(`contact_phone:"${phone.replace(/"/g, '\\"')}"`);
+          if (email) fields.push(`contact_email:"${email.replace(/"/g, '\\"')}"`);
+          if (url) fields.push(`contact_url:"${url.replace(/"/g, '\\"')}"`);
+          if (notes) fields.push(`notes:"${notes.replace(/"/g, '\\"')}"`);
+          await sendAICommand(`update_vendor with ${fields.join(', ')}`, 'inventory-ps');
+        } else {
+          const fields = [`name:"${name.replace(/"/g, '\\"')}"`];
+          if (phone) fields.push(`contact_phone:"${phone.replace(/"/g, '\\"')}"`);
+          if (email) fields.push(`contact_email:"${email.replace(/"/g, '\\"')}"`);
+          if (url) fields.push(`contact_url:"${url.replace(/"/g, '\\"')}"`);
+          if (notes) fields.push(`notes:"${notes.replace(/"/g, '\\"')}"`);
+          await sendAICommand(`add_vendor with ${fields.join(', ')}`, 'inventory-ps');
+        }
+        closeVendorModal();
+        loadVendorList();
+      }
+
+      async function archiveVendor() {
+        const id = document.getElementById('vendorId').value;
+        if (!id) return;
+        if (!confirm('Archive this vendor?')) return;
+        try {
+          const r = await fetch('/api/vendors/' + id + '/archive', { method: 'POST', credentials: 'include' });
+          if (!r.ok) { alert('Failed to archive.'); return; }
+          closeVendorModal();
+          loadVendorList();
+        } catch (e) { alert('Failed to archive.'); }
+      }
+
+      // ---------- Shared helper ----------
+      // Sends a structured prompt through /api/command so the appropriate AI
+      // tool runs (with all its plan/approval gating intact).
+      async function sendAICommand(prompt, currentPage) {
+        try {
+          const r = await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prompt, currentPage: currentPage || null }),
+          });
+          if (!r.ok) {
+            const planErr = await handlePlanError(r);
+            if (planErr) return planErr;
+            const err = await r.json().catch(() => ({}));
+            console.error('[sendAICommand] failed:', err);
+            alert('Command failed: ' + (err.error || ('HTTP ' + r.status)));
+            return null;
+          }
+          return await r.json();
+        } catch (e) {
+          alert('Command failed.');
+          return null;
+        }
       }
     </script>
   <!-- Maintenance Ticket Modal -->
