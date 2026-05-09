@@ -1824,9 +1824,12 @@
         <!-- E4: Services & Products + Inventory — PS-only (toggled by JS post-plan-summary). Inventory also requires inventory_tracking_enabled. -->
         <a href="#" id="nav-menu" onclick="showPage('menu', '&#127860;', this)" style="display:none;"><span class="nav-icon">&#127860;</span> Services &amp; Products</a>
         <a href="#" id="nav-inventory-ps" onclick="showPage('inventory-ps', '&#128230;', this)" style="display:none;"><span class="nav-icon">&#128230;</span> Inventory</a>
-        <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
-        <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> Contacts</a>
-        <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory"><span class="nav-icon">&#127970;</span> Inventory</a>
+        <!-- E6: PM-only — hidden by applyVerticalVisibility() for PS workspaces. -->
+        <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance" class="nav-pm-only"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+        <!-- E6: nav-contacts label is "Contacts" for PM, swapped to "Customers" for PS by applyVerticalLabels(). -->
+        <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> <span id="nav-contacts-label">Contacts</span></a>
+        <!-- E6: PM-only — hidden by applyVerticalVisibility() for PS workspaces. -->
+        <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory" class="nav-pm-only"><span class="nav-icon">&#127970;</span> Inventory</a>
         <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
       <div class="sidebar-footer">Modern Management &copy; 2026</div>
@@ -2330,7 +2333,8 @@
               <div class="page-hero-overlay-dark"></div>
               <div class="page-hero-glow"></div>
               <div class="page-hero-content">
-                <div class="page-hero-title">Contacts</div>
+                <!-- E6: id added so applyVerticalLabels() can swap to "Customers" for PS workspaces. -->
+                <div class="page-hero-title" id="page-contacts-title">Contacts</div>
                 <div class="page-hero-sub">Residents, vendors, staff and important relationships</div>
               </div>
             </div>
@@ -3409,7 +3413,9 @@
         // without click context — fall back to id="nav-<name>".
         const navLink = link || document.getElementById('nav-' + name);
         if (navLink) navLink.classList.add('active');
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
+        // E6: contacts → 'Customers' for PS workspaces. _workspaceVertical is set by applyVerticalLabels().
+        const _isPS = window._workspaceVertical === 'professional-services';
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: _isPS ? 'Customers' : 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
         if (name === 'home') {
           loadHomeStats();
           loadLeases();
@@ -5783,23 +5789,49 @@
 
           renderSubscriptionStatusBanner(data);
           renderPlanUsagePanel(data);
-          // E4: gate the PS-only sidebar items + workspace settings row
-          updateE4SidebarVisibility(data);
+          // E6: vertical-aware sidebar visibility + label swap.
+          // (Renamed from E4's updateE4SidebarVisibility — same function,
+          // now also hides PM-only items for PS workspaces.)
+          applyVerticalVisibility(data);
+          applyVerticalLabels(data && data.workspace_vertical);
         } catch (err) {
           console.error('[plan-summary] load failed:', err);
         }
       }
 
-      // E4: shows/hides the Services & Products + Inventory sidebar items
-      // and the inventory tracking toggle in the Plan & Usage card.
-      function updateE4SidebarVisibility(data) {
+      // E6: vertical-aware sidebar visibility. Single source of truth for
+      // showing/hiding nav items and the inventory-tracking settings row
+      // based on workspace.vertical.
+      //
+      // - PS-only items (nav-menu, nav-inventory-ps) show only for PS
+      //   workspaces. Inventory additionally requires the workspace's
+      //   inventory_tracking_enabled flag.
+      // - PM-only items (everything with class="nav-pm-only", i.e.,
+      //   nav-maintenance and the legacy nav-inventory) show only for
+      //   PM workspaces. Hidden for PS.
+      // - The inventory-tracking toggle in Plan & Usage (the
+      //   workspaceSettingsRow) is PS-only; the toggle UI itself
+      //   reflects the current inventory_tracking_enabled value.
+      //
+      // (Was updateE4SidebarVisibility — renamed in E6 because it now
+      // covers PM-only items as well as the original PS-only ones.)
+      function applyVerticalVisibility(data) {
         const isPS = data && data.workspace_vertical === 'professional-services';
         const invEnabled = !!(data && data.inventory_tracking_enabled);
+
+        // PS-only items
         const navMenu = document.getElementById('nav-menu');
         const navInvPs = document.getElementById('nav-inventory-ps');
         if (navMenu) navMenu.style.display = isPS ? '' : 'none';
         if (navInvPs) navInvPs.style.display = (isPS && invEnabled) ? '' : 'none';
 
+        // E6: PM-only items — hide them for PS workspaces. The DOM
+        // elements stay so PM behavior is unchanged.
+        document.querySelectorAll('.nav-pm-only').forEach(el => {
+          el.style.display = isPS ? 'none' : '';
+        });
+
+        // Inventory-tracking workspace settings row + toggle (PS-only).
         const settingsRow = document.getElementById('workspaceSettingsRow');
         if (settingsRow) settingsRow.style.display = isPS ? '' : 'none';
         const toggle = document.getElementById('invTrackToggle');
@@ -5808,6 +5840,37 @@
         if (toggle) toggle.checked = invEnabled;
         if (track) track.style.background = invEnabled ? '#d4af37' : '#94a3b8';
         if (thumb) thumb.style.transform = invEnabled ? 'translateX(20px)' : 'translateX(0)';
+      }
+
+      // E6: label swap. "Contacts" → "Customers" for PS workspaces.
+      // The underlying table is still `contacts` and the AI tool is still
+      // `add_contact`; this is UI text only. Two places swap:
+      //   1. Sidebar nav-contacts label (#nav-contacts-label)
+      //   2. Contacts page hero title (#page-contacts-title)
+      // The topbar title for the contacts page is handled by showPage(),
+      // which reads window._workspaceVertical that we set here.
+      //
+      // (Other places where "Contacts" appears as a label — Home tiles,
+      // plan-usage panel — keep saying "Contacts" for now. Out of E6 scope;
+      // a future polish session can extend the swap.)
+      function applyVerticalLabels(vertical) {
+        const isPS = vertical === 'professional-services';
+        // Make the vertical readable by showPage() and any other callers
+        // that need to choose vertical-flavored copy at click time.
+        window._workspaceVertical = vertical || null;
+
+        const navLabel = document.getElementById('nav-contacts-label');
+        if (navLabel) navLabel.textContent = isPS ? 'Customers' : 'Contacts';
+
+        const pageTitle = document.getElementById('page-contacts-title');
+        if (pageTitle) pageTitle.textContent = isPS ? 'Customers' : 'Contacts';
+
+        // If the user is currently on the contacts page, refresh the
+        // topbar so it reflects the new label without a re-navigation.
+        const topbarTitle = document.getElementById('topbar-title');
+        if (topbarTitle && (topbarTitle.textContent === 'Contacts' || topbarTitle.textContent === 'Customers')) {
+          topbarTitle.textContent = isPS ? 'Customers' : 'Contacts';
+        }
       }
 
       async function toggleInventoryTracking(enabled) {
