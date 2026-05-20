@@ -245,7 +245,7 @@ function requireAuthPage(req, res, next) {
 async function getWorkspaceId(req) {
   if (req._workspaceId != null) return req._workspaceId;
   const { rows } = await pool.query(
-    'SELECT id FROM workspaces WHERE owner_user_id = $1 LIMIT 1',
+    'SELECT id FROM workspaces WHERE owner_user_id = $1 ORDER BY id DESC LIMIT 1',
     [req.session.userId]
   );
   req._workspaceId = rows[0]?.id ?? null;
@@ -1836,6 +1836,181 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[plan-summary] error:', err);
     res.status(500).json({ error: 'plan_summary_failed' });
+  }
+});
+
+// Session E8: PS Home dashboard data. PS-only. Returns stats + 5 card lists
+// in one response so the frontend renders the whole dashboard from a single
+// fetch. Each section is wrapped in try/catch — one failing query doesn't
+// nuke the rest; failures degrade to empty arrays / zeros so the UI stays
+// stable and the user just sees stale-but-coherent data until the next poll.
+//
+// Polling: the frontend hits this every 30s while the user is on the Home
+// page. Stops polling when the user navigates away.
+app.get('/api/dashboard/ps', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(404).json({ error: 'workspace_not_found' });
+
+    // Workspace meta — also gates the endpoint to PS workspaces only.
+    let workspace;
+    try {
+      const wR = await pool.query(
+        `SELECT id, owner_user_id, vertical, inventory_tracking_enabled
+           FROM workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      workspace = wR.rows[0];
+    } catch (e) {
+      return res.status(500).json({ error: 'workspace_lookup_failed' });
+    }
+    if (!workspace) return res.status(404).json({ error: 'workspace_not_found' });
+    if (workspace.vertical !== 'professional-services') {
+      return res.status(400).json({ error: 'PS workspaces only' });
+    }
+
+    // Each block guarded — a query failure logs and the section degrades
+    // to an empty result rather than 500ing the whole dashboard.
+    let appointments_today = [];
+    let appointments_today_count = 0;
+    try {
+      const r = await pool.query(
+        `SELECT id, starts_at, duration_minutes, ends_at, title,
+                status, contact_id,
+                COALESCE(
+                  (SELECT name FROM contacts WHERE contacts.id = appointments.contact_id LIMIT 1),
+                  'Walk-in'
+                ) AS customer_display_name
+           FROM appointments
+          WHERE workspace_id = $1
+            AND starts_at >= date_trunc('day', NOW())
+            AND starts_at <  date_trunc('day', NOW()) + INTERVAL '1 day'
+            AND status NOT IN ('canceled', 'no_show')
+          ORDER BY starts_at ASC
+          LIMIT 20`,
+        [workspaceId]
+      );
+      appointments_today = r.rows;
+      appointments_today_count = r.rowCount;
+    } catch (err) {
+      console.error('[dashboard/ps] appointments_today failed:', err.message);
+    }
+
+    let ai_conversations = [];
+    let ai_conversations_active = 0;
+    try {
+      const r = await pool.query(
+        `SELECT id, state, customer_phone, customer_email,
+                last_customer_message_at, last_ai_message_at,
+                message_count, context_summary
+           FROM appointment_threads
+          WHERE workspace_id = $1
+            AND state NOT IN ('complete', 'closed')
+          ORDER BY last_customer_message_at DESC NULLS LAST
+          LIMIT 10`,
+        [workspaceId]
+      );
+      ai_conversations = r.rows;
+      const cR = await pool.query(
+        `SELECT COUNT(*)::int AS c FROM appointment_threads
+          WHERE workspace_id = $1 AND state NOT IN ('complete', 'closed')`,
+        [workspaceId]
+      );
+      ai_conversations_active = cR.rows[0] ? cR.rows[0].c : 0;
+    } catch (err) {
+      console.error('[dashboard/ps] ai_conversations failed:', err.message);
+    }
+
+    let pending_approvals = [];
+    let pending_approvals_count = 0;
+    try {
+      const r = await pool.query(
+        `SELECT id, tool_name, ai_summary, status, created_at
+           FROM pending_actions
+          WHERE workspace_id = $1 AND status = 'pending'
+          ORDER BY created_at DESC
+          LIMIT 10`,
+        [workspaceId]
+      );
+      pending_approvals = r.rows;
+      const cR = await pool.query(
+        `SELECT COUNT(*)::int AS c FROM pending_actions
+          WHERE workspace_id = $1 AND status = 'pending'`,
+        [workspaceId]
+      );
+      pending_approvals_count = cR.rows[0] ? cR.rows[0].c : 0;
+    } catch (err) {
+      console.error('[dashboard/ps] pending_approvals failed:', err.message);
+    }
+
+    let recent_transactions = [];
+    try {
+      const r = await pool.query(
+        `SELECT id, customer_display_name, total_cents, amount_paid_cents,
+                status, payment_method, payment_received_at, created_at
+           FROM transactions
+          WHERE workspace_id = $1
+            AND status IN ('paid', 'partially_paid')
+          ORDER BY payment_received_at DESC NULLS LAST
+          LIMIT 10`,
+        [workspaceId]
+      );
+      recent_transactions = r.rows;
+    } catch (err) {
+      console.error('[dashboard/ps] recent_transactions failed:', err.message);
+    }
+
+    let revenue_this_week_cents = 0;
+    try {
+      const r = await pool.query(
+        `SELECT COALESCE(SUM(amount_paid_cents), 0)::bigint AS s
+           FROM transactions
+          WHERE workspace_id = $1
+            AND status IN ('paid', 'partially_paid')
+            AND payment_received_at >= date_trunc('week', NOW())`,
+        [workspaceId]
+      );
+      revenue_this_week_cents = r.rows[0] ? Number(r.rows[0].s) : 0;
+    } catch (err) {
+      console.error('[dashboard/ps] revenue_this_week failed:', err.message);
+    }
+
+    let low_stock = [];
+    if (workspace.inventory_tracking_enabled) {
+      try {
+        const r = await pool.query(
+          `SELECT id, name, status, quantity, unit, preferred_vendor_id
+             FROM inventory_items
+            WHERE workspace_id = $1
+              AND status IN ('low', 'out')
+              AND archived_at IS NULL
+            ORDER BY CASE status WHEN 'out' THEN 0 ELSE 1 END, name ASC
+            LIMIT 20`,
+          [workspaceId]
+        );
+        low_stock = r.rows;
+      } catch (err) {
+        console.error('[dashboard/ps] low_stock failed:', err.message);
+      }
+    }
+
+    res.json({
+      stats: {
+        appointments_today: appointments_today_count,
+        pending_approvals: pending_approvals_count,
+        revenue_this_week_cents,
+        ai_conversations_active,
+      },
+      appointments_today,
+      ai_conversations,
+      pending_approvals,
+      recent_transactions,
+      low_stock,
+      inventory_tracking_enabled: !!workspace.inventory_tracking_enabled,
+    });
+  } catch (err) {
+    console.error('[dashboard/ps] error:', err);
+    res.status(500).json({ error: 'dashboard_failed' });
   }
 });
 
@@ -3653,8 +3828,9 @@ function selectNavigation(executionResults, currentPage, registry) {
   for (const entry of executionResults) {
     if (!entry || !entry.result || entry.result.success !== true) continue;
     const action = entry.action;
-    if (!action || !action.type) continue;
-    const tool = registry.getTool(action.type);
+    // Post-refactor action shape: { toolName, toolUseId, input }.
+    if (!action || !action.toolName) continue;
+    const tool = registry.getTool(action.toolName);
     if (!tool) continue;
     const policy = tool.navigationPolicy;
     if (!policy || policy === 'never') continue;
@@ -3665,6 +3841,36 @@ function selectNavigation(executionResults, currentPage, registry) {
   }
   return chosen;
 }
+
+// Session E9: load persistent Command Center chat history for the current
+// user+workspace. Returns oldest-first so the frontend can append in order
+// and render the chat bubble timeline directly. is_first_time=true tells
+// the UI to render the welcome state + quick-prompts instead of history.
+app.get('/api/command-history', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.json({ history: [], is_first_time: true });
+    const userId = req.session.userId;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+
+    const r = await pool.query(
+      `SELECT id, role, content, tool_calls_summary, created_at
+         FROM command_history
+        WHERE workspace_id = $1 AND user_id = $2
+        ORDER BY created_at ASC
+        LIMIT $3`,
+      [workspaceId, userId, limit]
+    );
+
+    res.json({
+      history: r.rows,
+      is_first_time: r.rows.length === 0,
+    });
+  } catch (err) {
+    console.error('[command-history] fetch error:', err.message);
+    res.status(500).json({ error: 'Could not load command history' });
+  }
+});
 
 app.post('/api/command', requireAuth, async (req, res) => {
   const { prompt, contacts, calEvents, tasks, messages: msgList, rentRecords, maintenanceTickets, properties, units, currentPage } = req.body;
@@ -3705,12 +3911,53 @@ app.post('/api/command', requireAuth, async (req, res) => {
     });
   }
 
+  // Session E9: persist the user's prompt to command_history so the
+  // Command Center can render the chat timeline across sessions. Best-
+  // effort — a write failure here logs and continues so a transient DB
+  // hiccup never blocks an AI command. Only fires after the gates above
+  // pass, so blocked / quota-exceeded attempts don't pollute history.
+  if (workspaceId && typeof prompt === 'string' && prompt.trim()) {
+    try {
+      await pool.query(
+        `INSERT INTO command_history (workspace_id, user_id, role, content)
+         VALUES ($1, $2, 'user', $3)`,
+        [workspaceId, req.session.userId, prompt]
+      );
+    } catch (err) {
+      console.error('[command] history user-write failed (non-fatal):', err.message);
+    }
+  }
+
   const knowledgeDocs = await getKnowledge(req.session.userId);
   const knowledgeSection = knowledgeDocs.length
     ? `\n## Property Policies & Procedures (Knowledge Base)\nThe property manager has provided the following policies, procedures, and reference documents. Treat these as authoritative. When drafting messages, answering questions, or taking actions, always follow the guidance here:\n\n${knowledgeDocs.map(d => `### ${d.title} (${d.type})\n${d.content}`).join('\n\n')}\n`
     : '';
 
-  const contextSummary = `
+  // Session E10: vertical-aware context snapshot.
+  //   - PM workspaces continue to use the inline req.body-fed template
+  //     (existing behavior preserved — same data, same labels).
+  //   - PS workspaces get a DB-loaded snapshot rendered via
+  //     buildPSContextSummary. The Command Center doesn't send the legacy
+  //     req.body context arrays, so without this branch the PS AI would
+  //     see "no contacts / no events / no tasks" for everything.
+  const vertical = _workspaceRow.vertical || 'property-management';
+  let contextSummary;
+  if (vertical === 'professional-services') {
+    let psSnapshot;
+    try {
+      psSnapshot = await buildReportSnapshot({
+        workspaceId: _workspaceRow.id,
+        type: 'command_center',
+        parameters: { currentPage: currentPage || null },
+      });
+    } catch (err) {
+      console.error('[command] PS snapshot build failed:', err.message);
+      psSnapshot = null;
+    }
+    const psBody = psSnapshot ? buildPSContextSummary(psSnapshot) : '## Current App State\n(Could not load workspace snapshot.)';
+    contextSummary = `${knowledgeSection ? knowledgeSection + '\n' : ''}${psBody}`.trim();
+  } else {
+    contextSummary = `
 ## Current App State
 ${knowledgeSection}
 ### Contacts (Residents, Vendors, Important)
@@ -3753,6 +4000,7 @@ ${units && units.length ? units.map(u => {
   return `- #${u.id} "${u.property_name}" ▸ "${u.name}"${dims ? `, ${dims}` : ''}${price ? `, ${price}` : ''}, ${occ}`;
 }).join('\n') : 'No units.'}
 `.trim();
+  }
   // FUTURE: when a workspace has > ~200 units, the units list above
   // dominates the snapshot. Cap the rendered list and tell the AI it's
   // truncated, or switch read-query answers to dedicated endpoints.
@@ -3766,16 +4014,23 @@ ${units && units.length ? units.map(u => {
   // workspace doesn't even see send_broadcast (and any future
   // plan-gated tools). Falls back to the vertical-only filter if plan
   // is missing (legacy workspaces stay unrestricted).
-  const vertical = _workspaceRow.vertical || 'property-management';
   const planForTools = planInfo && planInfo.plan ? planInfo.plan : null;
   const toolsForAI = registry.getAnthropicSchemaForPlan(vertical, planForTools);
 
-  try {
-    const response = await anthropic.messages.create({
-      model: config.ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system: `You are an AI command center assistant for a property management app called Modern Management.
-You help property managers get things done by taking action within the app.
+  // Session E10: vertical-aware business framing. PM workspaces see the
+  // legacy "property manager" framing; PS workspaces see a service-business
+  // framing so the AI refers to people as customers (not residents) and
+  // the menu as services/products (not units/properties).
+  const businessFraming = vertical === 'professional-services'
+    ? `You are an AI command center assistant for a service business — like a salon, spa, hair stylist, nail tech, massage therapist, personal trainer, tutor, pet groomer, or similar appointment-based business. The owner is your user. They run their business through this app: managing customers, services and products on their menu, appointments, transactions, inventory, and vendor relationships. Refer to people as "customers" (not tenants or residents). Refer to the menu as "services and products" (not units or properties). The business operates on bookings and appointments, not leases.`
+    : `You are an AI command center assistant for a property management app called Modern Management.
+You help property managers get things done by taking action within the app.`;
+
+  // System prompt is reused across every turn of the agentic loop below.
+  // Pulled out of the anthropic.messages.create() call so each iteration
+  // sends the same instructions — Claude stays capable of calling tools
+  // on follow-up turns, not just on the first one.
+  const systemPrompt = `${businessFraming}
 
 ${contextSummary}
 
@@ -3807,61 +4062,102 @@ Tool execution: tools execute server-side as part of this request. The tool_resu
 
 Multi-action requests: when the user asks for multiple actions in one message ("create a unit and assign a tenant to it", "add three tasks", "create a property and add two units to it"), call ALL relevant tools in your initial response — not just the first one. Do not announce future actions you intend to take ("I will now do X") and then stop without executing them. If you announce an action, you must execute it via a tool call in the same turn. Sequential dependencies are fine: tools execute in the order you call them, so a later tool can depend on an earlier one's result. The only exception is when a later action genuinely needs information you don't yet have (e.g., the user gave you ambiguous input that requires clarification first) — in that case, ask the user, do not announce-and-fail.
 
+Chained operations: you can call a tool, see its result in the next turn, and then call another tool that depends on that result. For example, to add an add-on to an existing service: call find_menu_item first to look up the parent service's id, then call add_menu_item with parent_menu_item_id set from the result. Don't announce intermediate steps in prose — just call the next tool.
+
 CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
 
-For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`,
-      tools: toolsForAI,
-      messages: [{ role: 'user', content: prompt }]
-    });
+For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`;
 
-    const actions = [];
+  try {
+    // Tool execution context — built once, reused across every turn of
+    // the loop. Stable across iterations because workspace, user, and
+    // env don't change mid-request.
+    const ctx = {
+      workspace: _workspaceRow,
+      user: { id: req.session.userId },
+      db: pool,
+      logger: console,
+      mailer: sgMail,            // SendGrid client (late notices, etc.)
+      sms: twilioClient,         // Twilio client (late notices, emergency SMS)
+      env: process.env,          // TWILIO_PHONE_NUMBER, SENDGRID_FROM_EMAIL, MAINTENANCE_PHONE
+      generateReportContent,     // Session B4: shared report-generation helper
+    };
+
+    // Agentic loop. Single-turn behavior was: call Claude → execute tools →
+    // call Claude again for a final text summary. That broke chained ops
+    // like "add an add-on to Gel Manicure" because Claude couldn't see the
+    // first tool's result and decide to call a second tool.
+    //
+    // Now: keep cycling (call Claude → execute → push results → call Claude
+    // again) until Claude returns a text-only response or we hit the cap.
+    // The user sees only the final text reply; intermediate "Now I'll do X"
+    // messages are dropped per design. All side effects (DB writes, approval
+    // queues, command_history writes downstream) still happen.
+    const MAX_ITERATIONS = 5;
+    const conversationMessages = [{ role: 'user', content: prompt }];
+
     let reply = '';
+    const allActions = [];           // accumulator across every turn
+    const allExecutionResults = [];  // accumulator across every turn
+    let iterations = 0;
 
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        reply += block.text;
-      } else if (block.type === 'tool_use') {
-        actions.push({ type: block.name, ...block.input });
+    while (iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      const turnResponse = await anthropic.messages.create({
+        model: config.ANTHROPIC_MODEL,
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools: toolsForAI,
+        messages: conversationMessages,
+      });
+
+      // Parse this turn's content blocks into tool calls + text.
+      const turnActions = [];
+      let turnReplyText = '';
+      for (const block of turnResponse.content) {
+        if (block.type === 'text') {
+          turnReplyText += block.text;
+        } else if (block.type === 'tool_use') {
+          // Same shape the prior refactor settled on. toolUseId captured
+          // here so the tool_result block can reference it directly with
+          // no .find() lookup.
+          turnActions.push({
+            toolName: block.name,
+            toolUseId: block.id,
+            input: block.input,
+          });
+        }
       }
-    }
 
-    if (!reply && actions.length) {
-      reply = `Done! I've completed ${actions.length} action${actions.length > 1 ? 's' : ''} for you.`;
-    }
+      // The user only sees the LAST turn's text — earlier turns' prose
+      // is preamble ("Now I'll look up X…") that's noise to the user.
+      reply = turnReplyText;
 
-    if (actions.length && response.stop_reason === 'tool_use') {
-      // Session B2 mixed-mode dispatch:
-      //   - Registered tools (lib/tools/*) execute server-side via
-      //     tool.execute(action, ctx) and the AI sees real outcomes
-      const ctx = {
-        workspace: _workspaceRow,
-        user: { id: req.session.userId },
-        db: pool,
-        logger: console,
-        mailer: sgMail,            // SendGrid client (for late notices, etc.)
-        sms: twilioClient,         // Twilio client (for late notices, emergency SMS)
-        env: process.env,          // for TWILIO_PHONE_NUMBER, SENDGRID_FROM_EMAIL, MAINTENANCE_PHONE
-        generateReportContent,     // Session B4: shared report-generation helper
-      };
+      // No tool calls this turn → Claude is done. Exit the loop.
+      if (turnActions.length === 0 || turnResponse.stop_reason !== 'tool_use') {
+        break;
+      }
 
-      const executionResults = [];
-      for (const action of actions) {
-        const tool = registry.getTool(action.type);
+      // Execute every tool Claude requested in this turn.
+      const turnExecutionResults = [];
+      for (const action of turnActions) {
+        const tool = registry.getTool(action.toolName);
         if (!tool) {
-          // Should never happen since the AI only sees registered tools,
-          // but defensive: surface a clean error rather than crashing.
-          executionResults.push({
+          // Should never happen — the AI only sees registered tools — but
+          // surface cleanly if Anthropic ever returns an unknown name.
+          turnExecutionResults.push({
             action,
-            result: { success: false, message: `Unknown tool: ${action.type}` },
+            result: { success: false, message: `Unknown tool: ${action.toolName}` },
           });
           continue;
         }
 
-        // Session C1: tools tagged requiresApproval are queued instead
-        // of executed. The user must approve before the executor runs.
+        // Session C1: requiresApproval tools queue to pending_actions
+        // instead of executing. Approval lives downstream.
         if (tool.requiresApproval) {
           try {
-            const summary = buildPendingActionSummary(action.type, action);
+            const summary = buildPendingActionSummary(action.toolName, action.input);
             const inserted = await pool.query(
               `INSERT INTO pending_actions (workspace_id, user_id, tool_name, input, ai_summary, status)
                VALUES ($1, $2, $3, $4, $5, 'pending')
@@ -3869,13 +4165,13 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
               [
                 ctx.workspace.id,
                 ctx.user.id,
-                action.type,
-                JSON.stringify(action),
+                action.toolName,
+                JSON.stringify(action.input),
                 summary,
               ]
             );
             const pending = inserted.rows[0];
-            executionResults.push({
+            turnExecutionResults.push({
               action,
               result: {
                 success: true,
@@ -3883,12 +4179,12 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
                 pendingId: pending.id,
                 summary,
                 message: `Queued for approval: ${summary}`,
-                data: { pending_action_id: pending.id, tool_name: action.type },
+                data: { pending_action_id: pending.id, tool_name: action.toolName },
               },
             });
           } catch (err) {
-            console.error(`[command] Failed to queue ${action.type}:`, err);
-            executionResults.push({
+            console.error(`[command] Failed to queue ${action.toolName}:`, err);
+            turnExecutionResults.push({
               action,
               result: { success: false, message: `Failed to queue action: ${err.message}` },
             });
@@ -3896,72 +4192,76 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
           continue;
         }
 
+        // Normal tool execution. Raw input is passed (not the wrapper) so
+        // tools whose schema includes a `type` field (add_menu_item) see
+        // their input untouched.
         try {
-          const result = await tool.execute(action, ctx);
-          executionResults.push({ action, result });
+          const result = await tool.execute(action.input, ctx);
+          turnExecutionResults.push({ action, result });
         } catch (err) {
-          console.error(`[command] Tool ${action.type} threw:`, err);
-          executionResults.push({
+          console.error(`[command] Tool ${action.toolName} threw:`, err);
+          turnExecutionResults.push({
             action,
-            result: { success: false, message: `Error executing ${action.type}: ${err.message}` },
+            result: { success: false, message: `Error executing ${action.toolName}: ${err.message}` },
           });
         }
       }
 
-      const toolResults = executionResults.map(({ action, result }) => ({
+      // Accumulate this turn's results into the request-wide totals.
+      allActions.push(...turnActions);
+      allExecutionResults.push(...turnExecutionResults);
+
+      // Build tool_result blocks Claude needs to see for its next turn.
+      const toolResults = turnExecutionResults.map(({ action, result }) => ({
         type: 'tool_result',
-        tool_use_id: response.content.find(b => b.type === 'tool_use' && b.name === action.type)?.id || '',
-        content: result.message || (result.success ? `Completed ${action.type}` : `Failed: ${action.type}`),
+        tool_use_id: action.toolUseId,
+        content: result.message
+          || (result.success ? `Completed ${action.toolName}` : `Failed ${action.toolName}`),
         is_error: !result.success,
       }));
 
-      const followUp = await anthropic.messages.create({
-        model: config.ANTHROPIC_MODEL,
-        max_tokens: 512,
-        system: `You are an AI command center assistant for Modern Management. Be brief and friendly.`,
-        tools: toolsForAI,
-        messages: [
-          { role: 'user', content: prompt },
-          { role: 'assistant', content: response.content },
-          { role: 'user', content: toolResults }
-        ]
-      });
-
-      const followText = followUp.content.find(b => b.type === 'text');
-      if (followText) reply = followText.text;
-
-      // Build action chips for the frontend — every chip reflects a real
-      // server-side outcome since there is no client-side dispatch path.
-      // Session C1: queued/pendingId/summary surface so the frontend can
-      // render approve/reject buttons inline for requiresApproval tools.
-      const actionChips = executionResults.map(({ action, result }) => ({
-        type: action.type,
-        success: result.success,
-        message: result.message,
-        data: result.data || null,
-        queued: !!result.queued,
-        pendingId: result.pendingId || null,
-        summary: result.summary || null,
-      }));
-
-      const navigation = selectNavigation(executionResults, currentPage, registry);
-      // Session D2: count this AI command toward the daily cap. Approval-
-      // queued tools count too — the Anthropic API call itself is what
-      // the daily cap is meant to limit. Best-effort: increment failures
-      // are logged but never break the response.
-      try {
-        await usage.incrementAICommand(pool, {
-          workspaceId: _workspaceRow.id,
-          userId: req.session.userId,
-        });
-      } catch (err) {
-        console.error('[command] Counter increment failed (non-fatal):', err.message);
-      }
-      return res.json({ reply: reply || 'Done!', actions: actionChips, navigation });
+      // Append this turn's assistant message + the tool results so the
+      // next loop iteration's anthropic.messages.create() sees the full
+      // history. Loop continues from the while-condition check.
+      conversationMessages.push({ role: 'assistant', content: turnResponse.content });
+      conversationMessages.push({ role: 'user', content: toolResults });
     }
 
-    // Session D2: text-only AI reply (no tools called) still consumed
-    // an Anthropic call; count it toward the daily cap.
+    if (iterations >= MAX_ITERATIONS) {
+      console.warn(`[command] Hit MAX_ITERATIONS (${MAX_ITERATIONS}). Reply may be incomplete; allActions count=${allActions.length}`);
+      if (!reply) {
+        reply = "I worked through several steps but ran out of room. Some actions may not have completed — please check and try again if needed.";
+      }
+    }
+
+    // Fallback: if Claude never produced text but did call tools, surface
+    // a generic confirmation so the user isn't staring at an empty bubble.
+    if (!reply && allActions.length) {
+      reply = `Done! I've completed ${allActions.length} action${allActions.length > 1 ? 's' : ''} for you.`;
+    }
+
+    // Build action chips for the frontend from EVERY turn's results.
+    // Public API contract: each chip's `type` field is the tool name.
+    // Session C1: queued/pendingId/summary surface the approval queue
+    // so the frontend can render inline approve/reject buttons.
+    const actionChips = allExecutionResults.map(({ action, result }) => ({
+      type: action.toolName,
+      success: result.success,
+      message: result.message,
+      data: result.data || null,
+      queued: !!result.queued,
+      pendingId: result.pendingId || null,
+      summary: result.summary || null,
+    }));
+
+    // Navigation hint considers the full union of actions across turns;
+    // selectNavigation picks the last action with a nav policy that fires.
+    const navigation = selectNavigation(allExecutionResults, currentPage, registry);
+
+    // Session D2: count this AI command toward the daily cap. Counts one
+    // command per /api/command request regardless of how many turns the
+    // loop ran — the user submitted one prompt. Best-effort: increment
+    // failures are logged but never break the response.
     try {
       await usage.incrementAICommand(pool, {
         workspaceId: _workspaceRow.id,
@@ -3970,7 +4270,25 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
     } catch (err) {
       console.error('[command] Counter increment failed (non-fatal):', err.message);
     }
-    res.json({ reply: reply || 'Done!', actions, navigation: null });
+
+    // Session E9: persist assistant reply for the chat timeline.
+    // tool_calls_summary lists every tool name invoked across all turns
+    // so the UI can show "via find_menu_item, add_menu_item" under the
+    // AI bubble. Null when no tools fired.
+    try {
+      const toolSummary = actionChips.length
+        ? actionChips.map(a => a.type).filter(Boolean).join(', ')
+        : null;
+      await pool.query(
+        `INSERT INTO command_history (workspace_id, user_id, role, content, tool_calls_summary)
+         VALUES ($1, $2, 'assistant', $3, $4)`,
+        [_workspaceRow.id, req.session.userId, reply || 'Done!', toolSummary]
+      );
+    } catch (err) {
+      console.error('[command] history assistant-write failed (non-fatal):', err.message);
+    }
+
+    res.json({ reply: reply || 'Done!', actions: actionChips, navigation });
   } catch (err) {
     console.error('Command error:', err.message);
     res.status(500).json({ error: 'Command failed', details: err.message });
@@ -4734,23 +5052,43 @@ async function deriveReportTitle({ type, prompt }) {
 //   - tasks has no created_at; use "dueDate" as the time anchor.
 //   - cal_events has only (user_id, date, title); no event_time, no category.
 //   - offerings.bedrooms / .bathrooms / .rent live in the metadata JSONB.
+// Session E10: vertical-aware snapshot dispatcher. Reads workspace.vertical
+// and routes to buildPMSnapshot (property management) or buildPSSnapshot
+// (professional services). The two functions return different shapes —
+// downstream callers should check snapshot.workspace.vertical and read
+// the appropriate fields. generateReportContent's PM report prompt
+// continues to read snapshot.budget / .tenants / .inventory / .activity
+// (PM shape). For PS workspaces, the prompt builder uses
+// buildPSContextSummary() below.
 async function buildReportSnapshot({ workspaceId, type, parameters }) {
+  let workspace = null;
+  try {
+    const ws = await pool.query(
+      'SELECT id, vertical, owner_user_id, inventory_tracking_enabled FROM workspaces WHERE id = $1',
+      [workspaceId]
+    );
+    if (ws.rows[0]) workspace = ws.rows[0];
+  } catch (e) {
+    console.error('[snapshot] workspace lookup failed:', e.message);
+  }
+  if (!workspace) {
+    return { type, generated_at: new Date().toISOString(), parameters, workspace: { id: workspaceId }, error: 'Workspace not found' };
+  }
+  const vertical = workspace.vertical || 'property-management';
+  if (vertical === 'professional-services') {
+    return buildPSSnapshot({ workspace, type, parameters });
+  }
+  return buildPMSnapshot({ workspace, type, parameters });
+}
+
+// Existing report-snapshot logic (pre-E10). Behavior unchanged — moved
+// into a named function so the dispatcher above can route to it.
+async function buildPMSnapshot({ workspace, type, parameters }) {
+  const workspaceId = workspace.id;
+  const ownerUserId = workspace.owner_user_id || null;
   const snapshot = { type, generated_at: new Date().toISOString() };
   if (parameters) snapshot.parameters = parameters;
-
-  // Workspace row (defensive: vertical column may not exist on this row)
-  let ownerUserId = null;
-  try {
-    const ws = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
-    if (ws.rows[0]) {
-      snapshot.workspace = { id: ws.rows[0].id, vertical: ws.rows[0].vertical || 'property-management' };
-      ownerUserId = ws.rows[0].owner_user_id;
-    } else {
-      snapshot.workspace = { id: workspaceId };
-    }
-  } catch (e) {
-    snapshot.workspace = { id: workspaceId };
-  }
+  snapshot.workspace = { id: workspaceId, vertical: workspace.vertical || 'property-management' };
 
   // BUDGET / GENERAL — financial slices
   if (type === 'budget' || type === 'general') {
@@ -4876,6 +5214,306 @@ async function buildReportSnapshot({ workspaceId, type, parameters }) {
   }
 
   return snapshot;
+}
+
+// Session E10: PS-shaped snapshot. Loads what Sarah-the-salon-owner cares
+// about — broader contacts (no type='resident' filter), the workspace's
+// menu, today's appointments, recent transactions, active AI conversations,
+// low stock (only when tracking enabled), tasks, and recent inbox messages.
+// Each section is independently try/caught so one failing query degrades
+// to an empty array rather than blanking the whole snapshot.
+async function buildPSSnapshot({ workspace, type, parameters }) {
+  const workspaceId = workspace.id;
+  const ownerUserId = workspace.owner_user_id || null;
+  const inventoryEnabled = workspace.inventory_tracking_enabled === true;
+  const snapshot = {
+    type,
+    generated_at: new Date().toISOString(),
+    parameters,
+    workspace: { id: workspaceId, vertical: 'professional-services' },
+  };
+
+  // Contacts — broader framing for PS. No type filter; customers, vendors,
+  // and other relationships all show up.
+  try {
+    const r = ownerUserId ? await pool.query(
+      `SELECT id, name, email, phone, type, notes
+         FROM contacts
+        WHERE user_id = $1
+        ORDER BY name LIMIT 200`,
+      [ownerUserId]
+    ) : { rows: [] };
+    snapshot.contacts = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] contacts query failed:', err.message);
+    snapshot.contacts = [];
+  }
+
+  // Menu — services, products, add-ons. Active only.
+  try {
+    const r = await pool.query(
+      `SELECT id, type, name, category, base_price_cents, duration_minutes, description, parent_menu_item_id
+         FROM menu_items
+        WHERE workspace_id = $1 AND active = TRUE AND archived_at IS NULL
+        ORDER BY type, category, name LIMIT 200`,
+      [workspaceId]
+    );
+    snapshot.menu_items = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] menu query failed:', err.message);
+    snapshot.menu_items = [];
+  }
+
+  // Today's appointments
+  try {
+    const r = await pool.query(
+      `SELECT id, contact_id, title, starts_at, ends_at, duration_minutes, status, quoted_price_cents
+         FROM appointments
+        WHERE workspace_id = $1
+          AND starts_at >= date_trunc('day', NOW())
+          AND starts_at <  date_trunc('day', NOW()) + INTERVAL '1 day'
+          AND status NOT IN ('canceled', 'no_show')
+        ORDER BY starts_at LIMIT 50`,
+      [workspaceId]
+    );
+    snapshot.appointments_today = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] appointments query failed:', err.message);
+    snapshot.appointments_today = [];
+  }
+
+  // Recent transactions (last 7 days, paid / partially_paid)
+  try {
+    const r = await pool.query(
+      `SELECT id, customer_display_name, total_cents, status, payment_method, payment_received_at
+         FROM transactions
+        WHERE workspace_id = $1
+          AND status IN ('paid', 'partially_paid')
+          AND payment_received_at >= NOW() - INTERVAL '7 days'
+        ORDER BY payment_received_at DESC LIMIT 20`,
+      [workspaceId]
+    );
+    snapshot.recent_transactions = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] transactions query failed:', err.message);
+    snapshot.recent_transactions = [];
+  }
+
+  // Active AI conversations (appointment_threads)
+  try {
+    const r = await pool.query(
+      `SELECT id, state, customer_phone, customer_email, last_customer_message_at,
+              last_ai_message_at, message_count, context_summary
+         FROM appointment_threads
+        WHERE workspace_id = $1
+          AND state NOT IN ('complete', 'closed')
+        ORDER BY last_customer_message_at DESC NULLS LAST LIMIT 20`,
+      [workspaceId]
+    );
+    snapshot.ai_conversations = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] conversations query failed:', err.message);
+    snapshot.ai_conversations = [];
+  }
+
+  // Low stock — null sentinel when tracking is disabled (different from
+  // empty array; the prompt builder uses null to omit the section entirely)
+  if (inventoryEnabled) {
+    try {
+      const r = await pool.query(
+        `SELECT id, name, status, quantity, unit
+           FROM inventory_items
+          WHERE workspace_id = $1
+            AND status IN ('low', 'out')
+            AND archived_at IS NULL
+          ORDER BY CASE status WHEN 'out' THEN 0 ELSE 1 END, name LIMIT 50`,
+        [workspaceId]
+      );
+      snapshot.low_stock = r.rows;
+    } catch (err) {
+      console.error('[snapshot ps] inventory query failed:', err.message);
+      snapshot.low_stock = [];
+    }
+  } else {
+    snapshot.low_stock = null;
+  }
+
+  // Tasks (shared with PM — user-scoped)
+  try {
+    const r = ownerUserId ? await pool.query(
+      `SELECT id, title, "dueDate", done
+         FROM tasks
+        WHERE user_id = $1 AND done = FALSE
+        ORDER BY "dueDate" NULLS LAST LIMIT 30`,
+      [ownerUserId]
+    ) : { rows: [] };
+    snapshot.tasks = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] tasks query failed:', err.message);
+    snapshot.tasks = [];
+  }
+
+  // Inbox messages (shared with PM — user-scoped, last 7 days)
+  try {
+    const r = ownerUserId ? await pool.query(
+      `SELECT id, resident, subject, category, status, "createdAt"
+         FROM messages
+        WHERE user_id = $1
+          AND folder = 'inbox'
+          AND "createdAt" >= NOW() - INTERVAL '7 days'
+        ORDER BY "createdAt" DESC LIMIT 30`,
+      [ownerUserId]
+    ) : { rows: [] };
+    snapshot.inbox_messages = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] messages query failed:', err.message);
+    snapshot.inbox_messages = [];
+  }
+
+  return snapshot;
+}
+
+// Session E10: render a PS snapshot into the markdown section that gets
+// injected into the AI command center's system prompt. Mirrors the shape
+// of the PM contextSummary template but with PS-relevant sections.
+function buildPSContextSummary(snapshot) {
+  const sections = [];
+  sections.push('## Current App State');
+
+  // Contacts — broader framing for PS
+  if (snapshot.contacts && snapshot.contacts.length > 0) {
+    sections.push(
+      '### Contacts (customers, vendors, others)\n' +
+      snapshot.contacts.map(c => {
+        const parts = [`- ${c.name}`];
+        if (c.type) parts.push(` [${c.type}]`);
+        if (c.phone) parts.push(`, ${c.phone}`);
+        if (c.email) parts.push(`, ${c.email}`);
+        return parts.join('');
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Contacts\nNo contacts yet.');
+  }
+
+  // Menu — services / products / add-ons
+  if (snapshot.menu_items && snapshot.menu_items.length > 0) {
+    const services = snapshot.menu_items.filter(m => m.type === 'service');
+    const products = snapshot.menu_items.filter(m => m.type === 'product');
+    const addons = snapshot.menu_items.filter(m => m.type === 'addon');
+    let body = '';
+    if (services.length) {
+      body += '\nServices:\n' + services.map(s => {
+        const price = '$' + (Number(s.base_price_cents || 0) / 100).toFixed(2);
+        const dur = s.duration_minutes ? ` (${s.duration_minutes} min)` : '';
+        return `- #${s.id} ${s.name}${dur}: ${price}`;
+      }).join('\n');
+    }
+    if (products.length) {
+      body += '\nProducts:\n' + products.map(p => {
+        const price = '$' + (Number(p.base_price_cents || 0) / 100).toFixed(2);
+        return `- #${p.id} ${p.name}: ${price}`;
+      }).join('\n');
+    }
+    if (addons.length) {
+      body += '\nAdd-ons:\n' + addons.map(a => {
+        const parent = snapshot.menu_items.find(m => m.id === a.parent_menu_item_id);
+        const price = '$' + (Number(a.base_price_cents || 0) / 100).toFixed(2);
+        return `- #${a.id} ${a.name} (add-on to ${parent ? parent.name : 'service'}): ${price}`;
+      }).join('\n');
+    }
+    sections.push(`### Services & Products Menu${body}`);
+  } else {
+    sections.push('### Services & Products Menu\nNo menu items yet. The owner can add services, products, or add-ons.');
+  }
+
+  // Today's appointments
+  if (snapshot.appointments_today && snapshot.appointments_today.length > 0) {
+    sections.push(
+      "### Today's Appointments\n" +
+      snapshot.appointments_today.map(a => {
+        const time = new Date(a.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return `- #${a.id} ${time}: ${a.title} (${a.duration_minutes || '?'} min, ${a.status})`;
+      }).join('\n')
+    );
+  } else {
+    sections.push("### Today's Appointments\nNothing scheduled today.");
+  }
+
+  // Recent transactions
+  if (snapshot.recent_transactions && snapshot.recent_transactions.length > 0) {
+    sections.push(
+      '### Recent Transactions (last 7 days)\n' +
+      snapshot.recent_transactions.map(t => {
+        const d = t.payment_received_at
+          ? new Date(t.payment_received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          : '—';
+        const amt = '$' + (Number(t.total_cents || 0) / 100).toFixed(2);
+        return `- #${t.id} ${d} ${t.customer_display_name || 'Walk-in'} ${amt} (${t.status}, ${t.payment_method || 'unrecorded'})`;
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Recent Transactions\nNo transactions in the last 7 days.');
+  }
+
+  // Active AI conversations
+  if (snapshot.ai_conversations && snapshot.ai_conversations.length > 0) {
+    sections.push(
+      '### Active AI Conversations\n' +
+      snapshot.ai_conversations.map(c => {
+        const who = c.customer_phone || c.customer_email || 'unknown';
+        const ctx = c.context_summary ? String(c.context_summary).slice(0, 160) : '(no summary)';
+        return `- Thread #${c.id} (${c.state}) with ${who}: ${ctx}`;
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Active AI Conversations\nNo active AI conversations right now.');
+  }
+
+  // Low stock — section is OMITTED entirely when tracking is disabled
+  // (null sentinel from buildPSSnapshot). Empty array shows the "looking good" message.
+  if (snapshot.low_stock === null) {
+    // skip
+  } else if (snapshot.low_stock.length > 0) {
+    sections.push(
+      '### Low Stock\n' +
+      snapshot.low_stock.map(i => {
+        const qty = (i.quantity != null) ? ` (${i.quantity}${i.unit ? ' ' + i.unit : ''})` : '';
+        return `- ${i.name}: ${i.status}${qty}`;
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Low Stock\nInventory looking good. Nothing running low.');
+  }
+
+  // Tasks
+  if (snapshot.tasks && snapshot.tasks.length > 0) {
+    sections.push(
+      '### Tasks\n' +
+      snapshot.tasks.map(t => {
+        const due = t.dueDate
+          ? ` (due ${new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
+          : '';
+        return `- ${t.title}${due}`;
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Tasks\nNo pending tasks.');
+  }
+
+  // Inbox messages
+  if (snapshot.inbox_messages && snapshot.inbox_messages.length > 0) {
+    sections.push(
+      '### Inbox Messages (recent)\n' +
+      snapshot.inbox_messages.map(m =>
+        `- #${m.id}: From ${m.resident || 'unknown'} — "${m.subject || '(no subject)'}" [${m.status}]`
+      ).join('\n')
+    );
+  } else {
+    sections.push('### Inbox Messages\nNo recent inbox messages.');
+  }
+
+  return sections.join('\n\n');
 }
 
 async function generateReportContent({ workspaceId, type, prompt, parameters }) {
