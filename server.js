@@ -1324,6 +1324,31 @@ const SIGNUP_PRICE_LOOKUP_KEYS = [
   'enterprise_monthly', 'enterprise_annual',
   'additional_user_monthly',
 ];
+
+// Session E11: Professional Services Stripe price resolution. PM uses
+// lookup_keys (above) because that's the convention from Phase B; PS
+// uses env vars per the E11 setup checklist where Jay copies price IDs
+// straight out of the Stripe dashboard. Two architectures live side-by-
+// side — PM behavior is preserved unchanged, PS gets a parallel path.
+function getPSStripePriceId(plan) {
+  const map = {
+    starter: process.env.STRIPE_PRICE_PS_STARTER_MONTHLY,
+    pro:     process.env.STRIPE_PRICE_PS_PRO_MONTHLY,
+    premium: process.env.STRIPE_PRICE_PS_PREMIUM_MONTHLY,
+  };
+  return map[plan] || null;
+}
+
+// Startup warning if any PS price env var is missing. Doesn't fail
+// startup (PM signup still works), but PS signup will return a clear
+// "pricing not configured" error until the env vars land.
+(function _checkPSPriceEnvVars() {
+  const missing = ['STRIPE_PRICE_PS_STARTER_MONTHLY', 'STRIPE_PRICE_PS_PRO_MONTHLY', 'STRIPE_PRICE_PS_PREMIUM_MONTHLY']
+    .filter(k => !process.env[k]);
+  if (missing.length) {
+    console.warn('[startup] Professional Services Stripe price env vars missing: ' + missing.join(', ') + '. PS signups will fail with "pricing not configured" until these are set in .env.');
+  }
+})();
 let _signupPriceCache = null;
 async function getSignupPriceIdByLookupKey(lookupKey) {
   if (!stripeSignup) {
@@ -1367,6 +1392,10 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   const business_name   = String(body.business_name || '').trim();
   const units           = parseInt(body.units, 10);
   const property_type   = String(body.property_type || '');
+  // E11: PS-specific business info — captured for the draft so the
+  // workspace + plan-recommendation surfaces have it post-signup.
+  const business_type           = String(body.business_type || '').trim();
+  const appointments_per_month  = parseInt(body.appointments_per_month, 10);
   const area_code       = String(body.area_code || '').trim();
   const area_code_backup = String(body.area_code_backup || '').trim();
   const alert_phone     = String(body.alert_phone || '').trim();
@@ -1376,20 +1405,45 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   // to the default ('property-management') for missing/unknown values,
   // so legacy callers without this field continue working.
   const verticalSlug    = verticals.validateVertical(String(body.vertical || ''));
+  const isPS = verticalSlug === 'professional-services';
 
   // Server-side re-validation (mirrors client regexes in views/signup.html).
+  // Shared validations first.
   if (!/^[a-z0-9_]{3,30}$/.test(username))                  return res.status(400).json({ error: 'Invalid username format' });
   if (!password || password.length < 8)                     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))            return res.status(400).json({ error: 'Invalid email' });
   if (!business_name || business_name.length > 100)         return res.status(400).json({ error: 'Business name is required (1-100 chars)' });
-  if (!Number.isFinite(units) || units < 1 || units > 1000) return res.status(400).json({ error: 'Units must be a number between 1 and 1000' });
-  const PROPERTY_TYPES = ['residential_apartment', 'condo', 'single_family', 'mixed_use', 'commercial'];
-  if (!PROPERTY_TYPES.includes(property_type))              return res.status(400).json({ error: 'Invalid property type' });
+
+  // E11: vertical-aware business-info validation. PM keeps its existing
+  // units + property_type checks unchanged; PS validates business_type
+  // (enum) and appointments_per_month (numeric, used for plan recommendation).
+  if (isPS) {
+    const BUSINESS_TYPES = ['salon', 'barbershop', 'spa', 'nail_salon', 'hair_stylist', 'massage_therapy', 'personal_training', 'tutoring', 'pet_grooming', 'mobile_detailing', 'other'];
+    if (!BUSINESS_TYPES.includes(business_type)) {
+      return res.status(400).json({ error: 'Invalid business type' });
+    }
+    if (!Number.isFinite(appointments_per_month) || appointments_per_month < 0 || appointments_per_month > 100000) {
+      return res.status(400).json({ error: 'Appointments per month must be a non-negative number' });
+    }
+  } else {
+    if (!Number.isFinite(units) || units < 1 || units > 1000) return res.status(400).json({ error: 'Units must be a number between 1 and 1000' });
+    const PROPERTY_TYPES = ['residential_apartment', 'condo', 'single_family', 'mixed_use', 'commercial'];
+    if (!PROPERTY_TYPES.includes(property_type))              return res.status(400).json({ error: 'Invalid property type' });
+  }
+
   if (area_code && !/^[0-9]{3}$/.test(area_code))           return res.status(400).json({ error: 'Area code must be exactly 3 digits' });
   if (area_code_backup && !/^[0-9]{3}$/.test(area_code_backup)) return res.status(400).json({ error: 'Backup area code must be exactly 3 digits' });
   if (alert_phone && !/^\+1[0-9]{10}$/.test(alert_phone))   return res.status(400).json({ error: 'Alert phone must be +1 followed by 10 digits' });
-  if (!['monthly', 'annual'].includes(billing))             return res.status(400).json({ error: 'Invalid billing cadence' });
-  if (!['solo', 'team', 'enterprise'].includes(plan))       return res.status(400).json({ error: 'Invalid plan' });
+
+  // E11: vertical-aware plan + billing validation. PS is monthly-only in v1;
+  // PM keeps its monthly/annual + solo/team/enterprise constraint.
+  if (isPS) {
+    if (billing !== 'monthly') return res.status(400).json({ error: 'Professional Services plans are monthly-only in v1' });
+    if (!['starter', 'pro', 'premium'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
+  } else {
+    if (!['monthly', 'annual'].includes(billing))             return res.status(400).json({ error: 'Invalid billing cadence' });
+    if (!['solo', 'team', 'enterprise'].includes(plan))       return res.status(400).json({ error: 'Invalid plan' });
+  }
 
   // Final uniqueness re-check (catches races since the form's blur check)
   try {
@@ -1415,23 +1469,47 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   // webhook can correlate session.completed back to the draft row.
   const draft_id = require('crypto').randomBytes(16).toString('hex');
 
-  // Resolve Stripe price ID
-  const lookup_key = `${plan}_${billing}`;
+  // Resolve Stripe price ID. E11: PS uses env-var-based resolution; PM
+  // keeps its existing lookup_key-based resolution unchanged. If a PS
+  // env var is missing, surface a clear "pricing not configured" error
+  // rather than failing back to a PM price.
   let price_id;
-  try {
-    price_id = await getSignupPriceIdByLookupKey(lookup_key);
-  } catch (err) {
-    console.error('[signup-checkout] price lookup failed:', err.message);
-    return res.status(500).json({ error: 'Pricing temporarily unavailable; please try again' });
+  if (isPS) {
+    price_id = getPSStripePriceId(plan);
+    if (!price_id) {
+      console.error('[signup-checkout] PS price not configured for plan=' + plan);
+      return res.status(500).json({ error: 'Professional Services pricing is not configured. Please contact support.' });
+    }
+  } else {
+    const lookup_key = `${plan}_${billing}`;
+    try {
+      price_id = await getSignupPriceIdByLookupKey(lookup_key);
+    } catch (err) {
+      console.error('[signup-checkout] price lookup failed:', err.message);
+      return res.status(500).json({ error: 'Pricing temporarily unavailable; please try again' });
+    }
   }
 
   // Persist the draft (do NOT log this row — draft_data has password_hash).
+  // E11: PS-specific fields (business_type, appointments_per_month) are
+  // stored alongside PM fields so the orchestrator and welcome email
+  // template can read either set.
   try {
     await pool.query(
       'INSERT INTO signup_drafts (id, draft_data) VALUES ($1, $2::jsonb)',
       [draft_id, JSON.stringify({
-        username, email, business_name, units, property_type,
-        area_code, area_code_backup, alert_phone, billing, plan,
+        username, email, business_name,
+        // PM-specific:
+        units: isPS ? null : units,
+        property_type: isPS ? null : property_type,
+        // PS-specific:
+        business_type: isPS ? business_type : null,
+        appointments_per_month: isPS ? appointments_per_month : null,
+        // Shared:
+        area_code, area_code_backup, alert_phone,
+        billing: isPS ? 'monthly' : billing,
+        plan,
+        vertical: verticalSlug,
         password_hash,
       })]
     );
@@ -1453,13 +1531,13 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   const success_url = `${proto}://${host}/signup/success?session_id={CHECKOUT_SESSION_ID}&draft_id=${draft_id}`;
   const cancel_url  = `${proto}://${host}/signup/canceled?draft_id=${draft_id}`;
 
-  // Session D3: optional 7-day trial gating. The flag is opt-in and
-  // applies ONLY to the Solo plan — Team and Enterprise never receive
-  // a trial regardless of the flag. The current signup form does not
-  // pass `trial`, so behavior is unchanged for existing callers; a
-  // future trial-CTA flow can pass `trial: true` to activate it.
+  // Session D3: optional 7-day trial gating. PM: opt-in (Solo only).
+  // E11: PS — all three tiers (Starter / Pro / Premium) get a 7-day
+  // free trial automatically per the launch design.
   const wantsTrial = req.body && (req.body.trial === true || req.body.trial === 'true');
-  const shouldApplyTrial = wantsTrial && plan === 'solo';
+  const shouldApplyTrial = isPS
+    ? true
+    : (wantsTrial && plan === 'solo');
 
   const sessionConfig = {
     mode: 'subscription',

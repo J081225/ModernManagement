@@ -181,20 +181,48 @@
         <input id="f-business-name" type="text" placeholder="e.g. Riverside Property Management" />
         <div class="field-error" id="err-business-name"></div>
 
-        <label>Number of units you manage <span class="required">*</span></label>
-        <input id="f-units" type="number" min="1" max="1000" placeholder="e.g. 25" />
-        <div class="field-error" id="err-units"></div>
+        <!-- E11: PM-only fields. Hidden when SIGNUP_VERTICAL === 'professional-services'. -->
+        <div id="pm-fields">
+          <label>Number of units you manage <span class="required">*</span></label>
+          <input id="f-units" type="number" min="1" max="1000" placeholder="e.g. 25" />
+          <div class="field-error" id="err-units"></div>
 
-        <label>Property type <span class="required">*</span></label>
-        <select id="f-property-type">
-          <option value="">Select...</option>
-          <option value="residential_apartment">Residential apartments</option>
-          <option value="condo">Condos</option>
-          <option value="single_family">Single-family rentals</option>
-          <option value="mixed_use">Mixed-use</option>
-          <option value="commercial">Commercial</option>
-        </select>
-        <div class="field-error" id="err-property-type"></div>
+          <label>Property type <span class="required">*</span></label>
+          <select id="f-property-type">
+            <option value="">Select...</option>
+            <option value="residential_apartment">Residential apartments</option>
+            <option value="condo">Condos</option>
+            <option value="single_family">Single-family rentals</option>
+            <option value="mixed_use">Mixed-use</option>
+            <option value="commercial">Commercial</option>
+          </select>
+          <div class="field-error" id="err-property-type"></div>
+        </div>
+
+        <!-- E11: PS-only fields. Hidden by default; shown when SIGNUP_VERTICAL === 'professional-services'. -->
+        <div id="ps-fields" style="display:none;">
+          <label>Business type <span class="required">*</span></label>
+          <select id="f-business-type">
+            <option value="">Select your business type...</option>
+            <option value="salon">Salon</option>
+            <option value="barbershop">Barbershop</option>
+            <option value="spa">Spa</option>
+            <option value="nail_salon">Nail salon</option>
+            <option value="hair_stylist">Hair stylist (independent)</option>
+            <option value="massage_therapy">Massage therapy</option>
+            <option value="personal_training">Personal training</option>
+            <option value="tutoring">Tutoring</option>
+            <option value="pet_grooming">Pet grooming</option>
+            <option value="mobile_detailing">Mobile detailing</option>
+            <option value="other">Other</option>
+          </select>
+          <div class="field-error" id="err-business-type"></div>
+
+          <label>Appointments per month <span class="required">*</span></label>
+          <input id="f-appointments-per-month" type="number" min="0" max="100000" placeholder="e.g. 75" />
+          <div class="field-error" id="err-appointments-per-month"></div>
+          <div class="field-hint">Roughly how many bookings do you handle each month? (We'll suggest a plan.)</div>
+        </div>
 
         <div class="btn-row">
           <button class="btn-secondary" onclick="goBack(2)">Back</button>
@@ -233,28 +261,54 @@
         <h1>Choose your plan</h1>
         <p class="subtitle" id="plan-suggestion">Step 4 of 4 — pick the plan that fits your business.</p>
 
-        <div class="billing-toggle">
+        <!-- E11: PM-only billing toggle. PS launches monthly-only in v1. -->
+        <div class="billing-toggle" id="pm-billing-toggle">
           <button id="bill-monthly" class="active" onclick="setBilling('monthly')">Monthly</button>
           <button id="bill-annual" onclick="setBilling('annual')">Annual <span class="savings-tag">Save 2 months</span></button>
         </div>
 
-        <label class="plan-card" data-plan="solo" onclick="selectPlan('solo')">
-          <input type="radio" name="plan" value="solo" />
-          <span class="plan-name">Solo</span> &nbsp; <span class="plan-price" id="price-solo">$79/mo</span>
-          <div class="plan-meta">Up to 25 units, 1 user</div>
-        </label>
+        <!-- E11: PM plan cards. Hidden when SIGNUP_VERTICAL === 'professional-services'. -->
+        <div id="pm-plans">
+          <label class="plan-card" data-plan="solo" onclick="selectPlan('solo')">
+            <input type="radio" name="plan" value="solo" />
+            <span class="plan-name">Solo</span> &nbsp; <span class="plan-price" id="price-solo">$79/mo</span>
+            <div class="plan-meta">Up to 25 units, 1 user</div>
+          </label>
 
-        <label class="plan-card" data-plan="team" onclick="selectPlan('team')">
-          <input type="radio" name="plan" value="team" />
-          <span class="plan-name">Team</span> &nbsp; <span class="plan-price" id="price-team">$149/mo</span>
-          <div class="plan-meta">Up to 100 units, 3 users included</div>
-        </label>
+          <label class="plan-card" data-plan="team" onclick="selectPlan('team')">
+            <input type="radio" name="plan" value="team" />
+            <span class="plan-name">Team</span> &nbsp; <span class="plan-price" id="price-team">$149/mo</span>
+            <div class="plan-meta">Up to 100 units, 3 users included</div>
+          </label>
 
-        <label class="plan-card" data-plan="enterprise" onclick="selectPlan('enterprise')">
-          <input type="radio" name="plan" value="enterprise" />
-          <span class="plan-name">Enterprise</span> &nbsp; <span class="plan-price" id="price-enterprise">$299/mo</span>
-          <div class="plan-meta">Up to 500 units, 10 users included</div>
-        </label>
+          <label class="plan-card" data-plan="enterprise" onclick="selectPlan('enterprise')">
+            <input type="radio" name="plan" value="enterprise" />
+            <span class="plan-name">Enterprise</span> &nbsp; <span class="plan-price" id="price-enterprise">$299/mo</span>
+            <div class="plan-meta">Up to 500 units, 10 users included</div>
+          </label>
+        </div>
+
+        <!-- E11: PS plan cards. Hidden by default; shown when SIGNUP_VERTICAL === 'professional-services'.
+             Monthly-only in v1 (annual billing deferred). All three tiers include a 7-day free trial. -->
+        <div id="ps-plans" style="display:none;">
+          <label class="plan-card" data-plan="starter" onclick="selectPlan('starter')">
+            <input type="radio" name="plan" value="starter" />
+            <span class="plan-name">Starter</span> &nbsp; <span class="plan-price">$149/mo</span>
+            <div class="plan-meta">50 customers, 150 appointments/mo, 25 services. 7-day free trial.</div>
+          </label>
+
+          <label class="plan-card" data-plan="pro" onclick="selectPlan('pro')">
+            <input type="radio" name="plan" value="pro" />
+            <span class="plan-name">Pro</span> &nbsp; <span class="plan-price">$295/mo</span>
+            <div class="plan-meta">Unlimited customers, 600 appointments/mo, unlimited services, automatic reminders, vendor messaging. 7-day free trial.</div>
+          </label>
+
+          <label class="plan-card" data-plan="premium" onclick="selectPlan('premium')">
+            <input type="radio" name="plan" value="premium" />
+            <span class="plan-name">Premium</span> &nbsp; <span class="plan-price">$375/mo</span>
+            <div class="plan-meta">Unlimited everything, multi-staff scheduling, branded SMS sender ID, 1-on-1 founder onboarding. 7-day free trial.</div>
+          </label>
+        </div>
 
         <div class="field-error" id="err-plan"></div>
         <!-- B2.3: surfaces server-side errors from /api/signup/
@@ -301,6 +355,28 @@
       return 'property-management';
     }
     const SIGNUP_VERTICAL = readVerticalFromUrl();
+    const IS_PS = SIGNUP_VERTICAL === 'professional-services';
+
+    // E11: toggle PM vs PS Step 2 fields and Step 4 plan cards based on
+    // the vertical. Runs on DOMContentLoaded so the elements exist.
+    document.addEventListener('DOMContentLoaded', function () {
+      const pmFields = document.getElementById('pm-fields');
+      const psFields = document.getElementById('ps-fields');
+      const pmPlans  = document.getElementById('pm-plans');
+      const psPlans  = document.getElementById('ps-plans');
+      const pmBillingToggle = document.getElementById('pm-billing-toggle');
+      if (IS_PS) {
+        if (pmFields) pmFields.style.display = 'none';
+        if (psFields) psFields.style.display = '';
+        if (pmPlans)  pmPlans.style.display  = 'none';
+        if (psPlans)  psPlans.style.display  = '';
+        // PS is monthly-only in v1 — hide the toggle entirely.
+        if (pmBillingToggle) pmBillingToggle.style.display = 'none';
+        // Update the pricing subhead with PS-flavored copy.
+        const sub = document.getElementById('plan-suggestion');
+        if (sub) sub.textContent = 'Step 4 of 4 — try free for 7 days. Cancel anytime during the trial.';
+      }
+    });
 
     // === sessionStorage draft state ===
     // Key dies with the tab — privacy-friendly. Server-side persistence
@@ -348,6 +424,15 @@
       if (d.business_name) document.getElementById('f-business-name').value = d.business_name;
       if (d.units != null) document.getElementById('f-units').value = d.units;
       if (d.property_type) document.getElementById('f-property-type').value = d.property_type;
+      // E11: rehydrate PS-specific Step 2 fields if present.
+      if (d.business_type) {
+        const bt = document.getElementById('f-business-type');
+        if (bt) bt.value = d.business_type;
+      }
+      if (d.appointments_per_month != null) {
+        const apm = document.getElementById('f-appointments-per-month');
+        if (apm) apm.value = d.appointments_per_month;
+      }
       if (d.area_code) document.getElementById('f-area-code').value = d.area_code;
       if (d.area_code_backup) document.getElementById('f-area-code-backup').value = d.area_code_backup;
       if (d.alert_phone) document.getElementById('f-alert-phone').value = d.alert_phone;
@@ -450,9 +535,16 @@
       }
       if (screen >= 2) {
         d.business_name = document.getElementById('f-business-name').value.trim();
-        const units = parseInt(document.getElementById('f-units').value, 10);
-        d.units = Number.isFinite(units) ? units : null;
-        d.property_type = document.getElementById('f-property-type').value;
+        // E11: branch on vertical to capture the right business-info fields.
+        if (IS_PS) {
+          d.business_type = document.getElementById('f-business-type').value;
+          const apm = parseInt(document.getElementById('f-appointments-per-month').value, 10);
+          d.appointments_per_month = Number.isFinite(apm) ? apm : null;
+        } else {
+          const units = parseInt(document.getElementById('f-units').value, 10);
+          d.units = Number.isFinite(units) ? units : null;
+          d.property_type = document.getElementById('f-property-type').value;
+        }
       }
       if (screen >= 3) {
         d.area_code        = document.getElementById('f-area-code').value.trim();
@@ -490,11 +582,21 @@
         }
       } else if (n === 2) {
         const businessName = document.getElementById('f-business-name').value.trim();
-        const units        = parseInt(document.getElementById('f-units').value, 10);
-        const propertyType = document.getElementById('f-property-type').value;
         if (!businessName || businessName.length > 100) { setError('business-name', 'Business name is required (1-100 characters)'); ok = false; }
-        if (!Number.isFinite(units) || units < 1 || units > 1000) { setError('units', 'Enter a number between 1 and 1000'); ok = false; }
-        if (!propertyType) { setError('property-type', 'Select a property type'); ok = false; }
+        if (IS_PS) {
+          // E11: PS validation — business_type enum + non-negative appointments_per_month.
+          const businessType = document.getElementById('f-business-type').value;
+          const apm = parseInt(document.getElementById('f-appointments-per-month').value, 10);
+          if (!businessType) { setError('business-type', 'Select a business type'); ok = false; }
+          if (!Number.isFinite(apm) || apm < 0 || apm > 100000) {
+            setError('appointments-per-month', 'Enter a non-negative number'); ok = false;
+          }
+        } else {
+          const units        = parseInt(document.getElementById('f-units').value, 10);
+          const propertyType = document.getElementById('f-property-type').value;
+          if (!Number.isFinite(units) || units < 1 || units > 1000) { setError('units', 'Enter a number between 1 and 1000'); ok = false; }
+          if (!propertyType) { setError('property-type', 'Select a property type'); ok = false; }
+        }
       } else if (n === 3) {
         const areaCode       = document.getElementById('f-area-code').value.trim();
         const areaCodeBackup = document.getElementById('f-area-code-backup').value.trim();
@@ -535,22 +637,30 @@
           return;
         }
 
+        // E11: vertical-aware payload. PM sends units + property_type;
+        // PS sends business_type + appointments_per_month and forces
+        // billing to 'monthly' (PS is monthly-only in v1).
         const payload = {
           username:         draft.username,
           password:         password,
           email:            draft.email,
           business_name:    draft.business_name,
-          units:            draft.units,
-          property_type:    draft.property_type,
           area_code:        draft.area_code || '',
           area_code_backup: draft.area_code_backup || '',
           alert_phone:      draft.alert_phone || '',
-          billing:          draft.billing || 'monthly',
+          billing:          IS_PS ? 'monthly' : (draft.billing || 'monthly'),
           plan:             draft.plan,
           // E1: vertical chosen on /signup/vertical and passed via
           // ?vertical=... query string. Defaults to property-management.
           vertical:         SIGNUP_VERTICAL,
         };
+        if (IS_PS) {
+          payload.business_type          = draft.business_type;
+          payload.appointments_per_month = draft.appointments_per_month;
+        } else {
+          payload.units         = draft.units;
+          payload.property_type = draft.property_type;
+        }
 
         try {
           const res = await fetch('/api/signup/create-checkout-session', {
@@ -607,12 +717,27 @@
     }
 
     function updatePlanSuggestion() {
-      const u = getDraft().units;
       const el = document.getElementById('plan-suggestion');
-      if (!Number.isFinite(u)) return;
-      if (u <= 25)       el.textContent = 'Step 4 of 4 — based on your unit count, Solo is recommended.';
-      else if (u <= 100) el.textContent = 'Step 4 of 4 — based on your unit count, Team is recommended.';
-      else               el.textContent = 'Step 4 of 4 — based on your unit count, Enterprise is recommended.';
+      if (!el) return;
+      const d = getDraft();
+      if (IS_PS) {
+        // E11: PS recommendation by appointments/month.
+        //   <100 → Starter, 100-500 → Pro, 500+ → Premium.
+        const apm = d.appointments_per_month;
+        if (!Number.isFinite(apm)) return;
+        let plan;
+        if (apm < 100)       plan = 'Starter';
+        else if (apm <= 500) plan = 'Pro';
+        else                 plan = 'Premium';
+        el.textContent = 'Step 4 of 4 — based on your appointment volume, ' + plan + ' is recommended. 7-day free trial on every tier.';
+      } else {
+        // PM recommendation by unit count — unchanged.
+        const u = d.units;
+        if (!Number.isFinite(u)) return;
+        if (u <= 25)       el.textContent = 'Step 4 of 4 — based on your unit count, Solo is recommended.';
+        else if (u <= 100) el.textContent = 'Step 4 of 4 — based on your unit count, Team is recommended.';
+        else               el.textContent = 'Step 4 of 4 — based on your unit count, Enterprise is recommended.';
+      }
     }
 
     // === Plan + billing toggles ===
