@@ -5284,6 +5284,28 @@
         renderCalendar();
       }
 
+      // E12: Daily Focus. On app open, ask the server to ensure today's
+      // AI-generated "grow your business" calendar event exists. The
+      // endpoint is idempotent per workspace per day — only the first
+      // open of the day actually generates anything. If a new event was
+      // created, refresh the calendar so it shows up immediately.
+      async function ensureDailyNudge() {
+        try {
+          const r = await fetch('/api/daily-nudge/ensure', {
+            method: 'POST',
+            credentials: 'include',
+          });
+          if (!r.ok) return;
+          const data = await r.json();
+          if (data && data.created && typeof loadCalEvents === 'function') {
+            loadCalEvents();
+          }
+        } catch (err) {
+          // Non-fatal — the nudge is a nicety, not core flow.
+          console.warn('[daily-nudge] ensure failed:', err);
+        }
+      }
+
       async function addTask() {
         const title = document.getElementById('taskTitle').value.trim();
         const category = document.getElementById('taskCategory').value;
@@ -8168,6 +8190,7 @@
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadPlanSummary(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
+        ensureDailyNudge(); // E12: create today's Daily Focus calendar event if absent
         loadForwardingInfo(); loadPaymentEvents(); loadEmailAccount();
         // Init month/year selectors to current month
         const now = new Date();

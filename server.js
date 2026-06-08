@@ -2092,6 +2092,92 @@ app.get('/api/dashboard/ps', requireAuth, async (req, res) => {
   }
 });
 
+// Session E12: Daily Focus. Ensures exactly one AI-generated "grow your
+// business" calendar event exists for today, then returns it. Idempotent
+// per workspace per day — safe to call on every app open. The frontend
+// fires this from window.onload; only the first call of the day does any
+// AI work (the existence check short-circuits the rest).
+//
+// The event is created on cal_events with event_type='daily_focus' (added
+// to the CHECK constraint by migration 040), is_all_day=true, dated today.
+// It surfaces on the Calendar page like any other all-day event.
+//
+// Not gated by subscription status and NOT counted toward the D4 AI
+// command quota — this is a background nicety, not a user-issued command.
+app.post('/api/daily-nudge/ensure', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(404).json({ error: 'workspace_not_found' });
+
+    let workspace;
+    try {
+      const wr = await pool.query(
+        'SELECT id, vertical, owner_user_id, business_name, name FROM workspaces WHERE id = $1',
+        [workspaceId]
+      );
+      workspace = wr.rows[0];
+    } catch (e) {
+      return res.status(500).json({ error: 'workspace_lookup_failed' });
+    }
+    if (!workspace) return res.status(404).json({ error: 'workspace_not_found' });
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // Idempotency: at most one daily_focus event per workspace per day.
+    // The partial index idx_cal_events_daily_focus (migration 040) keeps
+    // this lookup fast.
+    const existing = await pool.query(
+      `SELECT id, title FROM cal_events
+        WHERE workspace_id = $1 AND event_type = 'daily_focus' AND date = $2
+        ORDER BY id DESC LIMIT 1`,
+      [workspaceId, today]
+    );
+    if (existing.rows.length) {
+      return res.json({ created: false, nudge: existing.rows[0] });
+    }
+
+    // Generate today's suggestion. If generation fails, don't create a
+    // placeholder event — just report it and let the next app open retry.
+    let suggestion;
+    try {
+      suggestion = await generateDailyNudge(workspace);
+    } catch (err) {
+      console.error('[daily-nudge] generation failed:', err.message);
+      return res.json({ created: false, error: 'generation_failed' });
+    }
+    if (!suggestion) {
+      return res.json({ created: false, error: 'generation_empty' });
+    }
+
+    // All-day event for today (midnight-to-midnight, UTC — matches the
+    // backfill convention from migration 034 and add_calendar_event.js).
+    const startsAt = new Date(today + 'T00:00:00.000Z');
+    const endsAt = new Date(startsAt.getTime() + 24 * 60 * 60 * 1000);
+    const title = '\u{1F4A1} ' + suggestion; // lightbulb prefix so it's recognizable on the calendar
+
+    let inserted;
+    try {
+      const r = await pool.query(
+        `INSERT INTO cal_events
+           (user_id, workspace_id, date, title, starts_at, ends_at, is_all_day, event_type)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE, 'daily_focus')
+         RETURNING id, title`,
+        [workspace.owner_user_id, workspaceId, today, title,
+          startsAt.toISOString(), endsAt.toISOString()]
+      );
+      inserted = r.rows[0];
+    } catch (err) {
+      console.error('[daily-nudge] cal_events insert failed:', err.message);
+      return res.status(500).json({ error: 'daily_nudge_insert_failed' });
+    }
+
+    res.json({ created: true, nudge: inserted });
+  } catch (err) {
+    console.error('[daily-nudge] error:', err.message);
+    res.status(500).json({ error: 'daily_nudge_failed' });
+  }
+});
+
 // Session D5: Stripe Customer Portal session for self-serve plan
 // management. Distinct from the legacy GET /api/billing/portal route
 // (which uses the legacy `stripe` client and stays untouched). This
@@ -5592,6 +5678,74 @@ function buildPSContextSummary(snapshot) {
   }
 
   return sections.join('\n\n');
+}
+
+// Session E12: generate one daily "grow your business" suggestion for a
+// workspace. Vertical-aware — it builds a compact digest from the same
+// buildReportSnapshot the reports feature uses (PM or PS shape), then
+// asks Claude for a single concrete action the owner can take today.
+// Returns a short string suitable for a calendar event title, or null
+// if the model produced nothing usable. Throws only on a hard API error
+// so the caller can distinguish "retry later" from "empty result".
+async function generateDailyNudge(workspace) {
+  const snapshot = await buildReportSnapshot({
+    workspaceId: workspace.id,
+    type: 'general',
+    parameters: null,
+  });
+  const vertical = (snapshot.workspace && snapshot.workspace.vertical) || workspace.vertical || 'property-management';
+
+  // Build a compact vertical-aware digest — counts and highlights only,
+  // not full record lists. Every access is defensive so a missing
+  // snapshot section degrades to a zero rather than throwing.
+  let digest;
+  if (vertical === 'professional-services') {
+    const lowStock = snapshot.low_stock; // null when inventory tracking is off
+    digest = [
+      'Business type: professional services (appointment-based — salon, spa, stylist, trainer, etc.).',
+      'Customers/contacts on file: ' + (snapshot.contacts || []).length,
+      'Services/products on the menu: ' + (snapshot.menu_items || []).length,
+      'Appointments today: ' + (snapshot.appointments_today || []).length,
+      'Paid transactions in the last 7 days: ' + (snapshot.recent_transactions || []).length,
+      'Active AI customer conversations: ' + (snapshot.ai_conversations || []).length,
+      (lowStock === null
+        ? 'Inventory tracking: off.'
+        : 'Inventory items low or out of stock: ' + lowStock.length),
+      'Open tasks: ' + (snapshot.tasks || []).length,
+    ].join('\n');
+  } else {
+    const inv = snapshot.inventory || {};
+    const tickets = (snapshot.activity && snapshot.activity.tickets_last_30_days) || [];
+    const activeTickets = tickets.filter(t => ['open', 'in_progress', 'on_hold'].includes(t.status)).length;
+    const rentRecords = (snapshot.budget && snapshot.budget.rent_records) || [];
+    const unpaidRent = rentRecords.filter(r => r.status && r.status !== 'paid').length;
+    digest = [
+      'Business type: property management (landlord / property manager).',
+      'Properties: ' + (inv.properties || []).length,
+      'Units: ' + (inv.units || []).length + ', occupancy ' + (inv.occupancy_rate != null ? inv.occupancy_rate : 0) + '%',
+      'Residents on file: ' + ((snapshot.tenants && snapshot.tenants.residents) || []).length,
+      'Open maintenance tickets: ' + activeTickets,
+      'Unpaid / overdue rent records: ' + unpaidRent,
+      'Tasks logged in the last 30 days: ' + ((snapshot.activity && snapshot.activity.tasks_last_30_days) || []).length,
+    ].join('\n');
+  }
+
+  const businessName = workspace.business_name || workspace.name || 'the business';
+  const response = await anthropic.messages.create({
+    model: config.ANTHROPIC_MODEL,
+    max_tokens: 120,
+    system: 'You are a sharp, practical small-business advisor. Given a one-day snapshot of a business, suggest ONE specific, concrete action the owner can take TODAY to grow profit or productivity. It must be doable within a day and grounded in the snapshot you are given. Reply with a SINGLE short imperative sentence under 90 characters. No quotes, no preamble, no emoji, no markdown.',
+    messages: [{ role: 'user', content: 'Business name: ' + businessName + '\n' + digest }],
+  });
+
+  const textBlock = (response.content || []).find(b => b.type === 'text');
+  let suggestion = textBlock ? String(textBlock.text).trim() : '';
+  // Strip stray surrounding quotes the model sometimes adds.
+  suggestion = suggestion.replace(/^["'“‘]+/, '').replace(/["'”’]+$/, '').trim();
+  if (!suggestion) return null;
+  // Defensive cap — the column is TEXT but a runaway title is ugly on the calendar.
+  if (suggestion.length > 140) suggestion = suggestion.slice(0, 137).trimEnd() + '…';
+  return suggestion;
 }
 
 async function generateReportContent({ workspaceId, type, prompt, parameters }) {
