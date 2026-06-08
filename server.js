@@ -1560,7 +1560,7 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   // subscription_data already exists for the D3 trial path; merge into it.
   if (shouldApplyTrial) {
     sessionConfig.subscription_data = {
-      trial_period_days: 7,
+      trial_period_days: 14,
       metadata: { vertical: verticalSlug },
     };
   } else {
@@ -1766,6 +1766,21 @@ app.post('/api/stripe/webhook', async (req, res) => {
           console.log('[stripe-webhook] invoice.payment_failed →', JSON.stringify(result));
         } catch (err) {
           console.error('[stripe-webhook] invoice.payment_failed handler error:', err.message);
+          return res.status(500).json({ error: 'processing failed' });
+        }
+        break;
+      }
+      case 'invoice.payment_succeeded': {
+        // Recovery backstop: if Stripe sends payment_succeeded without an
+        // accompanying customer.subscription.updated, the handler flips a
+        // past_due workspace back to active. No-op for any other status.
+        try {
+          const result = await subscriptionLifecycle.processInvoicePaymentSucceededEvent(
+            event, pool, lifecycleCtx
+          );
+          console.log('[stripe-webhook] invoice.payment_succeeded →', JSON.stringify(result));
+        } catch (err) {
+          console.error('[stripe-webhook] invoice.payment_succeeded handler error:', err.message);
           return res.status(500).json({ error: 'processing failed' });
         }
         break;
