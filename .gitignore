@@ -1,3 +1,6 @@
 node_modules/
 .env
 ModernManagement.zip
+context-bundle/
+context-bundle.zip
+scripts/dump-*.js
