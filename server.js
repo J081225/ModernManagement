@@ -5443,22 +5443,26 @@ async function buildPSSnapshot({ workspace, type, parameters }) {
     snapshot.menu_items = [];
   }
 
-  // Today's appointments
+  // Upcoming appointments — start of today through the next 14 days.
+  // Today-only was too narrow: the AI couldn't see future bookings the
+  // owner is asking about ("confirm Maria's appointment"). 14 days is a
+  // pragmatic window — wide enough to cover most "next appointment"
+  // questions, narrow enough to keep the prompt small.
   try {
     const r = await pool.query(
       `SELECT id, contact_id, title, starts_at, ends_at, duration_minutes, status, quoted_price_cents
          FROM appointments
         WHERE workspace_id = $1
           AND starts_at >= date_trunc('day', NOW())
-          AND starts_at <  date_trunc('day', NOW()) + INTERVAL '1 day'
+          AND starts_at <  date_trunc('day', NOW()) + INTERVAL '14 days'
           AND status NOT IN ('canceled', 'no_show')
         ORDER BY starts_at LIMIT 50`,
       [workspaceId]
     );
-    snapshot.appointments_today = r.rows;
+    snapshot.appointments_upcoming = r.rows;
   } catch (err) {
     console.error('[snapshot ps] appointments query failed:', err.message);
-    snapshot.appointments_today = [];
+    snapshot.appointments_upcoming = [];
   }
 
   // Recent transactions (last 7 days, paid / partially_paid)
@@ -5606,17 +5610,25 @@ function buildPSContextSummary(snapshot) {
     sections.push('### Services & Products Menu\nNo menu items yet. The owner can add services, products, or add-ons.');
   }
 
-  // Today's appointments
-  if (snapshot.appointments_today && snapshot.appointments_today.length > 0) {
+  // Upcoming appointments (next 14 days). The list spans multiple days now,
+  // so each line carries the full date+time, plus the customer name resolved
+  // from snapshot.contacts when possible — both help the AI disambiguate
+  // which appointment a command refers to.
+  if (snapshot.appointments_upcoming && snapshot.appointments_upcoming.length > 0) {
     sections.push(
-      "### Today's Appointments\n" +
-      snapshot.appointments_today.map(a => {
-        const time = new Date(a.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        return `- #${a.id} ${time}: ${a.title} (${a.duration_minutes || '?'} min, ${a.status})`;
+      '### Upcoming Appointments (next 14 days)\n' +
+      snapshot.appointments_upcoming.map(a => {
+        const when = new Date(a.starts_at).toLocaleString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric',
+          hour: 'numeric', minute: '2-digit', hour12: true,
+        });
+        const contact = (snapshot.contacts || []).find(c => c.id === a.contact_id);
+        const who = contact ? contact.name : (a.contact_id ? `contact #${a.contact_id}` : 'walk-in');
+        return `- #${a.id} ${when} — ${a.title} — ${who} (${a.status})`;
       }).join('\n')
     );
   } else {
-    sections.push("### Today's Appointments\nNothing scheduled today.");
+    sections.push('### Upcoming Appointments (next 14 days)\nNo upcoming appointments.');
   }
 
   // Recent transactions
@@ -5720,7 +5732,7 @@ async function generateDailyNudge(workspace) {
       'Business type: professional services (appointment-based — salon, spa, stylist, trainer, etc.).',
       'Customers/contacts on file: ' + (snapshot.contacts || []).length,
       'Services/products on the menu: ' + (snapshot.menu_items || []).length,
-      'Appointments today: ' + (snapshot.appointments_today || []).length,
+      'Appointments in the next 14 days: ' + (snapshot.appointments_upcoming || []).length,
       'Paid transactions in the last 7 days: ' + (snapshot.recent_transactions || []).length,
       'Active AI customer conversations: ' + (snapshot.ai_conversations || []).length,
       (lowStock === null
