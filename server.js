@@ -77,6 +77,12 @@ const appointmentEngine = require('./lib/appointment-engine');
 // Stripe's source-of-truth state instead of staying 'active' forever.
 const subscriptionLifecycle = require('./lib/subscription-lifecycle');
 
+// E13: Stripe Connect (Express) onboarding state sync. Test mode only —
+// this module does NOT handle any charge / payment-intent code, just
+// keeps workspaces.connect_status in lockstep with the connected
+// account's Stripe state.
+const connectLifecycle = require('./lib/connect-lifecycle');
+
 // Session E3: receipt formatting + delivery (email > SMS > save) for the
 // transactions table. Used by the complete_transaction AI tool and by the
 // /api/transactions/:id/send-receipt endpoint below.
@@ -1689,6 +1695,7 @@ app.post('/api/stripe/webhook', async (req, res) => {
     'checkout.session.',       // checkout.session.completed, checkout.session.async_payment_*
     'customer.subscription.',  // customer.subscription.created/updated/deleted
     'invoice.payment_',        // invoice.payment_succeeded/failed
+    'account.',                // E13: account.updated for Stripe Connect onboarding sync
   ];
   const should_store = STORED_EVENT_PREFIXES.some(p => event.type.startsWith(p));
 
@@ -1785,6 +1792,20 @@ app.post('/api/stripe/webhook', async (req, res) => {
         }
         break;
       }
+      case 'account.updated': {
+        // E13: connected account state changed (Stripe pushes this when
+        // the owner finishes a step of onboarding, when capabilities flip,
+        // or when a requirement appears). Mirror charges_enabled +
+        // details_submitted into the workspace and derive connect_status.
+        try {
+          const result = await connectLifecycle.processAccountUpdatedEvent(event, pool);
+          console.log('[stripe-webhook] account.updated →', JSON.stringify(result));
+        } catch (err) {
+          console.error('[stripe-webhook] account.updated handler error:', err.message);
+          return res.status(500).json({ error: 'processing failed' });
+        }
+        break;
+      }
       default:
         console.log('[stripe-webhook] event stored, no handler:', event.type, event.id);
     }
@@ -1793,6 +1814,150 @@ app.post('/api/stripe/webhook', async (req, res) => {
   }
 
   res.json({ received: true });
+});
+
+// =====================================================================
+// E13 — Stripe Connect (Express) onboarding routes. TEST MODE only.
+// No charge / payment-intent code in this session — these endpoints
+// just let a PS workspace owner connect their bank via Stripe-hosted
+// onboarding and get marked "ready to accept cards." The webhook case
+// 'account.updated' above keeps connect_status in lockstep going forward.
+//
+// Account model: Express connected accounts with Account Links v1
+// (stripe.accounts.create({type:'express'}) + stripe.accountLinks.create).
+// Reuses the existing stripeSignup test-mode client.
+// =====================================================================
+
+// POST /api/connect/onboarding/start
+// Authenticated. PS workspaces only. On first call, creates an Express
+// connected account and stores the acct_xxx id on the workspace. On every
+// call (first or repeat), mints a fresh Account Link and returns its url;
+// the frontend redirects the browser to it.
+app.post('/api/connect/onboarding/start', requireAuth, async (req, res) => {
+  if (!stripeSignup) {
+    return res.status(500).json({ error: 'Stripe not configured' });
+  }
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(404).json({ error: 'workspace_not_found' });
+
+    const wr = await pool.query(
+      `SELECT w.id, w.vertical, w.stripe_connect_account_id,
+              w.business_name, u.email
+         FROM workspaces w
+         JOIN users u ON u.id = w.owner_user_id
+        WHERE w.id = $1`,
+      [workspaceId]
+    );
+    const workspace = wr.rows[0];
+    if (!workspace) return res.status(404).json({ error: 'workspace_not_found' });
+    if (workspace.vertical !== 'professional-services') {
+      return res.status(400).json({ error: 'PS workspaces only' });
+    }
+
+    // First-time setup: create the Express account, persist its id, mark
+    // the workspace 'pending' (any further status comes from the webhook
+    // or the return-route sync).
+    let accountId = workspace.stripe_connect_account_id;
+    if (!accountId) {
+      const account = await stripeSignup.accounts.create({
+        type: 'express',
+        country: 'US',
+        email: workspace.email || undefined,
+        business_profile: workspace.business_name
+          ? { name: workspace.business_name }
+          : undefined,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+      accountId = account.id;
+      await pool.query(
+        `UPDATE workspaces
+            SET stripe_connect_account_id = $1,
+                connect_status            = 'pending',
+                connect_updated_at        = NOW()
+          WHERE id = $2`,
+        [accountId, workspaceId]
+      );
+    }
+
+    const base = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const link = await stripeSignup.accountLinks.create({
+      account: accountId,
+      refresh_url: `${base}/payments/connect/refresh`,
+      return_url:  `${base}/payments/connect/return`,
+      type: 'account_onboarding',
+    });
+
+    res.json({ url: link.url, account_id: accountId });
+  } catch (err) {
+    console.error('[connect] onboarding/start error:', err.message);
+    res.status(500).json({ error: 'connect_start_failed', detail: err.message });
+  }
+});
+
+// GET /payments/connect/return
+// Owner came back from Stripe-hosted onboarding. Don't trust the
+// redirect itself to mean completion — re-fetch the account from Stripe
+// and mirror its state into the workspaces row before bouncing back
+// into the app. The webhook case is the source of truth long-term, but
+// this synchronous sync gives the user immediate feedback on the
+// Finances page when they land.
+app.get('/payments/connect/return', requireAuthPage, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (workspaceId && stripeSignup) {
+      const wr = await pool.query(
+        `SELECT stripe_connect_account_id FROM workspaces WHERE id = $1`,
+        [workspaceId]
+      );
+      const accountId = wr.rows[0] && wr.rows[0].stripe_connect_account_id;
+      if (accountId) {
+        try {
+          const account = await stripeSignup.accounts.retrieve(accountId);
+          await connectLifecycle.syncAccountState(pool, account);
+        } catch (e) {
+          // Non-fatal — the webhook will catch up. Still bounce the
+          // owner into the app so they're not stranded on a blank page.
+          console.error('[connect] return-sync failed (non-fatal):', e.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[connect] return route error (non-fatal):', err.message);
+  }
+  res.redirect('/workspace');
+});
+
+// GET /payments/connect/refresh
+// Stripe redirects here when the Account Link expired (24-hour TTL) or
+// the owner reloaded the onboarding page. Mint a new link and bounce
+// the browser back into Stripe's hosted flow.
+app.get('/payments/connect/refresh', requireAuthPage, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId || !stripeSignup) return res.redirect('/workspace');
+    const wr = await pool.query(
+      `SELECT stripe_connect_account_id FROM workspaces WHERE id = $1`,
+      [workspaceId]
+    );
+    const accountId = wr.rows[0] && wr.rows[0].stripe_connect_account_id;
+    if (!accountId) return res.redirect('/workspace');
+
+    const base = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const link = await stripeSignup.accountLinks.create({
+      account: accountId,
+      refresh_url: `${base}/payments/connect/refresh`,
+      return_url:  `${base}/payments/connect/return`,
+      type: 'account_onboarding',
+    });
+    return res.redirect(link.url);
+  } catch (err) {
+    console.error('[connect] refresh route error:', err.message);
+    res.redirect('/workspace');
+  }
 });
 
 app.post('/api/signup', async (req, res) => {
@@ -1896,16 +2061,27 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     // correct sections (PS sees Transactions; PM sees Rent Payments).
     // E4: also include inventory_tracking_enabled so the frontend knows
     // whether to show the Inventory sidebar item (PS-only AND opt-in).
+    // E13: also include the connect_* columns so the PS Finances page
+    // can render the right "Card Payments" status card variant without
+    // making a second fetch.
     let workspaceVertical = 'property-management';
     let inventoryTrackingEnabled = false;
+    let connectStatus = 'not_started';
+    let connectChargesEnabled = false;
+    let connectDetailsSubmitted = false;
     try {
       const wR = await pool.query(
-        `SELECT vertical, inventory_tracking_enabled FROM workspaces WHERE id = $1`,
+        `SELECT vertical, inventory_tracking_enabled,
+                connect_status, connect_charges_enabled, connect_details_submitted
+           FROM workspaces WHERE id = $1`,
         [workspaceId]
       );
       if (wR.rows[0]) {
         if (wR.rows[0].vertical) workspaceVertical = wR.rows[0].vertical;
         inventoryTrackingEnabled = !!wR.rows[0].inventory_tracking_enabled;
+        if (wR.rows[0].connect_status) connectStatus = wR.rows[0].connect_status;
+        connectChargesEnabled = !!wR.rows[0].connect_charges_enabled;
+        connectDetailsSubmitted = !!wR.rows[0].connect_details_submitted;
       }
     } catch (e) { /* fall through with defaults */ }
 
@@ -1916,6 +2092,11 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       subscription_status: planInfo.subscription_status || 'active',
       workspace_vertical: workspaceVertical,
       inventory_tracking_enabled: inventoryTrackingEnabled,
+      // E13: Stripe Connect onboarding state. PS Finances page reads these
+      // to render the right "Card Payments" status card variant.
+      connect_status: connectStatus,
+      connect_charges_enabled: connectChargesEnabled,
+      connect_details_submitted: connectDetailsSubmitted,
       limits: planConfig.limits,
       features: planConfig.features,
       usage: {

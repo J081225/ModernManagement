@@ -3433,6 +3433,25 @@
               </div>
             </div>
 
+            <!-- E13: PS-only Card Payments status card. Visibility driven by
+                 _financesVertical === 'professional-services' (set by
+                 loadFinancesPage). Inner state driven by
+                 window._planSummary.connect_status. -->
+            <div class="card" id="connectCard" style="display:none;margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128179;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Card Payments</div>
+                  <div class="card-head-subtitle" id="connectCardSubtitle">Accept card payments from customers via Stripe.</div>
+                </div>
+              </div>
+              <div id="connectCardBody" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <span id="connectStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
+                <button id="connectActionBtn" type="button" onclick="startConnectOnboarding()" style="padding:9px 16px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Set up card payments</button>
+                <span id="connectActionNote" style="color:#94a3b8;font-size:0.82em;"></span>
+              </div>
+            </div>
+
             <!-- PS-only: Transactions section -->
             <div class="card" id="transactionsCard" style="display:none;margin-top:20px;">
               <div class="card-head">
@@ -9897,6 +9916,11 @@
         document.getElementById('financesVerticalTag').textContent =
           isPS ? '· Professional Services' : '· Property Management';
 
+        // E13: PS-only Card Payments status card.
+        const connectCard = document.getElementById('connectCard');
+        if (connectCard) connectCard.style.display = isPS ? '' : 'none';
+        if (isPS && typeof renderConnectCard === 'function') renderConnectCard();
+
         // Load summaries — call existing endpoints
         loadFinancesInvoicesSummary();
         loadFinancesBudgetSummary();
@@ -9904,6 +9928,82 @@
           loadTransactions();
         } else {
           loadFinancesRentSummary();
+        }
+      }
+
+      // E13: Render the Card Payments card body from the cached plan
+      // summary. The four connect_status values map to four UI variants;
+      // 'ready' hides the button (no further action needed) and the other
+      // three surface a button that POSTs to /api/connect/onboarding/start
+      // and redirects the browser to the returned Stripe-hosted url.
+      function renderConnectCard() {
+        const ps = window._planSummary || {};
+        const status = ps.connect_status || 'not_started';
+        const badge = document.getElementById('connectStatusBadge');
+        const btn = document.getElementById('connectActionBtn');
+        const note = document.getElementById('connectActionNote');
+        const subtitle = document.getElementById('connectCardSubtitle');
+        if (!badge || !btn || !note || !subtitle) return;
+
+        // Reset shared styles each render so a status change re-skins cleanly.
+        btn.disabled = false;
+        btn.style.display = '';
+        note.textContent = '';
+
+        if (status === 'ready') {
+          badge.textContent = '✓ Active';
+          badge.style.background = 'rgba(34,197,94,0.15)';
+          badge.style.color = '#86efac';
+          subtitle.textContent = 'Card payments are active. You can accept cards from customers.';
+          btn.style.display = 'none';
+        } else if (status === 'restricted') {
+          badge.textContent = 'Needs more info';
+          badge.style.background = 'rgba(248,113,113,0.15)';
+          badge.style.color = '#fca5a5';
+          subtitle.textContent = 'Stripe needs more information before you can accept card payments.';
+          btn.textContent = 'Finish setting up card payments';
+        } else if (status === 'pending') {
+          badge.textContent = 'In progress';
+          badge.style.background = 'rgba(212,175,55,0.15)';
+          badge.style.color = '#d4af37';
+          subtitle.textContent = 'Onboarding started but not yet complete.';
+          btn.textContent = 'Continue setup';
+        } else {
+          // 'not_started' (default) — includes legacy/null rows
+          badge.textContent = 'Not set up';
+          badge.style.background = 'rgba(148,163,184,0.15)';
+          badge.style.color = '#94a3b8';
+          subtitle.textContent = 'Accept card payments from customers via Stripe.';
+          btn.textContent = 'Set up card payments';
+        }
+      }
+
+      // E13: kick off (or resume) Stripe-hosted Express onboarding. The
+      // server creates the connected account on first call, then mints a
+      // fresh Account Link each time and returns its url. We redirect
+      // the browser to it.
+      async function startConnectOnboarding() {
+        const btn = document.getElementById('connectActionBtn');
+        const note = document.getElementById('connectActionNote');
+        const original = btn ? btn.textContent : '';
+        try {
+          if (btn) { btn.disabled = true; btn.textContent = 'Opening Stripe…'; }
+          if (note) note.textContent = '';
+          const r = await fetch('/api/connect/onboarding/start', {
+            method: 'POST',
+            credentials: 'include',
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.url) {
+            if (btn) { btn.disabled = false; btn.textContent = original; }
+            if (note) note.textContent = 'Could not open Stripe onboarding: ' + (data.error || ('HTTP ' + r.status));
+            return;
+          }
+          window.location.href = data.url;
+        } catch (err) {
+          if (btn) { btn.disabled = false; btn.textContent = original; }
+          if (note) note.textContent = 'Network error opening Stripe onboarding.';
+          console.error('[connect] startConnectOnboarding failed:', err);
         }
       }
 
