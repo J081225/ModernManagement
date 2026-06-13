@@ -5690,6 +5690,32 @@ async function buildPSSnapshot({ workspace, type, parameters }) {
     snapshot.recent_transactions = [];
   }
 
+  // E14: outstanding balances — transactions where the customer still
+  // owes money the owner is actively trying to collect. Restricted to
+  // 'partially_paid' and 'unpaid' so pure auto-created drafts (a draft
+  // transaction with no payment activity is the appointment-completion
+  // shell) don't appear as fake debt. amount_paid_cents is the
+  // ledger-backed rollup post-E14, so total - paid is the live owed.
+  try {
+    const r = await pool.query(
+      `SELECT id, customer_display_name, contact_id,
+              total_cents, amount_paid_cents,
+              (total_cents - amount_paid_cents) AS owed_cents,
+              status
+         FROM transactions
+        WHERE workspace_id = $1
+          AND status IN ('partially_paid', 'unpaid')
+          AND total_cents > amount_paid_cents
+        ORDER BY (total_cents - amount_paid_cents) DESC
+        LIMIT 30`,
+      [workspaceId]
+    );
+    snapshot.outstanding_balances = r.rows;
+  } catch (err) {
+    console.error('[snapshot ps] outstanding_balances query failed:', err.message);
+    snapshot.outstanding_balances = [];
+  }
+
   // Active AI conversations (appointment_threads)
   try {
     const r = await pool.query(
@@ -5853,6 +5879,25 @@ function buildPSContextSummary(snapshot) {
     );
   } else {
     sections.push('### Recent Transactions\nNo transactions in the last 7 days.');
+  }
+
+  // Outstanding balances — what each customer still owes. Mirrors the
+  // recent_transactions section style. Pure 'draft' transactions are
+  // intentionally excluded by the snapshot query (see buildPSSnapshot),
+  // so 'partially_paid' and 'unpaid' are the only labels that appear.
+  if (snapshot.outstanding_balances && snapshot.outstanding_balances.length > 0) {
+    sections.push(
+      '### Outstanding Balances\n' +
+      snapshot.outstanding_balances.map(t => {
+        const owed = '$' + (Number(t.owed_cents || 0) / 100).toFixed(2);
+        const total = '$' + (Number(t.total_cents || 0) / 100).toFixed(2);
+        const name = t.customer_display_name || 'Walk-in';
+        const label = t.status === 'partially_paid' ? 'partially paid' : t.status;
+        return `- #${t.id} ${name} — owes ${owed} of ${total} (${label})`;
+      }).join('\n')
+    );
+  } else {
+    sections.push('### Outstanding Balances\nNo outstanding balances.');
   }
 
   // Active AI conversations
