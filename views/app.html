@@ -10158,18 +10158,18 @@
           if (!r.ok) { alert('Failed to load transaction.'); return; }
           const data = await r.json();
           _openTx = data.transaction;
-          renderTxDetail(data.transaction, data.refunds || []);
+          renderTxDetail(data.transaction, data.refunds || [], data.payments || []);
           document.getElementById('txDetailModal').style.display = 'flex';
         } catch (e) { alert('Failed to load transaction.'); }
       }
 
-      function renderTxDetail(tx, refunds) {
+      function renderTxDetail(tx, refunds, payments = []) {
         document.getElementById('txDetailTitle').textContent =
           `Transaction #${tx.id} — ${tx.customer_display_name}`;
         const date = (tx.payment_received_at || tx.created_at || '').slice(0, 10);
         const statusColor = _txStatusColor(tx.status);
         document.getElementById('txDetailMeta').innerHTML =
-          `${date} · <span style="color:${statusColor};text-transform:uppercase;font-weight:700;">${escapeHtmlForChip(tx.status)}</span>${tx.payment_method ? ' · paid via ' + escapeHtmlForChip(tx.payment_method) : ''}${tx.source ? ' · source: ' + escapeHtmlForChip(tx.source) : ''}`;
+          `${date} · <span style="color:${statusColor};text-transform:uppercase;font-weight:700;">${escapeHtmlForChip(tx.status)}</span>${tx.payment_method && tx.payment_method !== 'unpaid' ? ' · paid via ' + escapeHtmlForChip(tx.payment_method) : ''}${tx.source ? ' · source: ' + escapeHtmlForChip(tx.source) : ''}`;
 
         const items = Array.isArray(tx.line_items) ? tx.line_items : [];
         const itemsHtml = items.map(it => `
@@ -10177,6 +10177,28 @@
             <td style="padding:6px 0;color:#e2e8f0;">${escapeHtmlForChip(it.description || 'Item')}${it.quantity > 1 ? ' &times; ' + it.quantity : ''}</td>
             <td style="padding:6px 0;text-align:right;color:#e2e8f0;">${_txFormatCents(it.total_cents)}</td>
           </tr>`).join('');
+
+        // E14: Payments section. One row per ledger entry (every cash/card/
+        // Stripe payment + any pending Checkout link). Omitted entirely when
+        // there are no payments, so legacy transactions and brand-new drafts
+        // don't get an empty header. 'stripe' renders as "Card" — the column
+        // value is the rail; "Card" is how an owner thinks about it.
+        const paymentsHtml = payments.length ? `
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
+            <div style="color:#94a3b8;font-size:0.78em;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Payments</div>
+            ${payments.map(p => {
+              const typeLabel = (p.payment_type || '').charAt(0).toUpperCase() + (p.payment_type || '').slice(1);
+              const methodRaw = p.payment_method || '';
+              const methodLabel = methodRaw === 'stripe'
+                ? 'Card'
+                : (methodRaw.charAt(0).toUpperCase() + methodRaw.slice(1));
+              const dateLabel = (p.created_at || '').slice(0, 10);
+              const pendingTag = p.status === 'pending'
+                ? ' <span style="color:#94a3b8;font-size:0.82em;">(pending)</span>'
+                : '';
+              return `<div style="font-size:0.86em;color:#e2e8f0;margin-bottom:4px;">${escapeHtmlForChip(typeLabel)} — ${_txFormatCents(p.amount_cents)} · ${escapeHtmlForChip(methodLabel)} · ${dateLabel}${pendingTag}</div>`;
+            }).join('')}
+          </div>` : '';
 
         const refundsHtml = refunds.length ? `
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
@@ -10204,6 +10226,7 @@
             <tr><td style="color:#f5e6d3;font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
             ${tx.amount_refunded_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:#94a3b8;font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
           </table>
+          ${paymentsHtml}
           ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#d4af37;">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
           ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#94a3b8;">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
           ${receiptHtml}
@@ -10217,16 +10240,62 @@
         const canVoid = ['draft', 'pending', 'unpaid'].includes(tx.status);
         const canRefund = ['paid', 'partially_paid'].includes(tx.status);
         const remaining = (tx.total_cents - (tx.amount_refunded_cents || 0));
+        // E14 Step 6: Request deposit / Request payment buttons. Gated on
+        // connect_status='ready' (read from the cached plan summary) so
+        // they never appear for a workspace that hasn't finished Stripe
+        // Connect onboarding.
+        const connectReady = !!(window._planSummary && window._planSummary.connect_status === 'ready');
+        const canRequestDeposit = connectReady && ['draft', 'pending', 'unpaid'].includes(tx.status);
+        const canRequestPayment = connectReady && ['draft', 'pending', 'unpaid', 'partially_paid'].includes(tx.status);
         actions.innerHTML = [
           `<button onclick="resendReceipt(${tx.id})" class="btn-secondary" style="font-size:0.85em;">Send/Resend receipt</button>`,
           canRefund && remaining > 0
             ? `<button onclick="openRefundModal(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fdba74;border-color:rgba(251,146,60,0.4);">Issue refund</button>`
+            : '',
+          canRequestDeposit
+            ? `<button onclick="requestPaymentLink(${tx.id}, 'deposit')" class="btn-secondary" style="font-size:0.85em;color:#86efac;border-color:rgba(134,239,172,0.4);">Request deposit</button>`
+            : '',
+          canRequestPayment
+            ? `<button onclick="requestPaymentLink(${tx.id}, 'payment')" class="btn-secondary" style="font-size:0.85em;color:#86efac;border-color:rgba(134,239,172,0.4);">Request payment</button>`
             : '',
           canVoid
             ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fca5a5;border-color:rgba(239,68,68,0.4);">Void</button>`
             : '',
           `<button onclick="closeTxDetailModal()" class="btn-primary" style="font-size:0.85em;">Close</button>`,
         ].filter(Boolean).join('');
+      }
+
+      // E14 Step 6: prompt the owner for an amount, POST to the new
+      // /request-payment endpoint, then show whether the link was texted
+      // (or fall back to the url so the owner can copy it).
+      async function requestPaymentLink(txId, paymentType) {
+        const label = paymentType === 'deposit' ? 'deposit' : 'payment';
+        const raw = prompt(`Amount to request as ${label} ($):`, '');
+        if (raw == null) return;
+        const dollars = parseFloat(raw);
+        if (isNaN(dollars) || dollars <= 0) { alert('Enter a valid amount.'); return; }
+        const cents = Math.round(dollars * 100);
+        try {
+          const r = await fetch(`/api/transactions/${txId}/request-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ payment_type: paymentType, amount_cents: cents }),
+          });
+          const data = await r.json();
+          if (!r.ok) {
+            alert(`Could not create ${label} link: ${data.error || 'unknown error'}`);
+            return;
+          }
+          if (data.texted) {
+            alert(`${label.charAt(0).toUpperCase() + label.slice(1)} link texted to the customer.`);
+          } else {
+            // No phone on file — surface the url so the owner can copy/paste.
+            prompt(`No phone on file. Copy this ${label} link to send to the customer:`, data.url || '');
+          }
+        } catch (e) {
+          alert(`Could not create ${label} link.`);
+        }
       }
 
       function closeTxDetailModal() {
