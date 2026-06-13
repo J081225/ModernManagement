@@ -89,6 +89,13 @@ const connectLifecycle = require('./lib/connect-lifecycle');
 // direct charge on the connected account.
 const paymentLedger = require('./lib/payment-ledger');
 
+// E14 Stage 1: shared payment-request helper. Backs the modal button
+// today (POST /api/transactions/:id/request-payment) and is the entry
+// point a future AI tool will use to propose payment-request batches.
+// All Stripe + ledger + SMS logic lives here, so the AI path and the
+// button path are guaranteed identical (including the double-send guard).
+const paymentRequests = require('./lib/payment-requests');
+
 // Session E3: receipt formatting + delivery (email > SMS > save) for the
 // transactions table. Used by the complete_transaction AI tool and by the
 // /api/transactions/:id/send-receipt endpoint below.
@@ -6806,12 +6813,25 @@ app.post('/api/transactions/:id/refund', requireAuth, async (req, res) => {
   }
 });
 
-// E14 Step 4: owner-initiated online card charge via Stripe Checkout, direct
-// onto the connected account (salon keeps 100%, no platform fee). Creates a
-// Checkout Session with the Connect `stripeAccount` option, records a
-// pending ledger row keyed by the session id (idempotency anchor for the
-// webhook), and texts the link to the customer. The webhook flips the row
-// to 'completed' and recomputes the parent transaction's rollup.
+// E14 Step 4 / Stage 1: owner-initiated online card charge via Stripe
+// Checkout, direct onto the connected account (salon keeps 100%, no
+// platform fee). Thin wrapper — the actual Stripe session creation,
+// ledger insert, double-send guard, and SMS send all live in
+// lib/payment-requests.createPaymentRequest, shared with the future
+// AI tool path. Behavior on the success path is unchanged.
+const REQUEST_PAYMENT_STATUS_BY_REASON = {
+  stripe_not_configured:    500,
+  invalid_input:            400,
+  workspace_not_found:      404,
+  not_ps_workspace:         400,
+  connect_not_ready:        400,
+  transaction_not_found:    404,
+  nothing_owed:             400,
+  amount_exceeds_remaining: 400,
+  already_pending:          409,   // NEW (Stage 1 guard)
+  stripe_session_failed:    500,
+  ledger_insert_failed:     500,
+};
 app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) => {
   if (!stripeSignup) {
     return res.status(500).json({ error: 'Stripe not configured' });
@@ -6832,7 +6852,6 @@ app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) 
       return res.status(400).json({ error: 'amount_cents must be a positive integer' });
     }
 
-    // Gate: PS workspace with Connect onboarded and ready for charges.
     const wsR = await pool.query(
       `SELECT id, vertical, business_name, owner_user_id,
               twilio_phone_number, stripe_connect_account_id, connect_status
@@ -6841,126 +6860,28 @@ app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) 
     );
     const workspace = wsR.rows[0];
     if (!workspace) return res.status(404).json({ error: 'workspace_not_found' });
-    if (workspace.vertical !== 'professional-services') {
-      return res.status(400).json({ error: 'PS workspaces only' });
-    }
-    if (workspace.connect_status !== 'ready' || !workspace.stripe_connect_account_id) {
-      return res.status(400).json({ error: "Card payments aren't set up yet." });
+
+    const result = await paymentRequests.createPaymentRequest({
+      pool,
+      stripe: stripeSignup,
+      twilio: twilioClient,
+      env: process.env,
+      workspace,
+      transactionId: id,
+      paymentType: payment_type,
+      amountCents: amount_cents,
+      actorUserId: req.session.userId,
+      logger: console,
+    });
+
+    if (!result.success) {
+      const status = REQUEST_PAYMENT_STATUS_BY_REASON[result.reason] || 500;
+      const body = { error: result.message };
+      if (result.detail) body.detail = result.detail;
+      return res.status(status).json(body);
     }
 
-    // Transaction lookup + remaining-owed check against the ledger sum
-    // (not the rollup column, so a stale-rollup transaction can't
-    // over-charge).
-    const txR = await pool.query(
-      `SELECT id, contact_id, total_cents
-         FROM transactions WHERE id = $1 AND workspace_id = $2`,
-      [id, workspaceId]
-    );
-    if (txR.rows.length === 0) return res.status(404).json({ error: 'Transaction not found' });
-    const tx = txR.rows[0];
-
-    const sumR = await pool.query(
-      `SELECT COALESCE(SUM(amount_cents), 0)::int AS s
-         FROM transaction_payments
-        WHERE transaction_id = $1 AND status = 'completed'`,
-      [id]
-    );
-    const completed = sumR.rows[0] ? sumR.rows[0].s : 0;
-    const remaining = tx.total_cents - completed;
-    if (remaining <= 0) {
-      return res.status(400).json({ error: 'Nothing left to charge on this transaction' });
-    }
-    if (amount_cents > remaining) {
-      return res.status(400).json({
-        error: `Amount exceeds remaining owed ($${(remaining / 100).toFixed(2)})`,
-      });
-    }
-
-    // Customer phone (best-effort; contacts is user_id-scoped, legacy).
-    let customerPhone = null;
-    if (tx.contact_id) {
-      try {
-        const c = await pool.query(
-          `SELECT phone FROM contacts WHERE id = $1 AND user_id = $2`,
-          [tx.contact_id, workspace.owner_user_id]
-        );
-        customerPhone = (c.rows[0] && c.rows[0].phone) || null;
-      } catch (_) { /* non-fatal */ }
-    }
-
-    // Direct charge on the connected account. No application_fee_amount,
-    // no transfer_data — the salon receives 100%. metadata.transaction_id
-    // is the disambiguator the webhook reads to route this completion to
-    // the customer-payment handler (vs the salon-signup orchestrator).
-    const base = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
-    const productName = payment_type === 'deposit'
-      ? `Deposit — ${workspace.business_name || 'service'}`
-      : `Payment — ${workspace.business_name || 'service'}`;
-    let session;
-    try {
-      session = await stripeSignup.checkout.sessions.create(
-        {
-          mode: 'payment',
-          line_items: [{
-            quantity: 1,
-            price_data: {
-              currency: 'usd',
-              unit_amount: amount_cents,
-              product_data: { name: productName },
-            },
-          }],
-          success_url: `${base}/payments/customer/success`,
-          cancel_url:  `${base}/payments/customer/cancel`,
-          metadata: {
-            transaction_id: String(id),
-            workspace_id: String(workspaceId),
-            payment_type,
-          },
-        },
-        { stripeAccount: workspace.stripe_connect_account_id }
-      );
-    } catch (err) {
-      console.error('[request-payment] checkout.sessions.create failed:', err.message);
-      return res.status(500).json({ error: 'Could not create payment link', detail: err.message });
-    }
-
-    // Pending ledger row keyed by session id. The unique partial index on
-    // stripe_checkout_session_id is the webhook's idempotency anchor —
-    // a duplicate webhook delivery can't double-insert.
-    let paymentId;
-    try {
-      const ins = await paymentLedger.recordPayment(pool, {
-        workspace_id: workspaceId,
-        transaction_id: id,
-        amount_cents,
-        payment_type,
-        payment_method: 'stripe',
-        stripe_checkout_session_id: session.id,
-        status: 'pending',
-        created_by_user_id: req.session.userId,
-      });
-      paymentId = ins.id;
-    } catch (err) {
-      console.error('[request-payment] ledger insert failed:', err.message);
-      return res.status(500).json({ error: 'Failed to record pending payment' });
-    }
-
-    // Best-effort SMS. If we can't text it, return the url so the owner
-    // can copy/paste.
-    let texted = false;
-    if (customerPhone && twilioClient) {
-      try {
-        const fromNum = workspace.twilio_phone_number || process.env.TWILIO_PHONE_NUMBER;
-        const label = payment_type === 'deposit' ? 'deposit' : 'payment';
-        const body = `${workspace.business_name || 'Your appointment'}: secure ${label} link for $${(amount_cents / 100).toFixed(2)} — ${session.url}`;
-        await twilioClient.messages.create({ from: fromNum, to: customerPhone, body });
-        texted = true;
-      } catch (err) {
-        console.error('[request-payment] SMS send failed (non-fatal):', err.message);
-      }
-    }
-
-    res.json({ url: session.url, payment_id: paymentId, texted });
+    res.json({ url: result.url, payment_id: result.payment_id, texted: result.texted });
   } catch (err) {
     console.error('[POST /api/transactions/:id/request-payment]', err.message);
     res.status(500).json({ error: 'Failed to create payment request' });
