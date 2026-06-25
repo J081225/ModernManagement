@@ -4158,6 +4158,7 @@ async function buildExecutorContext(req) {
     logger: console,
     mailer: sgMail,
     sms: twilioClient,
+    stripe: stripeSignup,      // E14 Stage 2: test-mode Stripe client for payment-request tools
     env: process.env,
     generateReportContent,
   };
@@ -4184,6 +4185,24 @@ function buildPendingActionSummary(toolName, input) {
     }
     case 'reply_to_message':
       return `Reply to ${input.message_reference || 'message'}: "${_c1Truncate(input.body || '', 80)}"`;
+    // E14 Stage 2: AI-proposed batch of customer payment requests. The
+    // input.requests array carries the AI's proposal verbatim; this chip
+    // renders enough of it for the owner to recognize what they're
+    // approving. `amount_cents` is optional in the schema, so omitted ones
+    // render as "full balance" — the tool resolves them at approval time.
+    case 'request_payments_batch': {
+      const list = Array.isArray(input && input.requests) ? input.requests : [];
+      if (list.length === 0) return 'Send payment requests (empty batch)';
+      const preview = list.map(e => {
+        const name = (e && e.customer_name) || `#${e && e.transaction_id}`;
+        const idTag = (e && e.transaction_id != null) ? ` #${e.transaction_id}` : '';
+        const amount = (e && e.amount_cents != null && Number(e.amount_cents) > 0)
+          ? ' $' + (Number(e.amount_cents) / 100).toFixed(2)
+          : ' full balance';
+        return `${name}${idTag}${amount}`;
+      }).join(', ');
+      return `Send payment requests to ${list.length} customer${list.length === 1 ? '' : 's'}: ${_c1Truncate(preview, 120)}`;
+    }
     default:
       return `${toolName}: ${_c1Truncate(JSON.stringify(input), 80)}`;
   }
@@ -4473,6 +4492,7 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
       logger: console,
       mailer: sgMail,            // SendGrid client (late notices, etc.)
       sms: twilioClient,         // Twilio client (late notices, emergency SMS)
+      stripe: stripeSignup,      // E14 Stage 2: test-mode Stripe client for payment-request tools
       env: process.env,          // TWILIO_PHONE_NUMBER, SENDGRID_FROM_EMAIL, MAINTENANCE_PHONE
       generateReportContent,     // Session B4: shared report-generation helper
     };
