@@ -1050,6 +1050,67 @@ async function sendNotificationEmail(userId, message) {
   }
 }
 
+// --- Notification push helper (PWA Stage C) ---
+// Sibling to sendNotificationEmail. Same `message` shape (a messages-table
+// row with category/text/subject/resident), same category labels (so the
+// push and email wording match), same fire-and-forget posture. Loops over
+// every push_subscriptions row for the user and sends a payload to each
+// browser. Expired subscriptions (404/410 from the push service) are
+// pruned from the table. Other per-subscription errors are logged but
+// don't abort the loop. The whole function is wrapped so it never throws
+// to the caller.
+async function sendPushNotification(userId, message) {
+  if (!pushConfigured) return;
+  try {
+    const { rows: subs } = await pool.query(
+      'SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1',
+      [userId]
+    );
+    if (!subs.length) return;
+
+    // Mirror sendNotificationEmail's wording exactly so the push
+    // notification reads the same as the email an owner would also get.
+    const categoryLabel = {
+      email: '📧 Email', sms: '💬 SMS', voicemail: '📞 Voicemail',
+      maintenance: '🔧 Maintenance', renewal: '📋 Renewal'
+    }[message.category] || '📩 Message';
+    const preview = (message.text || '')
+      .replace(/📞 Voicemail: ?/, '')
+      .replace(/"/g, '')
+      .slice(0, 120);
+    const fromWho = message.resident ? ` from ${message.resident}` : '';
+    const payload = JSON.stringify({
+      title: `New ${categoryLabel}${fromWho}`,
+      body: preview,
+      url: '/workspace',
+    });
+
+    for (const row of subs) {
+      const sub = { endpoint: row.endpoint, keys: { p256dh: row.p256dh, auth: row.auth } };
+      try {
+        await webpush.sendNotification(sub, payload);
+      } catch (err) {
+        const code = err && err.statusCode;
+        if (code === 404 || code === 410) {
+          // Subscription is gone (unsubscribed/expired). Prune it so we
+          // don't keep retrying. Best-effort — a delete failure here
+          // just leaves a stale row; not worth retrying.
+          try {
+            await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [row.endpoint]);
+            console.log('[push] pruned expired subscription:', row.endpoint.slice(0, 60));
+          } catch (delErr) {
+            console.error('[push] prune failed:', delErr.message);
+          }
+        } else {
+          console.error('[push] send failed (status', code, '):', err && (err.body || err.message));
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Push notification error:', err.message);
+  }
+}
+
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
@@ -5117,6 +5178,7 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
     );
     if (rows[0]) {
       sendNotificationEmail(userId, rows[0]);
+      sendPushNotification(userId, rows[0]);
 
       // Layer 1: emergency keyword gate. If matched, flag the row,
       // alert the owner, and skip auto-reply / task suggestion. The
@@ -5275,6 +5337,7 @@ app.post('/api/sms/incoming', async (req, res) => {
 
   if (rows[0]) {
     sendNotificationEmail(userId, rows[0]);
+    sendPushNotification(userId, rows[0]);
 
     // Session E2: PS appointment routing — additive, falls through if
     // not applicable. Loads the full workspace row, then invokes the
@@ -5402,6 +5465,7 @@ app.post('/api/voice/transcription', async (req, res) => {
     );
     if (rows.length) {
       sendNotificationEmail(userId, rows[0]);
+      sendPushNotification(userId, rows[0]);
 
       // Session E2: PS appointment routing for voicemails. Same
       // additive pattern as /api/sms/incoming: load the workspace,
