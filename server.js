@@ -167,6 +167,20 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 
+// PWA Stage B: web-push config. VAPID keys are optional — if any of the
+// three vars is missing the module is left unconfigured and push is a
+// no-op (the server still boots, the subscribe endpoint still records
+// rows, but no actual sends happen until the keys are set).
+const webpush = require('web-push');
+let pushConfigured = false;
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT) {
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+  pushConfigured = true;
+  console.log('[push] web-push configured.');
+} else {
+  console.warn('[push] VAPID env vars missing — push disabled.');
+}
+
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const app = express();
@@ -1074,6 +1088,41 @@ app.put('/api/settings', requireAuth, async (req, res) => {
       [notification_email || '', notifications_enabled !== false, req.session.userId]
     );
     res.json(rows[0]);
+  }
+});
+
+// --- Web push (PWA Stage B) -----------------------------------------------
+// Two endpoints: GET the VAPID public key (so client JS can pass it into
+// pushManager.subscribe), and POST a subscription (so we can fan out push
+// payloads to it from the same moments that already trigger
+// sendNotificationEmail). Auth follows the existing pattern — requireAuth
+// middleware + req.session.userId, same as /api/settings above.
+
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY || null });
+});
+
+app.post('/api/push/subscribe', requireAuth, async (req, res) => {
+  const sub = req.body || {};
+  const endpoint = sub.endpoint;
+  const p256dh = sub.keys && sub.keys.p256dh;
+  const auth   = sub.keys && sub.keys.auth;
+  if (!endpoint || !p256dh || !auth) {
+    return res.status(400).json({ error: 'Invalid subscription payload (need endpoint, keys.p256dh, keys.auth).' });
+  }
+  const userAgent = req.headers['user-agent'] || null;
+  try {
+    await pool.query(
+      `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (endpoint) DO UPDATE
+         SET user_id = EXCLUDED.user_id, p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth`,
+      [req.session.userId, endpoint, p256dh, auth, userAgent]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[push/subscribe]', err.message);
+    res.status(500).json({ error: 'Failed to save subscription' });
   }
 });
 

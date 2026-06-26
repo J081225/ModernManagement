@@ -3139,6 +3139,21 @@
                     <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
                   </label>
                 </div>
+                <!-- PWA Stage B: per-device push toggle. Status text below shows
+                     support / permission / save outcome; click handler lives in
+                     the push JS block alongside saveNotifSettings. -->
+                <div class="settings-row" style="margin-top:14px;">
+                  <div>
+                    <div class="settings-row-label">Push notifications</div>
+                    <span class="settings-row-hint">Get a notification on this device when something needs attention.</span>
+                  </div>
+                  <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
+                    <input type="checkbox" id="pushToggle" style="opacity:0;width:0;height:0;position:absolute;">
+                    <span id="pushToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
+                    <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
+                  </label>
+                </div>
+                <div id="pushStatus" style="margin-top:6px;font-size:0.8em;color:#94a3b8;min-height:1em;"></div>
               </div>
 
               <div>
@@ -4542,6 +4557,119 @@
           msg.style.display = 'block';
           setTimeout(() => msg.style.display = 'none', 3000);
           notifEmailDirty = false;
+        }
+      }
+
+      // ============================================================
+      // PWA Stage B — push notifications (this-device-only opt-in)
+      // ============================================================
+      // Registers the service worker on load, then wires the pushToggle
+      // to a subscribe/unsubscribe flow. Uses the same same-origin
+      // cookie posture as api() (no explicit credentials option).
+      // Reuses updateNotifToggleUI() for the visual toggle state.
+      // Server-side unsubscribe deferred to a later checkpoint.
+
+      function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+      }
+
+      function setPushStatus(text) {
+        const el = document.getElementById('pushStatus');
+        if (el) el.textContent = text || '';
+      }
+
+      function setPushToggleState(on) {
+        const t = document.getElementById('pushToggle');
+        if (!t) return;
+        t.checked = !!on;
+        updateNotifToggleUI(t.checked,
+          document.getElementById('pushToggleTrack'),
+          document.getElementById('pushToggleThumb'));
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        // 1) Service worker registration. Idempotent — repeated
+        //    registrations resolve with the existing reg.
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js').then(
+            function (reg) { console.log('[sw] registered, scope:', reg.scope); },
+            function (err) { console.warn('[sw] register failed:', err && err.message); }
+          );
+        }
+
+        // 2) Push toggle initial state + change handler.
+        const toggle = document.getElementById('pushToggle');
+        const track = document.getElementById('pushToggleTrack');
+        const thumb = document.getElementById('pushToggleThumb');
+        if (!toggle) return;
+        updateNotifToggleUI(toggle.checked, track, thumb);
+
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          toggle.disabled = true;
+          setPushStatus('Not supported on this browser.');
+          return;
+        }
+        if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+          setPushStatus('Blocked — enable notifications in your browser settings.');
+          setPushToggleState(false);
+        }
+
+        toggle.addEventListener('change', function () {
+          updateNotifToggleUI(this.checked, track, thumb);
+          if (this.checked) {
+            enablePushOnThisDevice();
+          } else {
+            // Server-side unsubscribe is a later checkpoint; UI-only for now.
+            setPushStatus('Disabled on this device.');
+          }
+        });
+      });
+
+      async function enablePushOnThisDevice() {
+        try {
+          setPushStatus('Requesting permission...');
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            setPushToggleState(false);
+            setPushStatus('Permission needed to enable.');
+            return;
+          }
+
+          const keyRes = await fetch('/api/push/vapid-public-key');
+          const keyData = keyRes.ok ? await keyRes.json() : null;
+          if (!keyData || !keyData.publicKey) {
+            setPushToggleState(false);
+            setPushStatus('Push not configured on server.');
+            return;
+          }
+
+          const reg = await navigator.serviceWorker.ready;
+          const subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+          });
+
+          const subRes = await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(subscription),
+          });
+          const subData = subRes.ok ? await subRes.json() : null;
+          if (subData && subData.ok) {
+            setPushStatus('Enabled on this device.');
+          } else {
+            setPushToggleState(false);
+            setPushStatus('Could not save subscription. Try again later.');
+          }
+        } catch (err) {
+          console.error('[push] enable failed:', err);
+          setPushToggleState(false);
+          setPushStatus('Could not enable push: ' + (err && err.message ? err.message : err));
         }
       }
 
