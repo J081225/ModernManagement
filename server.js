@@ -19,6 +19,7 @@ if (process.env.SENTRY_DSN) {
 }
 
 const express = require('express');
+const http = require('http');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
@@ -2771,7 +2772,7 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 
 // Protect all /api/* routes except login/signup and inbound webhooks
 app.use('/api', (req, res, next) => {
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/billing/webhook'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/billing/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -5540,6 +5541,68 @@ app.post('/api/voice/transcription', async (req, res) => {
   res.sendStatus(200);
 });
 
+// --- Voice AI prototype: ConversationRelay entry point ---
+//
+// Alternative to /api/voice/incoming above. When a phone call comes in on
+// a number pointed at THIS route (currently only the +1 (646) 917-7820
+// test number in the Twilio Console; all other numbers still hit
+// /api/voice/incoming and get the voicemail flow), Twilio dials this
+// endpoint for the initial TwiML, we look up which workspace owns the
+// number, and we return a <Connect><ConversationRelay/> that hands the
+// call off to the WebSocket handler at wss://<host>/twilio-relay for
+// live AI conversation. The WebSocket message handler is added in a
+// later checkpoint — this route only produces the entry TwiML.
+//
+// Whitelisted as unauthenticated at /api/* around server.js:2775 alongside
+// the other Twilio-called routes.
+app.post('/api/voice/relay-incoming', async (req, res) => {
+  const to = req.body && req.body.To;
+
+  // Look up the workspace that owns this number, then load the full row so
+  // we can greet the caller by business name. Same two-step pattern the
+  // transcription handler uses (lookupWorkspaceByTwilioNumber → SELECT *).
+  let workspace = null;
+  try {
+    const route = await lookupWorkspaceByTwilioNumber(to);
+    if (route) {
+      const { rows } = await pool.query(
+        `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
+        [route.workspace_id]
+      );
+      workspace = rows[0] || null;
+    }
+  } catch (err) {
+    console.error('[voice/relay-incoming] workspace lookup failed:', err.message);
+  }
+
+  const bizName = (workspace && workspace.business_name) || 'our salon';
+
+  // HTML-escape the business name before injecting into an XML attribute.
+  // A stray & or " in a business name would otherwise break the TwiML.
+  const escapeXmlAttr = (s) => String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  // ConversationRelay requires wss:// for the media stream regardless of the
+  // request's own protocol. On Render this is served on the same port as
+  // HTTP; local dev over http:// would still need a tunneled wss:// URL.
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay';
+  const greeting = escapeXmlAttr('Hi, thanks for calling ' + bizName + '. How can I help you today?');
+
+  res.type('text/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<Response>\n' +
+    '  <Connect>\n' +
+    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '" />\n' +
+    '  </Connect>\n' +
+    '</Response>'
+  );
+});
+
 // ============================================================
 // Reports — saved AI-generated reports (Session B4)
 //
@@ -7589,7 +7652,146 @@ app.get('/healthz', (_req, res) => res.json({ ok: true }));
 // --- Start server immediately; run DB init in background with retry ---
 // Render must see an open port quickly, and Neon's serverless DB can take a
 // few seconds to warm up on cold starts. Retry the DB init rather than exit.
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+//
+// Voice-AI prototype prep: create the http.Server explicitly instead of
+// letting app.listen() do it, so a WebSocket server (Twilio
+// ConversationRelay) can attach to the same underlying HTTP server / port
+// in a later checkpoint. Behavior is identical to the previous
+// app.listen(PORT) — same port, same startup log, same routes.
+const server = http.createServer(app);
+
+// --- Twilio ConversationRelay WebSocket handler (voice-AI prototype) ---
+//
+// Attached to the SAME http.Server as the Express app, on path
+// /twilio-relay. The <ConversationRelay url="wss://<host>/twilio-relay"/>
+// TwiML returned by /api/voice/relay-incoming causes Twilio to open a
+// WebSocket here for each inbound call. Each connection is one call.
+//
+// Message shape (Twilio ConversationRelay protocol):
+//   setup    — sent once at connect. { type, from, to, callSid, ... }
+//   prompt   — one caller utterance transcribed. { type, voicePrompt, ... }
+//   interrupt— caller talked over the AI. { type, ... }
+//   dtmf     — keypad press (unused here). { type, digit, ... }
+//
+// AI replies are sent back as:
+//   { type: 'text', token: '<what to say>', last: true }
+//
+// Per-call state (conversation, workspace, callSid) lives in the
+// connection's closure — NOT global. No cross-call bleed possible.
+//
+// This prototype does NOT wire the appointment engine's tools yet — just
+// conversation. Booking / tool_use is a later checkpoint once voice
+// quality is validated.
+const { WebSocketServer } = require('ws');
+const wss = new WebSocketServer({ server, path: '/twilio-relay' });
+
+wss.on('connection', (ws) => {
+  // Per-call closure state — replaced on every new connection.
+  const conversation = [];
+  let workspace = null;
+  let callSid = null;
+
+  const sendText = (token) => {
+    try {
+      ws.send(JSON.stringify({ type: 'text', token, last: true }));
+    } catch (err) {
+      console.error('[twilio-relay] ws.send failed:', err && err.message);
+    }
+  };
+
+  ws.on('message', async (raw) => {
+    let msg;
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch (err) {
+      console.error('[twilio-relay] bad JSON from Twilio:', err.message);
+      return;
+    }
+
+    try {
+      if (msg.type === 'setup') {
+        callSid = msg.callSid || null;
+        try {
+          const route = await lookupWorkspaceByTwilioNumber(msg.to);
+          if (route) {
+            const { rows } = await pool.query(
+              `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
+              [route.workspace_id]
+            );
+            workspace = rows[0] || null;
+          }
+        } catch (lookupErr) {
+          console.error('[twilio-relay] workspace lookup failed for setup:', lookupErr.message);
+        }
+        const bizName = (workspace && workspace.business_name) || '(unknown business)';
+        console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (msg.from || '?'));
+        return;
+      }
+
+      if (msg.type === 'prompt') {
+        const utterance = String(msg.voicePrompt || '').trim();
+        if (!utterance) return;
+
+        conversation.push({ role: 'user', content: utterance });
+
+        const bizName = (workspace && workspace.business_name) || 'a salon';
+        const systemPrompt = 'You are a friendly, concise phone receptionist for ' + bizName + '. ' +
+          'You are speaking OUT LOUD on a live phone call, so keep replies short, natural, and conversational — one or two sentences. ' +
+          'Help the caller with booking appointments, questions about services, and hours. ' +
+          "If you don't know a specific detail, offer to take a message or have someone call back. " +
+          'Never mention that you are an AI unless asked directly.';
+
+        const response = await anthropic.messages.create({
+          // Haiku for low-latency, low-cost live voice; global ANTHROPIC_MODEL unchanged for the rest of the app.
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          system: systemPrompt,
+          messages: conversation,
+        });
+
+        const replyText = (response.content || [])
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text)
+          .join(' ')
+          .trim();
+
+        if (replyText) {
+          conversation.push({ role: 'assistant', content: replyText });
+          sendText(replyText);
+        } else {
+          // Model produced no text (rare — usually means only a stop/refusal).
+          sendText("Sorry, I didn't catch that — could you say it again?");
+        }
+        return;
+      }
+
+      if (msg.type === 'interrupt') {
+        console.log('[twilio-relay] interrupt callSid=' + (callSid || 'unknown'));
+        return;
+      }
+
+      // Unknown message type — log and drop.
+      console.log('[twilio-relay] unhandled message type=' + msg.type + ' callSid=' + (callSid || 'unknown'));
+    } catch (err) {
+      console.error('[twilio-relay] handler error callSid=' + (callSid || 'unknown') + ':', err && err.message);
+      // Speak a graceful fallback so the caller isn't left in silence.
+      sendText("Sorry, I'm having a little trouble — could you say that again?");
+    }
+  });
+
+  ws.on('close', (code, reason) => {
+    console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
+    conversation.length = 0;
+    workspace = null;
+    callSid = null;
+  });
+
+  ws.on('error', (err) => {
+    console.error('[twilio-relay] ws error callSid=' + (callSid || 'unknown') + ':', err && err.message);
+  });
+});
+
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
 async function initDBWithRetry(attempt = 1) {
   try {
