@@ -6274,7 +6274,9 @@ ${JSON.stringify(snapshot, null, 2)}`;
   const userMessage = prompt || `Generate a ${type} report for the current state of the property.`;
 
   const response = await anthropic.messages.create({
-    model: config.ANTHROPIC_MODEL,
+    // Long-form written report — quality dominates cost/latency, so keep
+    // the stronger model even after ANTHROPIC_MODEL flipped to Haiku.
+    model: config.ANTHROPIC_REPORT_MODEL,
     max_tokens: 4000,
     system: systemPrompt,
     messages: [{ role: 'user', content: userMessage }],
