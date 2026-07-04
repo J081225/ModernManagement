@@ -6559,6 +6559,12 @@
       async function finishOnboarding() {
         await api('me/onboarding', 'PUT', {});
         document.getElementById('onboardingModal').style.display = 'none';
+        // Route the new owner straight to My Business setup. Matches the
+        // sidebar link's exact showPage(...) call — same icon, same nav
+        // element — so nav styling / active state stays consistent.
+        if (typeof showPage === 'function') {
+          showPage('my-business', '&#127978;', document.getElementById('nav-my-business'));
+        }
       }
 
       // --- Billing & plan UI (Session D5) ---
@@ -11885,15 +11891,9 @@
       <!-- Step 3 -->
       <div id="ob-step-3" style="display:none;">
         <div style="font-size:2.8em;margin-bottom:14px;">&#127881;</div>
-        <h3 style="font-size:1.3em;margin-bottom:10px;">You're all set!</h3>
-        <p style="font-size:0.88em;color:#64748b;margin-bottom:20px;line-height:1.6;">Here's a quick look at what you can do:</p>
-        <div style="text-align:left;display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
-          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#9993;</span> <span><strong>Inbox</strong> — manage resident emails, SMS &amp; voicemails</span></div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#129302;</span> <span><strong>Ask AI</strong> — add events, tasks, or compose messages by typing or speaking</span></div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#128295;</span> <span><strong>Maintenance</strong> — log tickets, get emergency SMS alerts</span></div>
-          <div style="display:flex;align-items:center;gap:10px;font-size:0.87em;color:#475569;"><span style="font-size:1.2em;">&#128200;</span> <span><strong>Budget</strong> — track income and expenses with a full ledger</span></div>
-        </div>
-        <button class="btn-primary" onclick="finishOnboarding()" style="width:100%;">Go to my workspace &rarr;</button>
+        <h3 style="font-size:1.3em;margin-bottom:10px;">You're all set! &#127881;</h3>
+        <p style="font-size:0.9em;color:#64748b;margin-bottom:24px;line-height:1.65;">One last thing &mdash; the more your assistant knows about your business, the more it can do for you: answering customer questions, booking appointments, and giving you better guidance. Let's take a few minutes to add your services, hours, and how you work. You can always update it later.</p>
+        <button class="btn-primary" onclick="finishOnboarding()" style="width:100%;">Set up my business &rarr;</button>
       </div>
     </div>
   </div>
