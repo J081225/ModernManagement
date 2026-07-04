@@ -3815,10 +3815,151 @@ app.post('/api/calevents', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.delete('/api/calevents/:id', async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM cal_events WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
-  if (!rowCount) return res.status(404).json({ error: 'Event not found' });
-  res.json({ success: true });
+// GET /api/calevents/:id — full detail for click-to-view popup. Returns
+// {event, appointment|null, contact|null}. Workspace-scoped via the
+// event's workspace_id column.
+app.get('/api/calevents/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid event id' });
+
+    const evR = await pool.query(
+      `SELECT id, workspace_id, title, date, starts_at, ends_at, is_all_day,
+              event_type, appointment_id, created_at
+         FROM cal_events
+        WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (evR.rows.length === 0) return res.status(404).json({ error: 'Event not found' });
+    const event = evR.rows[0];
+
+    let appointment = null;
+    let contact = null;
+    if (event.appointment_id) {
+      const apR = await pool.query(
+        `SELECT id, status, duration_minutes, quoted_price_cents,
+                notes_internal, notes_customer, source, contact_id, cal_event_id
+           FROM appointments
+          WHERE id = $1 AND workspace_id = $2`,
+        [event.appointment_id, workspaceId]
+      );
+      if (apR.rows.length > 0) {
+        appointment = apR.rows[0];
+        if (appointment.contact_id) {
+          // Contacts is user_id-scoped (legacy). Look up via workspace owner.
+          const wsR = await pool.query(
+            `SELECT owner_user_id FROM workspaces WHERE id = $1`,
+            [workspaceId]
+          );
+          const ownerId = wsR.rows[0] && wsR.rows[0].owner_user_id;
+          if (ownerId) {
+            const cR = await pool.query(
+              `SELECT id, name, phone, email FROM contacts WHERE id = $1 AND user_id = $2`,
+              [appointment.contact_id, ownerId]
+            );
+            contact = cR.rows[0] || null;
+          }
+        }
+      }
+    }
+
+    res.json({ event, appointment, contact });
+  } catch (err) {
+    console.error('[GET /api/calevents/:id]', err.message);
+    res.status(500).json({ error: 'Failed to load event' });
+  }
+});
+
+// DELETE /api/calevents/:id — smart delete/cancel. If the event has an
+// appointment_id, cancel that appointment (mirroring cancel_appointment.js
+// verbatim) which sets status='canceled' and deletes the cal_events row.
+// If it's a plain event (no appointment_id), hard-delete the cal_events
+// row. Workspace-scoped; falls back to legacy user_id-scoped delete when
+// the row lacks workspace_id (backward compatibility for pre-E2 rows).
+app.delete('/api/calevents/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid event id' });
+
+    // First look up the event scoped to this workspace.
+    let event = null;
+    if (workspaceId) {
+      const r = await pool.query(
+        `SELECT id, workspace_id, appointment_id
+           FROM cal_events WHERE id = $1 AND workspace_id = $2`,
+        [id, workspaceId]
+      );
+      event = r.rows[0] || null;
+    }
+
+    // Backward compatibility: legacy events pre-date the workspace_id
+    // column and are still keyed off user_id. If workspace lookup missed,
+    // try the legacy user_id-scoped delete so the existing calendar UI's
+    // delete button keeps working for those rows.
+    if (!event) {
+      const legacy = await pool.query(
+        `DELETE FROM cal_events WHERE id = $1 AND user_id = $2`,
+        [id, req.session.userId]
+      );
+      if (!legacy.rowCount) return res.status(404).json({ error: 'Event not found' });
+      return res.json({ success: true, deleted: true });
+    }
+
+    if (event.appointment_id) {
+      // Cancel the appointment — mirrors lib/tools/cancel_appointment.js
+      // exactly (same status token 'canceled', same three timestamps, same
+      // cal_events cleanup so the slot re-opens).
+      const wsR = await pool.query(
+        `SELECT id, cal_event_id, status FROM appointments
+          WHERE id = $1 AND workspace_id = $2`,
+        [event.appointment_id, workspaceId]
+      );
+      const appt = wsR.rows[0];
+      if (!appt) {
+        // Orphan cal_events row pointing at a missing appointment — just
+        // hard-delete the calendar row.
+        await pool.query(`DELETE FROM cal_events WHERE id = $1 AND workspace_id = $2`, [id, workspaceId]);
+        return res.json({ success: true, deleted: true });
+      }
+      if (appt.status === 'canceled') {
+        // Already canceled — clean up the stray cal_events row if it's
+        // still around (matches cancel tool's "slot re-opens" semantic).
+        await pool.query(`DELETE FROM cal_events WHERE id = $1 AND workspace_id = $2`, [id, workspaceId]);
+        return res.json({ success: true, cancelled: true, alreadyCancelled: true });
+      }
+      await pool.query(
+        `UPDATE appointments
+            SET status = 'canceled',
+                canceled_at = NOW(),
+                canceled_by = $1,
+                canceled_reason = $2,
+                updated_at = NOW()
+          WHERE id = $3 AND workspace_id = $4`,
+        ['staff', null, event.appointment_id, workspaceId]
+      );
+      if (appt.cal_event_id) {
+        try {
+          await pool.query(`DELETE FROM cal_events WHERE id = $1`, [appt.cal_event_id]);
+        } catch (delErr) {
+          console.error('[DELETE /api/calevents/:id] cal_event delete failed (appointment canceled):', delErr.message);
+        }
+      }
+      return res.json({ success: true, cancelled: true });
+    }
+
+    // Plain event / block-off — hard delete the cal_events row.
+    await pool.query(
+      `DELETE FROM cal_events WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    res.json({ success: true, deleted: true });
+  } catch (err) {
+    console.error('[DELETE /api/calevents/:id]', err.message);
+    res.status(500).json({ error: 'Failed to delete event' });
+  }
 });
 
 // --- Budget ---
