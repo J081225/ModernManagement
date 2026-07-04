@@ -3827,7 +3827,7 @@ app.get('/api/calevents/:id', requireAuth, async (req, res) => {
 
     const evR = await pool.query(
       `SELECT id, workspace_id, title, date, starts_at, ends_at, is_all_day,
-              event_type, appointment_id, created_at
+              event_type, appointment_id
          FROM cal_events
         WHERE id = $1 AND workspace_id = $2`,
       [id, workspaceId]
