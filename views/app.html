@@ -3620,6 +3620,7 @@
                   <textarea id="mbDescription" rows="4"
                     placeholder="e.g. We're a men's barbershop specializing in classic cuts, beard trims, and hot towel shaves. Walk-ins welcome, but appointments preferred."
                     style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                  <div style="font-size:0.8em;color:#94a3b8;margin-top:6px;line-height:1.5;">Tip: Be specific and detailed &mdash; describe what you offer, what makes you different, and anything you do NOT do (e.g. no perms, no kids under 3). The more nuance you include, the smarter your assistant becomes.</div>
                 </div>
 
                 <div>
@@ -3643,6 +3644,79 @@
                 </div>
               </div>
             </div>
+
+            <!-- Services grid — spreadsheet-style editor backed by
+                 GET/POST/PATCH/DELETE /api/menu-items with type=service. -->
+            <div class="card" style="margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128200;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Services</div>
+                  <div class="card-head-subtitle">Things customers book time for (haircuts, shaves, color).</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
+
+              <div style="overflow-x:auto;">
+                <table id="mbServicesTable" style="width:100%;border-collapse:collapse;font-size:0.9em;">
+                  <thead>
+                    <tr style="text-align:left;color:#94a3b8;font-size:0.78em;text-transform:uppercase;letter-spacing:0.06em;">
+                      <th style="padding:8px 10px;font-weight:600;">Name</th>
+                      <th style="padding:8px 10px;font-weight:600;width:120px;">Price ($)</th>
+                      <th style="padding:8px 10px;font-weight:600;width:130px;">Duration (min)</th>
+                      <th style="padding:8px 10px;font-weight:600;width:60px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="mbServicesBody">
+                    <tr><td colspan="4" style="color:#94a3b8;padding:14px;font-style:italic;">Loading&hellip;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
+                <button onclick="mbAddServiceRow()"
+                  style="padding:8px 16px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
+                <button onclick="mbSaveServices()"
+                  style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Services</button>
+                <div id="mbServicesStatus" style="font-size:0.85em;color:#94a3b8;min-height:1em;"></div>
+              </div>
+            </div>
+
+            <!-- Products grid — same shape as Services, minus Duration. -->
+            <div class="card" style="margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#128230;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Products</div>
+                  <div class="card-head-subtitle">Physical items you sell (pomades, oils, shampoos).</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
+
+              <div style="overflow-x:auto;">
+                <table id="mbProductsTable" style="width:100%;border-collapse:collapse;font-size:0.9em;">
+                  <thead>
+                    <tr style="text-align:left;color:#94a3b8;font-size:0.78em;text-transform:uppercase;letter-spacing:0.06em;">
+                      <th style="padding:8px 10px;font-weight:600;">Name</th>
+                      <th style="padding:8px 10px;font-weight:600;width:120px;">Price ($)</th>
+                      <th style="padding:8px 10px;font-weight:600;width:60px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="mbProductsBody">
+                    <tr><td colspan="3" style="color:#94a3b8;padding:14px;font-style:italic;">Loading&hellip;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
+                <button onclick="mbAddProductRow()"
+                  style="padding:8px 16px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
+                <button onclick="mbSaveProducts()"
+                  style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Products</button>
+                <div id="mbProductsStatus" style="font-size:0.85em;color:#94a3b8;min-height:1em;"></div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -10664,6 +10738,11 @@
             status.style.color = '#fca5a5';
           }
         }
+        // Also load the Services + Products grids. Each has its own
+        // load path so a knowledge failure doesn't block the grids and
+        // vice versa.
+        if (typeof mbLoadServices === 'function') mbLoadServices();
+        if (typeof mbLoadProducts === 'function') mbLoadProducts();
       }
 
       async function saveMyBusiness() {
@@ -10707,6 +10786,269 @@
             status.textContent = 'Save failed: ' + (err.message || err);
             status.style.color = '#fca5a5';
           }
+        }
+      }
+
+      // ---------- My Business: Services + Products grids ----------
+      // Spreadsheet-style editors backed by the direct REST endpoints
+      // POST/PATCH/DELETE /api/menu-items. Prices are typed as dollars in
+      // the UI and converted to integer cents for the backend. Rows carry
+      // their menu_items.id in a data-id attribute so the save loop can
+      // distinguish PATCH (has id) from POST (no id / new blank row).
+
+      const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-family:inherit;font-size:0.9em;';
+      const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid rgba(148,163,184,0.12);vertical-align:middle;';
+      const _MB_REMOVE_STYLE = 'background:transparent;color:#fca5a5;border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
+
+      function _mbEsc(v) {
+        return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function _mbCentsToDollars(cents) {
+        const n = Number(cents);
+        if (!Number.isFinite(n)) return '';
+        return (n / 100).toFixed(2);
+      }
+      function _mbDollarsToCents(s) {
+        const n = parseFloat(String(s == null ? '' : s).replace(/[^0-9.\-]/g, ''));
+        if (!Number.isFinite(n)) return 0;
+        return Math.round(n * 100);
+      }
+
+      function _mbServiceRowHtml(item) {
+        const id = item && item.id ? item.id : '';
+        const name = item ? _mbEsc(item.name) : '';
+        const price = item ? _mbCentsToDollars(item.base_price_cents) : '';
+        const dur = item && item.duration_minutes != null ? _mbEsc(item.duration_minutes) : '';
+        return `<tr data-id="${id}">
+          <td style="${_MB_CELL_STYLE}"><input type="text" class="mb-svc-name" value="${name}" placeholder="e.g. Men's Haircut" style="${_MB_INPUT_STYLE}" /></td>
+          <td style="${_MB_CELL_STYLE}"><input type="number" step="0.01" min="0" class="mb-svc-price" value="${price}" placeholder="30.00" style="${_MB_INPUT_STYLE}text-align:right;" /></td>
+          <td style="${_MB_CELL_STYLE}"><input type="number" step="1" min="1" class="mb-svc-duration" value="${dur}" placeholder="30" style="${_MB_INPUT_STYLE}text-align:right;" /></td>
+          <td style="${_MB_CELL_STYLE}text-align:center;"><button type="button" onclick="mbRemoveServiceRow(this)" title="Remove" style="${_MB_REMOVE_STYLE}">&times;</button></td>
+        </tr>`;
+      }
+      function _mbProductRowHtml(item) {
+        const id = item && item.id ? item.id : '';
+        const name = item ? _mbEsc(item.name) : '';
+        const price = item ? _mbCentsToDollars(item.base_price_cents) : '';
+        return `<tr data-id="${id}">
+          <td style="${_MB_CELL_STYLE}"><input type="text" class="mb-prd-name" value="${name}" placeholder="e.g. Pomade" style="${_MB_INPUT_STYLE}" /></td>
+          <td style="${_MB_CELL_STYLE}"><input type="number" step="0.01" min="0" class="mb-prd-price" value="${price}" placeholder="18.00" style="${_MB_INPUT_STYLE}text-align:right;" /></td>
+          <td style="${_MB_CELL_STYLE}text-align:center;"><button type="button" onclick="mbRemoveProductRow(this)" title="Remove" style="${_MB_REMOVE_STYLE}">&times;</button></td>
+        </tr>`;
+      }
+
+      function _mbSetStatus(elId, text, color) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.color = color || '#94a3b8';
+      }
+
+      async function mbLoadServices() {
+        const tbody = document.getElementById('mbServicesBody');
+        if (!tbody) return;
+        _mbSetStatus('mbServicesStatus', '');
+        try {
+          const r = await fetch('/api/menu-items?type=service&active_only=true', { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          const items = Array.isArray(data.menu_items) ? data.menu_items : [];
+          if (items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="color:#94a3b8;padding:14px;font-style:italic;">No services yet. Click "Add Service" to add one.</td></tr>`;
+          } else {
+            tbody.innerHTML = items.map(_mbServiceRowHtml).join('');
+          }
+        } catch (err) {
+          console.error('[my-business services] load failed:', err);
+          tbody.innerHTML = `<tr><td colspan="4" style="color:#fca5a5;padding:14px;">Could not load services.</td></tr>`;
+        }
+      }
+
+      async function mbLoadProducts() {
+        const tbody = document.getElementById('mbProductsBody');
+        if (!tbody) return;
+        _mbSetStatus('mbProductsStatus', '');
+        try {
+          const r = await fetch('/api/menu-items?type=product&active_only=true', { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          const items = Array.isArray(data.menu_items) ? data.menu_items : [];
+          if (items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" style="color:#94a3b8;padding:14px;font-style:italic;">No products yet. Click "Add Product" to add one.</td></tr>`;
+          } else {
+            tbody.innerHTML = items.map(_mbProductRowHtml).join('');
+          }
+        } catch (err) {
+          console.error('[my-business products] load failed:', err);
+          tbody.innerHTML = `<tr><td colspan="3" style="color:#fca5a5;padding:14px;">Could not load products.</td></tr>`;
+        }
+      }
+
+      function mbAddServiceRow() {
+        const tbody = document.getElementById('mbServicesBody');
+        if (!tbody) return;
+        // If the placeholder "no services yet" row is there, clear first.
+        if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+        tbody.insertAdjacentHTML('beforeend', _mbServiceRowHtml(null));
+        const rows = tbody.querySelectorAll('tr');
+        const nameInput = rows[rows.length - 1].querySelector('.mb-svc-name');
+        if (nameInput) nameInput.focus();
+      }
+      function mbAddProductRow() {
+        const tbody = document.getElementById('mbProductsBody');
+        if (!tbody) return;
+        if (tbody.querySelector('td[colspan]')) tbody.innerHTML = '';
+        tbody.insertAdjacentHTML('beforeend', _mbProductRowHtml(null));
+        const rows = tbody.querySelectorAll('tr');
+        const nameInput = rows[rows.length - 1].querySelector('.mb-prd-name');
+        if (nameInput) nameInput.focus();
+      }
+
+      async function mbRemoveServiceRow(btn) {
+        await _mbRemoveRow(btn, 'mbServicesStatus', mbLoadServices);
+      }
+      async function mbRemoveProductRow(btn) {
+        await _mbRemoveRow(btn, 'mbProductsStatus', mbLoadProducts);
+      }
+      async function _mbRemoveRow(btn, statusId, reload) {
+        const tr = btn.closest('tr');
+        if (!tr) return;
+        const id = tr.dataset.id;
+        if (!id) {
+          // Blank row that was never saved — just remove from DOM.
+          tr.remove();
+          return;
+        }
+        if (!confirm('Remove this item? It stays in the database (past appointments/transactions still reference it) but disappears from the menu.')) return;
+        _mbSetStatus(statusId, 'Removing...');
+        try {
+          const r = await fetch('/api/menu-items/' + encodeURIComponent(id), {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          if (!r.ok) {
+            const text = await r.text().catch(() => '');
+            throw new Error('HTTP ' + r.status + (text ? ': ' + text : ''));
+          }
+          _mbSetStatus(statusId, 'Removed.', '#86efac');
+          await reload();
+        } catch (err) {
+          console.error('[my-business remove] failed:', err);
+          _mbSetStatus(statusId, 'Remove failed: ' + (err.message || err), '#fca5a5');
+        }
+      }
+
+      async function mbSaveServices() {
+        const tbody = document.getElementById('mbServicesBody');
+        if (!tbody) return;
+        _mbSetStatus('mbServicesStatus', 'Saving...');
+        try {
+          let saved = 0;
+          for (const tr of Array.from(tbody.querySelectorAll('tr[data-id]'))) {
+            const id = tr.dataset.id;
+            const name = (tr.querySelector('.mb-svc-name') || {}).value || '';
+            const priceStr = (tr.querySelector('.mb-svc-price') || {}).value || '';
+            const durStr = (tr.querySelector('.mb-svc-duration') || {}).value || '';
+            const trimmedName = name.trim();
+            // Skip completely-empty blank rows silently.
+            if (!id && !trimmedName) continue;
+            if (!trimmedName) {
+              throw new Error('Service name is required.');
+            }
+            const duration = parseInt(durStr, 10);
+            if (!duration || duration <= 0) {
+              throw new Error('"' + trimmedName + '" needs a positive duration in minutes.');
+            }
+            const body = {
+              name: trimmedName,
+              base_price_cents: _mbDollarsToCents(priceStr),
+              duration_minutes: duration,
+            };
+            if (id) {
+              const r = await fetch('/api/menu-items/' + encodeURIComponent(id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+              });
+              if (!r.ok) {
+                const t = await r.text().catch(() => '');
+                throw new Error('Update "' + trimmedName + '" failed (' + r.status + (t ? ': ' + t : '') + ')');
+              }
+            } else {
+              body.type = 'service';
+              const r = await fetch('/api/menu-items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+              });
+              if (!r.ok) {
+                const t = await r.text().catch(() => '');
+                throw new Error('Create "' + trimmedName + '" failed (' + r.status + (t ? ': ' + t : '') + ')');
+              }
+            }
+            saved++;
+          }
+          _mbSetStatus('mbServicesStatus', 'Saved!', '#86efac');
+          // Re-fetch so newly-POSTed rows gain their ids for future PATCH.
+          await mbLoadServices();
+        } catch (err) {
+          console.error('[my-business services] save failed:', err);
+          _mbSetStatus('mbServicesStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+        }
+      }
+
+      async function mbSaveProducts() {
+        const tbody = document.getElementById('mbProductsBody');
+        if (!tbody) return;
+        _mbSetStatus('mbProductsStatus', 'Saving...');
+        try {
+          let saved = 0;
+          for (const tr of Array.from(tbody.querySelectorAll('tr[data-id]'))) {
+            const id = tr.dataset.id;
+            const name = (tr.querySelector('.mb-prd-name') || {}).value || '';
+            const priceStr = (tr.querySelector('.mb-prd-price') || {}).value || '';
+            const trimmedName = name.trim();
+            if (!id && !trimmedName) continue;
+            if (!trimmedName) {
+              throw new Error('Product name is required.');
+            }
+            const body = {
+              name: trimmedName,
+              base_price_cents: _mbDollarsToCents(priceStr),
+            };
+            if (id) {
+              const r = await fetch('/api/menu-items/' + encodeURIComponent(id), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+              });
+              if (!r.ok) {
+                const t = await r.text().catch(() => '');
+                throw new Error('Update "' + trimmedName + '" failed (' + r.status + (t ? ': ' + t : '') + ')');
+              }
+            } else {
+              body.type = 'product';
+              const r = await fetch('/api/menu-items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(body),
+              });
+              if (!r.ok) {
+                const t = await r.text().catch(() => '');
+                throw new Error('Create "' + trimmedName + '" failed (' + r.status + (t ? ': ' + t : '') + ')');
+              }
+            }
+            saved++;
+          }
+          _mbSetStatus('mbProductsStatus', 'Saved!', '#86efac');
+          await mbLoadProducts();
+        } catch (err) {
+          console.error('[my-business products] save failed:', err);
+          _mbSetStatus('mbProductsStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
         }
       }
 

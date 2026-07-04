@@ -7200,6 +7200,173 @@ app.get('/api/menu-items/:id', requireAuth, async (req, res) => {
   }
 });
 
+// --- Menu items: direct REST writes (My Business grid) ---
+//
+// Mirrors validation, defaults, workspace-scoping, and soft-delete
+// behavior of the AI tools in lib/tools/{add,update,archive}_menu_item.js.
+// The grid drives services + products only (no addons), which is why
+// POST rejects type='addon' here. To add addons, use the AI tool.
+
+app.post('/api/menu-items', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+    const body = req.body || {};
+    const type = String(body.type || '').trim();
+    if (!['service', 'product'].includes(type)) {
+      return res.status(400).json({ error: "type must be 'service' or 'product'" });
+    }
+    const name = String(body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const base_price_cents = body.base_price_cents != null
+      ? (parseInt(body.base_price_cents, 10) || 0)
+      : 0;
+    const duration_minutes_in = body.duration_minutes != null
+      ? parseInt(body.duration_minutes, 10)
+      : null;
+    if (type === 'service' && (!duration_minutes_in || duration_minutes_in <= 0)) {
+      return res.status(400).json({ error: 'Services require a duration (a positive number of minutes).' });
+    }
+    // Products never store a duration, regardless of what was sent.
+    const duration_minutes = type === 'service' ? duration_minutes_in : null;
+
+    const tax_behavior = ['none', 'included', 'added'].includes(body.tax_behavior)
+      ? body.tax_behavior
+      : 'none';
+
+    const r = await pool.query(
+      `INSERT INTO menu_items
+         (workspace_id, type, name, description, category, base_price_cents,
+          duration_minutes, tax_behavior, parent_menu_item_id, inventory_item_id, active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
+       RETURNING id, type, name, description, category, base_price_cents,
+                 duration_minutes, tax_behavior, active, archived_at, created_at, updated_at`,
+      [
+        workspaceId, type, name,
+        body.description || null,
+        body.category || null,
+        base_price_cents,
+        duration_minutes,
+        tax_behavior,
+        null,   // parent_menu_item_id — grid does not create addons
+        null,   // inventory_item_id — grid does not link inventory
+      ]
+    );
+    res.status(201).json({ menu_item: r.rows[0] });
+  } catch (err) {
+    console.error('[POST /api/menu-items]', err.message);
+    res.status(500).json({ error: 'Failed to create menu item' });
+  }
+});
+
+app.patch('/api/menu-items/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid menu item id' });
+
+    // Pre-check workspace scope so a cross-workspace id returns 404 rather
+    // than silent 200 with zero rows updated.
+    const found = await pool.query(
+      `SELECT id FROM menu_items WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: 'Menu item not found' });
+    }
+
+    // Only these fields are editable. type and parent_menu_item_id are
+    // immutable — matching lib/tools/update_menu_item.js.
+    const fieldMap = [
+      ['name', 'name'],
+      ['description', 'description'],
+      ['category', 'category'],
+      ['base_price_cents', 'base_price_cents'],
+      ['duration_minutes', 'duration_minutes'],
+      ['tax_behavior', 'tax_behavior'],
+      ['active', 'active'],
+    ];
+    const body = req.body || {};
+    const setClauses = [];
+    const params = [];
+    let i = 1;
+    for (const [inputKey, col] of fieldMap) {
+      if (body[inputKey] !== undefined) {
+        setClauses.push(`${col} = $${i++}`);
+        params.push(body[inputKey]);
+      }
+    }
+    if (setClauses.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    setClauses.push(`updated_at = NOW()`);
+    params.push(id, workspaceId);
+
+    const r = await pool.query(
+      `UPDATE menu_items SET ${setClauses.join(', ')}
+        WHERE id = $${i++} AND workspace_id = $${i++}
+        RETURNING id, type, name, description, category, base_price_cents,
+                  duration_minutes, tax_behavior, active, archived_at, created_at, updated_at`,
+      params
+    );
+    res.json({ menu_item: r.rows[0] });
+  } catch (err) {
+    console.error('[PATCH /api/menu-items/:id]', err.message);
+    res.status(500).json({ error: 'Failed to update menu item' });
+  }
+});
+
+app.delete('/api/menu-items/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid menu item id' });
+
+    // Soft delete only — the row is referenced by past appointments and
+    // transactions. Matches lib/tools/archive_menu_item.js.
+    const found = await pool.query(
+      `SELECT id, type, name, archived_at FROM menu_items WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: 'Menu item not found' });
+    }
+    const item = found.rows[0];
+    if (item.archived_at) {
+      return res.status(400).json({ error: `${item.name} is already archived.` });
+    }
+
+    await pool.query(
+      `UPDATE menu_items
+          SET archived_at = NOW(), active = FALSE, updated_at = NOW()
+        WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+
+    // Cascade-archive add-ons if this is a service so no orphaned add-ons
+    // remain on the menu.
+    if (item.type === 'service') {
+      await pool.query(
+        `UPDATE menu_items
+            SET archived_at = NOW(), active = FALSE, updated_at = NOW()
+          WHERE parent_menu_item_id = $1
+            AND workspace_id = $2
+            AND archived_at IS NULL`,
+        [id, workspaceId]
+      );
+    }
+
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('[DELETE /api/menu-items/:id]', err.message);
+    res.status(500).json({ error: 'Failed to archive menu item' });
+  }
+});
+
 // ----- Inventory items -----
 app.get('/api/inventory-items', requireAuth, async (req, res) => {
   try {
