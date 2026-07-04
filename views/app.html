@@ -5428,16 +5428,159 @@
         }
         document.getElementById('calEventDetailBody').innerHTML = rows.join('');
 
-        // Actions: one button — "Cancel appointment" when appointment-
-        // backed, "Delete" otherwise. No Edit button yet (feature comes
-        // in a later step; no non-functional controls).
+        // Actions: appointment-backed events get Edit + Cancel; plain
+        // events get Delete only. No Edit button for non-appointment
+        // events (they have nothing structured to edit — that would be
+        // a fake control).
         const isAppt = !!(event.appointment_id || appointment);
-        const btnLabel = isAppt ? 'Cancel appointment' : 'Delete';
-        const btnColor = isAppt ? '#fca5a5' : '#fca5a5';
+        const cancelOrDeleteLabel = isAppt ? 'Cancel appointment' : 'Delete';
+        // Stash the fetched payload so calEventDetailEdit() can build the
+        // form without re-fetching (and so the Back button can restore
+        // the same view without another round-trip).
+        window._openCalEventData = data;
+        const editBtn = isAppt
+          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(212,175,55,0.5);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
+          : '';
         document.getElementById('calEventDetailActions').innerHTML =
-          '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
-          + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:' + btnColor + ';border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + btnLabel + '</button>'
+          editBtn
+          + '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
+          + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
           + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
+      }
+
+      // Split an ISO timestamp into local-time YYYY-MM-DD + HH:MM strings
+      // suitable for <input type="date"> and <input type="time">. Uses the
+      // browser's zone (matches how the calendar day panel already renders
+      // events); a future refinement could format in the workspace tz.
+      function _calSplitLocalDateTime(iso) {
+        if (!iso) return { date: '', time: '' };
+        try {
+          const d = new Date(iso);
+          if (isNaN(d.getTime())) return { date: '', time: '' };
+          const pad = (n) => String(n).padStart(2, '0');
+          return {
+            date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+            time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+          };
+        } catch (err) { return { date: '', time: '' }; }
+      }
+
+      // Swap the modal body into an edit form. Header + close-X are left
+      // alone. Actions row becomes Save changes + Back.
+      function calEventDetailEdit() {
+        const data = window._openCalEventData;
+        if (!data || !data.appointment) return;
+        const event = data.event || {};
+        const appt = data.appointment || {};
+        const { date, time } = _calSplitLocalDateTime(event.starts_at);
+        const priceDollars = (appt.quoted_price_cents != null && appt.quoted_price_cents > 0)
+          ? (appt.quoted_price_cents / 100).toFixed(2)
+          : '';
+
+        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;';
+        const labelStyle = 'display:block;font-size:0.82em;font-weight:600;color:#94a3b8;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;';
+        const rowStyle = 'margin-bottom:14px;';
+
+        document.getElementById('calEventDetailBody').innerHTML =
+          '<div style="' + rowStyle + '">'
+            + '<label for="calEditTitle" style="' + labelStyle + '">Service</label>'
+            + '<input type="text" id="calEditTitle" value="' + _calEscape(event.title || '') + '" style="' + inputStyle + '">'
+          + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;' + rowStyle + '">'
+            + '<div>'
+              + '<label for="calEditDate" style="' + labelStyle + '">Date</label>'
+              + '<input type="date" id="calEditDate" value="' + _calEscape(date) + '" style="' + inputStyle + '">'
+            + '</div>'
+            + '<div>'
+              + '<label for="calEditTime" style="' + labelStyle + '">Time</label>'
+              + '<input type="time" id="calEditTime" value="' + _calEscape(time) + '" style="' + inputStyle + '">'
+            + '</div>'
+          + '</div>'
+          + '<div style="' + rowStyle + '">'
+            + '<label for="calEditDuration" style="' + labelStyle + '">Duration (minutes)</label>'
+            + '<input type="number" id="calEditDuration" min="5" max="720" step="1" value="' + _calEscape(appt.duration_minutes || 30) + '" style="' + inputStyle + '">'
+          + '</div>'
+          + '<div style="' + rowStyle + '">'
+            + '<label for="calEditPrice" style="' + labelStyle + '">Price ($) — leave blank to keep unchanged</label>'
+            + '<input type="number" id="calEditPrice" step="0.01" min="0" placeholder="0.00" value="' + _calEscape(priceDollars) + '" style="' + inputStyle + '">'
+          + '</div>'
+          + '<div id="calEditError" style="font-size:0.85em;color:#fca5a5;margin-top:6px;min-height:1em;"></div>';
+
+        document.getElementById('calEventDetailActions').innerHTML =
+          '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
+          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
+      }
+
+      async function calEventDetailSave(calEventId, appointmentId) {
+        const errEl = document.getElementById('calEditError');
+        const setErr = (msg) => { if (errEl) errEl.textContent = msg || ''; };
+        setErr('');
+
+        const title    = (document.getElementById('calEditTitle')    || {}).value || '';
+        const date     = (document.getElementById('calEditDate')     || {}).value || '';
+        const time     = (document.getElementById('calEditTime')     || {}).value || '';
+        const durStr   = (document.getElementById('calEditDuration') || {}).value || '';
+        const priceStr = (document.getElementById('calEditPrice')    || {}).value || '';
+
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) { setErr('Service is required.'); return; }
+        if (!date || !time) { setErr('Date and time are required.'); return; }
+        const durNum = parseInt(durStr, 10);
+        if (!Number.isFinite(durNum) || durNum < 5 || durNum > 720) {
+          setErr('Duration must be between 5 and 720 minutes.'); return;
+        }
+
+        // Naive "YYYY-MM-DDTHH:mm" — server's toZonedISO interprets in the
+        // workspace timezone. Belt-and-suspenders per the earlier fix.
+        const startsAt = date + 'T' + time;
+        const body = {
+          title: trimmedTitle,
+          starts_at: startsAt,
+          duration_minutes: durNum,
+        };
+        if (priceStr.trim() !== '') {
+          const dollars = parseFloat(priceStr);
+          if (!Number.isFinite(dollars) || dollars < 0) {
+            setErr('Price must be a non-negative number.'); return;
+          }
+          body.quoted_price_cents = Math.round(dollars * 100);
+        }
+
+        try {
+          const r = await fetch('/api/appointments/' + encodeURIComponent(appointmentId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+          });
+          if (!r.ok) {
+            const t = await r.json().catch(() => ({}));
+            throw new Error((t && t.error) || ('HTTP ' + r.status));
+          }
+          // Re-fetch the event so the popup and the calendar behind it
+          // both reflect the persisted state, not the just-typed values.
+          const fresh = await fetch('/api/calevents/' + encodeURIComponent(calEventId), { credentials: 'include' });
+          if (!fresh.ok) throw new Error('Saved, but could not refresh (HTTP ' + fresh.status + ')');
+          const freshData = await fresh.json();
+          window._openCalEventData = freshData;
+          renderCalEventDetail(freshData);
+          // Brief 'Saved!' indicator in the meta line.
+          const metaEl = document.getElementById('calEventDetailMeta');
+          if (metaEl) {
+            const original = metaEl.innerHTML;
+            metaEl.innerHTML = original + ' <span id="calSavedFlash" style="color:#86efac;font-weight:700;">· Saved!</span>';
+            setTimeout(() => {
+              const flash = document.getElementById('calSavedFlash');
+              if (flash) flash.remove();
+            }, 2000);
+          }
+          // Refresh the calendar behind the modal.
+          if (typeof loadCalEvents === 'function') await loadCalEvents();
+          if (selectedDate && typeof renderDayDetail === 'function') renderDayDetail(selectedDate);
+        } catch (err) {
+          console.error('[calEventDetailSave]', err);
+          setErr('Save failed: ' + (err.message || err));
+        }
       }
 
       async function calEventDetailDelete(id, isAppointment) {

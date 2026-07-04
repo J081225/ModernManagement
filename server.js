@@ -3962,6 +3962,133 @@ app.delete('/api/calevents/:id', requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /api/appointments/:id — user-driven appointment edit. Mirrors
+// lib/tools/update_appointment.js exactly so user + AI edits behave
+// identically: same editable field set, same duration bounds (5-720),
+// same ends_at recompute, same cal_events sync (starts_at + ends_at +
+// title + legacy date TEXT column). starts_at flows through toZonedISO
+// so naive strings from the client are interpreted as workspace wall-
+// clock (belt-and-suspenders alongside the frontend's date+time inputs).
+app.patch('/api/appointments/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid appointment id' });
+
+    // Pre-check workspace scope so a cross-workspace id returns 404 rather
+    // than a silent 200 with zero rows updated.
+    const found = await pool.query(
+      `SELECT * FROM appointments WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    if (found.rows.length === 0) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+    const current = found.rows[0];
+
+    // Load the workspace's timezone (nullable → America/New_York default
+    // via wsTz). Same time-helpers module the AI booking tools use.
+    const wsR = await pool.query(
+      `SELECT id, timezone FROM workspaces WHERE id = $1`,
+      [workspaceId]
+    );
+    const workspace = wsR.rows[0] || { id: workspaceId };
+    const { wsTz, toZonedISO } = require('./lib/time-helpers');
+
+    const body = req.body || {};
+    const updates = {};
+
+    // Simple pass-through fields (identical to update_appointment tool).
+    if (Object.prototype.hasOwnProperty.call(body, 'title'))          updates.title          = body.title;
+    if (Object.prototype.hasOwnProperty.call(body, 'notes_internal')) updates.notes_internal = body.notes_internal;
+    if (Object.prototype.hasOwnProperty.call(body, 'notes_customer')) updates.notes_customer = body.notes_customer;
+    if (Object.prototype.hasOwnProperty.call(body, 'quoted_price_cents')) {
+      const qpc = parseInt(body.quoted_price_cents, 10);
+      if (!Number.isFinite(qpc) || qpc < 0) {
+        return res.status(400).json({ error: 'quoted_price_cents must be a non-negative integer' });
+      }
+      updates.quoted_price_cents = qpc;
+    }
+
+    // starts_at / duration_minutes / ends_at — mirror the tool's recompute.
+    let newStartsAt = current.starts_at;
+    let newDuration = current.duration_minutes;
+
+    if (Object.prototype.hasOwnProperty.call(body, 'starts_at')) {
+      const startIso = toZonedISO(body.starts_at, wsTz(workspace));
+      if (!startIso) return res.status(400).json({ error: 'Invalid start time' });
+      newStartsAt = startIso;
+      updates.starts_at = newStartsAt;
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'duration_minutes')) {
+      const dur = parseInt(body.duration_minutes, 10);
+      if (!Number.isFinite(dur) || dur < 5 || dur > 720) {
+        return res.status(400).json({ error: 'duration_minutes must be between 5 and 720' });
+      }
+      newDuration = dur;
+      updates.duration_minutes = newDuration;
+    }
+    if (updates.starts_at !== undefined || updates.duration_minutes !== undefined) {
+      updates.ends_at = new Date(new Date(newStartsAt).getTime() + newDuration * 60 * 1000).toISOString();
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Dynamic UPDATE — matches the tool's shape byte-for-byte.
+    const setClauses = [];
+    const values = [];
+    let i = 1;
+    for (const [k, v] of Object.entries(updates)) {
+      setClauses.push(`${k} = $${i++}`);
+      values.push(v);
+    }
+    setClauses.push('updated_at = NOW()');
+    values.push(id, workspaceId);
+
+    await pool.query(
+      `UPDATE appointments SET ${setClauses.join(', ')}
+        WHERE id = $${i++} AND workspace_id = $${i}`,
+      values
+    );
+
+    // Sync the linked cal_events row — same COALESCE + legacy date TEXT
+    // update the tool does. Only fires when there's a linked row AND
+    // something on the cal_events surface changed.
+    if (current.cal_event_id && (updates.starts_at || updates.ends_at || updates.title)) {
+      try {
+        await pool.query(
+          `UPDATE cal_events
+              SET starts_at = COALESCE($1, starts_at),
+                  ends_at   = COALESCE($2, ends_at),
+                  title     = COALESCE($3, title),
+                  date      = COALESCE($4, date)
+            WHERE id = $5`,
+          [updates.starts_at || null,
+           updates.ends_at || null,
+           updates.title || null,
+           updates.starts_at ? new Date(updates.starts_at).toISOString().slice(0, 10) : null,
+           current.cal_event_id]
+        );
+      } catch (syncErr) {
+        console.error('[PATCH /api/appointments/:id] cal_event sync failed (appointment updated):', syncErr.message);
+      }
+    }
+
+    // Return the fresh row so the frontend can re-sync from source of truth.
+    const after = await pool.query(
+      `SELECT * FROM appointments WHERE id = $1 AND workspace_id = $2`,
+      [id, workspaceId]
+    );
+    res.json({ appointment: after.rows[0] });
+  } catch (err) {
+    console.error('[PATCH /api/appointments/:id]', err.message);
+    res.status(500).json({ error: 'Failed to update appointment' });
+  }
+});
+
 // --- Budget ---
 app.get('/api/budget', async (req, res) => {
   const { month, year } = req.query;
