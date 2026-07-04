@@ -7678,20 +7678,26 @@ const server = http.createServer(app);
 // AI replies are sent back as:
 //   { type: 'text', token: '<what to say>', last: true }
 //
-// Per-call state (conversation, workspace, callSid) lives in the
+// Per-call state (workspace, callSid, callerPhone) lives in the
 // connection's closure — NOT global. No cross-call bleed possible.
 //
-// This prototype does NOT wire the appointment engine's tools yet — just
-// conversation. Booking / tool_use is a later checkpoint once voice
-// quality is validated.
+// The prompt path delegates to lib/appointment-engine.processInboundMessage
+// with channel:'voice' — the same booking brain the SMS route uses. That
+// gives the voice AI the salon's real menu / knowledge / calendar and the
+// ability to book, update, cancel, propose times, and escalate. The engine
+// keeps per-caller memory in appointment_threads.context_summary (keyed by
+// customer_phone), so no local conversation array is needed here. The
+// executeAIResult voice-branch guard (in appointment-engine.js) skips the
+// auto-SMS send when channel==='voice' — the reply is spoken live via the
+// WS instead.
 const { WebSocketServer } = require('ws');
 const wss = new WebSocketServer({ server, path: '/twilio-relay' });
 
 wss.on('connection', (ws) => {
   // Per-call closure state — replaced on every new connection.
-  const conversation = [];
   let workspace = null;
   let callSid = null;
+  let callerPhone = null;
 
   const sendText = (token) => {
     try {
@@ -7713,6 +7719,7 @@ wss.on('connection', (ws) => {
     try {
       if (msg.type === 'setup') {
         callSid = msg.callSid || null;
+        callerPhone = msg.from || null;
         try {
           const route = await lookupWorkspaceByTwilioNumber(msg.to);
           if (route) {
@@ -7726,7 +7733,7 @@ wss.on('connection', (ws) => {
           console.error('[twilio-relay] workspace lookup failed for setup:', lookupErr.message);
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
-        console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (msg.from || '?'));
+        console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
         return;
       }
 
@@ -7734,35 +7741,35 @@ wss.on('connection', (ws) => {
         const utterance = String(msg.voicePrompt || '').trim();
         if (!utterance) return;
 
-        conversation.push({ role: 'user', content: utterance });
+        // The engine's thread lookup requires a phone or email. Without a
+        // caller number, we can't route the turn — offer a callback and stop.
+        if (!callerPhone) {
+          sendText("I'm sorry, I'm having trouble identifying your number — let me have someone call you back.");
+          return;
+        }
 
-        const bizName = (workspace && workspace.business_name) || 'a salon';
-        const systemPrompt = 'You are a friendly, concise phone receptionist for ' + bizName + '. ' +
-          'You are speaking OUT LOUD on a live phone call, so keep replies short, natural, and conversational — one or two sentences. ' +
-          'Help the caller with booking appointments, questions about services, and hours. ' +
-          "If you don't know a specific detail, offer to take a message or have someone call back. " +
-          'Never mention that you are an AI unless asked directly.';
-
-        const response = await anthropic.messages.create({
-          // Haiku for low-latency, low-cost live voice; global ANTHROPIC_MODEL unchanged for the rest of the app.
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 300,
-          system: systemPrompt,
-          messages: conversation,
+        const result = await appointmentEngine.processInboundMessage({
+          workspace,
+          contact: null,
+          customer_phone: callerPhone,
+          customer_email: null,
+          channel: 'voice',
+          body: utterance,
+          db: pool,
+          twilio: twilioClient,
+          sendgrid: sgMail,
+          env: process.env,
+          logger: console,
         });
 
-        const replyText = (response.content || [])
-          .filter((b) => b.type === 'text')
-          .map((b) => b.text)
-          .join(' ')
-          .trim();
-
-        if (replyText) {
-          conversation.push({ role: 'assistant', content: replyText });
-          sendText(replyText);
-        } else {
-          // Model produced no text (rare — usually means only a stop/refusal).
+        if (result && result.handled && result.outbound_text) {
+          sendText(result.outbound_text);
+        } else if (result && result.handled) {
+          // Engine handled the turn but produced no text to speak.
           sendText("Sorry, I didn't catch that — could you say it again?");
+        } else {
+          console.log('[twilio-relay] engine did not handle: reason=' + ((result && result.reason) || 'unknown') + ' callSid=' + (callSid || 'unknown'));
+          sendText("Thanks for calling. Let me take a message and have someone get back to you.");
         }
         return;
       }
@@ -7783,9 +7790,9 @@ wss.on('connection', (ws) => {
 
   ws.on('close', (code, reason) => {
     console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
-    conversation.length = 0;
     workspace = null;
     callSid = null;
+    callerPhone = null;
   });
 
   ws.on('error', (err) => {
