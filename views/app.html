@@ -509,8 +509,59 @@
         cursor: default;
         user-select: none;
       }
-      .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
       .cal-nav h3 { flex: 1; }
+      .cal-nav select {
+        padding: 7px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.92em;
+        color: #2d3748;
+        background: white;
+        font-family: inherit;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .cal-nav select:focus { outline: none; border-color: #ff6b6b; box-shadow: 0 0 0 2px rgba(255,107,107,0.15); }
+      .cal-year-wrap {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 14px;
+        margin-top: 10px;
+      }
+      .cal-mini {
+        background: white;
+        border: 1px solid #edf2f7;
+        border-radius: 10px;
+        padding: 10px 12px 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .cal-mini:hover { border-color: #ff6b6b; background: #fff9f9; }
+      .cal-mini-head { font-weight: 700; color: #2d3748; font-size: 0.92em; margin-bottom: 6px; text-align: center; }
+      .cal-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+      .cal-mini-dow { font-size: 0.62em; color: #a0aec0; text-align: center; font-weight: 700; padding-bottom: 2px; }
+      .cal-mini-day {
+        font-size: 0.72em;
+        text-align: center;
+        padding: 4px 0 6px;
+        color: #2d3748;
+        border-radius: 4px;
+        position: relative;
+        cursor: pointer;
+      }
+      .cal-mini-day.empty { color: transparent; cursor: default; }
+      .cal-mini-day.today { background: #fff5f5; color: #ff6b6b; font-weight: 700; }
+      .cal-mini-day:hover:not(.empty) { background: #fff9f9; }
+      .cal-mini-dot {
+        position: absolute;
+        bottom: 1px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px; height: 4px;
+        border-radius: 50%;
+        background: linear-gradient(135deg,#ff6b6b,#ff8e53);
+      }
       .modal-overlay {
         display: none;
         position: fixed; inset: 0;
@@ -2744,9 +2795,13 @@
             <div style="flex:1;">
               <div class="card">
                 <div class="cal-nav">
-                  <button class="btn-secondary" onclick="changeMonth(-1)">&#8592;</button>
-                  <h3 id="calTitle"></h3>
-                  <button class="btn-secondary" onclick="changeMonth(1)">&#8594;</button>
+                  <button class="btn-secondary" onclick="changeCalNav(-1)" title="Previous">&#8592;</button>
+                  <select id="calMonthSel" onchange="onCalMonthChange(this.value)" aria-label="Month"></select>
+                  <select id="calYearSel"  onchange="onCalYearChange(this.value)"  aria-label="Year"></select>
+                  <button class="btn-secondary" onclick="changeCalNav(1)" title="Next">&#8594;</button>
+                  <span style="flex:1;"></span>
+                  <button class="btn-secondary" id="calTodayBtn" onclick="jumpToToday()">Today</button>
+                  <button class="btn-secondary" id="calViewToggleBtn" onclick="toggleCalView()">Year</button>
                   <button class="btn-primary" onclick="openAddEvent()">+ Add Event</button>
                 </div>
                 <div class="calendar-grid" id="calDayHeaders"></div>
@@ -5164,10 +5219,17 @@
       }
 
       // --- Calendar ---
+      // View mode: 'month' (default) or 'year'. calYear + calMonth + calView
+      // are the single source of truth; every UI surface (arrows, dropdowns,
+      // Today, Year toggle, mini-months) mutates them then calls
+      // renderCalendar(), which re-syncs the header and re-renders the grid.
+      let calView = 'month';
+
       function initCalendar() {
         const now = new Date();
         calYear = now.getFullYear();
         calMonth = now.getMonth();
+        calView = 'month';
         renderCalendar();
       }
 
@@ -5178,16 +5240,92 @@
         renderCalendar();
       }
 
+      // Prev/Next arrows: step months in month view, step years in year
+      // view (natural expectation at each zoom level).
+      function changeCalNav(dir) {
+        if (calView === 'year') {
+          calYear += dir;
+          renderCalendar();
+        } else {
+          changeMonth(dir);
+        }
+      }
+
+      function onCalMonthChange(v) {
+        calMonth = Number(v);
+        // Picking a specific month while zoomed out zooms in.
+        if (calView === 'year') calView = 'month';
+        renderCalendar();
+      }
+
+      function onCalYearChange(v) {
+        calYear = Number(v);
+        renderCalendar();
+      }
+
+      function jumpToToday() {
+        const now = new Date();
+        calYear = now.getFullYear();
+        calMonth = now.getMonth();
+        calView = 'month';
+        const todayStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        selectedDate = todayStr;
+        renderCalendar();
+        renderDayDetail(todayStr);
+      }
+
+      function toggleCalView() {
+        calView = calView === 'year' ? 'month' : 'year';
+        renderCalendar();
+      }
+
       let selectedDate = null;
 
-      function renderCalendar() {
-        const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        document.getElementById('calTitle').textContent = months[calMonth] + ' ' + calYear;
+      // Populate the month/year selects and update the toggle button label
+      // to reflect current calYear/calMonth/calView. Called at the top of
+      // every renderCalendar() so arrows, dropdowns, Today, and the year
+      // view all stay in lockstep.
+      function syncCalHeader() {
+        const monthsFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const nowYear = new Date().getFullYear();
 
+        const monSel = document.getElementById('calMonthSel');
+        if (monSel) {
+          if (!monSel.options.length) {
+            monSel.innerHTML = monthsFull.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+          }
+          monSel.value = String(calMonth);
+        }
+        const yrSel = document.getElementById('calYearSel');
+        if (yrSel) {
+          // Default range currentYear-1 .. currentYear+5; extend if the
+          // user is browsing outside it so the current value stays visible.
+          const minY = Math.min(nowYear - 1, calYear);
+          const maxY = Math.max(nowYear + 5, calYear);
+          const opts = [];
+          for (let y = minY; y <= maxY; y++) opts.push(`<option value="${y}">${y}</option>`);
+          yrSel.innerHTML = opts.join('');
+          yrSel.value = String(calYear);
+        }
+        const toggleBtn = document.getElementById('calViewToggleBtn');
+        if (toggleBtn) toggleBtn.textContent = calView === 'year' ? 'Month' : 'Year';
+      }
+
+      function renderCalendar() {
+        syncCalHeader();
+        if (calView === 'year') renderYearView();
+        else renderMonthView();
+        if (selectedDate && calView === 'month') renderDayDetail(selectedDate);
+      }
+
+      function renderMonthView() {
         const headers = document.getElementById('calDayHeaders');
+        headers.style.display = '';
         headers.innerHTML = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="cal-header">${d}</div>`).join('');
 
         const grid = document.getElementById('calGrid');
+        // Reset class list in case year view left cal-year-wrap on it.
+        grid.className = 'calendar-grid';
         grid.innerHTML = '';
 
         const firstDay = new Date(calYear, calMonth, 1).getDay();
@@ -5216,8 +5354,64 @@
             ${dotHtml}
           </div>`;
         }
+      }
 
-        if (selectedDate) renderDayDetail(selectedDate);
+      // Year view — 12 mini-month grids for calYear. Reuses calEvents
+      // matched on the legacy `date` TEXT column, the same match the month
+      // view uses. NOTE: calEvents is loaded per-visit but not re-fetched
+      // when the user picks a different year, so dots only reflect what is
+      // currently in memory. Fine for this checkpoint; a future pass can
+      // add year-scoped loading if needed.
+      function renderYearView() {
+        const monthsFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const dow = ['S','M','T','W','T','F','S'];
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        const headers = document.getElementById('calDayHeaders');
+        headers.style.display = 'none';
+        headers.innerHTML = '';
+
+        const grid = document.getElementById('calGrid');
+        grid.className = 'cal-year-wrap';
+        grid.innerHTML = '';
+
+        // Precompute the set of event date-strings for the current year
+        // so each mini-day cell can O(1) lookup instead of re-filtering.
+        const eventDays = new Set();
+        const yrPrefix = String(calYear) + '-';
+        for (const e of calEvents) {
+          if (e && e.date && String(e.date).startsWith(yrPrefix)) eventDays.add(e.date);
+        }
+
+        for (let m = 0; m < 12; m++) {
+          const firstDow = new Date(calYear, m, 1).getDay();
+          const daysInMon = new Date(calYear, m + 1, 0).getDate();
+          let cellsHtml = dow.map(d => `<div class="cal-mini-dow">${d}</div>`).join('');
+          for (let i = 0; i < firstDow; i++) cellsHtml += `<div class="cal-mini-day empty"></div>`;
+          for (let d = 1; d <= daysInMon; d++) {
+            const ds = `${calYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isToday = ds === todayStr;
+            const dot = eventDays.has(ds) ? '<span class="cal-mini-dot"></span>' : '';
+            // stopPropagation so the day click doesn't also trigger the
+            // outer .cal-mini header handler.
+            cellsHtml += `<div class="cal-mini-day ${isToday ? 'today' : ''}" onclick="event.stopPropagation();openMonthFromYear(${m}, '${ds}')">${d}${dot}</div>`;
+          }
+          grid.innerHTML += `<div class="cal-mini" onclick="openMonthFromYear(${m}, null)">
+            <div class="cal-mini-head">${monthsFull[m]}</div>
+            <div class="cal-mini-grid">${cellsHtml}</div>
+          </div>`;
+        }
+      }
+
+      // Called from the mini-month header (dateStr null → just open month)
+      // or a mini-month day (dateStr set → open month AND select that day).
+      function openMonthFromYear(monthIdx, dateStr) {
+        calMonth = monthIdx;
+        calView = 'month';
+        if (dateStr) selectedDate = dateStr;
+        renderCalendar();
+        if (dateStr) renderDayDetail(dateStr);
       }
 
       function selectDay(dateStr) {
