@@ -1,0 +1,25 @@
+-- 046_workspace_timezone.sql
+--
+-- Stores the business's IANA timezone (e.g. 'America/New_York',
+-- 'America/Los_Angeles'). NULL is treated as 'America/New_York' in code
+-- (lib/time-helpers.wsTz), so this migration is a zero-behavior-change
+-- addition until an owner opts in via a My Business setting or the value
+-- is populated at signup.
+--
+-- Read by:
+--   lib/appointment-engine.buildSystemPrompt  — injects the tz into the
+--     system prompt AND formats "## Upcoming calendar" times in local tz
+--     so the AI reads and quotes correct wall-clock times.
+--   lib/tools/book_appointment.js             — interprets naive input
+--     times as wall-clock in this tz (belt-and-suspenders alongside the
+--     schema description telling the AI to send offset-aware ISO).
+--   lib/tools/update_appointment.js           — same for reschedules.
+--   lib/tools/propose_appointment_times.js    — builds the day window
+--     (9 AM–6 PM) as wall-clock in this tz so proposed slots aren't 5 AM
+--     Eastern anymore.
+--
+-- Nullable + no DEFAULT so this is safe to apply to a live DB; the
+-- helper's `|| 'America/New_York'` fallback is what preserves compat.
+-- ADD COLUMN IF NOT EXISTS is safe to re-run.
+
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS timezone TEXT;

@@ -5237,8 +5237,20 @@
               // Title span is click-to-open (new detail popup); the ✕ span
               // stops propagation so the existing delete still works from
               // the list view without also opening the modal.
+              // Prefix with time-of-day when we have starts_at (or "All day"
+              // for is_all_day); legacy date-only rows fall through to just
+              // the title.
+              let timePrefix = '';
+              if (e.is_all_day) {
+                timePrefix = 'All day · ';
+              } else if (e.starts_at) {
+                try {
+                  const t = new Date(e.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                  timePrefix = t + ' · ';
+                } catch (err) { /* leave prefix empty */ }
+              }
               return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff5f5;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:#2d3748;flex:1;min-width:0;" title="View details">&#128197; ${e.title}</span>
+                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:#2d3748;flex:1;min-width:0;" title="View details">&#128197; ${timePrefix}${e.title}</span>
                 <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:#ff6b6b;font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
               </div>`;
             }).join('')
