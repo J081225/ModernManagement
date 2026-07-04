@@ -3717,6 +3717,48 @@
               </div>
             </div>
 
+            <!-- How your assistant works — two real toggles that map to
+                 workspaces.appointment_auto_respond (engine on/off) and
+                 workspaces.appointment_auto_confirm (auto-confirm bookings). -->
+            <div class="card" style="margin-top:20px;">
+              <div class="card-head">
+                <div class="card-head-tile">&#129302;</div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">How your assistant works</div>
+                  <div class="card-head-subtitle">Choose how much your assistant does on its own. You can change these anytime.</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
+
+              <div style="display:flex;flex-direction:column;gap:22px;">
+                <div>
+                  <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
+                    <input type="checkbox" id="mbAutoRespond" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
+                    <span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:#f5e6d3;line-height:1.4;">Let my assistant reply to customers on its own</span>
+                      <span style="display:block;font-size:0.82em;color:#94a3b8;margin-top:4px;line-height:1.55;">When ON, your assistant answers calls and texts and can book appointments. When OFF, incoming messages come to you to handle yourself and the assistant stays quiet.</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div>
+                  <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
+                    <input type="checkbox" id="mbAutoConfirm" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
+                    <span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:#f5e6d3;line-height:1.4;">Let my assistant book appointments automatically</span>
+                      <span style="display:block;font-size:0.82em;color:#94a3b8;margin-top:4px;line-height:1.55;">When ON, the assistant confirms bookings right away and adds them to your calendar. When OFF, new bookings are held as "pending" for you to approve first. Many owners start with this OFF until they trust the assistant, then turn it on.</span>
+                    </span>
+                  </label>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
+                  <button onclick="mbSaveAISettings()"
+                    style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save settings</button>
+                  <div id="mbAISettingsStatus" style="font-size:0.85em;color:#94a3b8;min-height:1em;"></div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -10744,11 +10786,12 @@
             status.style.color = '#fca5a5';
           }
         }
-        // Also load the Services + Products grids. Each has its own
-        // load path so a knowledge failure doesn't block the grids and
-        // vice versa.
+        // Also load the Services + Products grids and the AI-settings
+        // checkboxes. Each has its own load path so one failure doesn't
+        // block the others.
         if (typeof mbLoadServices === 'function') mbLoadServices();
         if (typeof mbLoadProducts === 'function') mbLoadProducts();
+        if (typeof mbLoadAISettings === 'function') mbLoadAISettings();
       }
 
       async function saveMyBusiness() {
@@ -11055,6 +11098,60 @@
         } catch (err) {
           console.error('[my-business products] save failed:', err);
           _mbSetStatus('mbProductsStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+        }
+      }
+
+      // ---------- My Business: How your assistant works ----------
+      // Two real toggles wired to the workspace's AI-behavior columns via
+      // the /api/workspace/ai-settings endpoints. Load/save are separate
+      // async fetches so a failure here doesn't block the other My Business
+      // sections.
+
+      async function mbLoadAISettings() {
+        const respondEl = document.getElementById('mbAutoRespond');
+        const confirmEl = document.getElementById('mbAutoConfirm');
+        if (!respondEl || !confirmEl) return;
+        _mbSetStatus('mbAISettingsStatus', '');
+        try {
+          const r = await fetch('/api/workspace/ai-settings', { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          respondEl.checked = !!(data && data.appointment_auto_respond);
+          confirmEl.checked = !!(data && data.appointment_auto_confirm);
+        } catch (err) {
+          console.error('[my-business ai-settings] load failed:', err);
+          _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), '#fca5a5');
+        }
+      }
+
+      async function mbSaveAISettings() {
+        const respondEl = document.getElementById('mbAutoRespond');
+        const confirmEl = document.getElementById('mbAutoConfirm');
+        if (!respondEl || !confirmEl) return;
+        _mbSetStatus('mbAISettingsStatus', 'Saving...');
+        try {
+          const r = await fetch('/api/workspace/ai-settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              appointment_auto_respond: !!respondEl.checked,
+              appointment_auto_confirm: !!confirmEl.checked,
+            }),
+          });
+          if (!r.ok) {
+            const t = await r.text().catch(() => '');
+            throw new Error('HTTP ' + r.status + (t ? ': ' + t : ''));
+          }
+          const data = await r.json();
+          // Re-sync from source of truth so the checkboxes reflect what
+          // was actually persisted (not what the user typed).
+          respondEl.checked = !!(data && data.appointment_auto_respond);
+          confirmEl.checked = !!(data && data.appointment_auto_confirm);
+          _mbSetStatus('mbAISettingsStatus', 'Saved!', '#86efac');
+        } catch (err) {
+          console.error('[my-business ai-settings] save failed:', err);
+          _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
         }
       }
 

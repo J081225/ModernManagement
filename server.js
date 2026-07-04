@@ -7567,6 +7567,79 @@ app.post('/api/workspace/inventory-tracking', requireAuth, async (req, res) => {
   }
 });
 
+// --- AI settings: appointment_auto_respond + appointment_auto_confirm ---
+//
+// appointment_auto_respond is read at lib/appointment-engine.js:56 (master
+// gate on the whole engine). appointment_auto_confirm is read at
+// lib/tools/book_appointment.js:66 (decides whether AI bookings land
+// 'confirmed' vs 'requested'). These two are already load-bearing — this
+// endpoint just exposes them to a settings UI without changing any reader.
+
+app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query(
+      `SELECT appointment_auto_respond, appointment_auto_confirm
+         FROM workspaces WHERE id = $1`,
+      [workspaceId]
+    );
+    const row = r.rows[0] || {};
+    res.json({
+      appointment_auto_respond: !!row.appointment_auto_respond,
+      appointment_auto_confirm: !!row.appointment_auto_confirm,
+    });
+  } catch (err) {
+    console.error('[GET /api/workspace/ai-settings]', err.message);
+    res.status(500).json({ error: 'Failed to load AI settings' });
+  }
+});
+
+app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+
+    const body = req.body || {};
+    // Only accept fields when they are actually present in the body — so a
+    // caller can PATCH a single flag without silently zeroing the other.
+    const setClauses = [];
+    const params = [];
+    let i = 1;
+    if (Object.prototype.hasOwnProperty.call(body, 'appointment_auto_respond')) {
+      setClauses.push(`appointment_auto_respond = $${i++}`);
+      params.push(body.appointment_auto_respond === true || body.appointment_auto_respond === 'true');
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'appointment_auto_confirm')) {
+      setClauses.push(`appointment_auto_confirm = $${i++}`);
+      params.push(body.appointment_auto_confirm === true || body.appointment_auto_confirm === 'true');
+    }
+    if (setClauses.length === 0) {
+      return res.status(400).json({ error: 'No settings to update' });
+    }
+    params.push(workspaceId);
+    await pool.query(
+      `UPDATE workspaces SET ${setClauses.join(', ')} WHERE id = $${i++}`,
+      params
+    );
+
+    // Return the current state so the frontend refreshes from source of truth.
+    const r = await pool.query(
+      `SELECT appointment_auto_respond, appointment_auto_confirm
+         FROM workspaces WHERE id = $1`,
+      [workspaceId]
+    );
+    const row = r.rows[0] || {};
+    res.json({
+      appointment_auto_respond: !!row.appointment_auto_respond,
+      appointment_auto_confirm: !!row.appointment_auto_confirm,
+    });
+  } catch (err) {
+    console.error('[PATCH /api/workspace/ai-settings]', err.message);
+    res.status(500).json({ error: 'Failed to update AI settings' });
+  }
+});
+
 // --- Broadcasts ---
 
 app.get('/api/broadcasts', requireAuth, async (req, res) => {
