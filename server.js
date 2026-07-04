@@ -7699,9 +7699,23 @@ wss.on('connection', (ws) => {
   let callSid = null;
   let callerPhone = null;
 
+  // Strip Markdown/formatting characters so Twilio's TTS doesn't read them
+  // aloud (e.g. ** would otherwise be spoken as "asterisk asterisk"). Only
+  // removes formatting markers and tidies whitespace — never changes the
+  // actual words. Applied inside sendText below so every spoken string
+  // (engine replies and hardcoded fallbacks alike) is cleaned in one place.
+  const stripSpeechMarkup = (text) => {
+    if (text == null || typeof text !== 'string') return '';
+    return text
+      .replace(/[*_`~]/g, '')     // markdown emphasis + code + strikethrough markers
+      .replace(/^#+\s*/gm, '')    // leading '#' header hashes at the start of any line
+      .replace(/\s+/g, ' ')       // collapse runs of whitespace/newlines
+      .trim();
+  };
+
   const sendText = (token) => {
     try {
-      ws.send(JSON.stringify({ type: 'text', token, last: true }));
+      ws.send(JSON.stringify({ type: 'text', token: stripSpeechMarkup(token), last: true }));
     } catch (err) {
       console.error('[twilio-relay] ws.send failed:', err && err.message);
     }
