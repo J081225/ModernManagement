@@ -3751,6 +3751,39 @@
                   </label>
                 </div>
 
+                <!-- Personality sub-section — Tone + Sales approach dropdowns.
+                     Wired to workspaces.ai_tone / ai_sales_posture via the
+                     same /api/workspace/ai-settings endpoint the checkboxes
+                     use. Empty value = "not set / default". -->
+                <div style="border-top:1px solid rgba(148,163,184,0.15);padding-top:18px;margin-top:4px;">
+                  <div style="font-size:0.78em;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;">Personality</div>
+
+                  <div style="display:flex;flex-direction:column;gap:18px;">
+                    <div>
+                      <label for="mbTone" style="display:block;font-size:0.9em;font-weight:600;color:#f5e6d3;line-height:1.4;margin-bottom:4px;">Tone</label>
+                      <span style="display:block;font-size:0.82em;color:#94a3b8;margin-bottom:8px;line-height:1.5;">How your assistant sounds to customers.</span>
+                      <select id="mbTone"
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        <option value="">Warm &amp; friendly (default)</option>
+                        <option value="warm">Warm &amp; friendly</option>
+                        <option value="professional">Polished &amp; professional</option>
+                        <option value="brief">Brief &amp; efficient</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label for="mbSalesPosture" style="display:block;font-size:0.9em;font-weight:600;color:#f5e6d3;line-height:1.4;margin-bottom:4px;">Sales approach</label>
+                      <span style="display:block;font-size:0.82em;color:#94a3b8;margin-bottom:8px;line-height:1.5;">Whether your assistant suggests extras.</span>
+                      <select id="mbSalesPosture"
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        <option value="">Helpful, not pushy (default)</option>
+                        <option value="reactive">Helpful, not pushy</option>
+                        <option value="proactive">Gently suggest add-ons</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
                 <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
                   <button onclick="mbSaveAISettings()"
                     style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save settings</button>
@@ -11167,6 +11200,13 @@
           const data = await r.json();
           respondEl.checked = !!(data && data.appointment_auto_respond);
           confirmEl.checked = !!(data && data.appointment_auto_confirm);
+          // Hydrate the Personality selects. null → '' so the default
+          // option is selected. Element-exists guards keep this safe
+          // even if the card markup ever changes.
+          const toneEl = document.getElementById('mbTone');
+          const salesEl = document.getElementById('mbSalesPosture');
+          if (toneEl)  toneEl.value  = (data && data.ai_tone) ? data.ai_tone : '';
+          if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
         } catch (err) {
           console.error('[my-business ai-settings] load failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), '#fca5a5');
@@ -11177,6 +11217,11 @@
         const respondEl = document.getElementById('mbAutoRespond');
         const confirmEl = document.getElementById('mbAutoConfirm');
         if (!respondEl || !confirmEl) return;
+        // Personality selects — the backend accepts '' as "clear to default"
+        // so we send the .value verbatim (an empty string is a valid signal,
+        // not a "field absent"). Element-exists guards keep this resilient.
+        const toneEl = document.getElementById('mbTone');
+        const salesEl = document.getElementById('mbSalesPosture');
         _mbSetStatus('mbAISettingsStatus', 'Saving...');
         try {
           const r = await fetch('/api/workspace/ai-settings', {
@@ -11186,6 +11231,8 @@
             body: JSON.stringify({
               appointment_auto_respond: !!respondEl.checked,
               appointment_auto_confirm: !!confirmEl.checked,
+              ai_tone: toneEl ? String(toneEl.value || '') : '',
+              ai_sales_posture: salesEl ? String(salesEl.value || '') : '',
             }),
           });
           if (!r.ok) {
@@ -11197,6 +11244,9 @@
           // was actually persisted (not what the user typed).
           respondEl.checked = !!(data && data.appointment_auto_respond);
           confirmEl.checked = !!(data && data.appointment_auto_confirm);
+          // Same for the selects; null → '' → default option.
+          if (toneEl)  toneEl.value  = (data && data.ai_tone) ? data.ai_tone : '';
+          if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
           _mbSetStatus('mbAISettingsStatus', 'Saved!', '#86efac');
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);

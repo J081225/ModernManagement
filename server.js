@@ -7575,12 +7575,19 @@ app.post('/api/workspace/inventory-tracking', requireAuth, async (req, res) => {
 // 'confirmed' vs 'requested'). These two are already load-bearing — this
 // endpoint just exposes them to a settings UI without changing any reader.
 
+// Allowed values for the personality fields. Enforced at PATCH; empty
+// string / null clears back to default behavior (prompt builder skips
+// the injection).
+const AI_TONE_VALUES = ['warm', 'professional', 'brief'];
+const AI_SALES_POSTURE_VALUES = ['reactive', 'proactive'];
+
 app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
     if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
     const r = await pool.query(
-      `SELECT appointment_auto_respond, appointment_auto_confirm
+      `SELECT appointment_auto_respond, appointment_auto_confirm,
+              ai_tone, ai_sales_posture
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -7588,6 +7595,8 @@ app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
     res.json({
       appointment_auto_respond: !!row.appointment_auto_respond,
       appointment_auto_confirm: !!row.appointment_auto_confirm,
+      ai_tone: row.ai_tone == null ? null : row.ai_tone,
+      ai_sales_posture: row.ai_sales_posture == null ? null : row.ai_sales_posture,
     });
   } catch (err) {
     console.error('[GET /api/workspace/ai-settings]', err.message);
@@ -7614,6 +7623,25 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
       setClauses.push(`appointment_auto_confirm = $${i++}`);
       params.push(body.appointment_auto_confirm === true || body.appointment_auto_confirm === 'true');
     }
+    if (Object.prototype.hasOwnProperty.call(body, 'ai_tone')) {
+      const raw = body.ai_tone;
+      // Empty string / null / undefined all clear the preference back to default.
+      const normalized = (raw == null || raw === '') ? null : String(raw);
+      if (normalized !== null && !AI_TONE_VALUES.includes(normalized)) {
+        return res.status(400).json({ error: `ai_tone must be one of ${AI_TONE_VALUES.join(', ')} or empty` });
+      }
+      setClauses.push(`ai_tone = $${i++}`);
+      params.push(normalized);
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'ai_sales_posture')) {
+      const raw = body.ai_sales_posture;
+      const normalized = (raw == null || raw === '') ? null : String(raw);
+      if (normalized !== null && !AI_SALES_POSTURE_VALUES.includes(normalized)) {
+        return res.status(400).json({ error: `ai_sales_posture must be one of ${AI_SALES_POSTURE_VALUES.join(', ')} or empty` });
+      }
+      setClauses.push(`ai_sales_posture = $${i++}`);
+      params.push(normalized);
+    }
     if (setClauses.length === 0) {
       return res.status(400).json({ error: 'No settings to update' });
     }
@@ -7625,7 +7653,8 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
 
     // Return the current state so the frontend refreshes from source of truth.
     const r = await pool.query(
-      `SELECT appointment_auto_respond, appointment_auto_confirm
+      `SELECT appointment_auto_respond, appointment_auto_confirm,
+              ai_tone, ai_sales_posture
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -7633,6 +7662,8 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
     res.json({
       appointment_auto_respond: !!row.appointment_auto_respond,
       appointment_auto_confirm: !!row.appointment_auto_confirm,
+      ai_tone: row.ai_tone == null ? null : row.ai_tone,
+      ai_sales_posture: row.ai_sales_posture == null ? null : row.ai_sales_posture,
     });
   } catch (err) {
     console.error('[PATCH /api/workspace/ai-settings]', err.message);
