@@ -278,6 +278,48 @@ function requireAuthPage(req, res, next) {
   res.redirect('/login');
 }
 
+// Validates the X-Twilio-Signature header on inbound Twilio webhook
+// POSTs (SMS + voice). Runs BEFORE the route handler so a bad signature
+// is rejected with 403 before any DB work or TwiML response happens.
+//
+// URL derivation: Twilio signs the exact URL it called. We prefer
+// PUBLIC_BASE_URL when set (belt-and-suspenders for edge cases where
+// x-forwarded-* is stripped or rewritten by an intermediate proxy);
+// otherwise we reconstruct from req.protocol + req.get('host') +
+// req.originalUrl. `trust proxy` = 1 is set above so req.protocol and
+// req.get('host') already honor Render's X-Forwarded-* headers.
+//
+// Escape hatch: TWILIO_VALIDATE_WEBHOOKS=false disables validation
+// with a loud warning per request. Default is enabled. Intended as a
+// one-env-var rollback if live traffic breaks after deploy — flip it
+// back to remove the bypass.
+function validateTwilioSignature(req, res, next) {
+  if (process.env.TWILIO_VALIDATE_WEBHOOKS === 'false') {
+    console.warn('[twilio-validate] BYPASS — TWILIO_VALIDATE_WEBHOOKS=false; accepting', req.originalUrl, 'without signature check');
+    return next();
+  }
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    console.error('[twilio-validate] TWILIO_AUTH_TOKEN not set — cannot validate', req.originalUrl);
+    return res.status(500).type('text/plain').send('Server misconfigured');
+  }
+  const signature = req.header('x-twilio-signature');
+  if (!signature) {
+    console.warn('[twilio-validate] Missing X-Twilio-Signature header on', req.originalUrl, 'from', req.ip);
+    return res.status(403).type('text/plain').send('Forbidden');
+  }
+  const base = process.env.PUBLIC_BASE_URL
+    ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
+    : (req.protocol + '://' + req.get('host'));
+  const publicUrl = base + req.originalUrl;
+  const ok = twilio.validateRequest(authToken, signature, publicUrl, req.body || {});
+  if (!ok) {
+    console.warn('[twilio-validate] Bad signature for', publicUrl, 'from', req.ip);
+    return res.status(403).type('text/plain').send('Forbidden');
+  }
+  next();
+}
+
 // --- Workspace helper ---
 // Every authenticated user owns exactly one workspace (1:1 seeded by
 // Phase 1 migration 008). getWorkspaceId() looks up that workspace id
@@ -5651,7 +5693,7 @@ async function lookupUserByEmailAlias(toAddress) {
   return acctRows[0]?.user_id || null;
 }
 
-app.post('/api/sms/incoming', async (req, res) => {
+app.post('/api/sms/incoming', validateTwilioSignature, async (req, res) => {
   const from = req.body.From || 'Unknown';
   const to = req.body.To || '';
   const body = req.body.Body || '';
@@ -5746,7 +5788,7 @@ app.post('/api/sms/send', requireAuth, async (req, res) => {
 });
 
 // --- Voice / Voicemail ---
-app.post('/api/voice/incoming', (req, res) => {
+app.post('/api/voice/incoming', validateTwilioSignature, (req, res) => {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const base = `${proto}://${req.headers.host}`;
   res.type('text/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -5756,7 +5798,7 @@ app.post('/api/voice/incoming', (req, res) => {
 </Response>`);
 });
 
-app.post('/api/voice/recording', async (req, res) => {
+app.post('/api/voice/recording', validateTwilioSignature, async (req, res) => {
   const { From, To, CallSid } = req.body;
   const phone = From || 'Unknown';
   const route = await lookupWorkspaceByTwilioNumber(To);
@@ -5780,7 +5822,7 @@ app.post('/api/voice/recording', async (req, res) => {
 </Response>`);
 });
 
-app.post('/api/voice/transcription', async (req, res) => {
+app.post('/api/voice/transcription', validateTwilioSignature, async (req, res) => {
   const { TranscriptionText, TranscriptionStatus, CallSid, From, To } = req.body;
   const phone = From || 'Unknown';
   const route = await lookupWorkspaceByTwilioNumber(To);
@@ -5889,7 +5931,7 @@ app.post('/api/voice/transcription', async (req, res) => {
 //
 // Whitelisted as unauthenticated at /api/* around server.js:2775 alongside
 // the other Twilio-called routes.
-app.post('/api/voice/relay-incoming', async (req, res) => {
+app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) => {
   const to = req.body && req.body.To;
 
   // Look up the workspace that owns this number, then load the full row so
