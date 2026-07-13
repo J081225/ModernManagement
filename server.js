@@ -245,12 +245,22 @@ app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
+// Required on Render (and any reverse proxy that terminates HTTPS) so
+// Express knows the connection is secure and will actually set the
+// Secure cookie flag. Without this, cookie: { secure: true } silently
+// drops the session cookie in production.
+app.set('trust proxy', 1);
 app.use(session({
   store: new pgSession({ pool, tableName: 'user_sessions', createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
 }));
 
 // Serve public static files (landing, login, signup pages)
@@ -2779,12 +2789,12 @@ app.use('/api', (req, res, next) => {
 });
 
 // --- Contacts ---
-app.get('/api/contacts', async (req, res) => {
+app.get('/api/contacts', requireAuth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM contacts WHERE user_id=$1 ORDER BY name ASC', [req.session.userId]);
   res.json(rows);
 });
 
-app.post('/api/contacts', async (req, res) => {
+app.post('/api/contacts', requireAuth, async (req, res) => {
   const { name, type, unit, email, phone, notes } = req.body;
 
   // Session D4: subscription status + maxContacts cap (user_id-scoped)
@@ -2815,7 +2825,7 @@ app.post('/api/contacts', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.put('/api/contacts/:id', async (req, res) => {
+app.put('/api/contacts/:id', requireAuth, async (req, res) => {
   const { name, type, unit, email, phone, notes, lease_start, lease_end, monthly_rent } = req.body;
   const { rows } = await pool.query(
     `UPDATE contacts SET name=$1, type=$2, unit=$3, email=$4, phone=$5, notes=$6,
@@ -2828,7 +2838,7 @@ app.put('/api/contacts/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete('/api/contacts/:id', async (req, res) => {
+app.delete('/api/contacts/:id', requireAuth, async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM contacts WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Contact not found' });
   res.json({ success: true });
@@ -3665,12 +3675,12 @@ app.patch('/api/engagements/:id', requireAuth, async (req, res) => {
 });
 
 // --- Tasks ---
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', requireAuth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM tasks WHERE user_id=$1 ORDER BY suggested DESC, "dueDate" ASC', [req.session.userId]);
   res.json(rows);
 });
 
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', requireAuth, async (req, res) => {
   const { title, category, dueDate, notes, suggested, aiReason } = req.body;
   // Server-side safety-net defaults so the AI / clients can submit
   // partial input. Mirrors the optional-field defaults declared in the
@@ -3688,7 +3698,7 @@ app.post('/api/tasks', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', requireAuth, async (req, res) => {
   const { done, title, category, dueDate, notes } = req.body;
   const { rows } = await pool.query(
     'UPDATE tasks SET done=$1, title=$2, category=$3, "dueDate"=$4, notes=$5 WHERE id=$6 AND user_id=$7 RETURNING *',
@@ -3698,7 +3708,7 @@ app.put('/api/tasks/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-app.put('/api/tasks/:id/approve', async (req, res) => {
+app.put('/api/tasks/:id/approve', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     'UPDATE tasks SET suggested=false WHERE id=$1 AND user_id=$2 RETURNING *',
     [Number(req.params.id), req.session.userId]
@@ -3707,12 +3717,12 @@ app.put('/api/tasks/:id/approve', async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete('/api/tasks/:id/reject', async (req, res) => {
+app.delete('/api/tasks/:id/reject', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
 });
 
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Task not found' });
   res.json({ success: true });
@@ -3746,7 +3756,7 @@ async function sendEmergencySMS(ticket) {
   }
 }
 
-app.get('/api/maintenance', async (req, res) => {
+app.get('/api/maintenance', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     'SELECT * FROM maintenance_tickets WHERE user_id=$1 ORDER BY priority DESC, "createdAt" DESC',
     [req.session.userId]
@@ -3754,7 +3764,7 @@ app.get('/api/maintenance', async (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/maintenance', async (req, res) => {
+app.post('/api/maintenance', requireAuth, async (req, res) => {
   const { title, description, unit, resident, category } = req.body;
   const priority = isEmergency(title + ' ' + description) ? 'emergency' : 'normal';
   const { rows } = await pool.query(
@@ -3771,7 +3781,7 @@ app.post('/api/maintenance', async (req, res) => {
   );
 });
 
-app.put('/api/maintenance/:id', async (req, res) => {
+app.put('/api/maintenance/:id', requireAuth, async (req, res) => {
   const { status, outcome, requires_action, action_notes } = req.body;
   const { rows } = await pool.query(
     `UPDATE maintenance_tickets SET status=$1, outcome=$2, requires_action=$3, action_notes=$4, "updatedAt"=NOW()
@@ -3795,18 +3805,18 @@ app.put('/api/maintenance/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete('/api/maintenance/:id', async (req, res) => {
+app.delete('/api/maintenance/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM maintenance_tickets WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
 });
 
 // --- Calendar Events ---
-app.get('/api/calevents', async (req, res) => {
+app.get('/api/calevents', requireAuth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM cal_events WHERE user_id=$1 ORDER BY date ASC', [req.session.userId]);
   res.json(rows);
 });
 
-app.post('/api/calevents', async (req, res) => {
+app.post('/api/calevents', requireAuth, async (req, res) => {
   const { date, title } = req.body;
   const { rows } = await pool.query(
     'INSERT INTO cal_events (user_id, date, title) VALUES ($1,$2,$3) RETURNING *',
@@ -4090,7 +4100,7 @@ app.patch('/api/appointments/:id', requireAuth, async (req, res) => {
 });
 
 // --- Budget ---
-app.get('/api/budget', async (req, res) => {
+app.get('/api/budget', requireAuth, async (req, res) => {
   const { month, year } = req.query;
   let q = 'SELECT * FROM budget_transactions WHERE user_id=$1';
   const params = [req.session.userId];
@@ -4103,7 +4113,7 @@ app.get('/api/budget', async (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/budget', async (req, res) => {
+app.post('/api/budget', requireAuth, async (req, res) => {
   const { type, category, description, amount, date, notes } = req.body;
   // Server-side safety-net defaults so the AI / clients can submit
   // partial input. Mirrors the optional-field defaults declared in the
@@ -4117,14 +4127,14 @@ app.post('/api/budget', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.delete('/api/budget/:id', async (req, res) => {
+app.delete('/api/budget/:id', requireAuth, async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM budget_transactions WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Transaction not found' });
   res.json({ success: true });
 });
 
 // --- Automation ---
-app.get('/api/automation', async (req, res) => {
+app.get('/api/automation', requireAuth, async (req, res) => {
   const automationData = await getAutomation(req.session.userId);
   res.json(automationData);
 });
@@ -4198,7 +4208,7 @@ app.post('/api/automation/consent', requireAuth, async (req, res) => {
 });
 
 // --- Messages ---
-app.get('/api/messages', async (req, res) => {
+app.get('/api/messages', requireAuth, async (req, res) => {
   const folder = req.query.folder || 'inbox';
   // Inbox pins emergency-flagged rows to the top until the owner
   // marks them reviewed (sub-step C). Other folders keep the legacy
@@ -4213,7 +4223,7 @@ app.get('/api/messages', async (req, res) => {
   res.json(rows);
 });
 
-app.get('/api/messages/:id', async (req, res) => {
+app.get('/api/messages/:id', requireAuth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   const msg = rows[0];
@@ -4245,7 +4255,7 @@ app.post('/api/messages/:id/clear-emergency', requireAuth, async (req, res) => {
   res.json(rows[0]);
 });
 
-app.post('/api/messages', async (req, res) => {
+app.post('/api/messages', requireAuth, async (req, res) => {
   const { resident, subject, category, text } = req.body;
   // Server-side safety-net default: derive a subject from the body if
   // the caller (e.g. the AI compose_message tool) omitted it.
@@ -4266,7 +4276,7 @@ app.post('/api/messages', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-app.put('/api/messages/:id/folder', async (req, res) => {
+app.put('/api/messages/:id/folder', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     'UPDATE messages SET folder=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
     [req.body.folder, Number(req.params.id), req.session.userId]
@@ -4275,18 +4285,18 @@ app.put('/api/messages/:id/folder', async (req, res) => {
   res.json(rows[0]);
 });
 
-app.delete('/api/messages/:id', async (req, res) => {
+app.delete('/api/messages/:id', requireAuth, async (req, res) => {
   const { rowCount } = await pool.query('DELETE FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rowCount) return res.status(404).json({ error: 'Message not found' });
   res.json({ success: true });
 });
 
-app.delete('/api/messages/folder/deleted', async (req, res) => {
+app.delete('/api/messages/folder/deleted', requireAuth, async (req, res) => {
   await pool.query("DELETE FROM messages WHERE folder='deleted' AND user_id=$1", [req.session.userId]);
   res.json({ success: true });
 });
 
-app.put('/api/messages/:id/status', async (req, res) => {
+app.put('/api/messages/:id/status', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
     'UPDATE messages SET status=$1 WHERE id=$2 AND user_id=$3 RETURNING *',
     [req.body.status, Number(req.params.id), req.session.userId]
@@ -4468,7 +4478,7 @@ app.post('/api/knowledge/upload', requireAuth, upload.single('file'), async (req
 });
 
 // --- AI: Generate draft reply ---
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', requireAuth, async (req, res) => {
   const { messageId, contacts } = req.body;
   const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(messageId), req.session.userId]);
   const message = rows[0];
@@ -5514,7 +5524,7 @@ async function processPaymentEmail(userId, { from, subject, body }) {
 }
 
 // --- SendGrid: Send Email ---
-app.post('/api/email/send', async (req, res) => {
+app.post('/api/email/send', requireAuth, async (req, res) => {
   const { to, subject, body } = req.body;
   if (!to || !subject || !body) return res.status(400).json({ error: 'Missing to, subject, or body' });
 
@@ -5667,7 +5677,7 @@ app.post('/api/sms/incoming', async (req, res) => {
 });
 
 // --- Twilio: Send SMS reply ---
-app.post('/api/sms/send', async (req, res) => {
+app.post('/api/sms/send', requireAuth, async (req, res) => {
   const { to, body } = req.body;
   if (!to || !body) return res.status(400).json({ error: 'Missing to or body' });
   try {
@@ -6574,7 +6584,7 @@ ${JSON.stringify(snapshot, null, 2)}`;
 }
 
 // --- Property Report ---
-app.post('/api/report', async (req, res) => {
+app.post('/api/report', requireAuth, async (req, res) => {
   const { tasks, messages, calEvents, contacts, budget } = req.body;
   const today = new Date().toISOString().split('T')[0];
   const todayFmt = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
@@ -8022,7 +8032,7 @@ app.post('/api/broadcast', requireAuth, async (req, res) => {
 });
 
 // --- CSV Contact Import ---
-app.post('/api/contacts/import', upload.single('file'), async (req, res) => {
+app.post('/api/contacts/import', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
     const csv = req.file.buffer.toString('utf-8');
