@@ -3818,9 +3818,65 @@ app.get('/api/calevents', requireAuth, async (req, res) => {
 
 app.post('/api/calevents', requireAuth, async (req, res) => {
   const { date, title } = req.body;
+  const event_type = req.body.event_type || 'general';
+  const start_time = req.body.start_time;
+  const end_time = req.body.end_time;
+
+  // Whitelist event_type. 'appointment' is deliberately EXCLUDED — those
+  // rows are created only by lib/tools/book_appointment.js so the
+  // appointment_id / cal_event_id linkage stays consistent.
+  const ALLOWED = ['general', 'time_off', 'personal'];
+  if (!ALLOWED.includes(event_type)) {
+    return res.status(400).json({ error: `event_type must be one of ${ALLOWED.join(', ')}` });
+  }
+
+  // Both-or-neither: partial times require both ends.
+  if ((start_time && !end_time) || (!start_time && end_time)) {
+    return res.status(400).json({ error: 'start_time and end_time must be given together (or both omitted for an all-day event).' });
+  }
+
+  // Resolve workspace + timezone. workspace_id is written so new events
+  // are workspace-scoped like everything else; user_id is still written
+  // for legacy compatibility with pre-E2 delete paths.
+  const workspaceId = await getWorkspaceId(req);
+  const { wsTz, toZonedISO } = require('./lib/time-helpers');
+  let tz = wsTz(null);
+  if (workspaceId) {
+    const wsRes = await pool.query(`SELECT id, timezone FROM workspaces WHERE id = $1`, [workspaceId]);
+    if (wsRes.rows[0]) tz = wsTz(wsRes.rows[0]);
+  }
+
+  let starts_at = null;
+  let ends_at = null;
+  let is_all_day = true;
+
+  if (start_time && end_time) {
+    const s = toZonedISO(`${date}T${start_time}:00`, tz);
+    const e = toZonedISO(`${date}T${end_time}:00`, tz);
+    if (!s || !e) {
+      return res.status(400).json({ error: 'Invalid start_time / end_time (expected HH:mm 24-hour, e.g. 14:00).' });
+    }
+    if (new Date(e).getTime() <= new Date(s).getTime()) {
+      return res.status(400).json({ error: 'end_time must be after start_time.' });
+    }
+    starts_at = s;
+    ends_at = e;
+    is_all_day = false;
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+    // All-day fallback: midnight-to-midnight in the workspace tz so the
+    // conflict detector sees a proper local-day block.
+    starts_at = toZonedISO(`${date}T00:00:00`, tz);
+    if (starts_at) {
+      ends_at = new Date(new Date(starts_at).getTime() + 24 * 60 * 60 * 1000).toISOString();
+    }
+  }
+
   const { rows } = await pool.query(
-    'INSERT INTO cal_events (user_id, date, title) VALUES ($1,$2,$3) RETURNING *',
-    [req.session.userId, date, title]
+    `INSERT INTO cal_events
+       (user_id, workspace_id, date, title, starts_at, ends_at, is_all_day, event_type)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+     RETURNING *`,
+    [req.session.userId, workspaceId, date, title, starts_at, ends_at, is_all_day, event_type]
   );
   res.status(201).json(rows[0]);
 });

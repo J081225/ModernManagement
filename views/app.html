@@ -5345,7 +5345,7 @@
           const dayTasks = tasks.filter(t => !t.done && t.dueDate === dateStr);
           const dotHtml = (dayEvents.length || dayTasks.length)
             ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
-                ${dayEvents.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#ff6b6b,#ff8e53);"></div>`).join('')}
+                ${dayEvents.map((ev) => `<div style="width:6px;height:6px;border-radius:50%;background:${ev.event_type === 'time_off' ? '#94a3b8' : 'linear-gradient(135deg,#ff6b6b,#ff8e53)'};"></div>`).join('')}
                 ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#7b5ea7,#6c63d4);"></div>`).join('')}
               </div>`
             : '';
@@ -5376,12 +5376,17 @@
         grid.className = 'cal-year-wrap';
         grid.innerHTML = '';
 
-        // Precompute the set of event date-strings for the current year
-        // so each mini-day cell can O(1) lookup instead of re-filtering.
-        const eventDays = new Set();
+        // Precompute a Map dateStr → dot kind ('coral' for any general/
+        // personal event, 'gray' if the day only has time_off). Any real
+        // event dominates a pure block so we don't hide bookings behind
+        // the muted block dot.
+        const eventDayKind = new Map();
         const yrPrefix = String(calYear) + '-';
         for (const e of calEvents) {
-          if (e && e.date && String(e.date).startsWith(yrPrefix)) eventDays.add(e.date);
+          if (e && e.date && String(e.date).startsWith(yrPrefix)) {
+            const kind = e.event_type === 'time_off' ? 'gray' : 'coral';
+            if (eventDayKind.get(e.date) !== 'coral') eventDayKind.set(e.date, kind);
+          }
         }
 
         for (let m = 0; m < 12; m++) {
@@ -5392,7 +5397,10 @@
           for (let d = 1; d <= daysInMon; d++) {
             const ds = `${calYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const isToday = ds === todayStr;
-            const dot = eventDays.has(ds) ? '<span class="cal-mini-dot"></span>' : '';
+            const dotKind = eventDayKind.get(ds);
+            const dot = dotKind
+              ? `<span class="cal-mini-dot"${dotKind === 'gray' ? ' style="background:#94a3b8;"' : ''}></span>`
+              : '';
             // stopPropagation so the day click doesn't also trigger the
             // outer .cal-mini header handler.
             cellsHtml += `<div class="cal-mini-day ${isToday ? 'today' : ''}" onclick="event.stopPropagation();openMonthFromYear(${m}, '${ds}')">${d}${dot}</div>`;
@@ -5443,9 +5451,15 @@
                   timePrefix = t + ' · ';
                 } catch (err) { /* leave prefix empty */ }
               }
-              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#fff5f5;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:#2d3748;flex:1;min-width:0;" title="View details">&#128197; ${timePrefix}${e.title}</span>
-                <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:#ff6b6b;font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
+              // time_off events render muted (gray) with a 🚫 prefix so
+              // they're visually distinct from bookings and reminders.
+              const isTimeOff = e.event_type === 'time_off';
+              const rowBg = isTimeOff ? '#f1f5f9' : '#fff5f5';
+              const xColor = isTimeOff ? '#64748b' : '#ff6b6b';
+              const icon = isTimeOff ? '&#128683;' : '&#128197;';
+              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${rowBg};border-radius:8px;margin-bottom:6px;font-size:0.88em;">
+                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:#2d3748;flex:1;min-width:0;" title="View details">${icon} ${timePrefix}${e.title}</span>
+                <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:${xColor};font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
               </div>`;
             }).join('')
           : '<p style="color:#94a3b8;font-size:0.83em;">No events.</p>';
@@ -5478,6 +5492,7 @@
           ${tasksHtml}
           <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
             <button class="btn-primary" style="width:100%;" onclick="openAddEventOnDate('${dateStr}')">+ Add Event</button>
+            <button class="btn-secondary" style="width:100%;" onclick="openBlockOffTime('${dateStr}')">&#128683; Block off time</button>
             <button class="btn-secondary" style="width:100%;" onclick="openAddTaskOnDate('${dateStr}')">+ Add Task</button>
           </div>
         `;
@@ -5498,6 +5513,82 @@
         document.getElementById('nav-tasks').classList.add('active');
         document.getElementById('taskDueDate').value = dateStr;
         document.getElementById('taskTitle').focus();
+      }
+
+      // ---------- Block off time ----------
+      // Opens a modal to create a time_off event (whole day by default,
+      // or partial 2-4pm style). Posts to /api/calevents which knows the
+      // event_type + start_time/end_time schema and computes starts_at/
+      // ends_at in the workspace timezone.
+      function openBlockOffTime(dateStr) {
+        document.getElementById('blockOffDate').value = dateStr;
+        document.getElementById('blockOffWholeDay').checked = true;
+        document.getElementById('blockOffStart').value = '';
+        document.getElementById('blockOffEnd').value = '';
+        document.getElementById('blockOffLabel').value = '';
+        document.getElementById('blockOffError').textContent = '';
+        onBlockOffWholeDayChange();
+        document.getElementById('blockOffModal').style.display = 'flex';
+      }
+
+      function closeBlockOffModal() {
+        document.getElementById('blockOffModal').style.display = 'none';
+      }
+
+      function onBlockOffWholeDayChange() {
+        const whole = document.getElementById('blockOffWholeDay').checked;
+        const row = document.getElementById('blockOffTimeRow');
+        row.style.display = whole ? 'none' : 'flex';
+        document.getElementById('blockOffStart').disabled = whole;
+        document.getElementById('blockOffEnd').disabled = whole;
+      }
+
+      async function submitBlockOff() {
+        const date = document.getElementById('blockOffDate').value;
+        const whole = document.getElementById('blockOffWholeDay').checked;
+        const start_time = whole ? '' : document.getElementById('blockOffStart').value;
+        const end_time = whole ? '' : document.getElementById('blockOffEnd').value;
+        const title = (document.getElementById('blockOffLabel').value || '').trim() || 'Time off';
+        const errEl = document.getElementById('blockOffError');
+        errEl.textContent = '';
+
+        if (!date) { errEl.textContent = 'Pick a date.'; return; }
+        if (!whole && (!start_time || !end_time)) {
+          errEl.textContent = 'Enter both a start time and an end time (or check Whole day).';
+          return;
+        }
+        if (!whole && start_time >= end_time) {
+          errEl.textContent = 'End time must be after start time.';
+          return;
+        }
+
+        const body = { date, title, event_type: 'time_off' };
+        if (!whole) { body.start_time = start_time; body.end_time = end_time; }
+
+        const btn = document.getElementById('blockOffSaveBtn');
+        btn.disabled = true;
+        const originalLabel = btn.textContent;
+        btn.textContent = 'Saving...';
+        try {
+          const res = await fetch('/api/calevents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            errEl.textContent = j.error || `Save failed (HTTP ${res.status}).`;
+            return;
+          }
+          closeBlockOffModal();
+          await loadCalEvents();
+          if (selectedDate) renderDayDetail(selectedDate);
+        } catch (err) {
+          errEl.textContent = 'Network error — try again.';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalLabel;
+        }
       }
 
       async function deleteCalEvent(id) {
@@ -5591,7 +5682,13 @@
           if (dur) durLabel = dur + ' min';
         }
         const type = event.event_type || 'general';
-        const typeBadge = '<span style="display:inline-block;font-size:0.78em;padding:2px 8px;border-radius:10px;background:rgba(212,175,55,0.18);color:#d4af37;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:8px;">' + _calEscape(type) + '</span>';
+        // time_off gets a muted gray badge so it reads as "unavailable"
+        // rather than "gold accent" like normal event types.
+        const isTimeOff = type === 'time_off';
+        const badgeBg = isTimeOff ? 'rgba(148,163,184,0.22)' : 'rgba(212,175,55,0.18)';
+        const badgeFg = isTimeOff ? '#94a3b8' : '#d4af37';
+        const badgeLabel = isTimeOff ? 'time off' : type;
+        const typeBadge = '<span style="display:inline-block;font-size:0.78em;padding:2px 8px;border-radius:10px;background:' + badgeBg + ';color:' + badgeFg + ';font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:8px;">' + _calEscape(badgeLabel) + '</span>';
         const metaParts = [dateLabel, timeLabel, durLabel].filter(Boolean).map(_calEscape).join(' · ');
         document.getElementById('calEventDetailMeta').innerHTML = metaParts + typeBadge;
 
@@ -13131,6 +13228,43 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeEventModal()">Cancel</button>
         <button class="btn-primary" onclick="submitAddEvent()">Add Event</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block Off Time Modal -->
+  <div class="modal-overlay" id="blockOffModal" onclick="if(event.target===this)closeBlockOffModal()">
+    <div class="modal">
+      <h3>&#128683; Block off time</h3>
+      <p style="font-size:0.85em;color:#64748b;margin-bottom:14px;">Customers cannot be booked during blocked-off time.</p>
+
+      <label>Date</label>
+      <input type="date" id="blockOffDate" />
+
+      <label class="task-toggle" style="cursor:pointer;">
+        <input type="checkbox" id="blockOffWholeDay" checked onchange="onBlockOffWholeDayChange()" />
+        <span>Whole day</span>
+      </label>
+
+      <div id="blockOffTimeRow" style="display:none;gap:12px;">
+        <div style="flex:1;">
+          <label>Start</label>
+          <input type="time" id="blockOffStart" />
+        </div>
+        <div style="flex:1;">
+          <label>End</label>
+          <input type="time" id="blockOffEnd" />
+        </div>
+      </div>
+
+      <label>Label (optional)</label>
+      <input id="blockOffLabel" placeholder="Time off" />
+
+      <div id="blockOffError" style="color:#dc2626;font-size:0.85em;min-height:16px;margin-top:8px;"></div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeBlockOffModal()">Cancel</button>
+        <button class="btn-primary" id="blockOffSaveBtn" onclick="submitBlockOff()">Block off</button>
       </div>
     </div>
   </div>
