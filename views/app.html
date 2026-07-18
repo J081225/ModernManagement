@@ -6,7 +6,7 @@
     <title>Modern Management</title>
     <!-- PWA Stage A: manifest + theme color + iOS standalone hints -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ff6b6b">
+    <meta name="theme-color" content="#1a5f3f">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -353,7 +353,7 @@
       .inbox-folders { width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
       .folder-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 0.92em; color: var(--text-secondary); width: 100%; text-align: left; font-family: inherit; transition: background 0.15s; }
       .folder-btn:hover { background: #f0f4f8; }
-      .folder-btn.active { background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(255,142,83,0.1)); color: #ff6b6b; font-weight: 600; }
+      .folder-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
       .folder-count { margin-left: auto; background: #e74c3c; color: white; font-size: 0.7em; font-weight: 700; border-radius: 20px; padding: 1px 6px; }
       .inbox-list { flex: 1; min-width: 260px; overflow-y: auto; }
       .inbox-detail { flex: 2; overflow-y: auto; }
@@ -366,20 +366,20 @@
         margin-bottom: 2px;
       }
       .list-item:hover { background: #fff5f5; transform: translateX(2px); }
-      .list-item.selected { background: #fff5f5; border-left: 3px solid #ff6b6b; padding-left: 7px; }
+      .list-item.selected { background: var(--accent-soft); border-left: 3px solid var(--accent); padding-left: 7px; }
       .badge {
         font-size: 0.7em;
         color: white;
-        background: #ff6b6b;
+        background: var(--danger);
         border-radius: 20px;
         padding: 2px 9px;
         margin-left: 6px;
         font-weight: 600;
         letter-spacing: 0.3px;
       }
-      .badge.sent { background: linear-gradient(135deg, #27ae60, #2ecc71); }
-      .badge.in-progress { background: linear-gradient(135deg, #f39c12, #e67e22); }
-      .badge.new { background: linear-gradient(135deg, #ff6b6b, #ff8e53); }
+      .badge.sent { background: var(--success); }
+      .badge.in-progress { background: var(--warning); }
+      .badge.new { background: var(--danger); }
 
       /* Forms */
       textarea, input[type="text"], input:not([type="checkbox"]), select {
@@ -396,9 +396,9 @@
       }
       textarea:focus, input:focus, select:focus {
         outline: none;
-        border-color: #ff6b6b;
+        border-color: var(--accent);
         background: white;
-        box-shadow: 0 0 0 3px rgba(255,107,107,0.12);
+        box-shadow: 0 0 0 3px var(--accent-soft);
       }
       button {
         padding: 10px 18px;
@@ -448,12 +448,12 @@
         cursor: pointer;
         transition: all 0.15s;
       }
-      .cal-day:hover { border-color: #ff6b6b; background: #fff9f9; }
-      .cal-day.today { border-color: #ff6b6b; background: #fff5f5; }
-      .cal-day.selected { border-color: #ff6b6b; background: #fff5f5; box-shadow: 0 0 0 2px rgba(255,107,107,0.25); }
+      .cal-day:hover { border-color: var(--accent); background: var(--bg-hover); }
+      .cal-day.today { border-color: var(--accent); background: var(--accent-soft); }
+      .cal-day.selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-soft); }
       .cal-day.empty { background: #fafafa; border-color: #f0f0f0; cursor: default; pointer-events: none; }
       .cal-day-num { font-weight: 700; margin-bottom: 4px; color:var(--text-primary); font-size: 0.92em; }
-      .cal-day.today .cal-day-num { color: #ff6b6b; }
+      .cal-day.today .cal-day-num { color: var(--accent); }
       .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
       .cal-nav h3 { flex: 1; }
       .cal-nav select {
@@ -467,7 +467,7 @@
         cursor: pointer;
         font-weight: 600;
       }
-      .cal-nav select:focus { outline: none; border-color: #ff6b6b; box-shadow: 0 0 0 2px rgba(255,107,107,0.15); }
+      .cal-nav select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
       .cal-year-wrap {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -482,7 +482,7 @@
         cursor: pointer;
         transition: all 0.15s;
       }
-      .cal-mini:hover { border-color: #ff6b6b; background: #fff9f9; }
+      .cal-mini:hover { border-color: var(--accent); background: var(--bg-hover); }
       .cal-mini-head { font-weight: 700; color:var(--text-primary); font-size: 0.92em; margin-bottom: 6px; text-align: center; }
       .cal-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
       .cal-mini-dow { font-size: 0.62em; color:var(--text-muted); text-align: center; font-weight: 700; padding-bottom: 2px; }
@@ -496,7 +496,7 @@
         cursor: pointer;
       }
       .cal-mini-day.empty { color: transparent; cursor: default; }
-      .cal-mini-day.today { background: #fff5f5; color: #ff6b6b; font-weight: 700; }
+      .cal-mini-day.today { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
       .cal-mini-day:hover:not(.empty) { background: #fff9f9; }
       .cal-mini-dot {
         position: absolute;
@@ -505,7 +505,7 @@
         transform: translateX(-50%);
         width: 4px; height: 4px;
         border-radius: 50%;
-        background: linear-gradient(135deg,#ff6b6b,#ff8e53);
+        background: var(--accent);
       }
       .modal-overlay {
         display: none;
@@ -562,7 +562,7 @@
         width: 7px;
         height: 7px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        background: var(--accent);
         display: inline-block;
         animation: aiThinkDot 1.2s infinite;
       }
@@ -590,7 +590,7 @@
         display: inline-block;
         width: 2px;
         height: 1em;
-        background: #ff6b6b;
+        background: var(--accent);
         vertical-align: text-bottom;
         margin-left: 2px;
         animation: aiCursorBlink 0.9s infinite;
@@ -946,7 +946,7 @@
         font-family: 'Inter', sans-serif;
       }
       .plan-usage-stat-value-warn  { color: #fdba74; }
-      .plan-usage-stat-value-limit { color: #fca5a5; }
+      .plan-usage-stat-value-limit { color:var(--danger); }
       .plan-usage-features {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1236,7 +1236,7 @@
           0 8px 24px rgba(40,20,10,0.10),
           0 24px 56px -12px rgba(40,20,10,0.14) !important;
       }
-      #micBtn.listening { background:linear-gradient(135deg,#ff6b6b,#ff8e53) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px rgba(255,107,107,0.2); animation:micPulse 1.2s infinite; }
+      #micBtn.listening { background:var(--danger) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px var(--danger-soft); animation:micPulse 1.2s infinite; }
       .modal h3 { font-size: 1.1em; font-weight: 700; color: #080f1e; margin-bottom: 20px; }
       .modal label { font-size: 0.83em; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px; }
       .modal .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
@@ -1254,9 +1254,9 @@
       }
       .task-toggle:has(input:checked) {
         background: #fff5f5;
-        border-color: #ff6b6b;
+        border-color: var(--accent);
       }
-      .task-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #ff6b6b; }
+      .task-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
       .task-toggle span { font-size: 0.88em; font-weight: 500; color: #334155; }
       pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; font-size: 0.9em; }
 
@@ -1274,7 +1274,7 @@
         gap: 14px;
       }
       .contact-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.09); transform: translateY(-2px); }
-      .contact-card.selected { border-color: #ff6b6b; box-shadow: 0 0 0 3px rgba(255,107,107,0.15); }
+      .contact-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
       .contact-avatar {
         width: 46px; height: 46px;
         border-radius: 50%;
@@ -1282,8 +1282,8 @@
         font-size: 1.1em; font-weight: 700; color: white;
         flex-shrink: 0;
       }
-      .avatar-resident { background: linear-gradient(135deg, #ff6b6b, #ff8e53); }
-      .avatar-vendor   { background: linear-gradient(135deg, #667eea, #764ba2); }
+      .avatar-resident { background: var(--accent-soft); color: var(--accent); }
+      .avatar-vendor   { background: var(--accent-soft); color: var(--accent); }
       .avatar-important { background: linear-gradient(135deg, #f093fb, #f5576c); }
       .contact-info { flex: 1; min-width: 0; }
       .contact-name { font-weight: 600; font-size: 0.93em; color:var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1292,8 +1292,8 @@
         font-size: 0.68em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
         padding: 2px 8px; border-radius: 20px; flex-shrink: 0;
       }
-      .tag-resident { background: #fff5f5; color: #ff6b6b; }
-      .tag-vendor { background: #f0ecff; color: #764ba2; }
+      .tag-resident { background: var(--accent-soft); color: var(--accent); }
+      .tag-vendor { background: var(--accent-soft); color: var(--accent); }
       .tag-important { background: #fdf0ff; color: #c026d3; }
       .lease-badge {
         font-size: 0.68em; font-weight: 700; padding: 2px 7px; border-radius: 20px;
@@ -1334,7 +1334,7 @@
         margin-top: 1px;
       }
       .task-check:hover { border-color: #4a90e2; background: #eef4ff; }
-      .task-check.checked { background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-color: transparent; color: white; font-size: 0.75em; }
+      .task-check.checked { background: var(--accent); border-color: transparent; color: white; font-size: 0.75em; }
       .task-body { flex: 1; }
       .task-title { font-size: 0.92em; font-weight: 600; color:var(--text-primary); margin-bottom: 3px; }
       .task-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
@@ -1369,7 +1369,7 @@
       .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
       .week-task .wt-date { font-size: 0.75em; color:var(--text-muted); margin-top: 2px; }
       .ob-step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); transition: all 0.2s; }
-      .ob-step-dot.active { background: linear-gradient(135deg, #ff6b6b, #ff8e53); width: 24px; border-radius: 4px; }
+      .ob-step-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
 
       /* ── Mobile hamburger button ── */
       #hamburger-btn {
@@ -2000,13 +2000,13 @@
                 onkeydown="if(event.key==='Enter')submitHomeCommand()" />
               <button id="micBtn" onclick="toggleDictation()" title="Click to speak"
                 style="width:48px;height:48px;border-radius:10px;border:1.5px solid #e8dcd2;background:#fffefb;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
-                onmouseover="if(!window.micActive)this.style.borderColor='#ff6b6b'" onmouseout="if(!window.micActive)this.style.borderColor='#e8dcd2'">
+                onmouseover="if(!window.micActive)this.style.borderColor='var(--accent)'" onmouseout="if(!window.micActive)this.style.borderColor='var(--border-strong)'">
                 &#127908;
               </button>
               <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:var(--accent);border:none;color:var(--text-on-accent);font-weight:600;">Send &#9654;</button>
             </div>
-            <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:#ff6b6b;align-items:center;gap:7px;position:relative;">
-              <span style="width:8px;height:8px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
+            <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:var(--danger);align-items:center;gap:7px;position:relative;">
+              <span style="width:8px;height:8px;background:var(--danger);border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
               <span id="micStatusText">Listening... speak now</span>
             </div>
             <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:var(--text-primary);line-height:1.65;position:relative;"></div>
@@ -2314,13 +2314,13 @@
                 <button onclick="backToPathPicker()" class="btn-secondary" style="font-size:0.8em;padding:4px 10px;margin-bottom:12px;">← Back</button>
                 <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 1: Create a new Gmail</h3>
                 <ol style="font-size:0.88em;color:var(--text-secondary);line-height:1.75;margin-left:22px;margin-bottom:14px;">
-                  <li>Open <a href="https://accounts.google.com/signup" target="_blank" style="color:#ff6b6b;">accounts.google.com/signup</a></li>
+                  <li>Open <a href="https://accounts.google.com/signup" target="_blank" style="color:var(--accent);">accounts.google.com/signup</a></li>
                   <li>Use a property-focused name like <code>sunsetapartmentsmgr@gmail.com</code></li>
                   <li>Set a strong password and enable 2-Step Verification</li>
                 </ol>
                 <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 2: Generate an app password</h3>
                 <ol style="font-size:0.88em;color:var(--text-secondary);line-height:1.75;margin-left:22px;margin-bottom:14px;">
-                  <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:#ff6b6b;">myaccount.google.com/apppasswords</a></li>
+                  <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent);">myaccount.google.com/apppasswords</a></li>
                   <li>Create a new app password named "Modern Management"</li>
                   <li>Copy the 16-character password Google shows you</li>
                 </ol>
@@ -4186,7 +4186,7 @@
               <div style="color:#666;font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
             <div style="display:flex;gap:2px;flex-shrink:0;">
-              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#ccc'">&#128451;</button>` : ''}
+              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#128451;</button>` : ''}
               ${folder === 'deleted' ? `<button onclick="moveMessage(${msg.id},'inbox')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Restore" onmouseover="this.style.color='#27ae60'" onmouseout="this.style.color='#ccc'">&#8617;</button>` : ''}
               ${folder === 'deleted' ? `<button onclick="permanentDelete(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete Forever" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#10006;</button>` : `<button onclick="moveMessage(${msg.id},'deleted')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>`}
             </div>
@@ -4265,7 +4265,7 @@
             ? ` This message was flagged: <b>${kws.map(k => k.replace(/[<>&]/g, '')).join(', ')}</b>.`
             : ' This message was flagged.';
           emergencyBanner = `
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fee2e2;border:1px solid var(--danger);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
               <div style="flex:1;color:#7f1d1d;font-size:0.92em;line-height:1.45;">
                 &#128680;${kwText}
               </div>
@@ -4290,8 +4290,8 @@
           <div style="margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn-primary" onclick="generateDraft()">&#10024; Generate AI Draft</button>
             ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
-            ${msg.email && msg.category === 'email' ? `<button class="btn-primary" style="background:linear-gradient(135deg,#667eea,#764ba2);" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
-            ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:#f0f4ff;color:#667eea;border-color:#667eea;">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:#f0fff4;color:#27ae60;border-color:#27ae60;">&#8617; Move to Inbox</button>`}
+            ${msg.email && msg.category === 'email' ? `<button class="btn-primary" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
+            ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:var(--accent-soft);color:var(--accent);border-color:var(--accent);">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:var(--success-soft);color:var(--success);border-color:var(--success);">&#8617; Move to Inbox</button>`}
             ${msg.folder !== 'deleted' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'deleted')" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#128465; Delete</button>` : `<button class="btn-secondary" onclick="permanentDelete(${msg.id})" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#10006; Delete Forever</button>`}
           </div>
           <div id='draftArea'></div>
@@ -4304,7 +4304,7 @@
             `<div style="background:#f4f6f9;border-radius:8px;padding:14px;margin-bottom:8px;">
               <textarea id="draftText-${d.id}" style="width:100%;min-height:180px;font-family:inherit;font-size:0.9em;padding:10px;border:1px solid #ddd;border-radius:6px;resize:vertical;box-sizing:border-box;">${d.content}</textarea>
               <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-primary" onclick="sendDraft(${d.id})" style="background:linear-gradient(135deg,#ff6b6b,#ff8e53);">&#9993; Send Reply</button>
+                <button class="btn-primary" onclick="sendDraft(${d.id})">&#9993; Send Reply</button>
                 <button class="btn-secondary" onclick="copyDraft(${d.id})">&#128203; Copy</button>
               </div>
               <div style="margin-top:6px;font-size:0.8em;color:#aaa;">Status: ${d.status}</div>
@@ -4747,7 +4747,7 @@
         list.innerHTML = docs.map(d => {
           const preview = (d.content || '').slice(0, 180).replace(/</g, '&lt;');
           const more = (d.content || '').length > 180 ? '…' : '';
-          const typeColor = d.type === 'uploaded' ? '#667eea' : d.type === 'procedure' ? '#f59e0b' : '#ff6b6b';
+          const typeColor = d.type === 'uploaded' ? 'var(--info)' : d.type === 'procedure' ? 'var(--warning)' : 'var(--accent)';
           return `<div style="border-bottom:1px solid #eee;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
             <div style="flex:1;min-width:0;">
               <div style="font-weight:700;color:var(--text-primary);font-size:0.95em;">${d.title}
@@ -4968,7 +4968,7 @@
           const dayTasks = tasks.filter(t => !t.done && t.dueDate === dateStr);
           const dotHtml = (dayEvents.length || dayTasks.length)
             ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
-                ${dayEvents.map((ev) => `<div style="width:6px;height:6px;border-radius:50%;background:${ev.event_type === 'time_off' ? 'var(--text-muted)' : 'linear-gradient(135deg,#ff6b6b,#ff8e53)'};"></div>`).join('')}
+                ${dayEvents.map((ev) => `<div style="width:6px;height:6px;border-radius:50%;background:${ev.event_type === 'time_off' ? 'var(--text-muted)' : 'var(--accent)'};"></div>`).join('')}
                 ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#7b5ea7,#6c63d4);"></div>`).join('')}
               </div>`
             : '';
@@ -5078,7 +5078,7 @@
               // they're visually distinct from bookings and reminders.
               const isTimeOff = e.event_type === 'time_off';
               const rowBg = isTimeOff ? '#f1f5f9' : '#fff5f5';
-              const xColor = isTimeOff ? 'var(--text-muted)' : '#ff6b6b';
+              const xColor = isTimeOff ? 'var(--text-muted)' : 'var(--danger)';
               const icon = isTimeOff ? '&#128683;' : '&#128197;';
               return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${rowBg};border-radius:8px;margin-bottom:6px;font-size:0.88em;">
                 <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:var(--text-primary);flex:1;min-width:0;" title="View details">${icon} ${timePrefix}${e.title}</span>
@@ -5277,7 +5277,7 @@
         } catch (err) {
           console.error('[openCalEventDetail]', err);
           if (metaEl) metaEl.textContent = '';
-          if (bodyEl) bodyEl.innerHTML = '<div style="color:#fca5a5;padding:12px;">Could not load event: ' + _calEscape(err.message || err) + '</div>';
+          if (bodyEl) bodyEl.innerHTML = '<div style="color:var(--danger);padding:12px;">Could not load event: ' + _calEscape(err.message || err) + '</div>';
         }
       }
 
@@ -5358,7 +5358,7 @@
         document.getElementById('calEventDetailActions').innerHTML =
           editBtn
           + '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
-          + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
+          + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:var(--danger);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
           + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
       }
 
@@ -5418,7 +5418,7 @@
             + '<label for="calEditPrice" style="' + labelStyle + '">Price ($) — leave blank to keep unchanged</label>'
             + '<input type="number" id="calEditPrice" step="0.01" min="0" placeholder="0.00" value="' + _calEscape(priceDollars) + '" style="' + inputStyle + '">'
           + '</div>'
-          + '<div id="calEditError" style="font-size:0.85em;color:#fca5a5;margin-top:6px;min-height:1em;"></div>';
+          + '<div id="calEditError" style="font-size:0.85em;color:var(--danger);margin-top:6px;min-height:1em;"></div>';
 
         document.getElementById('calEventDetailActions').innerHTML =
           '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
@@ -5586,7 +5586,7 @@
           <div style="flex:1;min-width:130px;padding:12px 16px;background:${overdue.length ? '#fff1f0' : '#fffbeb'};border:1px solid ${overdue.length ? '#fecaca' : '#fde68a'};border-radius:10px;">
             <div style="font-size:0.72em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};text-transform:uppercase;letter-spacing:0.5px;">Outstanding</div>
             <div style="font-size:1.3em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};margin-top:4px;">$${totalOutstanding.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
-            <div style="font-size:0.75em;color:#fca5a5;margin-top:2px;">${overdue.length ? overdue.length + ' overdue' : pending.length + ' pending'}</div>
+            <div style="font-size:0.75em;color:var(--danger);margin-top:2px;">${overdue.length ? overdue.length + ' overdue' : pending.length + ' pending'}</div>
           </div>`;
 
         tbody.innerHTML = enriched.map(r => {
@@ -5789,7 +5789,7 @@
             <div style="font-size:1.55em;font-weight:800;color:#c0392b;">-$${totalExpense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
           <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f0f4ff,#e1eaff);border:1px solid #b8caff;border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:#667eea;letter-spacing:1px;margin-bottom:5px;">NET BALANCE</div>
+            <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">NET BALANCE</div>
             <div style="font-size:1.55em;font-weight:800;color:${netColor};">${netBalance >= 0 ? '+' : ''}$${netBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
           <div style="flex:1;min-width:140px;background:#f4f6f9;border:1px solid #dde3ec;border-radius:10px;padding:16px;text-align:center;">
@@ -6035,7 +6035,7 @@
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
                   <button onclick="approveTask(${t.id})" style="background:#27ae60;color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Approve</button>
-                  <button onclick="rejectTask(${t.id})" style="background:none;color:#e74c3c;border:1px solid #fca5a5;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
+                  <button onclick="rejectTask(${t.id})" style="background:none;color:#e74c3c;border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
                 </div>
               </div>`;
           }).join('');
@@ -6126,7 +6126,7 @@
           <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='resolved';renderMaintenance()">
             <div class="stat-num" style="color:#27ae60;">${resolved}</div><div class="stat-label">Resolved</div>
           </div>
-          ${emgCount ? `<div class="stat-chip" style="background:#fef2f2;border-color:#fca5a5;cursor:pointer;" onclick="document.getElementById('maintFilter').value='emergency';renderMaintenance()">
+          ${emgCount ? `<div class="stat-chip" style="background:#fef2f2;border-color:var(--danger);cursor:pointer;" onclick="document.getElementById('maintFilter').value='emergency';renderMaintenance()">
             <div class="stat-num" style="color:#dc2626;">${emgCount}</div><div class="stat-label" style="color:#dc2626;">Emergency</div>
           </div>` : ''}
           ${needsAction ? `<div class="stat-chip" style="background:#fff7ed;border-color:#fed7aa;">
@@ -6178,7 +6178,7 @@
                   </select>
                   <button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Update / Resolve</button>
                 ` : `<button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Edit</button>`}
-                <button onclick="deleteMaintTicket(${t.id})" style="background:none;border:1px solid #fca5a5;color:#e74c3c;border-radius:7px;padding:7px 10px;font-size:0.82em;cursor:pointer;font-family:inherit;">&#128465; Delete</button>
+                <button onclick="deleteMaintTicket(${t.id})" style="background:none;border:1px solid var(--danger);color:#e74c3c;border-radius:7px;padding:7px 10px;font-size:0.82em;cursor:pointer;font-family:inherit;">&#128465; Delete</button>
               </div>
             </div>
           </div>`;
@@ -7513,7 +7513,7 @@
         setTimeout(() => {
           const toast = document.createElement('div');
           toast.innerHTML = '&#11088; You\'re now on Pro! All features are unlocked.';
-          toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:0.95em;z-index:9999;box-shadow:0 8px 30px rgba(255,107,107,0.4);';
+          toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:14px 28px;border-radius:12px;font-weight:700;font-size:0.95em;z-index:9999;box-shadow:var(--shadow-popup);';
           document.body.appendChild(toast);
           setTimeout(() => toast.remove(), 5000);
         }, 800);
@@ -7551,11 +7551,11 @@
         const counter = document.getElementById('bc-sms-counter');
 
         emailBtn.style.borderColor = ch === 'email' ? 'var(--accent)' : 'var(--border-strong)';
-        emailBtn.style.background = ch === 'email' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
-        emailBtn.style.color = ch === 'email' ? '#ff6b6b' : 'var(--text-muted)';
+        emailBtn.style.background = ch === 'email' ? 'var(--accent-soft)' : 'var(--bg-sunken)';
+        emailBtn.style.color = ch === 'email' ? 'var(--accent)' : 'var(--text-muted)';
         smsBtn.style.borderColor = ch === 'sms' ? 'var(--accent)' : 'var(--border-strong)';
-        smsBtn.style.background = ch === 'sms' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
-        smsBtn.style.color = ch === 'sms' ? '#ff6b6b' : 'var(--text-muted)';
+        smsBtn.style.background = ch === 'sms' ? 'var(--accent-soft)' : 'var(--bg-sunken)';
+        smsBtn.style.color = ch === 'sms' ? 'var(--accent)' : 'var(--text-muted)';
         subjectRow.style.display = ch === 'email' ? '' : 'none';
         counter.style.display = ch === 'sms' ? 'block' : 'none';
         updateBroadcastPreview();
@@ -7632,7 +7632,7 @@
         } else {
           resultEl.style.display = 'block';
           resultEl.style.background = '#fef2f2';
-          resultEl.style.border = '1px solid #fca5a5';
+          resultEl.style.border = '1px solid var(--danger)';
           resultEl.style.color = '#991b1b';
           resultEl.textContent = 'Something went wrong. Please try again.';
           sendBtn.disabled = false;
@@ -7935,7 +7935,7 @@
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
                   <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
-                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
+                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
                 </div>
               </div>
             </div>
@@ -7990,7 +7990,7 @@
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0;">
                   <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
-                  <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
+                  <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
                 </div>
               </div>
             </div>
@@ -7998,7 +7998,7 @@
         } catch (err) {
           console.error('[loadApprovalQueue]', err);
           card.style.display = '';
-          list.innerHTML = '<div style="color:#fca5a5;padding:14px;">Failed to load pending actions.</div>';
+          list.innerHTML = '<div style="color:var(--danger);padding:14px;">Failed to load pending actions.</div>';
         }
       }
 
@@ -8126,7 +8126,7 @@
             chip.style.opacity = '';
             chip.style.background = 'rgba(248,113,113,0.10)';
             chip.style.borderColor = 'rgba(248,113,113,0.3)';
-            chip.innerHTML = `<div style="color:#fca5a5;font-weight:600;font-size:0.9em;">&times; Rejected</div>`;
+            chip.innerHTML = `<div style="color:var(--danger);font-weight:600;font-size:0.9em;">&times; Rejected</div>`;
           }
           if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
         } catch (err) {
@@ -8486,8 +8486,8 @@
         btn.innerHTML = '&#9203; Generating...';
         output.style.display = 'block';
         output.innerHTML = `
-          <div style="display:flex;align-items:center;gap:12px;padding:20px;color:#667eea;">
-            <div style="width:20px;height:20px;border:2px solid #667eea;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:20px;color:var(--accent);">
+            <div style="width:20px;height:20px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
             <span style="font-size:0.92em;">Analyzing your property data and generating insights...</span>
           </div>`;
 
@@ -8524,27 +8524,27 @@
           const formatted = (data.report || '')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/^#{1,3} (.+)$/gm, '<div class="report-section-head">$1</div>')
-            .replace(/^(\d+)\. /gm, '<span style="font-weight:700;color:#667eea;">$1.</span> ')
-            .replace(/^[-•] /gm, '<span style="color:#667eea;margin-right:4px;">▸</span>')
+            .replace(/^(\d+)\. /gm, '<span style="font-weight:700;color:var(--accent);">$1.</span> ')
+            .replace(/^[-•] /gm, '<span style="color:var(--accent);margin-right:4px;">▸</span>')
             .replace(/\n{2,}/g, '</p><p style="margin-bottom:10px;">')
             .replace(/\n/g, '<br>');
 
           output.innerHTML = `
-            <div style="border-top:2px solid #667eea;padding-top:18px;">
+            <div style="border-top:2px solid var(--accent);padding-top:18px;">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
                 <div>
                   <div style="font-size:1.05em;font-weight:700;color:#1a2e4a;">Property Management Report</div>
                   <div style="font-size:0.8em;color:var(--text-muted);margin-top:2px;">${dateStr}</div>
                 </div>
                 <div style="display:flex;gap:8px;">
-                  <span style="background:#eef2ff;color:#667eea;border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshTasks.filter(t=>!t.done).length} open tasks</span>
+                  <span style="background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshTasks.filter(t=>!t.done).length} open tasks</span>
                   <span style="background:#fef3f2;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshMessages.filter(m=>m.status==='new').length} new messages</span>
                   <span style="background:${income-expenses>=0?'#f0fdf4':'#fef3f2'};color:${income-expenses>=0?'#27ae60':'#e74c3c'};border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${income-expenses>=0?'+':''}\$${(income-expenses).toLocaleString('en-US',{minimumFractionDigits:2})} balance</span>
                 </div>
               </div>
               <div style="font-size:0.91em;color:var(--text-primary);line-height:1.75;">
                 <style>
-                  .report-section-head { font-size:0.82em;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid #eef2ff; }
+                  .report-section-head { font-size:0.82em;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border); }
                 </style>
                 <p style="margin-bottom:10px;">${formatted}</p>
               </div>
@@ -8947,7 +8947,7 @@
           const rateLabel = unitCount === 0 ? '&nbsp;' : `${rate}% occupied`;
 
           return `
-            <div class="card" data-property-id="${e.id}" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
+            <div class="card" data-property-id="${e.id}" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='var(--shadow-popup)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
               <div style="font-weight:700;color:var(--text-primary);font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:var(--text-muted);>(unnamed)</span>'}</div>
               <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
               <div style="display:flex;gap:14px;font-size:0.82em;color:var(--text-secondary);flex-wrap:wrap;">
@@ -9060,7 +9060,7 @@
 
         // Update breadcrumb with back-link
         document.getElementById('inventoryBreadcrumb').innerHTML =
-          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:var(--accent);text-decoration:none;font-weight:600;">Properties</a>' +
           ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
           '<span style="color:var(--text-primary);">' + (escapeHtmlInv(entity.name) || '(unnamed)') + '</span>';
 
@@ -9639,9 +9639,9 @@
 
         // Breadcrumb: Properties > [Property] > [Unit]
         document.getElementById('inventoryBreadcrumb').innerHTML =
-          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+          '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:var(--accent);text-decoration:none;font-weight:600;">Properties</a>' +
           ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
-          '<a href="#" onclick="event.preventDefault();openPropertyDetail(' + entity.id + ');" style="color:#ff6b6b;text-decoration:none;font-weight:600;">' +
+          '<a href="#" onclick="event.preventDefault();openPropertyDetail(' + entity.id + ');" style="color:var(--accent);text-decoration:none;font-weight:600;">' +
             (escapeHtmlInv(entity.name) || '(unnamed)') +
           '</a>' +
           ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
@@ -9789,7 +9789,7 @@
             </div>
             <div style="color:var(--text-muted);font-size:0.92em;margin-bottom:24px;">
               in
-              <a href="#" onclick="event.preventDefault();openPropertyDetail(${entity.id});" style="color:#ff6b6b;text-decoration:none;font-weight:600;">
+              <a href="#" onclick="event.preventDefault();openPropertyDetail(${entity.id});" style="color:var(--accent);text-decoration:none;font-weight:600;">
                 ${escapeHtmlInv(entity.name) || '(unnamed)'}
               </a>
             </div>
@@ -10246,7 +10246,7 @@
 
           // Refresh the breadcrumb (name may have changed)
           document.getElementById('inventoryBreadcrumb').innerHTML =
-            '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
+            '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:var(--accent);text-decoration:none;font-weight:600;">Properties</a>' +
             ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
             '<span style="color:var(--text-primary);">' + (escapeHtmlInv(body.name) || '(unnamed)') + '</span>';
         } catch (err) {
@@ -10597,7 +10597,7 @@
         } else if (status === 'restricted') {
           badge.textContent = 'Needs more info';
           badge.style.background = 'rgba(248,113,113,0.15)';
-          badge.style.color = '#fca5a5';
+          badge.style.color = 'var(--danger)';
           subtitle.textContent = 'Stripe needs more information before you can accept card payments.';
           btn.textContent = 'Finish setting up card payments';
         } else if (status === 'pending') {
@@ -10740,7 +10740,7 @@
 
         try {
           const r = await fetch('/api/transactions?' + params.toString(), { credentials: 'include' });
-          if (!r.ok) { list.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load transactions.</div>'; return; }
+          if (!r.ok) { list.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load transactions.</div>'; return; }
           const data = await r.json();
           const txs = Array.isArray(data.transactions) ? data.transactions : [];
           if (txs.length === 0) {
@@ -10767,7 +10767,7 @@
               </div>`;
           }).join('');
         } catch (e) {
-          list.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load transactions.</div>';
+          list.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load transactions.</div>';
         }
       }
 
@@ -10897,7 +10897,7 @@
             ? `<button onclick="requestPaymentLink(${tx.id}, 'payment')" class="btn-secondary" style="font-size:0.85em;color:#86efac;border-color:rgba(134,239,172,0.4);">Request payment</button>`
             : '',
           canVoid
-            ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fca5a5;border-color:rgba(239,68,68,0.4);">Void</button>`
+            ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--danger);border-color:rgba(239,68,68,0.4);">Void</button>`
             : '',
           `<button onclick="closeTxDetailModal()" class="btn-primary" style="font-size:0.85em;">Close</button>`,
         ].filter(Boolean).join('');
@@ -11105,7 +11105,7 @@
           console.error('[my-business] load failed:', err);
           if (status) {
             status.textContent = 'Could not load: ' + (err.message || err);
-            status.style.color = '#fca5a5';
+            status.style.color = 'var(--danger)';
           }
         }
         // Also load the Services + Products grids, the AI-settings
@@ -11156,7 +11156,7 @@
           console.error('[my-business] save failed:', err);
           if (status) {
             status.textContent = 'Save failed: ' + (err.message || err);
-            status.style.color = '#fca5a5';
+            status.style.color = 'var(--danger)';
           }
         }
       }
@@ -11170,7 +11170,7 @@
 
       const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9em;';
       const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid rgba(148,163,184,0.12);vertical-align:middle;';
-      const _MB_REMOVE_STYLE = 'background:transparent;color:#fca5a5;border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
+      const _MB_REMOVE_STYLE = 'background:transparent;color:var(--danger);border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
 
       function _mbEsc(v) {
         return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -11232,7 +11232,7 @@
           }
         } catch (err) {
           console.error('[my-business services] load failed:', err);
-          tbody.innerHTML = `<tr><td colspan="4" style="color:#fca5a5;padding:14px;">Could not load services.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="4" style="color:var(--danger);padding:14px;">Could not load services.</td></tr>`;
         }
       }
 
@@ -11252,7 +11252,7 @@
           }
         } catch (err) {
           console.error('[my-business products] load failed:', err);
-          tbody.innerHTML = `<tr><td colspan="3" style="color:#fca5a5;padding:14px;">Could not load products.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="3" style="color:var(--danger);padding:14px;">Could not load products.</td></tr>`;
         }
       }
 
@@ -11306,7 +11306,7 @@
           await reload();
         } catch (err) {
           console.error('[my-business remove] failed:', err);
-          _mbSetStatus(statusId, 'Remove failed: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus(statusId, 'Remove failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11367,7 +11367,7 @@
           await mbLoadServices();
         } catch (err) {
           console.error('[my-business services] save failed:', err);
-          _mbSetStatus('mbServicesStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbServicesStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11420,7 +11420,7 @@
           await mbLoadProducts();
         } catch (err) {
           console.error('[my-business products] save failed:', err);
-          _mbSetStatus('mbProductsStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbProductsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11450,7 +11450,7 @@
           if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
         } catch (err) {
           console.error('[my-business ai-settings] load failed:', err);
-          _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11491,7 +11491,7 @@
           _mbSetStatus('mbAISettingsStatus', 'Saved!', '#86efac');
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);
-          _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11529,7 +11529,7 @@
           if (yelpRow)    mbYelpReviewId    = yelpRow.id;
         } catch (err) {
           console.error('[my-business growth] load failed:', err);
-          _mbSetStatus('mbGrowthStatus', 'Could not load: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbGrowthStatus', 'Could not load: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11559,7 +11559,7 @@
           await mbLoadGrowth();
         } catch (err) {
           console.error('[my-business growth] save failed:', err);
-          _mbSetStatus('mbGrowthStatus', 'Save failed: ' + (err.message || err), '#fca5a5');
+          _mbSetStatus('mbGrowthStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 
@@ -11587,7 +11587,7 @@
         if (q) params.set('q', q);
         try {
           const r = await fetch('/api/menu-items?' + params.toString(), { credentials: 'include' });
-          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          if (!r.ok) { el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>'; return; }
           const data = await r.json();
           const items = Array.isArray(data.menu_items) ? data.menu_items : [];
           if (items.length === 0) {
@@ -11610,7 +11610,7 @@
             </div>`;
           }).join('');
         } catch (e) {
-          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+          el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>';
         }
       }
 
@@ -11776,7 +11776,7 @@
         if (status) params.set('status', status);
         try {
           const r = await fetch('/api/inventory-items?' + params.toString(), { credentials: 'include' });
-          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          if (!r.ok) { el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>'; return; }
           const data = await r.json();
           const items = data.inventory_items || [];
           if (items.length === 0) {
@@ -11799,7 +11799,7 @@
             </div>`;
           }).join('');
         } catch (e) {
-          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+          el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>';
         }
       }
 
@@ -11928,7 +11928,7 @@
         if (q) params.set('q', q);
         try {
           const r = await fetch('/api/vendors?' + params.toString(), { credentials: 'include' });
-          if (!r.ok) { el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>'; return; }
+          if (!r.ok) { el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>'; return; }
           const data = await r.json();
           const vendors = data.vendors || [];
           if (vendors.length === 0) {
@@ -11940,12 +11940,12 @@
             const note = v.notes ? `<div style="color:var(--text-muted);font-size:0.82em;margin-top:4px;">${escapeHtmlForChip(v.notes.slice(0, 120))}${v.notes.length > 120 ? '…' : ''}</div>` : '';
             return `<div onclick="openVendorModal(${v.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;">
               <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(v.name)}</div>
-              <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${contactBits || '<em style="color:#fca5a5;">no contact info</em>'}</div>
+              <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${contactBits || '<em style="color:var(--danger);">no contact info</em>'}</div>
               ${note}
             </div>`;
           }).join('');
         } catch (e) {
-          el.innerHTML = '<div style="color:#fca5a5;padding:20px;">Failed to load.</div>';
+          el.innerHTML = '<div style="color:var(--danger);padding:20px;">Failed to load.</div>';
         }
       }
 
@@ -12989,7 +12989,7 @@
     <div class="modal" style="width:520px;max-width:96vw;">
 
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
-        <div style="width:38px;height:38px;background:linear-gradient(135deg,#ff6b6b,#ff8e53);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1em;flex-shrink:0;">&#128226;</div>
+        <div style="width:38px;height:38px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1em;flex-shrink:0;">&#128226;</div>
         <div>
           <h3 style="margin:0;font-size:1.05em;">Send Broadcast</h3>
           <div style="font-size:0.78em;color:var(--text-muted);margin-top:2px;">Send an email or SMS to a group of contacts at once</div>
@@ -12999,7 +12999,7 @@
       <!-- Channel selector -->
       <div style="display:flex;gap:10px;margin-bottom:16px;">
         <button id="bc-ch-email" onclick="setBroadcastChannel('email')"
-          style="flex:1;padding:10px;border-radius:10px;border:2px solid #ff6b6b;background:rgba(255,107,107,0.08);color:#ff6b6b;font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
           &#9993; Email
         </button>
         <button id="bc-ch-sms" onclick="setBroadcastChannel('sms')"
