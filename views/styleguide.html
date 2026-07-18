@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Management — Style Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    /* Demo scaffolding ONLY — layout for the guide itself plus static
+       replicas of interactive states (hover, focus, open modal). None
+       of these classes are part of the design system. */
+    body { background: var(--bg-page); margin: 0; padding: var(--space-6); }
+    .sg-wrap { max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-6); }
+    .sg-section-title { font-size: 22px; font-weight: 600; margin-bottom: var(--space-4); }
+    .sg-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+    .sg-stack { display: flex; flex-direction: column; gap: var(--space-4); }
+    .sg-note { font-size: 12px; color: var(--text-muted); }
+
+    .sg-swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+    .sg-swatch { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg-surface); }
+    .sg-swatch-chip { height: 48px; }
+    .sg-swatch-meta { padding: var(--space-2); font-size: 12px; }
+    .sg-swatch-meta strong { display: block; font-weight: 500; color: var(--text-primary); }
+    .sg-swatch-meta span { color: var(--text-muted); }
+
+    .sg-space-bar { height: 16px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 3px; }
+    .sg-space-row { display: flex; align-items: center; gap: var(--space-3); font-size: 13px; color: var(--text-secondary); }
+    .sg-space-row code { width: 90px; }
+
+    /* Static replicas of hover states (mirror the :hover rules). */
+    .demo-hover.mm-btn-primary { background: var(--accent-hover); }
+    .demo-hover.mm-btn-secondary { background: var(--bg-hover); }
+    .demo-hover.mm-btn-danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+    .demo-hover.mm-btn-ghost { background: var(--bg-hover); color: var(--text-primary); }
+    /* Static replica of the input focus state. */
+    .demo-focus.mm-input { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    /* Render the modal inline instead of fixed over the viewport. */
+    .demo-modal-frame .mm-modal-overlay { position: static; border-radius: var(--radius-md); }
+  </style>
+</head>
+<body>
+  <div class="sg-wrap">
+
+    <header>
+      <h1 style="font-size:28px;font-weight:600;margin:0 0 4px;">Design System — Phase 1</h1>
+      <p class="sg-note">Light mode. Everything on this page is built only from public/css/design-system.css.</p>
+    </header>
+
+    <!-- ================= COLORS ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Color tokens</div>
+      <div class="sg-swatch-grid">
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--bg-page);"></div><div class="sg-swatch-meta"><strong>--bg-page</strong><span>#f6f7f9</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--bg-surface);"></div><div class="sg-swatch-meta"><strong>--bg-surface</strong><span>#ffffff</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--bg-sunken);"></div><div class="sg-swatch-meta"><strong>--bg-sunken</strong><span>#eef0f3</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--bg-hover);"></div><div class="sg-swatch-meta"><strong>--bg-hover</strong><span>#f3f4f6</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--text-primary);"></div><div class="sg-swatch-meta"><strong>--text-primary</strong><span>#1f2937</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--text-secondary);"></div><div class="sg-swatch-meta"><strong>--text-secondary</strong><span>#4b5563</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--text-muted);"></div><div class="sg-swatch-meta"><strong>--text-muted</strong><span>#6b7280</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--text-on-accent);border-bottom:1px solid var(--border);"></div><div class="sg-swatch-meta"><strong>--text-on-accent</strong><span>#ffffff</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--border);"></div><div class="sg-swatch-meta"><strong>--border</strong><span>#e3e7ec</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--border-strong);"></div><div class="sg-swatch-meta"><strong>--border-strong</strong><span>#c9d0d9</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--accent);"></div><div class="sg-swatch-meta"><strong>--accent</strong><span>#1a5f3f</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--accent-hover);"></div><div class="sg-swatch-meta"><strong>--accent-hover</strong><span>#14492f</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--accent-soft);"></div><div class="sg-swatch-meta"><strong>--accent-soft</strong><span>#e8f2ed</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--success);"></div><div class="sg-swatch-meta"><strong>--success</strong><span>#15803d</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--success-soft);"></div><div class="sg-swatch-meta"><strong>--success-soft</strong><span>#eaf7ef</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--warning);"></div><div class="sg-swatch-meta"><strong>--warning</strong><span>#b45309</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--warning-soft);"></div><div class="sg-swatch-meta"><strong>--warning-soft</strong><span>#fdf3e3</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--danger);"></div><div class="sg-swatch-meta"><strong>--danger</strong><span>#b91c1c</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--danger-soft);"></div><div class="sg-swatch-meta"><strong>--danger-soft</strong><span>#fdecec</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--info);"></div><div class="sg-swatch-meta"><strong>--info</strong><span>#1d4ed8</span></div></div>
+        <div class="sg-swatch"><div class="sg-swatch-chip" style="background:var(--info-soft);"></div><div class="sg-swatch-meta"><strong>--info-soft</strong><span>#eaf0fd</span></div></div>
+      </div>
+    </section>
+
+    <!-- ================= TYPE SCALE ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Type scale</div>
+      <div class="sg-stack">
+        <div style="font-size:28px;font-weight:600;">28px / 600 — Page title</div>
+        <div style="font-size:22px;font-weight:600;">22px / 600 — Section title</div>
+        <div style="font-size:18px;font-weight:600;">18px / 600 — Subsection title</div>
+        <div style="font-size:16px;font-weight:600;">16px / 600 — Card title</div>
+        <div style="font-size:14px;font-weight:400;">14px / 400 — Body text (default)</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text-secondary);">13px / 500 — Label / table header</div>
+        <div style="font-size:12px;font-weight:400;color:var(--text-muted);">12px / 400 — Hint / badge / caption</div>
+      </div>
+    </section>
+
+    <!-- ================= SPACING ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Spacing scale</div>
+      <div class="sg-stack">
+        <div class="sg-space-row"><code>--space-1 4px</code><div class="sg-space-bar" style="width:4px;"></div></div>
+        <div class="sg-space-row"><code>--space-2 8px</code><div class="sg-space-bar" style="width:8px;"></div></div>
+        <div class="sg-space-row"><code>--space-3 12px</code><div class="sg-space-bar" style="width:12px;"></div></div>
+        <div class="sg-space-row"><code>--space-4 16px</code><div class="sg-space-bar" style="width:16px;"></div></div>
+        <div class="sg-space-row"><code>--space-5 24px</code><div class="sg-space-bar" style="width:24px;"></div></div>
+        <div class="sg-space-row"><code>--space-6 32px</code><div class="sg-space-bar" style="width:32px;"></div></div>
+        <div class="sg-space-row"><code>--space-7 48px</code><div class="sg-space-bar" style="width:48px;"></div></div>
+      </div>
+    </section>
+
+    <!-- ================= BUTTONS ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Buttons</div>
+      <div class="sg-stack">
+        <div>
+          <p class="sg-note" style="margin:0 0 8px;">Default</p>
+          <div class="sg-row">
+            <button class="mm-btn mm-btn-primary">Primary</button>
+            <button class="mm-btn mm-btn-secondary">Secondary</button>
+            <button class="mm-btn mm-btn-danger">Danger</button>
+            <button class="mm-btn mm-btn-ghost">Ghost</button>
+            <button class="mm-btn mm-btn-primary mm-btn-sm">Small primary</button>
+            <button class="mm-btn mm-btn-secondary mm-btn-sm">Small secondary</button>
+          </div>
+        </div>
+        <div>
+          <p class="sg-note" style="margin:0 0 8px;">Hover (static replica)</p>
+          <div class="sg-row">
+            <button class="mm-btn mm-btn-primary demo-hover">Primary</button>
+            <button class="mm-btn mm-btn-secondary demo-hover">Secondary</button>
+            <button class="mm-btn mm-btn-danger demo-hover">Danger</button>
+            <button class="mm-btn mm-btn-ghost demo-hover">Ghost</button>
+          </div>
+        </div>
+        <div>
+          <p class="sg-note" style="margin:0 0 8px;">Disabled</p>
+          <div class="sg-row">
+            <button class="mm-btn mm-btn-primary" disabled>Primary</button>
+            <button class="mm-btn mm-btn-secondary" disabled>Secondary</button>
+            <button class="mm-btn mm-btn-danger" disabled>Danger</button>
+            <button class="mm-btn mm-btn-ghost" disabled>Ghost</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FORM FIELDS ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Form fields</div>
+      <div class="sg-stack" style="max-width:420px;">
+        <div>
+          <label class="mm-label" for="sgDefault">Client name</label>
+          <input class="mm-input" id="sgDefault" placeholder="e.g. Bella Kim">
+          <div class="mm-field-hint">Default state with label and hint.</div>
+        </div>
+        <div>
+          <label class="mm-label" for="sgFocus">Client name (focus — static replica)</label>
+          <input class="mm-input demo-focus" id="sgFocus" value="Bella Kim">
+          <div class="mm-field-hint">Accent border plus soft accent ring.</div>
+        </div>
+        <div>
+          <label class="mm-label" for="sgError">Email</label>
+          <input class="mm-input mm-invalid" id="sgError" value="not-an-email">
+          <div class="mm-field-error">Enter a valid email address.</div>
+        </div>
+        <div>
+          <label class="mm-label" for="sgSelect">Service</label>
+          <select class="mm-select" id="sgSelect">
+            <option>Full Groom</option>
+            <option>Bath &amp; Brush</option>
+            <option>Nail Trim</option>
+          </select>
+        </div>
+        <div>
+          <label class="mm-label" for="sgTextarea">Notes</label>
+          <textarea class="mm-textarea" id="sgTextarea" placeholder="Anything the groomer should know?"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CARD + TABLE ================= -->
+    <section class="mm-card">
+      <div class="mm-card-header">
+        <div class="mm-card-title">Today's appointments</div>
+        <button class="mm-btn mm-btn-primary mm-btn-sm">+ New appointment</button>
+      </div>
+      <table class="mm-table">
+        <thead>
+          <tr><th>Client</th><th>Service</th><th>Time</th><th>Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Bella (Golden Retriever)</td><td>Full Groom</td><td>9:00 AM</td><td>$85.00</td><td><span class="mm-badge mm-badge-success">Confirmed</span></td></tr>
+          <tr><td>Max (Schnauzer)</td><td>Bath &amp; Brush</td><td>10:30 AM</td><td>$45.00</td><td><span class="mm-badge mm-badge-warning">Pending</span></td></tr>
+          <tr><td>Luna (Maine Coon)</td><td>De-shed Treatment</td><td>1:00 PM</td><td>$60.00</td><td><span class="mm-badge mm-badge-info">Rescheduled</span></td></tr>
+          <tr><td>Charlie (Beagle)</td><td>Nail Trim</td><td>3:15 PM</td><td>$18.00</td><td><span class="mm-badge mm-badge-danger">Canceled</span></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ================= TABS ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Tabs</div>
+      <div class="mm-tabs">
+        <button class="mm-tab active">Appointments</button>
+        <button class="mm-tab">Clients</button>
+        <button class="mm-tab">Services</button>
+        <button class="mm-tab">Invoices</button>
+      </div>
+    </section>
+
+    <!-- ================= BADGES ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Badges</div>
+      <div class="sg-row">
+        <span class="mm-badge mm-badge-success">Success</span>
+        <span class="mm-badge mm-badge-warning">Warning</span>
+        <span class="mm-badge mm-badge-danger">Danger</span>
+        <span class="mm-badge mm-badge-info">Info</span>
+        <span class="mm-badge mm-badge-neutral">Neutral</span>
+      </div>
+    </section>
+
+    <!-- ================= BANNERS ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Banners</div>
+      <div class="sg-stack">
+        <div class="mm-banner mm-banner-success">Appointment confirmed and the client has been texted.</div>
+        <div class="mm-banner mm-banner-warning">Your Twilio number is not verified yet — texts may be delayed.</div>
+        <div class="mm-banner mm-banner-danger">Payment failed. The card on file was declined.</div>
+        <div class="mm-banner mm-banner-info">A new AI conversation is waiting for your review.</div>
+        <div class="mm-banner mm-banner-neutral">This view only shows appointments from the last 90 days.</div>
+      </div>
+    </section>
+
+    <!-- ================= MODAL (static) ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Modal (rendered statically)</div>
+      <div class="demo-modal-frame">
+        <div class="mm-modal-overlay">
+          <div class="mm-modal">
+            <div class="mm-modal-header">Cancel appointment?</div>
+            <p style="margin:0;color:var(--text-secondary);">Bella's Full Groom at 9:00 AM will be canceled and the client will be notified by text.</p>
+            <div class="mm-modal-footer">
+              <button class="mm-btn mm-btn-secondary">Keep it</button>
+              <button class="mm-btn mm-btn-danger">Cancel appointment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EMPTY STATE ================= -->
+    <section class="mm-card">
+      <div class="sg-section-title">Empty state</div>
+      <div class="mm-empty">
+        <div class="mm-empty-icon">&#128197;</div>
+        <div class="mm-empty-title">No appointments yet</div>
+        <div class="mm-empty-text">When a client books, their appointment will show up here.</div>
+        <div class="mm-empty-action"><button class="mm-btn mm-btn-primary">+ New appointment</button></div>
+      </div>
+    </section>
+
+  </div>
+</body>
+</html>

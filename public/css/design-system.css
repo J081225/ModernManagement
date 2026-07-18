@@ -1,0 +1,373 @@
+/* ============================================================
+   Modern Management — Design System (Phase 1, light mode)
+   ------------------------------------------------------------
+   Type scale:   12 / 13 / 14 / 16 / 18 / 22 / 28 px
+   Weights:      400 (regular) / 500 (medium) / 600 (semibold)
+   Family:       Inter (with system fallbacks)
+   Body default: 14px / 400 / var(--text-primary)
+
+   Rules for this file:
+   - zero !important
+   - no raw color values outside :root (two literals below are
+     explicitly specified by the component spec and noted inline)
+   - all padding/margin/gap from the --space scale unless the
+     component spec names an exact off-scale number (noted inline)
+   - every class is prefixed mm- so nothing collides with the
+     legacy styles in app.html / features.css
+   ============================================================ */
+
+:root {
+  --bg-page: #f6f7f9;
+  --bg-surface: #ffffff;
+  --bg-sunken: #eef0f3;
+  --bg-hover: #f3f4f6;
+
+  --text-primary: #1f2937;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-on-accent: #ffffff;
+
+  --border: #e3e7ec;
+  --border-strong: #c9d0d9;
+
+  --accent: #1a5f3f;
+  --accent-hover: #14492f;
+  --accent-soft: #e8f2ed;
+
+  --success: #15803d;
+  --success-soft: #eaf7ef;
+  --warning: #b45309;
+  --warning-soft: #fdf3e3;
+  --danger: #b91c1c;
+  --danger-soft: #fdecec;
+  --info: #1d4ed8;
+  --info-soft: #eaf0fd;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-popup: 0 8px 24px rgba(16, 24, 40, 0.12);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+}
+
+/* Base: body typography defaults so a page loading only this file
+   renders the system's default text style. */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------
+   Buttons — one base class, four intents, one small size.
+   ------------------------------------------------------------ */
+.mm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  text-decoration: none;
+}
+.mm-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mm-btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.mm-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.mm-btn-secondary {
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+.mm-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.mm-btn-danger {
+  background: var(--danger);
+  color: var(--text-on-accent);
+}
+.mm-btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.mm-btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.mm-btn-ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.mm-btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------
+   Form fields — inputs, selects, textareas share one frame;
+   labels, hints, and errors are their companion text styles.
+   ------------------------------------------------------------ */
+.mm-input,
+.mm-select,
+.mm-textarea {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.mm-input:focus,
+.mm-select:focus,
+.mm-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.mm-input.mm-invalid,
+.mm-select.mm-invalid,
+.mm-textarea.mm-invalid {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.mm-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.mm-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+.mm-field-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+.mm-field-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin-top: var(--space-1);
+}
+
+/* ------------------------------------------------------------
+   Cards — the standard content container.
+   ------------------------------------------------------------ */
+.mm-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+}
+.mm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.mm-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------
+   Modals — dimmed overlay plus a centered surface panel.
+   ------------------------------------------------------------ */
+.mm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  /* Overlay scrim color is specified literally by the component
+     spec; the token set deliberately has no overlay token. */
+  background: rgba(16, 24, 40, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+.mm-modal {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  padding: var(--space-5);
+  width: 100%;
+  max-width: 480px;
+}
+.mm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mm-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+/* ------------------------------------------------------------
+   Tables — flat data table with a sunken header row.
+   ------------------------------------------------------------ */
+.mm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.mm-table th {
+  background: var(--bg-sunken);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: left;
+  /* 10px vertical cell padding is the component spec's exact
+     number; it sits between --space-2 and --space-3. */
+  padding: 10px var(--space-3);
+}
+.mm-table td {
+  padding: 10px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.mm-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+/* ------------------------------------------------------------
+   Tabs — transparent buttons with an accent underline on the
+   active tab.
+   ------------------------------------------------------------ */
+.mm-tabs {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.mm-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-2) var(--space-1);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.mm-tab:hover {
+  color: var(--text-secondary);
+}
+.mm-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mm-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+/* ------------------------------------------------------------
+   Badges — one pill shape, five semantic tints.
+   ------------------------------------------------------------ */
+.mm-badge {
+  display: inline-flex;
+  align-items: center;
+  /* 3px 10px is the component spec's exact pill padding. */
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.mm-badge-success { background: var(--success-soft); color: var(--success); }
+.mm-badge-warning { background: var(--warning-soft); color: var(--warning); }
+.mm-badge-danger  { background: var(--danger-soft);  color: var(--danger); }
+.mm-badge-info    { background: var(--info-soft);    color: var(--info); }
+.mm-badge-neutral { background: var(--bg-sunken);    color: var(--text-secondary); }
+
+/* ------------------------------------------------------------
+   Banners — full-width notice bars, same five semantic tints.
+   ------------------------------------------------------------ */
+.mm-banner {
+  display: block;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.mm-banner-success { background: var(--success-soft); color: var(--success); }
+.mm-banner-warning { background: var(--warning-soft); color: var(--warning); }
+.mm-banner-danger  { background: var(--danger-soft);  color: var(--danger); }
+.mm-banner-info    { background: var(--info-soft);    color: var(--info); }
+.mm-banner-neutral { background: var(--bg-sunken);    color: var(--text-secondary); }
+
+/* ------------------------------------------------------------
+   Empty states — centered block for "nothing here yet" screens.
+   ------------------------------------------------------------ */
+.mm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+}
+.mm-empty-icon {
+  font-size: 28px;
+  margin-bottom: var(--space-1);
+}
+.mm-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mm-empty-text {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.mm-empty-action {
+  margin-top: var(--space-3);
+}

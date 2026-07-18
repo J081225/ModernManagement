@@ -411,6 +411,9 @@ app.get('/reset-password', (_req, res) => {
 app.get('/workspace', requireAuthPage, (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'app.html'));
 });
+app.get('/styleguide', requireAuthPage, (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'styleguide.html'));
+});
 
 // --- Marketing sub-pages ---
 app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-consent.html')));
