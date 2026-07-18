@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-title" content="Modern Mgmt">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;1,400;1,500;1,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/design-system.css">
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,48 +22,40 @@
         display: flex;
         min-height: 100vh;
         height: auto;
-        background:
-          radial-gradient(ellipse 70% 55% at 88% 5%, rgba(212,175,55,0.16) 0%, transparent 55%),
-          radial-gradient(ellipse 60% 45% at 12% 95%, rgba(45,134,89,0.18) 0%, transparent 55%),
-          radial-gradient(ellipse 50% 40% at 50% 50%, rgba(26,95,63,0.08) 0%, transparent 70%),
-          linear-gradient(180deg, #0f1c2e 0%, #14253a 50%, #0a1a28 100%);
-        background-attachment: fixed;
-        color: #e2e8f0;
+        background: var(--bg-page);
+        color: var(--text-primary);
       }
-      html { background: #0f1c2e; }
+      html { background: var(--bg-page); }
 
       /* Sidebar */
       #sidebar {
         width: 250px;
-        background: #2d3748;
-        color: white;
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        border-right: 1px solid var(--border);
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        box-shadow: 4px 0 30px rgba(0,0,0,0.18);
+        box-shadow: var(--shadow-card);
         position: relative;
         overflow: hidden;
       }
-      #sidebar::before {
-        content: '';
-        position: absolute;
-        top: -80px; left: -80px;
-        width: 260px; height: 260px;
-        background: radial-gradient(circle, rgba(255,107,107,0.15) 0%, transparent 70%);
-        pointer-events: none;
-      }
       #sidebar .logo {
         padding: 30px 22px 24px;
-        border-bottom: 1px solid rgba(255,255,255,0.08);
+        border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
         gap: 13px;
         position: relative;
       }
+      /* Logo tile. Explicit padding/font-size guard against the
+         design-system .mm-badge pill styles, which share this
+         legacy markup class name. */
       #sidebar .logo .mm-badge {
         width: 44px;
         height: 44px;
-        background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+        padding: 0;
+        background: var(--accent);
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -71,18 +63,17 @@
         font-size: 1.05em;
         font-weight: 800;
         letter-spacing: -1px;
-        color: white;
+        color: var(--text-on-accent);
         flex-shrink: 0;
-        box-shadow: 0 6px 20px rgba(255,107,107,0.5), inset 0 1px 0 rgba(255,255,255,0.2);
       }
       #sidebar .logo .logo-text { display: flex; flex-direction: column; line-height: 1.25; }
-      #sidebar .logo .logo-text span:first-child { font-size: 0.97em; font-weight: 700; color: white; letter-spacing: 0.1px; }
-      #sidebar .logo .logo-text span:last-child { font-size: 0.68em; color: rgba(255,255,255,0.35); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
+      #sidebar .logo .logo-text span:first-child { font-size: 0.97em; font-weight: 700; color: var(--text-primary); letter-spacing: 0.1px; }
+      #sidebar .logo .logo-text span:last-child { font-size: 0.68em; color: var(--text-muted); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
 
       #sidebar nav { display: flex; flex-direction: column; padding: 16px 12px; gap: 3px; }
-      #sidebar .nav-label { font-size: 0.62em; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 1.5px; padding: 10px 10px 4px; font-weight: 600; }
+      #sidebar .nav-label { font-size: 0.62em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; padding: 10px 10px 4px; font-weight: 600; }
       #sidebar nav a {
-        color: rgba(255,255,255,0.55);
+        color: var(--text-secondary);
         text-decoration: none;
         padding: 11px 14px;
         font-size: 0.87em;
@@ -94,37 +85,35 @@
         gap: 11px;
         position: relative;
       }
-      #sidebar nav a:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
+      #sidebar nav a:hover { background: var(--bg-hover); color: var(--text-primary); }
       #sidebar nav a.active {
-        background: linear-gradient(135deg, rgba(255,107,107,0.25), rgba(255,142,83,0.15));
-        color: white;
-        border: 1px solid rgba(255,107,107,0.3);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        background: var(--accent-soft);
+        color: var(--accent);
       }
       #sidebar nav a .nav-icon { font-size: 1.05em; width: 20px; text-align: center; }
 
       #sidebar .sidebar-footer {
         margin-top: auto;
         padding: 16px 22px;
-        border-top: 1px solid rgba(255,255,255,0.06);
+        border-top: 1px solid var(--border);
         font-size: 0.72em;
-        color: rgba(255,255,255,0.2);
+        color: var(--text-muted);
       }
 
       /* Main content */
       #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
       #topbar {
-        background: white;
+        background: var(--bg-surface);
         padding: 0 32px;
         height: 62px;
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid var(--border);
         font-size: 1.05em;
         font-weight: 600;
-        color: #2d3748;
+        color: var(--text-primary);
         display: flex;
         align-items: center;
         gap: 12px;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+        box-shadow: var(--shadow-card);
       }
       #topbar-icon { font-size: 1.1em; }
       #topbar-title { flex: 1; }
@@ -147,30 +136,19 @@
 
       /* Cards */
       .card {
-        background:
-          linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
-        backdrop-filter: blur(24px) saturate(140%);
-        -webkit-backdrop-filter: blur(24px) saturate(140%);
-        border-radius: 18px;
-        border: 1px solid rgba(212,175,55,0.22);
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
         padding: 28px 32px;
         margin-bottom: 64px;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.06),
-          0 1px 2px rgba(0,0,0,0.30),
-          0 12px 32px rgba(0,0,0,0.40),
-          0 36px 72px -16px rgba(0,0,0,0.55);
+        box-shadow: var(--shadow-card);
         transition: box-shadow 0.35s ease, border-color 0.35s ease, transform 0.35s ease;
         position: relative;
-        color: #e2e8f0;
+        color: var(--text-primary);
       }
       .card:hover {
-        border-color: rgba(212,175,55,0.42);
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.08),
-          0 1px 2px rgba(0,0,0,0.30),
-          0 18px 44px rgba(212,175,55,0.16),
-          0 48px 96px -20px rgba(0,0,0,0.60);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-popup);
       }
       /* ============================================================
          Card-internal header system
@@ -221,7 +199,7 @@
       }
       .card-head-titles { flex: 1; min-width: 0; }
       .card-head-title {
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
         font-size: 1.4em;
         color: #f5e6d3;
@@ -739,7 +717,7 @@
         50% { background-position: 100% 50%; }
       }
       .hero-title {
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
         font-size: 1.4em;
         color: #f5e6d3;
@@ -754,7 +732,7 @@
         font-weight: 400;
       }
       .display-banner-title {
-        font-family: 'Playfair Display', serif !important;
+        font-family: 'Inter', sans-serif;
         font-weight: 700 !important;
         font-size: 2.8em !important;
         letter-spacing: -1.2px !important;
@@ -862,7 +840,7 @@
       }
       #reportDetailModal #reportDetailTitle {
         color: #f5e6d3;
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
       }
       #reportDetailModal #reportDetailMeta {
@@ -892,7 +870,7 @@
         letter-spacing: 0.5px;
         text-transform: uppercase;
         margin-left: 12px;
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
       }
       .plan-badge-trial {
         background: rgba(212, 175, 55, 0.15);
@@ -1007,7 +985,7 @@
       .plan-usage-stat-value {
         font-size: 18px;
         color: #f5e6d3;
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
       }
       .plan-usage-stat-value-warn  { color: #fdba74; }
       .plan-usage-stat-value-limit { color: #fca5a5; }
@@ -1059,7 +1037,7 @@
       }
       .upgrade-prompt-title {
         margin: 0 0 12px;
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
         font-size: 20px;
         color: #f5e6d3;
       }
@@ -1095,130 +1073,6 @@
       .ai-action-chip .chip-check { background: #2d8659; }
       .ai-action-chip-warn .chip-check { background: #d4af37; }
       .ai-actions-row { border-top-color: rgba(212,175,55,0.22) !important; }
-      /* Topbar: navy glass with gold accent */
-      #topbar {
-        background: linear-gradient(180deg, rgba(15,28,46,0.80) 0%, rgba(10,20,32,0.80) 100%) !important;
-        backdrop-filter: blur(24px) saturate(140%) !important;
-        -webkit-backdrop-filter: blur(24px) saturate(140%) !important;
-        border-bottom: 1px solid rgba(212,175,55,0.22) !important;
-        color: #f5e6d3 !important;
-        box-shadow: 0 4px 32px rgba(0,0,0,0.50) !important;
-      }
-      #topbar-time {
-        background: rgba(212,175,55,0.16) !important;
-        color: #f5e6d3 !important;
-        font-weight: 500 !important;
-        border: 1px solid rgba(212,175,55,0.30);
-      }
-      #topbar h2, #topbar > div { color: #f5e6d3 !important; }
-      #topbar button {
-        color: #cbd5e1;
-      }
-      #topbar button:hover {
-        color: #f5e6d3;
-      }
-      /* Sidebar — deep navy + forest green/gold accents */
-      #sidebar {
-        background: linear-gradient(180deg, #0a1828 0%, #061220 100%) !important;
-        border-right: 1px solid rgba(212,175,55,0.18) !important;
-        box-shadow:
-          inset -1px 0 0 rgba(255,255,255,0.02),
-          4px 0 32px rgba(0,0,0,0.50) !important;
-        position: relative;
-      }
-      #sidebar::after {
-        content: '';
-        position: absolute;
-        top: 10%;
-        right: 0;
-        bottom: 10%;
-        width: 1px;
-        background: linear-gradient(180deg,
-          transparent 0%,
-          rgba(212,175,55,0.50) 50%,
-          transparent 100%);
-        pointer-events: none;
-      }
-      /* Sidebar logo block */
-      #sidebar > div:first-child {
-        border-bottom: 1px solid rgba(212,175,55,0.18) !important;
-      }
-      #sidebar > div:first-child > div:nth-child(2) > div:first-child {
-        font-family: 'Fraunces', serif !important;
-        font-weight: 600 !important;
-        letter-spacing: -0.3px !important;
-        color: #f5e6d3 !important;
-      }
-      #sidebar > div:first-child > div:nth-child(2) > div:nth-child(2) {
-        color: #d4af37 !important;
-        font-size: 0.65em !important;
-        letter-spacing: 2px !important;
-        font-weight: 600 !important;
-      }
-      /* Sidebar logo MM tile — forest to gold gradient */
-      #sidebar > div:first-child > div:first-child {
-        background: linear-gradient(135deg, var(--accent) 0%, #2d8659 50%, #d4af37 100%) !important;
-        box-shadow:
-          0 4px 16px rgba(212,175,55,0.40),
-          inset 0 1px 0 rgba(255,255,255,0.20) !important;
-      }
-      /* WORKSPACE label */
-      #sidebar nav > div:first-child {
-        color: #d4af37 !important;
-        font-family: 'Inter', sans-serif !important;
-        font-size: 0.62em !important;
-        letter-spacing: 2.4px !important;
-        font-weight: 700 !important;
-        opacity: 0.95;
-      }
-      /* Nav items */
-      #sidebar nav a {
-        color: #cbd5e1 !important;
-        font-family: 'Inter', sans-serif !important;
-        border-radius: 10px !important;
-        margin-bottom: 2px !important;
-        transition: all 0.2s ease !important;
-        position: relative;
-        overflow: hidden;
-      }
-      #sidebar nav a:hover {
-        background: rgba(212,175,55,0.10) !important;
-        color: #f5e6d3 !important;
-      }
-      /* Active nav item with gold/forest gradient indicator */
-      #sidebar nav a.active,
-      #sidebar nav a[style*="background"] {
-        background: linear-gradient(90deg,
-          rgba(212,175,55,0.20) 0%,
-          rgba(45,134,89,0.10) 100%) !important;
-        color: #f5e6d3 !important;
-        font-weight: 600 !important;
-        position: relative;
-      }
-      #sidebar nav a.active::before,
-      #sidebar nav a[style*="background"]::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 6px;
-        bottom: 6px;
-        width: 3px;
-        background: linear-gradient(180deg, #d4af37 0%, #2d8659 100%);
-        border-radius: 0 3px 3px 0;
-        box-shadow: 0 0 12px rgba(212,175,55,0.65);
-      }
-      /* Tasks badge "10" pill */
-      #sidebar nav a span[style*="background:#ef4444"],
-      #sidebar nav a span[style*="background: #ef4444"] {
-        background: linear-gradient(135deg, #d4af37 0%, #2d8659 100%) !important;
-        box-shadow: 0 2px 8px rgba(212,175,55,0.45) !important;
-        color: #0a1828 !important;
-      }
-      /* Sidebar footer */
-      #sidebar > div:last-child {
-        border-top: 1px solid rgba(212,175,55,0.18) !important;
-        color: #94a3b8 !important;
-      }
       /* Lease expirations card list items adapt */
       #leaseExpirationsList { color: #cbd5e1; }
 
@@ -1272,7 +1126,7 @@
         flex: 1;
       }
       .page-hero-title {
-        font-family: 'Playfair Display', serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 700;
         font-size: 2.6em;
         letter-spacing: -1.2px;
@@ -1325,7 +1179,7 @@
         align-self: center !important;
       }
       .section-label .accent {
-        font-family: 'Playfair Display', serif !important;
+        font-family: 'Inter', sans-serif;
         font-style: italic !important;
         font-weight: 400 !important;
         text-transform: none !important;
@@ -1335,97 +1189,43 @@
         margin-left: 2px !important;
       }
 
-      /* Card spacing */
-      .card { margin-bottom: 64px !important; }
 
       /* Page width */
       .page { width: 100%; }
 
-      /* Hero card variant: thin gradient strip across top, more padding */
-      @keyframes heroShimmer {
-        0% { background-position: 0% 50%; }
-        100% { background-position: 200% 50%; }
-      }
+      /* Hero card variant: more padding */
       .card-hero {
         position: relative;
         padding: 32px 34px;
         overflow: hidden;
       }
-      .card-hero::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--accent) 0%, #2d8659 25%, #d4af37 50%, #2d8659 75%, var(--accent) 100%);
-        background-size: 200% 100%;
-        animation: heroShimmer 9s linear infinite;
-      }
-      .card-hero::after {
-        content: '';
-        position: absolute;
-        top: -100px;
-        right: -100px;
-        width: 320px;
-        height: 320px;
-        background: radial-gradient(circle, rgba(212,175,55,0.16) 0%, rgba(45,134,89,0.10) 40%, transparent 70%);
-        pointer-events: none;
-      }
 
       /* Stat tile refinement (smaller cards in the Overview zone) */
       .stat-tile {
-        background: linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
-        backdrop-filter: blur(20px) saturate(140%);
-        -webkit-backdrop-filter: blur(20px) saturate(140%);
-        border-radius: 16px;
-        border: 1px solid rgba(212,175,55,0.22);
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
         padding: 22px 24px;
         cursor: pointer;
         transition: all 0.35s ease;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.05),
-          0 1px 2px rgba(0,0,0,0.25),
-          0 8px 22px rgba(0,0,0,0.35),
-          0 24px 48px -16px rgba(0,0,0,0.45);
+        box-shadow: var(--shadow-card);
         position: relative;
         overflow: hidden;
       }
-      .stat-tile::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent 0%, rgba(212,175,55,0.55) 50%, transparent 100%);
-        opacity: 0;
-        transition: opacity 0.35s ease;
-      }
       .stat-tile:hover {
-        transform: translateY(-3px);
-        border-color: rgba(212,175,55,0.45);
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.08),
-          0 1px 2px rgba(0,0,0,0.25),
-          0 14px 32px rgba(212,175,55,0.18),
-          0 36px 64px -16px rgba(45,134,89,0.18);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-popup);
       }
-      .stat-tile:hover::before { opacity: 1; }
       .stat-tile-icon {
         font-size: 1.5em;
         margin-bottom: 10px;
         opacity: 0.85;
-        filter: drop-shadow(0 0 8px rgba(212,175,55,0.35));
       }
       .stat-tile-num {
-        font-family: 'Playfair Display', serif;
+        font-family: 'Inter', sans-serif;
         font-size: 2.7em;
         font-weight: 700;
-        background: linear-gradient(135deg, #ffffff 0%, #d4af37 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: var(--text-primary);
         line-height: 1;
         letter-spacing: -1.2px;
       }
@@ -1441,52 +1241,27 @@
 
       /* Quick-access tile (the bottom grid: Inbox, Operations, etc.) */
       .quick-tile {
-        background: linear-gradient(180deg, rgba(20,38,58,0.60) 0%, rgba(15,28,46,0.60) 100%);
-        backdrop-filter: blur(20px) saturate(140%);
-        -webkit-backdrop-filter: blur(20px) saturate(140%);
-        border-radius: 16px;
-        border: 1px solid rgba(212,175,55,0.22);
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
         padding: 24px 24px;
         cursor: pointer;
         transition: all 0.35s ease;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.05),
-          0 1px 2px rgba(0,0,0,0.25),
-          0 8px 22px rgba(0,0,0,0.35),
-          0 24px 48px -16px rgba(0,0,0,0.45);
+        box-shadow: var(--shadow-card);
         position: relative;
         overflow: hidden;
       }
-      .quick-tile::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: 3px;
-        background: linear-gradient(180deg, var(--accent) 0%, #2d8659 50%, #d4af37 100%);
-        transform: scaleY(0);
-        transform-origin: top;
-        transition: transform 0.35s ease;
-      }
       .quick-tile:hover {
-        transform: translateY(-3px);
-        border-color: rgba(212,175,55,0.45);
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.08),
-          0 1px 2px rgba(0,0,0,0.25),
-          0 14px 32px rgba(212,175,55,0.18),
-          0 36px 64px -16px rgba(45,134,89,0.16);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-popup);
       }
-      .quick-tile:hover::before { transform: scaleY(1); }
       .quick-tile-icon {
         font-size: 1.6em;
         margin-bottom: 12px;
         opacity: 0.9;
-        filter: drop-shadow(0 0 8px rgba(212,175,55,0.35));
       }
       .quick-tile-title {
-        font-family: 'Fraunces', serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
         color: #f5e6d3;
         font-size: 1.22em;
@@ -1546,7 +1321,7 @@
       }
       .task-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #ff6b6b; }
       .task-toggle span { font-size: 0.88em; font-weight: 500; color: #334155; }
-      pre { white-space: pre-wrap; font-family: Arial, sans-serif; font-size: 0.9em; }
+      pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; font-size: 0.9em; }
 
       /* Contacts */
       .contact-card {
@@ -2182,7 +1957,7 @@
         <div class="nav-label">Workspace</div>
         <a href="#" class="active" onclick="showPage('home', '&#127968;', this)" id="nav-home"><span class="nav-icon">&#127968;</span> Home</a>
         <a href="#" id="nav-my-business" onclick="showPage('my-business', '&#127978;', this)"><span class="nav-icon">&#127978;</span> My Business</a>
-        <a href="#" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+        <a href="#" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:var(--danger);color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <a href="#" id="nav-operations" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" id="nav-calendar" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
@@ -2192,12 +1967,12 @@
         <a href="#" id="nav-menu" onclick="showPage('menu', '&#127860;', this)" style="display:none;"><span class="nav-icon">&#127860;</span> Services &amp; Products</a>
         <a href="#" id="nav-inventory-ps" onclick="showPage('inventory-ps', '&#128230;', this)" style="display:none;"><span class="nav-icon">&#128230;</span> Inventory</a>
         <!-- E6: PM-only — hidden by applyVerticalVisibility() for PS workspaces. -->
-        <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance" class="nav-pm-only"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+        <a href="#" onclick="showPage('maintenance', '&#128295;', this)" id="nav-maintenance" class="nav-pm-only"><span class="nav-icon">&#128295;</span> Maintenance <span id="maint-alert-badge" style="display:none;background:var(--danger);color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
         <!-- E6: nav-contacts label is "Contacts" for PM, swapped to "Customers" for PS by applyVerticalLabels(). -->
         <a href="#" id="nav-contacts" onclick="showPage('contacts', '&#128100;', this)"><span class="nav-icon">&#128100;</span> <span id="nav-contacts-label">Contacts</span></a>
         <!-- E6: PM-only — hidden by applyVerticalVisibility() for PS workspaces. -->
         <a href="#" onclick="showPage('inventory', '&#127970;', this)" id="nav-inventory" class="nav-pm-only"><span class="nav-icon">&#127970;</span> Inventory</a>
-        <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:#e74c3c;color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
+        <a href="#" onclick="showPage('tasks', '&#10003;', this)" id="nav-tasks"><span class="nav-icon">&#10003;</span> Tasks <span id="task-alert-badge" style="display:none;background:var(--danger);color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
       </nav>
       <div class="sidebar-footer">Modern Management &copy; 2026</div>
     </div>
@@ -2210,7 +1985,7 @@
         <span id="topbar-title">Inbox</span>
         <span class="topbar-chip" id="topbar-time"></span>
         <span id="planBadge" class="plan-badge" style="display:none;"><span class="plan-badge-label">—</span></span>
-        <a href="/api/logout" style="margin-left:12px;font-size:0.78em;font-weight:600;color:#94a3b8;text-decoration:none;padding:5px 12px;border:1px solid #e2e8f0;border-radius:6px;transition:all 0.2s;" onmouseover="this.style.color='#e74c3c';this.style.borderColor='#e74c3c';" onmouseout="this.style.color='#94a3b8';this.style.borderColor='#e2e8f0';">Sign Out</a>
+        <a href="/api/logout" class="mm-btn mm-btn-ghost mm-btn-sm">Sign Out</a>
       </div>
       <!-- Session D5: subscription status banner (sticky, only shown when past_due / canceled) -->
       <div id="subscriptionBanner" class="subscription-banner" style="display:none;">
@@ -7009,7 +6784,7 @@
           list.innerHTML = `
             <div style="text-align:center;padding:48px 24px;color:#e2e8f0;">
               <div style="font-size:2.4em;margin-bottom:12px;opacity:0.6;">&#128203;</div>
-              <div style="font-family:'Fraunces',serif;font-size:1.15em;color:#f5e6d3;margin-bottom:6px;">No reports yet</div>
+              <div style="font-size:1.15em;color:#f5e6d3;margin-bottom:6px;">No reports yet</div>
               <div style="font-size:0.88em;line-height:1.5;">Click <strong>+ New Report</strong> above, or ask the AI from the Home page command bar &mdash; for example: <em>"Generate me a budget report with suggestions for next quarter"</em>.</div>
             </div>`;
           return;
@@ -7018,7 +6793,7 @@
           <div data-report-id="${r.id}" onclick="viewReport(${r.id})" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:all 0.18s ease;" onmouseover="this.style.borderColor='rgba(212,175,55,0.45)';this.style.background='rgba(10,20,32,0.65)';" onmouseout="this.style.borderColor='rgba(212,175,55,0.18)';this.style.background='rgba(10,20,32,0.45)';">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
               <div style="flex:1;min-width:0;">
-                <div style="font-family:'Fraunces',serif;font-weight:600;color:#f5e6d3;font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
+                <div style="font-weight:600;color:#f5e6d3;font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
                 <div style="font-size:0.78em;color:#94a3b8;">${escapeHtmlForChip(r.type)} &middot; ${formatReportDate(r.created_at)}</div>
                 ${r.prompt ? `<div style="font-size:0.85em;color:#cbd5e1;margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
               </div>
