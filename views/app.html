@@ -232,7 +232,7 @@
       }
       .settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
       .settings-row-label {
-        color: #e8dec2;
+        color: var(--text-muted);
         font-size: 14px;
         font-weight: 500;
       }
@@ -340,7 +340,7 @@
       }
       /* Stat chips for topbar */
       .topbar-chip {
-        background: #f1f5f9;
+        background:var(--bg-sunken);
         border-radius: 20px;
         padding: 4px 12px;
         font-size: 0.75em;
@@ -352,20 +352,20 @@
       .inbox-layout { display: flex; gap: 16px; height: calc(100vh - 140px); }
       .inbox-folders { width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 4px; }
       .folder-btn { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: none; background: none; cursor: pointer; font-size: 0.92em; color: var(--text-secondary); width: 100%; text-align: left; font-family: inherit; transition: background 0.15s; }
-      .folder-btn:hover { background: #f0f4f8; }
+      .folder-btn:hover { background: var(--bg-hover); }
       .folder-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-      .folder-count { margin-left: auto; background: #e74c3c; color: white; font-size: 0.7em; font-weight: 700; border-radius: 20px; padding: 1px 6px; }
+      .folder-count { margin-left: auto; background:var(--danger); color: white; font-size: 0.7em; font-weight: 700; border-radius: 20px; padding: 1px 6px; }
       .inbox-list { flex: 1; min-width: 260px; overflow-y: auto; }
       .inbox-detail { flex: 2; overflow-y: auto; }
       .list-item {
         cursor: pointer;
-        border-bottom: 1px solid #f8fafc;
+        border-bottom: 1px solid var(--border);
         padding: 14px 10px;
         border-radius: 10px;
         transition: all 0.15s;
         margin-bottom: 2px;
       }
-      .list-item:hover { background: #fff5f5; transform: translateX(2px); }
+      .list-item:hover { background:var(--danger-soft); transform: translateX(2px); }
       .list-item.selected { background: var(--accent-soft); border-left: 3px solid var(--accent); padding-left: 7px; }
       .badge {
         font-size: 0.7em;
@@ -390,7 +390,7 @@
         margin: 5px 0 10px;
         font-size: 0.92em;
         font-family: 'Inter', sans-serif;
-        background: #fafbfc;
+        background: var(--bg-surface);
         transition: all 0.15s;
         color:var(--text-primary);
       }
@@ -419,15 +419,15 @@
       }
       .btn-primary:hover { box-shadow: var(--shadow-popup); transform: translateY(-1px); }
       .btn-success {
-        background: linear-gradient(135deg, #27ae60, #2ecc71);
+        background: var(--success);
         color: white;
-        box-shadow: 0 3px 10px rgba(39,174,96,0.3);
+        box-shadow: var(--shadow-card);
       }
-      .btn-success:hover { box-shadow: 0 6px 18px rgba(39,174,96,0.4); transform: translateY(-1px); }
-      .btn-secondary { background: #f1f5f9; color: var(--text-secondary); border: 1px solid var(--border); }
+      .btn-success:hover { box-shadow: var(--shadow-popup); transform: translateY(-1px); }
+      .btn-secondary { background:var(--bg-sunken); color: var(--text-secondary); border: 1px solid var(--border); }
       .btn-secondary:hover { background: var(--bg-hover); transform: translateY(-1px); }
-      .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; box-shadow: 0 3px 10px rgba(231,76,60,0.3); }
-      .btn-danger:hover { box-shadow: 0 6px 18px rgba(231,76,60,0.4); transform: translateY(-1px); }
+      .btn-danger { background: var(--danger); color: white; box-shadow: var(--shadow-card); }
+      .btn-danger:hover { box-shadow: var(--shadow-popup); transform: translateY(-1px); }
 
       /* Calendar */
       .calendar-grid {
@@ -439,7 +439,7 @@
       .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color:var(--text-muted); padding: 6px 0; }
       .cal-day {
         min-height: 80px;
-        border: 1px solid #edf2f7;
+        border: 1px solid var(--border);
         border-radius: 8px;
         padding: 6px;
         background: white;
@@ -451,7 +451,7 @@
       .cal-day:hover { border-color: var(--accent); background: var(--bg-hover); }
       .cal-day.today { border-color: var(--accent); background: var(--accent-soft); }
       .cal-day.selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-soft); }
-      .cal-day.empty { background: #fafafa; border-color: #f0f0f0; cursor: default; pointer-events: none; }
+      .cal-day.empty { background:var(--bg-sunken); border-color: var(--border); cursor: default; pointer-events: none; }
       .cal-day-num { font-weight: 700; margin-bottom: 4px; color:var(--text-primary); font-size: 0.92em; }
       .cal-day.today .cal-day-num { color: var(--accent); }
       .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -476,7 +476,7 @@
       }
       .cal-mini {
         background: white;
-        border: 1px solid #edf2f7;
+        border: 1px solid var(--border);
         border-radius: 10px;
         padding: 10px 12px 12px;
         cursor: pointer;
@@ -497,7 +497,7 @@
       }
       .cal-mini-day.empty { color: transparent; cursor: default; }
       .cal-mini-day.today { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
-      .cal-mini-day:hover:not(.empty) { background: #fff9f9; }
+      .cal-mini-day:hover:not(.empty) { background: var(--bg-hover); }
       .cal-mini-dot {
         position: absolute;
         bottom: 1px;
@@ -550,7 +550,7 @@
         gap: 10px;
       }
       .ai-thinking-bubble {
-        background: #f1f5f9;
+        background:var(--bg-sunken);
         border-radius: 14px;
         border-bottom-left-radius: 4px;
         padding: 12px 16px;
@@ -571,7 +571,7 @@
       .ai-response-body { line-height: 1.65; color:var(--text-primary); }
       .ai-response-body p { margin: 0 0 10px; }
       .ai-response-body p:last-child { margin-bottom: 0; }
-      .ai-response-body strong { color: #1a2e4a; font-weight: 700; }
+      .ai-response-body strong { color:var(--text-primary); font-weight: 700; }
       .ai-response-body em { font-style: italic; color: var(--text-secondary); }
       .ai-response-body ul, .ai-response-body ol {
         margin: 6px 0 10px;
@@ -579,8 +579,8 @@
       }
       .ai-response-body li { margin: 3px 0; }
       .ai-response-body code {
-        background: #eef2ff;
-        color: #4f46e5;
+        background:var(--bg-sunken);
+        color: var(--info);
         padding: 1px 6px;
         border-radius: 4px;
         font-family: 'SFMono-Regular', Consolas, monospace;
@@ -596,9 +596,9 @@
         animation: aiCursorBlink 0.9s infinite;
       }
       .ai-action-chip {
-        background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-        border: 1px solid #a7f3d0;
-        color: #065f46;
+        background: var(--success-soft);
+        border: 1px solid var(--success-soft);
+        color: var(--success);
         border-radius: 8px;
         padding: 5px 11px 5px 8px;
         font-size: 0.82em;
@@ -610,15 +610,15 @@
         animation: aiChipPop 0.35s ease forwards;
       }
       .ai-action-chip-warn {
-        background: linear-gradient(135deg, #fffbeb, #fef3c7);
-        border: 1px solid #fde68a;
-        color: #92400e;
+        background: var(--warning-soft);
+        border: 1px solid var(--warning-soft);
+        color: var(--warning);
       }
       .ai-action-chip .chip-check {
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: #10b981;
+        background: var(--success);
         color: white;
         display: inline-flex;
         align-items: center;
@@ -628,12 +628,12 @@
         flex-shrink: 0;
       }
       .ai-action-chip-warn .chip-check {
-        background: #f59e0b;
+        background: var(--warning);
       }
       .ai-actions-row {
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid #e8edf4;
+        border-top: 1px solid var(--border);
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -837,9 +837,9 @@
         border: 1px solid var(--warning-soft);
       }
       .plan-badge-solo {
-        background: rgba(148, 163, 184, 0.15);
+        background: var(--bg-sunken);
         color:var(--text-muted);
-        border: 1px solid rgba(148, 163, 184, 0.4);
+        border: 1px solid var(--border-strong);
       }
       .plan-badge-team {
         background: var(--success-soft);
@@ -945,7 +945,7 @@
         color:var(--text-primary);
         font-family: 'Inter', sans-serif;
       }
-      .plan-usage-stat-value-warn  { color: #fdba74; }
+      .plan-usage-stat-value-warn  { color:var(--warning); }
       .plan-usage-stat-value-limit { color:var(--danger); }
       .plan-usage-features {
         display: grid;
@@ -966,7 +966,7 @@
       }
       .plan-usage-feature-included::before {
         content: '\2713';
-        color: #86efac;
+        color:var(--success);
       }
       .plan-usage-feature-excluded {
         color: var(--text-muted);
@@ -1229,22 +1229,19 @@
       #page-home.active .home-fade:nth-child(7) { animation-delay: 0.36s; }
       #page-home.active .home-fade:nth-child(8) { animation-delay: 0.42s; }
 
-      /* Home banner: stronger shadow, refined border */
+      /* Home banner: card-level shadow */
       #homeBanner {
-        box-shadow:
-          0 1px 2px rgba(40,20,10,0.06),
-          0 8px 24px rgba(40,20,10,0.10),
-          0 24px 56px -12px rgba(40,20,10,0.14) !important;
+        box-shadow: var(--shadow-card) !important;
       }
       #micBtn.listening { background:var(--danger) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px var(--danger-soft); animation:micPulse 1.2s infinite; }
-      .modal h3 { font-size: 1.1em; font-weight: 700; color: #080f1e; margin-bottom: 20px; }
+      .modal h3 { font-size: 1.1em; font-weight: 700; color:var(--text-primary); margin-bottom: 20px; }
       .modal label { font-size: 0.83em; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px; }
       .modal .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
       .task-toggle {
         display: flex;
         align-items: center;
         gap: 10px;
-        background: #f8fafc;
+        background:var(--bg-sunken);
         border: 1.5px solid var(--border-strong);
         border-radius: 10px;
         padding: 12px 14px;
@@ -1253,11 +1250,11 @@
         transition: all 0.15s;
       }
       .task-toggle:has(input:checked) {
-        background: #fff5f5;
+        background:var(--danger-soft);
         border-color: var(--accent);
       }
       .task-toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
-      .task-toggle span { font-size: 0.88em; font-weight: 500; color: #334155; }
+      .task-toggle span { font-size: 0.88em; font-weight: 500; color:var(--text-secondary); }
       pre { white-space: pre-wrap; font-family: 'Inter', sans-serif; font-size: 0.9em; }
 
       /* Contacts */
@@ -1268,12 +1265,12 @@
         padding: 20px;
         cursor: pointer;
         transition: all 0.18s;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        box-shadow: var(--shadow-card);
         display: flex;
         align-items: center;
         gap: 14px;
       }
-      .contact-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.09); transform: translateY(-2px); }
+      .contact-card:hover { box-shadow: var(--shadow-popup); transform: translateY(-2px); }
       .contact-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
       .contact-avatar {
         width: 46px; height: 46px;
@@ -1284,7 +1281,7 @@
       }
       .avatar-resident { background: var(--accent-soft); color: var(--accent); }
       .avatar-vendor   { background: var(--accent-soft); color: var(--accent); }
-      .avatar-important { background: linear-gradient(135deg, #f093fb, #f5576c); }
+      .avatar-important { background: var(--accent-soft); color: var(--accent); }
       .contact-info { flex: 1; min-width: 0; }
       .contact-name { font-weight: 600; font-size: 0.93em; color:var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .contact-sub { font-size: 0.78em; color:var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1294,14 +1291,14 @@
       }
       .tag-resident { background: var(--accent-soft); color: var(--accent); }
       .tag-vendor { background: var(--accent-soft); color: var(--accent); }
-      .tag-important { background: #fdf0ff; color: #c026d3; }
+      .tag-important { background: var(--danger-soft); color: var(--danger); }
       .lease-badge {
         font-size: 0.68em; font-weight: 700; padding: 2px 7px; border-radius: 20px;
         margin-left: 4px; flex-shrink: 0;
       }
-      .lease-red   { background: #fff1f0; color: #e74c3c; border: 1px solid rgba(231,76,60,0.2); }
-      .lease-yellow{ background: #fffbeb; color: #d97706; border: 1px solid rgba(217,119,6,0.2); }
-      .lease-green { background: #f0fdf4; color: #059669; border: 1px solid rgba(5,150,105,0.2); }
+      .lease-red   { background:var(--danger-soft); color:var(--danger); border: 1px solid var(--danger-soft); }
+      .lease-yellow{ background:var(--warning-soft); color:var(--warning); border: 1px solid var(--warning-soft); }
+      .lease-green { background:var(--success-soft); color:var(--success); border: 1px solid var(--success-soft); }
       .lease-row {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
@@ -1315,14 +1312,14 @@
         align-items: flex-start;
         gap: 12px;
         padding: 14px 10px;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--border);
         border-radius: 8px;
         transition: background 0.15s;
       }
-      .task-item:hover { background: #f8fafc; }
+      .task-item:hover { background:var(--bg-sunken); }
       .task-item.done { opacity: 0.5; }
       .task-item.done .task-title { text-decoration: line-through; }
-      .task-item.overdue .task-due { color: #e74c3c; font-weight: 600; }
+      .task-item.overdue .task-due { color:var(--danger); font-weight: 600; }
       .task-check {
         width: 20px; height: 20px;
         border: 2px solid var(--border-strong);
@@ -1333,7 +1330,7 @@
         transition: all 0.15s;
         margin-top: 1px;
       }
-      .task-check:hover { border-color: #4a90e2; background: #eef4ff; }
+      .task-check:hover { border-color: var(--accent); background: var(--accent-soft); }
       .task-check.checked { background: var(--accent); border-color: transparent; color: white; font-size: 0.75em; }
       .task-body { flex: 1; }
       .task-title { font-size: 0.92em; font-weight: 600; color:var(--text-primary); margin-bottom: 3px; }
@@ -1347,26 +1344,26 @@
         text-transform: uppercase;
         letter-spacing: 0.4px;
       }
-      .cat-vendor { background: #ede9fe; color: #7c3aed; }
-      .cat-maintenance { background: #fff7ed; color: #ea580c; }
-      .cat-lease { background: #ecfdf5; color: #059669; }
-      .cat-finance { background: #eff6ff; color: #2563eb; }
-      .cat-other { background: #f1f5f9; color: var(--text-secondary); }
+      .cat-vendor { background: var(--info-soft); color: var(--info); }
+      .cat-maintenance { background:var(--warning-soft); color:var(--warning); }
+      .cat-lease { background:var(--success-soft); color:var(--success); }
+      .cat-finance { background: var(--info-soft); color: var(--info); }
+      .cat-other { background:var(--bg-sunken); color: var(--text-secondary); }
       .task-notes { font-size: 0.8em; color:var(--text-muted); margin-top: 3px; }
       .task-delete { color:var(--text-secondary); cursor: pointer; font-size: 1em; padding: 2px 6px; border-radius: 4px; }
-      .task-delete:hover { color: #e74c3c; background: #fff1f0; }
-      .active-filter { background: linear-gradient(135deg, #4a90e2, #6c63d4) !important; color: white !important; border-color: transparent !important; }
+      .task-delete:hover { color:var(--danger); background:var(--danger-soft); }
+      .active-filter { background: var(--accent) !important; color: white !important; border-color: transparent !important; }
       .stat-chip {
         flex: 1;
         background: white;
         border-radius: 14px;
         border: 1px solid var(--border);
         padding: 18px 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        box-shadow: var(--shadow-card);
       }
-      .stat-chip .stat-num { font-size: 2em; font-weight: 700; color: #0f172a; line-height: 1; }
+      .stat-chip .stat-num { font-size: 2em; font-weight: 700; color: var(--text-primary); line-height: 1; }
       .stat-chip .stat-label { font-size: 0.75em; color:var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
-      .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
+      .week-task { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.87em; }
       .week-task .wt-date { font-size: 0.75em; color:var(--text-muted); margin-top: 2px; }
       .ob-step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); transition: all 0.2s; }
       .ob-step-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
@@ -1383,14 +1380,14 @@
         color: var(--text-secondary);
         margin: 0;
       }
-      #hamburger-btn:hover { background: #f1f5f9; }
+      #hamburger-btn:hover { background:var(--bg-sunken); }
 
       /* overlay behind slide-in sidebar on mobile */
       #sidebar-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.45);
+        background: rgba(16,24,40,0.4);
         z-index: 90;
       }
       #sidebar-overlay.visible { display: block; }
@@ -1499,8 +1496,8 @@
         right: 0;
         z-index: 9999;
         background: var(--bg-surface);
-        border-top: 1px solid rgba(148,163,184,0.25);
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+        border-top: 1px solid var(--border);
+        box-shadow: var(--shadow-popup);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
       }
@@ -1509,7 +1506,7 @@
         max-height: 60vh;
         overflow-y: auto;
         padding: 16px;
-        border-bottom: 1px solid rgba(148,163,184,0.15);
+        border-bottom: 1px solid var(--border);
       }
 
       .cc-messages {
@@ -1583,9 +1580,9 @@
         border-bottom-right-radius: 4px;
       }
       .cc-bubble-ai {
-        background: rgba(245,230,211,0.08);
+        background: var(--bg-sunken);
         color:var(--text-secondary);
-        border: 1px solid rgba(148,163,184,0.22);
+        border: 1px solid var(--border);
         border-bottom-left-radius: 4px;
       }
       .cc-bubble-thinking {
@@ -1612,7 +1609,7 @@
       .cc-toggle {
         background: transparent;
         color:var(--text-muted);
-        border: 1px solid rgba(148,163,184,0.25);
+        border: 1px solid var(--border-strong);
         border-radius: 50%;
         width: 36px;
         height: 36px;
@@ -1682,7 +1679,7 @@
 
       .ps-dashboard-greeting {
         padding: 20px 16px 12px;
-        border-bottom: 1px solid rgba(148,163,184,0.18);
+        border-bottom: 1px solid var(--border);
       }
       .ps-dashboard-greeting h1 {
         color:var(--text-primary);
@@ -1740,7 +1737,7 @@
       }
       .ps-card-header {
         padding: 14px 16px;
-        border-bottom: 1px solid rgba(148,163,184,0.15);
+        border-bottom: 1px solid var(--border);
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1827,8 +1824,8 @@
       }
       .ps-badge-paid       { color: var(--success); background: var(--success-soft); }
       .ps-badge-pending    { color: var(--warning); background: var(--warning-soft); }
-      .ps-badge-attention  { color:var(--text-primary); background: rgba(245,230,211,0.10); font-weight: 800; }
-      .ps-badge-muted      { color:var(--text-muted); background: rgba(148,163,184,0.10); }
+      .ps-badge-attention  { color:var(--text-primary); background: var(--bg-sunken); font-weight: 800; }
+      .ps-badge-muted      { color:var(--text-muted); background: var(--bg-sunken); }
 
       /* Approve / Reject buttons inside the approvals card */
       .ps-card-row .ps-btn-approve,
@@ -1849,7 +1846,7 @@
       .ps-card-row .ps-btn-reject {
         background: transparent;
         color:var(--text-muted);
-        border-color: rgba(148,163,184,0.35);
+        border-color: var(--border-strong);
       }
 
       /* Tablet expansion */
@@ -1999,7 +1996,7 @@
                 style="flex:1;margin:0;padding:13px 16px;border-radius:10px;font-size:0.93em;"
                 onkeydown="if(event.key==='Enter')submitHomeCommand()" />
               <button id="micBtn" onclick="toggleDictation()" title="Click to speak"
-                style="width:48px;height:48px;border-radius:10px;border:1.5px solid #e8dcd2;background:#fffefb;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
+                style="width:48px;height:48px;border-radius:10px;border:1.5px solid var(--border-strong);background:var(--bg-surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
                 onmouseover="if(!window.micActive)this.style.borderColor='var(--accent)'" onmouseout="if(!window.micActive)this.style.borderColor='var(--border-strong)'">
                 &#127908;
               </button>
@@ -2009,7 +2006,7 @@
               <span style="width:8px;height:8px;background:var(--danger);border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
               <span id="micStatusText">Listening... speak now</span>
             </div>
-            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:var(--text-primary);line-height:1.65;position:relative;"></div>
+            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:12px;font-size:0.92em;color:var(--text-primary);line-height:1.65;position:relative;"></div>
           </div>
 
           <!-- Approval Queue (Session C1) -->
@@ -2192,12 +2189,12 @@
           <div class="inbox-layout">
             <!-- Folder sidebar -->
             <div class="inbox-folders card" style="padding:12px 8px;">
-              <div style="font-size:0.7em;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;padding:4px 14px 8px;">Folders</div>
+              <div style="font-size:0.7em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:4px 14px 8px;">Folders</div>
               <button class="folder-btn active" onclick="switchFolder('inbox', this)">&#9993; Inbox <span id="folder-badge-inbox" style="display:none;" class="folder-count"></span></button>
               <button class="folder-btn" onclick="switchFolder('archive', this)">&#128451; Archive</button>
               <button class="folder-btn" onclick="switchFolder('deleted', this)">&#128465; Deleted <span id="folder-badge-deleted" style="display:none;" class="folder-count"></span></button>
-              <div style="margin-top:auto;padding-top:12px;border-top:1px solid #f0f0f0;">
-                <button id="emptyTrashBtn" onclick="emptyTrash()" style="display:none;width:100%;padding:8px;border:1px solid #e74c3c;background:none;color:#e74c3c;border-radius:6px;cursor:pointer;font-size:0.82em;font-family:inherit;">&#128465; Empty Trash</button>
+              <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);">
+                <button id="emptyTrashBtn" onclick="emptyTrash()" style="display:none;width:100%;padding:8px;border:1px solid var(--danger);background:none;color:var(--danger);border-radius:6px;cursor:pointer;font-size:0.82em;font-family:inherit;">&#128465; Empty Trash</button>
               </div>
             </div>
             <!-- Message list -->
@@ -2226,7 +2223,7 @@
                 </div>
               </div>
               <div class="card-head-rule"></div>
-              <div id="messageDetail" style="color:#888;">Select a message to view details.</div>
+              <div id="messageDetail" style="color:var(--text-muted);">Select a message to view details.</div>
             </div>
           </div>
           </div>
@@ -2296,15 +2293,15 @@
                 <div style="font-size:0.82em;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Which email will you use?</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
                   <button onclick="chooseEmailPath('existing')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid var(--border-strong);">
-                    <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">I already have a business email</div>
+                    <div style="font-weight:700;color:var(--text-primary);font-size:0.92em;margin-bottom:4px;">I already have a business email</div>
                     <div style="font-size:0.78em;color:var(--text-muted);">Connect a Gmail, Outlook, Yahoo, or custom domain you already own.</div>
                   </button>
                   <button onclick="chooseEmailPath('new')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid var(--border-strong);">
-                    <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">Create a new dedicated Gmail</div>
+                    <div style="font-weight:700;color:var(--text-primary);font-size:0.92em;margin-bottom:4px;">Create a new dedicated Gmail</div>
                     <div style="font-size:0.78em;color:var(--text-muted);">Takes ~3 minutes, free, keeps personal mail separate.</div>
                   </button>
                 </div>
-                <div style="padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;font-size:0.85em;color:var(--text-secondary);">
+                <div style="padding:12px 14px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;font-size:0.85em;color:var(--text-secondary);">
                   <strong>⚠ Don't connect your personal email.</strong> Use a dedicated address (e.g. <code>mypropertyapartments@gmail.com</code>) so personal mail stays out of your property inbox.
                 </div>
               </div>
@@ -2312,31 +2309,31 @@
               <!-- New Gmail walkthrough -->
               <div id="emailPathNew" style="display:none;">
                 <button onclick="backToPathPicker()" class="btn-secondary" style="font-size:0.8em;padding:4px 10px;margin-bottom:12px;">← Back</button>
-                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 1: Create a new Gmail</h3>
+                <h3 style="font-size:1em;color:var(--text-primary);margin-bottom:10px;">Step 1: Create a new Gmail</h3>
                 <ol style="font-size:0.88em;color:var(--text-secondary);line-height:1.75;margin-left:22px;margin-bottom:14px;">
                   <li>Open <a href="https://accounts.google.com/signup" target="_blank" style="color:var(--accent);">accounts.google.com/signup</a></li>
                   <li>Use a property-focused name like <code>sunsetapartmentsmgr@gmail.com</code></li>
                   <li>Set a strong password and enable 2-Step Verification</li>
                 </ol>
-                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 2: Generate an app password</h3>
+                <h3 style="font-size:1em;color:var(--text-primary);margin-bottom:10px;">Step 2: Generate an app password</h3>
                 <ol style="font-size:0.88em;color:var(--text-secondary);line-height:1.75;margin-left:22px;margin-bottom:14px;">
                   <li>Go to <a href="https://myaccount.google.com/apppasswords" target="_blank" style="color:var(--accent);">myaccount.google.com/apppasswords</a></li>
                   <li>Create a new app password named "Modern Management"</li>
                   <li>Copy the 16-character password Google shows you</li>
                 </ol>
-                <h3 style="font-size:1em;color:#1a2e4a;margin-bottom:10px;">Step 3: Connect it here</h3>
+                <h3 style="font-size:1em;color:var(--text-primary);margin-bottom:10px;">Step 3: Connect it here</h3>
                 <button onclick="showConnectForm()" class="btn-primary">I'm ready → Enter credentials</button>
               </div>
 
               <!-- Existing email walkthrough + form -->
               <div id="emailPathExisting" style="display:none;">
                 <button onclick="backToPathPicker()" class="btn-secondary" style="font-size:0.8em;padding:4px 10px;margin-bottom:12px;">← Back</button>
-                <div style="padding:12px 14px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;font-size:0.85em;color:#3730a3;margin-bottom:14px;">
+                <div style="padding:12px 14px;background:var(--bg-sunken);border:1px solid var(--info-soft);border-radius:10px;font-size:0.85em;color:var(--info);margin-bottom:14px;">
                   <strong>You'll need an app password</strong>, not your regular login password. Most providers require 2FA to be enabled first.
                   <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <a href="https://myaccount.google.com/apppasswords" target="_blank" style="font-size:0.82em;color:#4f46e5;">Gmail →</a>
-                    <a href="https://account.microsoft.com/security" target="_blank" style="font-size:0.82em;color:#4f46e5;">Outlook →</a>
-                    <a href="https://login.yahoo.com/account/security" target="_blank" style="font-size:0.82em;color:#4f46e5;">Yahoo →</a>
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" style="font-size:0.82em;color:var(--info);">Gmail →</a>
+                    <a href="https://account.microsoft.com/security" target="_blank" style="font-size:0.82em;color:var(--info);">Outlook →</a>
+                    <a href="https://login.yahoo.com/account/security" target="_blank" style="font-size:0.82em;color:var(--info);">Yahoo →</a>
                   </div>
                 </div>
                 <div id="connectFormFields">
@@ -2379,7 +2376,7 @@
             <hr style="margin-bottom:16px;">
 
             <p style="font-weight:bold;margin-bottom:8px;">Upload a Document</p>
-            <div id="uploadZone" style="border:2px dashed #ccd3de;border-radius:8px;padding:24px;text-align:center;color:#888;cursor:pointer;margin-bottom:16px;" onclick="document.getElementById('fileInput').click()">
+            <div id="uploadZone" style="border:2px dashed var(--border-strong);border-radius:8px;padding:24px;text-align:center;color:var(--text-muted);cursor:pointer;margin-bottom:16px;" onclick="document.getElementById('fileInput').click()">
               Click to upload a PDF or TXT file
               <input type="file" id="fileInput" accept=".pdf,.txt" style="display:none" onchange="uploadFile(this)" />
             </div>
@@ -2518,7 +2515,7 @@
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('vendor',this)" style="font-size:0.8em;padding:7px 14px;">Vendors</button>
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('important',this)" style="font-size:0.8em;padding:7px 14px;">Important</button>
             </div>
-            <label class="btn-secondary" style="margin-left:auto;cursor:pointer;padding:10px 18px;font-size:0.87em;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:10px;background:#f1f5f9;color:var(--text-secondary);" title="Import contacts from a CSV file">
+            <label class="btn-secondary" style="margin-left:auto;cursor:pointer;padding:10px 18px;font-size:0.87em;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:10px;background:var(--bg-sunken);color:var(--text-secondary);" title="Import contacts from a CSV file">
               &#128196; Import CSV
               <input type="file" accept=".csv" style="display:none;" onchange="importContactsCSV(this)" />
             </label>
@@ -2584,7 +2581,7 @@
               <!-- Detail-mode actions (hidden by default; shown when a property is open) -->
               <div id="inventoryDetailActions" style="display:none;gap:8px;">
                 <button class="btn-secondary" onclick="editCurrentProperty()">&#9998; Edit</button>
-                <button class="btn-secondary" onclick="archiveCurrentProperty()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Archive</button>
+                <button class="btn-secondary" onclick="archiveCurrentProperty()" style="color:var(--danger);border-color:#fed7d7;">&#128465; Archive</button>
               </div>
               <!-- Edit-mode actions (hidden by default; shown while editing) -->
               <div id="inventoryEditActions" style="display:none;gap:8px;">
@@ -2594,7 +2591,7 @@
               <!-- Unit-detail-mode actions (hidden by default; shown when a unit is open) -->
               <div id="inventoryUnitDetailActions" style="display:none;gap:8px;">
                 <button class="btn-secondary" onclick="editCurrentUnit()">&#9998; Edit</button>
-                <button class="btn-secondary" onclick="retireCurrentUnit()" style="color:#e53e3e;border-color:#fed7d7;">&#128465; Retire</button>
+                <button class="btn-secondary" onclick="retireCurrentUnit()" style="color:var(--danger);border-color:#fed7d7;">&#128465; Retire</button>
               </div>
               <!-- Unit-edit-mode actions (hidden by default; shown while editing a unit) -->
               <div id="inventoryUnitEditActions" style="display:none;gap:8px;">
@@ -2643,12 +2640,12 @@
 
           <!-- AI Suggested Tasks -->
           <div id="suggestedSection" style="display:none;margin-bottom:22px;">
-            <div class="card" style="border:1.5px solid #fed7aa;background:linear-gradient(135deg,#fffbf5,#fff7ed);">
+            <div class="card" style="border:1.5px solid var(--warning-soft);background:var(--warning-soft);">
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
                 <div style="width:32px;height:32px;background:linear-gradient(135deg,#f97316,#ea580c);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.95em;">&#129302;</div>
                 <div>
-                  <div style="font-weight:700;color:#9a3412;font-size:0.97em;">AI Suggested Tasks</div>
-                  <div style="font-size:0.77em;color:#c2410c;">Based on recent activity — approve to add, reject to dismiss</div>
+                  <div style="font-weight:700;color:var(--warning);font-size:0.97em;">AI Suggested Tasks</div>
+                  <div style="font-size:0.77em;color:var(--warning);">Based on recent activity — approve to add, reject to dismiss</div>
                 </div>
               </div>
               <div id="suggestedList" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -2676,7 +2673,7 @@
                   <button class="btn-secondary task-filter active-filter" onclick="filterTasks('all', this)" style="font-size:0.8em;padding:6px 14px;">All</button>
                   <button class="btn-secondary task-filter" onclick="filterTasks('pending', this)" style="font-size:0.8em;padding:6px 14px;">Pending</button>
                   <button class="btn-secondary task-filter" onclick="filterTasks('done', this)" style="font-size:0.8em;padding:6px 14px;">Done</button>
-                  <button class="btn-secondary task-filter" onclick="filterTasks('overdue', this)" style="font-size:0.8em;padding:6px 14px;color:#e74c3c;">Overdue</button>
+                  <button class="btn-secondary task-filter" onclick="filterTasks('overdue', this)" style="font-size:0.8em;padding:6px 14px;color:var(--danger);">Overdue</button>
                 </div>
 
                 <div id="taskList"></div>
@@ -2752,7 +2749,7 @@
             </div>
 
           <!-- Emergency banner -->
-          <div id="emergencyBanner" style="display:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+          <div id="emergencyBanner" style="display:none;background:var(--danger);color:white;border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
             <span style="font-size:1.5em;">🚨</span>
             <div><strong>Emergency tickets open</strong> — maintenance contact has been notified via SMS</div>
           </div>
@@ -2762,7 +2759,7 @@
 
           <!-- Controls -->
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
-            <select id="maintFilter" onchange="renderMaintenance()" style="padding:8px 12px;border:1px solid #dde3ec;border-radius:8px;font-size:0.88em;background:white;">
+            <select id="maintFilter" onchange="renderMaintenance()" style="padding:8px 12px;border:1px solid var(--border-strong);border-radius:8px;font-size:0.88em;background:white;">
               <option value="all">All Tickets</option>
               <option value="emergency">🚨 Emergency</option>
               <option value="open">Open</option>
@@ -2815,7 +2812,7 @@
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
                     <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
                     <span id="notifToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
-                    <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
+                    <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
                   </label>
                 </div>
                 <!-- PWA Stage B: per-device push toggle. Status text below shows
@@ -2829,7 +2826,7 @@
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
                     <input type="checkbox" id="pushToggle" style="opacity:0;width:0;height:0;position:absolute;">
                     <span id="pushToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
-                    <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
+                    <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
                   </label>
                 </div>
                 <div id="pushStatus" style="margin-top:6px;font-size:0.8em;color:var(--text-muted);min-height:1em;"></div>
@@ -2846,7 +2843,7 @@
                 </div>
                 <div style="margin-top:18px;display:flex;align-items:center;gap:12px;">
                   <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save settings</button>
-                  <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:#86efac;font-weight:500;">&#10003; Settings saved</div>
+                  <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:var(--success);font-weight:500;">&#10003; Settings saved</div>
                 </div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:14px;line-height:1.5;">
                   We'll text the emergency phone when a tenant message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
@@ -2938,10 +2935,10 @@
             </div>
             <div class="card-head-rule"></div>
 
-            <div id="forwardingInfo" style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div id="forwardingInfo" style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
               <div style="font-size:0.72em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Your forwarding address</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:0.88em;color:#1e293b;word-break:break-all;">Loading...</code>
+                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:0.88em;color:var(--text-primary);word-break:break-all;">Loading...</code>
                 <button onclick="copyForwardingAddress()" class="btn-secondary" style="font-size:0.82em;">Copy</button>
               </div>
               <div style="font-size:0.78em;color:var(--text-muted);margin-top:10px;line-height:1.6;">
@@ -2961,7 +2958,7 @@
             <!-- Test area -->
             <details style="margin-top:14px;">
               <summary style="cursor:pointer;font-size:0.85em;color:var(--text-muted);">🧪 Test with a sample email</summary>
-              <div style="margin-top:10px;padding:12px;background:#f8fafc;border-radius:8px;">
+              <div style="margin-top:10px;padding:12px;background:var(--bg-sunken);border-radius:8px;">
                 <textarea id="testPaymentBody" rows="5" placeholder="Paste the body of a real payment email here..." style="width:100%;font-size:0.85em;margin-bottom:8px;"></textarea>
                 <button onclick="testPaymentEmail()" class="btn-primary" style="font-size:0.85em;">Run AI Match</button>
                 <div id="testPaymentResult" style="margin-top:10px;font-size:0.85em;"></div>
@@ -3007,7 +3004,7 @@
             <div class="table-scroll-wrap">
             <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
               <thead>
-                <tr style="background:#f4f6f9;text-align:left;">
+                <tr style="background:var(--bg-sunken);text-align:left;">
                   <th style="padding:8px 10px;">Resident</th>
                   <th style="padding:8px 10px;">Unit</th>
                   <th style="padding:8px 10px;">Amount</th>
@@ -3039,7 +3036,7 @@
             <div class="table-scroll-wrap">
             <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
               <thead>
-                <tr style="background:#f4f6f9;text-align:left;">
+                <tr style="background:var(--bg-sunken);text-align:left;">
                   <th style="padding:8px 10px;">Vendor</th>
                   <th style="padding:8px 10px;">Description</th>
                   <th style="padding:8px 10px;">Amount</th>
@@ -3071,16 +3068,16 @@
 
             <!-- Controls row -->
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-              <select id="budgetMonthSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+              <select id="budgetMonthSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
                 <option value="01">January</option><option value="02">February</option><option value="03">March</option>
                 <option value="04">April</option><option value="05">May</option><option value="06">June</option>
                 <option value="07">July</option><option value="08">August</option><option value="09">September</option>
                 <option value="10">October</option><option value="11">November</option><option value="12">December</option>
               </select>
-              <select id="budgetYearSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+              <select id="budgetYearSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
                 <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
               </select>
-              <select id="budgetTypeSel" onchange="renderBudget()" style="padding:7px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.88em;background:#fff;">
+              <select id="budgetTypeSel" onchange="renderBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
                 <option value="all">All Transactions</option>
                 <option value="income">Income Only</option>
                 <option value="expense">Expenses Only</option>
@@ -3093,7 +3090,7 @@
             <div style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:0.9em;min-width:680px;">
                 <thead>
-                  <tr style="background:#f4f6f9;text-align:left;">
+                  <tr style="background:var(--bg-sunken);text-align:left;">
                     <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);white-space:nowrap;">Date</th>
                     <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);">Type</th>
                     <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);">Category</th>
@@ -3168,7 +3165,7 @@
                   style="flex:1;min-width:240px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadTransactions()" />
                 <button onclick="loadTransactions()" style="padding:9px 14px;background:var(--bg-surface);color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
-                <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:var(--text-secondary);border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
+                <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
                 <button onclick="openNewTransactionModal()" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">New transaction</button>
               </div>
 
@@ -3353,7 +3350,7 @@
 
               <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
                 <button onclick="mbAddServiceRow()"
-                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
+                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
                 <button onclick="mbSaveServices()"
                   style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Services</button>
                 <div id="mbServicesStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
@@ -3388,7 +3385,7 @@
 
               <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
                 <button onclick="mbAddProductRow()"
-                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
+                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
                 <button onclick="mbSaveProducts()"
                   style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Products</button>
                 <div id="mbProductsStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
@@ -3433,7 +3430,7 @@
                      Wired to workspaces.ai_tone / ai_sales_posture via the
                      same /api/workspace/ai-settings endpoint the checkboxes
                      use. Empty value = "not set / default". -->
-                <div style="border-top:1px solid rgba(148,163,184,0.15);padding-top:18px;margin-top:4px;">
+                <div style="border-top:1px solid var(--border);padding-top:18px;margin-top:4px;">
                   <div style="font-size:0.78em;font-weight:700;color:var(--text-muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;">Personality</div>
 
                   <div style="display:flex;flex-direction:column;gap:18px;">
@@ -3532,7 +3529,7 @@
                 </div>
               </div>
 
-              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:14px;">
                 <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid var(--accent);cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
                 <button class="menu-tab" data-mtab="product" onclick="switchMenuTab('product')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Products</button>
                 <button class="menu-tab" data-mtab="addon" onclick="switchMenuTab('addon')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Add-ons</button>
@@ -3567,7 +3564,7 @@
                 </div>
               </div>
 
-              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin-bottom:14px;">
                 <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid var(--accent);cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
                 <button class="inv-tab" data-itab="vendors" onclick="switchInventoryTab('vendors')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Vendors</button>
               </div>
@@ -4162,7 +4159,7 @@
         const list = document.getElementById('messageList');
         list.innerHTML = '';
         if (!messages.length) {
-          list.innerHTML = '<p style="color:#aaa;padding:16px;font-size:0.9em;">No messages here.</p>';
+          list.innerHTML = '<p style="color:var(--text-muted);padding:16px;font-size:0.9em;">No messages here.</p>';
         }
         messages.forEach(msg => {
           const line = document.createElement('div');
@@ -4171,24 +4168,24 @@
           // background or text-color change (sub-step C styling
           // constraint — visible but not "broken-looking").
           const flagBorder = msg.emergency_flagged
-            ? 'border-left:3px solid #dc2626;padding-left:8px;'
+            ? 'border-left:3px solid var(--danger);padding-left:8px;'
             : '';
           line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;' + flagBorder;
           const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
           const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : msg.category === 'voicemail' ? '&#128222;' : '&#128172;';
           // EMERGENCY badge (red, inline) — only for flagged rows.
           const emergencyBadge = msg.emergency_flagged
-            ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>'
+            ? '<span style="display:inline-block;background:var(--danger-soft);color:var(--danger);font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>'
             : '';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
               <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${emergencyBadge}${catIcon} ${msg.subject}</div>
-              <div style="color:#666;font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
+              <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
             <div style="display:flex;gap:2px;flex-shrink:0;">
-              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#128451;</button>` : ''}
-              ${folder === 'deleted' ? `<button onclick="moveMessage(${msg.id},'inbox')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Restore" onmouseover="this.style.color='#27ae60'" onmouseout="this.style.color='#ccc'">&#8617;</button>` : ''}
-              ${folder === 'deleted' ? `<button onclick="permanentDelete(${msg.id})" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete Forever" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#10006;</button>` : `<button onclick="moveMessage(${msg.id},'deleted')" style="background:none;border:none;color:#ccc;font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>`}
+              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#128451;</button>` : ''}
+              ${folder === 'deleted' ? `<button onclick="moveMessage(${msg.id},'inbox')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Restore" onmouseover="this.style.color='var(--success)'" onmouseout="this.style.color='var(--text-muted)'">&#8617;</button>` : ''}
+              ${folder === 'deleted' ? `<button onclick="permanentDelete(${msg.id})" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete Forever" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#10006;</button>` : `<button onclick="moveMessage(${msg.id},'deleted')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#128465;</button>`}
             </div>
           `;
           list.appendChild(line);
@@ -4205,7 +4202,7 @@
         });
         if (selectedMessage && selectedMessage.id === id) {
           selectedMessage = null;
-          document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
+          document.getElementById('messageDetail').innerHTML = '<p style="color:var(--text-muted);padding:20px;">Select a message to view details.</p>';
         }
         switchFolder(currentFolder, null);
       }
@@ -4215,7 +4212,7 @@
         await fetch('/api/messages/' + id, { method: 'DELETE' });
         if (selectedMessage && selectedMessage.id === id) {
           selectedMessage = null;
-          document.getElementById('messageDetail').innerHTML = '<p style="color:#aaa;padding:20px;">Select a message to view details.</p>';
+          document.getElementById('messageDetail').innerHTML = '<p style="color:var(--text-muted);padding:20px;">Select a message to view details.</p>';
         }
         switchFolder(currentFolder, null);
       }
@@ -4265,14 +4262,14 @@
             ? ` This message was flagged: <b>${kws.map(k => k.replace(/[<>&]/g, '')).join(', ')}</b>.`
             : ' This message was flagged.';
           emergencyBanner = `
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fee2e2;border:1px solid var(--danger);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
-              <div style="flex:1;color:#7f1d1d;font-size:0.92em;line-height:1.45;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--danger-soft);border:1px solid var(--danger);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+              <div style="flex:1;color:var(--danger);font-size:0.92em;line-height:1.45;">
                 &#128680;${kwText}
               </div>
               <button
                 onclick="markEmergencyReviewed(${msg.id})"
-                style="background:white;color:#dc2626;border:1.5px solid #dc2626;border-radius:8px;padding:7px 14px;font-size:0.85em;font-weight:600;cursor:pointer;white-space:nowrap;"
-                onmouseover="this.style.background='#fef2f2'"
+                style="background:white;color:var(--danger);border:1.5px solid var(--danger);border-radius:8px;padding:7px 14px;font-size:0.85em;font-weight:600;cursor:pointer;white-space:nowrap;"
+                onmouseover="this.style.background='var(--danger-soft)'"
                 onmouseout="this.style.background='white'"
               >Mark Reviewed</button>
             </div>
@@ -4285,14 +4282,14 @@
           <p><b>Resident:</b> ${msg.resident}</p>
           <p><b>Category:</b> ${msg.category}</p>
           ${msg.phone ? `<p><b>Phone:</b> ${msg.phone}</p>` : ''}
-          <p style="margin:10px 0;padding:10px;background:#f9f9f9;border-radius:6px;">${msg.text}</p>
+          <p style="margin:10px 0;padding:10px;background:var(--bg-sunken);border-radius:6px;">${msg.text}</p>
           <p><b>Status:</b> ${msg.status}</p>
           <div style="margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;">
             <button class="btn-primary" onclick="generateDraft()">&#10024; Generate AI Draft</button>
-            ${msg.phone ? `<button class="btn-primary" style="background:linear-gradient(135deg,#27ae60,#2ecc71);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
+            ${msg.phone ? `<button class="btn-primary" style="background:var(--success);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
             ${msg.email && msg.category === 'email' ? `<button class="btn-primary" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
             ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:var(--accent-soft);color:var(--accent);border-color:var(--accent);">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:var(--success-soft);color:var(--success);border-color:var(--success);">&#8617; Move to Inbox</button>`}
-            ${msg.folder !== 'deleted' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'deleted')" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#128465; Delete</button>` : `<button class="btn-secondary" onclick="permanentDelete(${msg.id})" style="background:#fff0f0;color:#e74c3c;border-color:#e74c3c;">&#10006; Delete Forever</button>`}
+            ${msg.folder !== 'deleted' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'deleted')" style="background:var(--danger-soft);color:var(--danger);border-color:var(--danger);">&#128465; Delete</button>` : `<button class="btn-secondary" onclick="permanentDelete(${msg.id})" style="background:var(--danger-soft);color:var(--danger);border-color:var(--danger);">&#10006; Delete Forever</button>`}
           </div>
           <div id='draftArea'></div>
         `;
@@ -4301,13 +4298,13 @@
         const area = document.getElementById('draftArea');
         if (related.length) {
           area.innerHTML = '<h4 style="margin:12px 0 8px">AI Draft</h4>' + related.map(d =>
-            `<div style="background:#f4f6f9;border-radius:8px;padding:14px;margin-bottom:8px;">
-              <textarea id="draftText-${d.id}" style="width:100%;min-height:180px;font-family:inherit;font-size:0.9em;padding:10px;border:1px solid #ddd;border-radius:6px;resize:vertical;box-sizing:border-box;">${d.content}</textarea>
+            `<div style="background:var(--bg-sunken);border-radius:8px;padding:14px;margin-bottom:8px;">
+              <textarea id="draftText-${d.id}" style="width:100%;min-height:180px;font-family:inherit;font-size:0.9em;padding:10px;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;">${d.content}</textarea>
               <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn-primary" onclick="sendDraft(${d.id})">&#9993; Send Reply</button>
                 <button class="btn-secondary" onclick="copyDraft(${d.id})">&#128203; Copy</button>
               </div>
-              <div style="margin-top:6px;font-size:0.8em;color:#aaa;">Status: ${d.status}</div>
+              <div style="margin-top:6px;font-size:0.8em;color:var(--text-muted);">Status: ${d.status}</div>
             </div>`
           ).join('');
         }
@@ -4417,7 +4414,7 @@
 
       async function generateDraft() {
         if (!selectedMessage) return;
-        document.getElementById('draftArea').innerHTML = '<p style="color:#888">Generating draft...</p>';
+        document.getElementById('draftArea').innerHTML = '<p style="color:var(--text-muted)">Generating draft...</p>';
         try {
           const res = await fetch('/api/generate', {
             method: 'POST',
@@ -4426,12 +4423,12 @@
           });
           const data = await res.json();
           if (!res.ok) {
-            document.getElementById('draftArea').innerHTML = `<p style="color:#e74c3c">Error: ${data.error || 'Failed to generate draft'}<br><small>${data.details || ''}</small></p>`;
+            document.getElementById('draftArea').innerHTML = `<p style="color:var(--danger)">Error: ${data.error || 'Failed to generate draft'}<br><small>${data.details || ''}</small></p>`;
             return;
           }
           showMessage(selectedMessage.id);
         } catch (err) {
-          document.getElementById('draftArea').innerHTML = `<p style="color:#e74c3c">Error: ${err.message}</p>`;
+          document.getElementById('draftArea').innerHTML = `<p style="color:var(--danger)">Error: ${err.message}</p>`;
         }
       }
 
@@ -4748,7 +4745,7 @@
           const preview = (d.content || '').slice(0, 180).replace(/</g, '&lt;');
           const more = (d.content || '').length > 180 ? '…' : '';
           const typeColor = d.type === 'uploaded' ? 'var(--info)' : d.type === 'procedure' ? 'var(--warning)' : 'var(--accent)';
-          return `<div style="border-bottom:1px solid #eee;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+          return `<div style="border-bottom:1px solid var(--border);padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
             <div style="flex:1;min-width:0;">
               <div style="font-weight:700;color:var(--text-primary);font-size:0.95em;">${d.title}
                 <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;background:${typeColor}18;color:${typeColor};font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;vertical-align:1px;">${d.type}</span>
@@ -4770,7 +4767,7 @@
         const file = input.files[0];
         if (!file) return;
         const status = document.getElementById('uploadStatus');
-        status.style.color = '#888';
+        status.style.color = 'var(--text-muted)';
         status.textContent = 'Uploading "' + file.name + '"...';
         const formData = new FormData();
         formData.append('file', file);
@@ -4782,17 +4779,17 @@
           });
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            status.style.color = '#27ae60';
+            status.style.color = 'var(--success)';
             const snippet = (data.content || '').slice(0, 80);
             status.innerHTML = `✓ <strong>"${file.name}"</strong> uploaded and indexed. AI will now use it in replies.`;
             input.value = '';
             loadKnowledge();
           } else {
-            status.style.color = '#e74c3c';
+            status.style.color = 'var(--danger)';
             status.textContent = '⚠ ' + (data.error || 'Upload failed. Try a different file or paste the content manually below.');
           }
         } catch (err) {
-          status.style.color = '#e74c3c';
+          status.style.color = 'var(--danger)';
           status.textContent = '⚠ Network error. Please try again.';
         }
       }
@@ -4803,11 +4800,11 @@
         const content = document.getElementById('kbContent').value.trim();
         const status = document.getElementById('uploadStatus');
         if (!title || !content) {
-          status.style.color = '#e74c3c';
+          status.style.color = 'var(--danger)';
           status.textContent = '⚠ Please enter both a title and content.';
           return;
         }
-        status.style.color = '#888';
+        status.style.color = 'var(--text-muted)';
         status.textContent = 'Saving "' + title + '"...';
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -4822,17 +4819,17 @@
           clearTimeout(timeoutId);
           const data = await res.json().catch(() => ({}));
           if (res.ok) {
-            status.style.color = '#27ae60';
+            status.style.color = 'var(--success)';
             status.innerHTML = `✓ <strong>"${title}"</strong> saved. AI will now use it in replies.`;
             document.getElementById('kbForm').reset();
             loadKnowledge();
           } else {
-            status.style.color = '#e74c3c';
+            status.style.color = 'var(--danger)';
             status.textContent = '⚠ ' + (data.error || `Server returned ${res.status}. Please try again.`);
           }
         } catch (err) {
           clearTimeout(timeoutId);
-          status.style.color = '#e74c3c';
+          status.style.color = 'var(--danger)';
           if (err.name === 'AbortError') {
             status.textContent = '⚠ Server did not respond in 15 seconds. Deploy may still be in progress — wait a minute and try again.';
           } else {
@@ -4969,7 +4966,7 @@
           const dotHtml = (dayEvents.length || dayTasks.length)
             ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
                 ${dayEvents.map((ev) => `<div style="width:6px;height:6px;border-radius:50%;background:${ev.event_type === 'time_off' ? 'var(--text-muted)' : 'var(--accent)'};"></div>`).join('')}
-                ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:linear-gradient(135deg,#7b5ea7,#6c63d4);"></div>`).join('')}
+                ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:var(--info);"></div>`).join('')}
               </div>`
             : '';
           grid.innerHTML += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" onclick="selectDay('${dateStr}')">
@@ -5077,7 +5074,7 @@
               // time_off events render muted (gray) with a 🚫 prefix so
               // they're visually distinct from bookings and reminders.
               const isTimeOff = e.event_type === 'time_off';
-              const rowBg = isTimeOff ? '#f1f5f9' : '#fff5f5';
+              const rowBg = isTimeOff ? 'var(--bg-sunken)' : 'var(--danger-soft)';
               const xColor = isTimeOff ? 'var(--text-muted)' : 'var(--danger)';
               const icon = isTimeOff ? '&#128683;' : '&#128197;';
               return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${rowBg};border-radius:8px;margin-bottom:6px;font-size:0.88em;">
@@ -5089,11 +5086,11 @@
 
         const tasksHtml = dayTasks.length
           ? dayTasks.map(t => `
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f0ff;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-sunken);border-radius:8px;margin-bottom:6px;font-size:0.88em;">
                 <span style="color:var(--text-primary);${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${t.title}</span>
                 <div style="display:flex;gap:6px;">
-                  <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:#7b5ea7;font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
-                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:#e74c3c;font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
+                  <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:var(--accent);font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
+                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--danger);font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
                 </div>
               </div>`).join('')
           : '<p style="color:var(--text-muted);font-size:0.83em;">No tasks.</p>';
@@ -5319,7 +5316,7 @@
         // price/notes. For plain events, just show title + times.
         const rows = [];
         function row(label, value) {
-          rows.push('<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid rgba(148,163,184,0.14);">'
+          rows.push('<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid var(--border);">'
             + '<div style="width:110px;color:var(--text-muted);font-size:0.82em;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">' + _calEscape(label) + '</div>'
             + '<div style="flex:1;color:var(--text-secondary);">' + value + '</div>'
             + '</div>');
@@ -5358,8 +5355,8 @@
         document.getElementById('calEventDetailActions').innerHTML =
           editBtn
           + '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
-          + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:var(--danger);border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
-          + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
+          + 'style="padding:9px 18px;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-soft);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
+          + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
       }
 
       // Split an ISO timestamp into local-time YYYY-MM-DD + HH:MM strings
@@ -5422,7 +5419,7 @@
 
         document.getElementById('calEventDetailActions').innerHTML =
           '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
-          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
+          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
       }
 
       async function calEventDetailSave(calEventId, appointmentId) {
@@ -5482,7 +5479,7 @@
           const metaEl = document.getElementById('calEventDetailMeta');
           if (metaEl) {
             const original = metaEl.innerHTML;
-            metaEl.innerHTML = original + ' <span id="calSavedFlash" style="color:#86efac;font-weight:700;">· Saved!</span>';
+            metaEl.innerHTML = original + ' <span id="calSavedFlash" style="color:var(--success);font-weight:700;">· Saved!</span>';
             setTimeout(() => {
               const flash = document.getElementById('calSavedFlash');
               if (flash) flash.remove();
@@ -5578,26 +5575,26 @@
         const totalCollected = paid.reduce((s, r) => s + Number(r.amount), 0);
         const totalOutstanding = [...pending, ...overdue].reduce((s, r) => s + Number(r.amount), 0);
         document.getElementById('rentSummary').innerHTML = `
-          <div style="flex:1;min-width:130px;padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
-            <div style="font-size:0.72em;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.5px;">Collected</div>
-            <div style="font-size:1.3em;font-weight:700;color:#15803d;margin-top:4px;">$${totalCollected.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
-            <div style="font-size:0.75em;color:#86efac;margin-top:2px;">${paid.length} of ${enriched.length} paid</div>
+          <div style="flex:1;min-width:130px;padding:12px 16px;background:var(--success-soft);border:1px solid var(--success-soft);border-radius:10px;">
+            <div style="font-size:0.72em;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Collected</div>
+            <div style="font-size:1.3em;font-weight:700;color:var(--success);margin-top:4px;">$${totalCollected.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
+            <div style="font-size:0.75em;color:var(--success);margin-top:2px;">${paid.length} of ${enriched.length} paid</div>
           </div>
-          <div style="flex:1;min-width:130px;padding:12px 16px;background:${overdue.length ? '#fff1f0' : '#fffbeb'};border:1px solid ${overdue.length ? '#fecaca' : '#fde68a'};border-radius:10px;">
-            <div style="font-size:0.72em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};text-transform:uppercase;letter-spacing:0.5px;">Outstanding</div>
-            <div style="font-size:1.3em;font-weight:700;color:${overdue.length ? '#dc2626' : '#d97706'};margin-top:4px;">$${totalOutstanding.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
+          <div style="flex:1;min-width:130px;padding:12px 16px;background:${overdue.length ? 'var(--danger-soft)' : 'var(--warning-soft)'};border:1px solid ${overdue.length ? 'var(--danger-soft)' : 'var(--warning-soft)'};border-radius:10px;">
+            <div style="font-size:0.72em;font-weight:700;color:${overdue.length ? 'var(--danger)' : 'var(--warning)'};text-transform:uppercase;letter-spacing:0.5px;">Outstanding</div>
+            <div style="font-size:1.3em;font-weight:700;color:${overdue.length ? 'var(--danger)' : 'var(--warning)'};margin-top:4px;">$${totalOutstanding.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
             <div style="font-size:0.75em;color:var(--danger);margin-top:2px;">${overdue.length ? overdue.length + ' overdue' : pending.length + ' pending'}</div>
           </div>`;
 
         tbody.innerHTML = enriched.map(r => {
           const s = r.effectiveStatus;
-          const rowBg = s === 'overdue' || s === 'late' ? 'background:#fff8f8;' : '';
-          const statusColor = s === 'paid' ? '#27ae60' : (s === 'overdue' || s === 'late') ? '#e74c3c' : '#e67e22';
-          const statusBg    = s === 'paid' ? '#f0fdf4' : (s === 'overdue' || s === 'late') ? '#fff1f0' : '#fffbeb';
+          const rowBg = s === 'overdue' || s === 'late' ? 'background:var(--danger-soft);' : '';
+          const statusColor = s === 'paid' ? 'var(--success)' : (s === 'overdue' || s === 'late') ? 'var(--danger)' : 'var(--warning)';
+          const statusBg    = s === 'paid' ? 'var(--success-soft)' : (s === 'overdue' || s === 'late') ? 'var(--danger-soft)' : 'var(--warning-soft)';
           const statusLabel = s === 'overdue' ? '⚠ Overdue' : s.charAt(0).toUpperCase() + s.slice(1);
           const amt = Number(r.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
-          const paidOn = r.paid_date ? `<div style="font-size:0.72em;color:#86efac;margin-top:2px;">Paid ${r.paid_date}</div>` : '';
-          return `<tr style="border-bottom:1px solid #f1f5f9;${rowBg}">
+          const paidOn = r.paid_date ? `<div style="font-size:0.72em;color:var(--success);margin-top:2px;">Paid ${r.paid_date}</div>` : '';
+          return `<tr style="border-bottom:1px solid var(--border);${rowBg}">
             <td style="padding:10px 10px;font-weight:600;">${r.resident}</td>
             <td style="padding:10px 10px;color:var(--text-muted);">${r.unit || '—'}</td>
             <td style="padding:10px 10px;font-weight:600;">$${amt}</td>
@@ -5712,9 +5709,9 @@
           return;
         }
         tbody.innerHTML = rows.map(inv => {
-          const statusColor = inv.status === 'approved' ? '#27ae60' : inv.status === 'rejected' ? '#e74c3c' : '#e67e22';
+          const statusColor = inv.status === 'approved' ? 'var(--success)' : inv.status === 'rejected' ? 'var(--danger)' : 'var(--warning)';
           const amt = Number(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
-          return `<tr style="border-bottom:1px solid #f1f5f9;">
+          return `<tr style="border-bottom:1px solid var(--border);">
             <td style="padding:10px 10px;font-weight:600;">${inv.vendor}</td>
             <td style="padding:10px 10px;color:var(--text-muted);max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${inv.description || '—'}</td>
             <td style="padding:10px 10px;">$${amt}</td>
@@ -5777,22 +5774,22 @@
         const totalIncome = budgetTransactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
         const totalExpense = budgetTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
         const netBalance = totalIncome - totalExpense;
-        const netColor = netBalance >= 0 ? '#27ae60' : '#e74c3c';
+        const netColor = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
 
         document.getElementById('budgetSummary').innerHTML = `
-          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#e8f8f0,#d4f0e3);border:1px solid #b2dfcb;border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:#27ae60;letter-spacing:1px;margin-bottom:5px;">TOTAL INCOME</div>
-            <div style="font-size:1.55em;font-weight:800;color:#1a7a45;">+$${totalIncome.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          <div style="flex:1;min-width:140px;background:var(--success-soft);border:1px solid var(--success-soft);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:var(--success);letter-spacing:1px;margin-bottom:5px;">TOTAL INCOME</div>
+            <div style="font-size:1.55em;font-weight:800;color:var(--success);">+$${totalIncome.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
-          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#fdf0f0,#f8dcdc);border:1px solid #f0b8b8;border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:#e74c3c;letter-spacing:1px;margin-bottom:5px;">TOTAL EXPENSES</div>
-            <div style="font-size:1.55em;font-weight:800;color:#c0392b;">-$${totalExpense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          <div style="flex:1;min-width:140px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:10px;padding:16px;text-align:center;">
+            <div style="font-size:0.75em;font-weight:600;color:var(--danger);letter-spacing:1px;margin-bottom:5px;">TOTAL EXPENSES</div>
+            <div style="font-size:1.55em;font-weight:800;color:var(--danger);">-$${totalExpense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
-          <div style="flex:1;min-width:140px;background:linear-gradient(135deg,#f0f4ff,#e1eaff);border:1px solid #b8caff;border-radius:10px;padding:16px;text-align:center;">
+          <div style="flex:1;min-width:140px;background:var(--info-soft);border:1px solid var(--info-soft);border-radius:10px;padding:16px;text-align:center;">
             <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">NET BALANCE</div>
             <div style="font-size:1.55em;font-weight:800;color:${netColor};">${netBalance >= 0 ? '+' : ''}$${netBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           </div>
-          <div style="flex:1;min-width:140px;background:#f4f6f9;border:1px solid #dde3ec;border-radius:10px;padding:16px;text-align:center;">
+          <div style="flex:1;min-width:140px;background:var(--bg-sunken);border:1px solid var(--border-strong);border-radius:10px;padding:16px;text-align:center;">
             <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">TRANSACTIONS</div>
             <div style="font-size:1.55em;font-weight:800;color:var(--text-primary);">${budgetTransactions.length}</div>
           </div>
@@ -5811,18 +5808,18 @@
 
         const tbody = document.getElementById('budgetTable');
         if (!filtered.length) {
-          tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:#aaa;font-size:0.9em;">No transactions for this period.</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.9em;">No transactions for this period.</td></tr>`;
         } else {
           tbody.innerHTML = filtered.map(t => {
             const isIncome = t.type === 'income';
             const amtStr = (isIncome ? '+' : '-') + '$' + Number(t.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-            const amtColor = isIncome ? '#27ae60' : '#e74c3c';
+            const amtColor = isIncome ? 'var(--success)' : 'var(--danger)';
             const bal = balanceMap[t.id];
-            const balColor = bal >= 0 ? '#27ae60' : '#e74c3c';
+            const balColor = bal >= 0 ? 'var(--success)' : 'var(--danger)';
             const typeBadge = isIncome
-              ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Income</span>`
-              : `<span style="background:#fdf0f0;color:#e74c3c;border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Expense</span>`;
-            return `<tr style="border-bottom:1px solid #f0f2f5;">
+              ? `<span style="background:var(--success-soft);color:var(--success);border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Income</span>`
+              : `<span style="background:var(--danger-soft);color:var(--danger);border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Expense</span>`;
+            return `<tr style="border-bottom:1px solid var(--border);">
               <td style="padding:9px 10px;white-space:nowrap;color:var(--text-muted);font-size:0.88em;">${t.date || ''}</td>
               <td style="padding:9px 10px;">${typeBadge}</td>
               <td style="padding:9px 10px;color:var(--text-secondary);font-size:0.9em;">${t.category || ''}</td>
@@ -5830,7 +5827,7 @@
               <td style="padding:9px 10px;text-align:right;font-weight:700;color:${amtColor};">${amtStr}</td>
               <td style="padding:9px 10px;text-align:right;font-weight:600;color:${balColor};">$${bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
               <td style="padding:9px 6px;text-align:right;">
-                <button onclick="deleteTransaction(${t.id})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:1em;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='#e74c3c'" onmouseout="this.style.color='#ccc'">&#128465;</button>
+                <button onclick="deleteTransaction(${t.id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1em;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#128465;</button>
               </td>
             </tr>`;
           }).join('');
@@ -5844,19 +5841,19 @@
         });
         const incomeRows = Object.entries(catTotals).filter(([k]) => k.startsWith('income::'))
           .sort((a, b) => b[1] - a[1])
-          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:#27ae60;">+$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
+          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:var(--success);">+$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
         const expenseRows = Object.entries(catTotals).filter(([k]) => k.startsWith('expense::'))
           .sort((a, b) => b[1] - a[1])
-          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:#e74c3c;">-$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
+          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:var(--danger);">-$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
 
         document.getElementById('budgetBreakdown').innerHTML = (incomeRows || expenseRows) ? `
           <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            ${incomeRows ? `<div style="flex:1;min-width:200px;background:#f8fffe;border:1px solid #d4ece2;border-radius:8px;padding:14px;">
-              <div style="font-size:0.78em;font-weight:700;color:#27ae60;letter-spacing:1px;margin-bottom:10px;">INCOME BY CATEGORY</div>
+            ${incomeRows ? `<div style="flex:1;min-width:200px;background:var(--bg-sunken);border:1px solid var(--success-soft);border-radius:8px;padding:14px;">
+              <div style="font-size:0.78em;font-weight:700;color:var(--success);letter-spacing:1px;margin-bottom:10px;">INCOME BY CATEGORY</div>
               ${incomeRows}
             </div>` : ''}
-            ${expenseRows ? `<div style="flex:1;min-width:200px;background:#fff8f8;border:1px solid #ecdbd4;border-radius:8px;padding:14px;">
-              <div style="font-size:0.78em;font-weight:700;color:#e74c3c;letter-spacing:1px;margin-bottom:10px;">EXPENSES BY CATEGORY</div>
+            ${expenseRows ? `<div style="flex:1;min-width:200px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:8px;padding:14px;">
+              <div style="font-size:0.78em;font-weight:700;color:var(--danger);letter-spacing:1px;margin-bottom:10px;">EXPENSES BY CATEGORY</div>
               ${expenseRows}
             </div>` : ''}
           </div>` : '';
@@ -6008,10 +6005,10 @@
 
         document.getElementById('taskSummaryRow').innerHTML = `
           <div class="stat-chip"><div class="stat-num">${active.length}</div><div class="stat-label">Total Tasks</div></div>
-          <div class="stat-chip"><div class="stat-num" style="color:#4a90e2">${pending}</div><div class="stat-label">Pending</div></div>
-          <div class="stat-chip"><div class="stat-num" style="color:#27ae60">${done}</div><div class="stat-label">Completed</div></div>
-          <div class="stat-chip"><div class="stat-num" style="color:#e74c3c">${overdue}</div><div class="stat-label">Overdue</div></div>
-          ${suggested.length ? `<div class="stat-chip" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fed7aa;cursor:pointer;" onclick="document.getElementById('suggestedSection').scrollIntoView({behavior:'smooth'})"><div class="stat-num" style="color:#ea580c;">${suggested.length}</div><div class="stat-label" style="color:#ea580c;">AI Suggested</div></div>` : ''}
+          <div class="stat-chip"><div class="stat-num" style="color:var(--info)">${pending}</div><div class="stat-label">Pending</div></div>
+          <div class="stat-chip"><div class="stat-num" style="color:var(--success)">${done}</div><div class="stat-label">Completed</div></div>
+          <div class="stat-chip"><div class="stat-num" style="color:var(--danger)">${overdue}</div><div class="stat-label">Overdue</div></div>
+          ${suggested.length ? `<div class="stat-chip" style="background:var(--warning-soft);border-color:var(--warning-soft);cursor:pointer;" onclick="document.getElementById('suggestedSection').scrollIntoView({behavior:'smooth'})"><div class="stat-num" style="color:var(--warning);">${suggested.length}</div><div class="stat-label" style="color:var(--warning);">AI Suggested</div></div>` : ''}
         `;
 
         // --- AI Suggested Tasks ---
@@ -6022,20 +6019,20 @@
             const due = new Date(t.dueDate);
             const dueFmt = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             return `
-              <div style="background:white;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">
+              <div style="background:white;border:1px solid var(--warning-soft);border-radius:10px;padding:14px 16px;display:flex;align-items:flex-start;gap:12px;">
                 <div style="font-size:1.4em;margin-top:2px;">&#129302;</div>
                 <div style="flex:1;min-width:0;">
-                  <div style="font-weight:700;color:#1a2e4a;font-size:0.95em;margin-bottom:4px;">${t.title}</div>
+                  <div style="font-weight:700;color:var(--text-primary);font-size:0.95em;margin-bottom:4px;">${t.title}</div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                    <span style="background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 8px;font-size:0.75em;font-weight:600;">${t.category}</span>
+                    <span style="background:var(--warning-soft);color:var(--warning);border-radius:4px;padding:2px 8px;font-size:0.75em;font-weight:600;">${t.category}</span>
                     <span style="color:var(--text-muted);font-size:0.8em;">&#128197; ${dueFmt}</span>
                   </div>
                   ${t.notes ? `<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:6px;">${t.notes}</div>` : ''}
-                  ${t.aiReason ? `<div style="font-size:0.78em;color:#ea580c;background:#fff7ed;border-radius:5px;padding:4px 8px;display:inline-block;">&#129302; ${t.aiReason}</div>` : ''}
+                  ${t.aiReason ? `<div style="font-size:0.78em;color:var(--warning);background:var(--warning-soft);border-radius:5px;padding:4px 8px;display:inline-block;">&#129302; ${t.aiReason}</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-                  <button onclick="approveTask(${t.id})" style="background:#27ae60;color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Approve</button>
-                  <button onclick="rejectTask(${t.id})" style="background:none;color:#e74c3c;border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
+                  <button onclick="approveTask(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Approve</button>
+                  <button onclick="rejectTask(${t.id})" style="background:none;color:var(--danger);border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
                 </div>
               </div>`;
           }).join('');
@@ -6118,19 +6115,19 @@
         const needsAction = maintenanceTickets.filter(t => t.requires_action && t.status !== 'resolved').length;
         document.getElementById('maintSummary').innerHTML = `
           <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='open';renderMaintenance()">
-            <div class="stat-num" style="color:#f59e0b;">${open}</div><div class="stat-label">Open</div>
+            <div class="stat-num" style="color:var(--warning);">${open}</div><div class="stat-label">Open</div>
           </div>
           <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='in-progress';renderMaintenance()">
-            <div class="stat-num" style="color:#3b82f6;">${inProg}</div><div class="stat-label">In Progress</div>
+            <div class="stat-num" style="color:var(--info);">${inProg}</div><div class="stat-label">In Progress</div>
           </div>
           <div class="stat-chip" style="cursor:pointer;" onclick="document.getElementById('maintFilter').value='resolved';renderMaintenance()">
-            <div class="stat-num" style="color:#27ae60;">${resolved}</div><div class="stat-label">Resolved</div>
+            <div class="stat-num" style="color:var(--success);">${resolved}</div><div class="stat-label">Resolved</div>
           </div>
-          ${emgCount ? `<div class="stat-chip" style="background:#fef2f2;border-color:var(--danger);cursor:pointer;" onclick="document.getElementById('maintFilter').value='emergency';renderMaintenance()">
-            <div class="stat-num" style="color:#dc2626;">${emgCount}</div><div class="stat-label" style="color:#dc2626;">Emergency</div>
+          ${emgCount ? `<div class="stat-chip" style="background:var(--danger-soft);border-color:var(--danger);cursor:pointer;" onclick="document.getElementById('maintFilter').value='emergency';renderMaintenance()">
+            <div class="stat-num" style="color:var(--danger);">${emgCount}</div><div class="stat-label" style="color:var(--danger);">Emergency</div>
           </div>` : ''}
-          ${needsAction ? `<div class="stat-chip" style="background:#fff7ed;border-color:#fed7aa;">
-            <div class="stat-num" style="color:#ea580c;">${needsAction}</div><div class="stat-label" style="color:#ea580c;">Needs Action</div>
+          ${needsAction ? `<div class="stat-chip" style="background:var(--warning-soft);border-color:var(--warning-soft);">
+            <div class="stat-num" style="color:var(--warning);">${needsAction}</div><div class="stat-label" style="color:var(--warning);">Needs Action</div>
           </div>` : ''}
         `;
 
@@ -6147,38 +6144,38 @@
 
         list.innerHTML = filtered.map(t => {
           const isEmergency = t.priority === 'emergency';
-          const statusColors = { open: '#f59e0b', 'in-progress': '#3b82f6', resolved: '#27ae60' };
+          const statusColors = { open: 'var(--warning)', 'in-progress': 'var(--info)', resolved: 'var(--success)' };
           const statusColor = statusColors[t.status] || 'var(--text-muted)';
           const created = new Date(t.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
 
-          return `<div class="card" data-ticket-id="${t.id}" style="border-left:4px solid ${isEmergency ? '#dc2626' : statusColor};padding:18px 20px;">
+          return `<div class="card" data-ticket-id="${t.id}" style="border-left:4px solid ${isEmergency ? 'var(--danger)' : statusColor};padding:18px 20px;">
             <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;">
               <div style="flex:1;min-width:220px;">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                  ${isEmergency ? '<span style="background:#dc2626;color:white;border-radius:5px;padding:2px 9px;font-size:0.75em;font-weight:700;">🚨 EMERGENCY</span>' : ''}
+                  ${isEmergency ? '<span style="background:var(--danger);color:white;border-radius:5px;padding:2px 9px;font-size:0.75em;font-weight:700;">🚨 EMERGENCY</span>' : ''}
                   <span style="background:${statusColor}22;color:${statusColor};border-radius:5px;padding:2px 9px;font-size:0.75em;font-weight:700;text-transform:uppercase;">${t.status}</span>
-                  <span style="background:#f1f5f9;color:var(--text-muted);border-radius:5px;padding:2px 8px;font-size:0.75em;">${t.category}</span>
-                  ${t.requires_action ? '<span style="background:#fff7ed;color:#ea580c;border-radius:5px;padding:2px 8px;font-size:0.75em;font-weight:600;">⚠ Office Action Required</span>' : ''}
+                  <span style="background:var(--bg-sunken);color:var(--text-muted);border-radius:5px;padding:2px 8px;font-size:0.75em;">${t.category}</span>
+                  ${t.requires_action ? '<span style="background:var(--warning-soft);color:var(--warning);border-radius:5px;padding:2px 8px;font-size:0.75em;font-weight:600;">⚠ Office Action Required</span>' : ''}
                 </div>
                 <div style="font-size:1.02em;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${t.title}</div>
                 <div style="font-size:0.82em;color:var(--text-muted);margin-bottom:6px;">
                   ${t.unit ? `Unit ${t.unit} · ` : ''}${t.resident || ''} · Created ${created}
-                  ${t.emergency_sms_sent ? ' · <span style="color:#86efac;">✓ Emergency SMS sent</span>' : ''}
+                  ${t.emergency_sms_sent ? ' · <span style="color:var(--success);">✓ Emergency SMS sent</span>' : ''}
                 </div>
                 ${t.description ? `<div style="font-size:0.88em;color:var(--text-secondary);margin-bottom:8px;">${t.description}</div>` : ''}
-                ${t.outcome ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#166534;margin-bottom:8px;"><strong>Maintenance Outcome:</strong> ${t.outcome}</div>` : ''}
-                ${t.action_notes ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#9a3412;"><strong>Office Action Notes:</strong> ${t.action_notes}</div>` : ''}
+                ${t.outcome ? `<div style="background:var(--success-soft);border:1px solid var(--success-soft);border-radius:7px;padding:10px 12px;font-size:0.85em;color:var(--success);margin-bottom:8px;"><strong>Maintenance Outcome:</strong> ${t.outcome}</div>` : ''}
+                ${t.action_notes ? `<div style="background:var(--warning-soft);border:1px solid var(--warning-soft);border-radius:7px;padding:10px 12px;font-size:0.85em;color:var(--warning);"><strong>Office Action Notes:</strong> ${t.action_notes}</div>` : ''}
               </div>
               <div style="display:flex;flex-direction:column;gap:8px;min-width:180px;">
                 ${t.status !== 'resolved' ? `
-                  <select onchange="quickUpdateStatus(${t.id}, this.value)" style="padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.85em;background:white;font-family:inherit;">
+                  <select onchange="quickUpdateStatus(${t.id}, this.value)" style="padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.85em;background:white;font-family:inherit;">
                     <option value="open" ${t.status==='open'?'selected':''}>Open</option>
                     <option value="in-progress" ${t.status==='in-progress'?'selected':''}>In Progress</option>
                     <option value="resolved" ${t.status==='resolved'?'selected':''}>Resolved</option>
                   </select>
                   <button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Update / Resolve</button>
                 ` : `<button onclick="openUpdateTicket(${t.id})" class="btn-secondary" style="font-size:0.82em;padding:7px 10px;">&#9998; Edit</button>`}
-                <button onclick="deleteMaintTicket(${t.id})" style="background:none;border:1px solid var(--danger);color:#e74c3c;border-radius:7px;padding:7px 10px;font-size:0.82em;cursor:pointer;font-family:inherit;">&#128465; Delete</button>
+                <button onclick="deleteMaintTicket(${t.id})" style="background:none;border:1px solid var(--danger);color:var(--danger);border-radius:7px;padding:7px 10px;font-size:0.82em;cursor:pointer;font-family:inherit;">&#128465; Delete</button>
               </div>
             </div>
           </div>`;
@@ -6322,10 +6319,10 @@
           const hasLease = c.lease_end && c.lease_end.trim();
           if (hasLease) {
             const days = Math.round((new Date(c.lease_end) - new Date()) / 86400000);
-            const urgencyColor = days <= 0 ? '#e74c3c' : days <= 30 ? '#e74c3c' : days <= 60 ? '#d97706' : '#059669';
+            const urgencyColor = days <= 0 ? 'var(--danger)' : days <= 30 ? 'var(--danger)' : days <= 60 ? 'var(--warning)' : 'var(--success)';
             const urgencyText = days <= 0 ? 'Expired' : days === 1 ? '1 day left' : `${days} days left`;
             leaseHtml = `
-              <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid var(--border);">
+              <div style="margin:16px 0;padding:14px 16px;background:var(--bg-sunken);border-radius:10px;border:1px solid var(--border);">
                 <div style="font-size:0.75em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Lease</div>
                 <div style="display:flex;flex-direction:column;gap:8px;font-size:0.86em;">
                   ${c.lease_start ? `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Start</span><span style="color:var(--text-primary);font-weight:600;">${c.lease_start}</span></div>` : ''}
@@ -6335,7 +6332,7 @@
                 </div>
               </div>`;
           } else {
-            leaseHtml = `<div style="margin:16px 0;padding:12px 14px;background:#fffbeb;border:1px dashed #fbbf24;border-radius:10px;font-size:0.82em;color:#92400e;">No lease dates on file. Click Edit to add.</div>`;
+            leaseHtml = `<div style="margin:16px 0;padding:12px 14px;background:var(--warning-soft);border:1px dashed var(--warning);border-radius:10px;font-size:0.82em;color:var(--warning);">No lease dates on file. Click Edit to add.</div>`;
           }
         }
 
@@ -6356,7 +6353,7 @@
             <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
               <button class="btn-primary" style="width:100%;" onclick="composeToContact(${c.id})">&#9993; Compose Message</button>
               <button class="btn-secondary" style="width:100%;" onclick="openEditContact(${c.id})">&#9998; Edit Contact</button>
-              <button class="btn-secondary" style="width:100%;color:#e74c3c;border-color:#fecaca;" onclick="deleteContact(${c.id})">Remove Contact</button>
+              <button class="btn-secondary" style="width:100%;color:var(--danger);border-color:var(--danger-soft);" onclick="deleteContact(${c.id})">Remove Contact</button>
             </div>
           </div>`;
       }
@@ -6710,7 +6707,7 @@
           renderReportsList(reports);
         } catch (err) {
           console.error('[loadReportsList]', err);
-          list.innerHTML = '<div style="text-align:center;padding:32px;color:#f87171;">Failed to load reports.</div>';
+          list.innerHTML = '<div style="text-align:center;padding:32px;color:var(--danger);">Failed to load reports.</div>';
         }
       }
 
@@ -7585,7 +7582,7 @@
         preview.innerHTML = eligible.length === 0
           ? `<span style="font-size:0.8em;color:var(--text-muted);">No contacts with a valid ${bcChannel === 'email' ? 'email' : 'phone number'} in this group.</span>`
           : eligible.slice(0, 12).map(c =>
-              `<span style="background:#f1f5f9;border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:0.76em;color:var(--text-secondary);white-space:nowrap;">${c.name}</span>`
+              `<span style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:0.76em;color:var(--text-secondary);white-space:nowrap;">${c.name}</span>`
             ).join('') + (eligible.length > 12 ? `<span style="font-size:0.76em;color:var(--text-muted);padding:3px 6px;">+${eligible.length - 12} more</span>` : '');
       }
 
@@ -7623,17 +7620,17 @@
 
         if (data) {
           resultEl.style.display = 'block';
-          resultEl.style.background = '#f0fdf4';
-          resultEl.style.border = '1px solid #86efac';
-          resultEl.style.color = '#166534';
+          resultEl.style.background = 'var(--success-soft)';
+          resultEl.style.border = '1px solid var(--success)';
+          resultEl.style.color = 'var(--success)';
           resultEl.innerHTML = `&#10003; Broadcast queued — sending to <strong>${data.recipientCount}</strong> contact${data.recipientCount !== 1 ? 's' : ''}. You'll see results in the broadcast log shortly.`;
           sendBtn.innerHTML = '<span>&#10003; Sent!</span>';
           setTimeout(closeBroadcast, 2200);
         } else {
           resultEl.style.display = 'block';
-          resultEl.style.background = '#fef2f2';
+          resultEl.style.background = 'var(--danger-soft)';
           resultEl.style.border = '1px solid var(--danger)';
-          resultEl.style.color = '#991b1b';
+          resultEl.style.color = 'var(--danger)';
           resultEl.textContent = 'Something went wrong. Please try again.';
           sendBtn.disabled = false;
           sendBtn.innerHTML = '&#128226; Send to <span id="bc-count">' + eligible.length + '</span> contacts';
@@ -7654,12 +7651,12 @@
           const chIcon = b.channel === 'email' ? '&#9993;' : '&#128172;';
           const successRate = b.recipient_count > 0
             ? Math.round((b.sent_count / b.recipient_count) * 100) : 0;
-          const statusColor = b.failed_count === 0 ? '#27ae60' : b.sent_count === 0 ? '#e74c3c' : '#f39c12';
+          const statusColor = b.failed_count === 0 ? 'var(--success)' : b.sent_count === 0 ? 'var(--danger)' : 'var(--warning)';
           return `
-            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;gap:10px;">
               <div style="font-size:1.2em;">${chIcon}</div>
               <div style="flex:1;min-width:0;">
-                <div style="font-size:0.9em;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                   ${b.subject || b.body.slice(0, 60) + (b.body.length > 60 ? '…' : '')}
                 </div>
                 <div style="font-size:0.76em;color:var(--text-muted);margin-top:2px;">
@@ -7671,7 +7668,7 @@
                 <div style="font-size:0.88em;font-weight:700;color:${statusColor};">
                   ${b.sent_count}/${b.recipient_count} sent
                 </div>
-                ${b.failed_count > 0 ? `<div style="font-size:0.72em;color:#e74c3c;">${b.failed_count} failed</div>` : ''}
+                ${b.failed_count > 0 ? `<div style="font-size:0.72em;color:var(--danger);">${b.failed_count} failed</div>` : ''}
               </div>
             </div>`;
         }).join('');
@@ -7701,7 +7698,7 @@
             if (data.errors && data.errors.length) msg += ` ${data.errors.length} row(s) skipped.`;
             const toast = document.createElement('div');
             toast.textContent = msg;
-            toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#27ae60;color:white;padding:12px 24px;border-radius:10px;font-weight:600;font-size:0.9em;z-index:9999;box-shadow:0 4px 16px rgba(39,174,96,0.35);';
+            toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--success);color:white;padding:12px 24px;border-radius:10px;font-weight:600;font-size:0.9em;z-index:9999;box-shadow:var(--shadow-popup);';
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
           } else {
@@ -7935,7 +7932,7 @@
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
                   <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:var(--accent);color:var(--text-on-accent);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
-                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
+                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-soft);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
                 </div>
               </div>
             </div>
@@ -7990,7 +7987,7 @@
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0;">
                   <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:var(--accent);color:var(--text-on-accent);border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
-                  <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
+                  <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-soft);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
                 </div>
               </div>
             </div>
@@ -8089,7 +8086,7 @@
             chip.style.opacity = '';
             chip.style.background = 'var(--success-soft)';
             chip.style.borderColor = 'var(--success)';
-            chip.innerHTML = `<div style="color:#86efac;font-weight:600;font-size:0.9em;">&#10003; Approved and executed</div>`;
+            chip.innerHTML = `<div style="color:var(--success);font-weight:600;font-size:0.9em;">&#10003; Approved and executed</div>`;
           }
           if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
           if (typeof refreshPageData === 'function') {
@@ -8124,8 +8121,8 @@
           }
           if (chip) {
             chip.style.opacity = '';
-            chip.style.background = 'rgba(248,113,113,0.10)';
-            chip.style.borderColor = 'rgba(248,113,113,0.3)';
+            chip.style.background = 'var(--danger-soft)';
+            chip.style.borderColor = 'var(--danger)';
             chip.innerHTML = `<div style="color:var(--danger);font-weight:600;font-size:0.9em;">&times; Rejected</div>`;
           }
           if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
@@ -8471,7 +8468,7 @@
             }
           });
         } catch (err) {
-          responseBox.innerHTML = `<span style="color:#e74c3c;">Error: ${err.message}</span>`;
+          responseBox.innerHTML = `<span style="color:var(--danger);">Error: ${err.message}</span>`;
         }
         input.disabled = false;
         input.focus();
@@ -8533,13 +8530,13 @@
             <div style="border-top:2px solid var(--accent);padding-top:18px;">
               <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:18px;">
                 <div>
-                  <div style="font-size:1.05em;font-weight:700;color:#1a2e4a;">Property Management Report</div>
+                  <div style="font-size:1.05em;font-weight:700;color:var(--text-primary);">Property Management Report</div>
                   <div style="font-size:0.8em;color:var(--text-muted);margin-top:2px;">${dateStr}</div>
                 </div>
                 <div style="display:flex;gap:8px;">
                   <span style="background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshTasks.filter(t=>!t.done).length} open tasks</span>
-                  <span style="background:#fef3f2;color:#e74c3c;border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshMessages.filter(m=>m.status==='new').length} new messages</span>
-                  <span style="background:${income-expenses>=0?'#f0fdf4':'#fef3f2'};color:${income-expenses>=0?'#27ae60':'#e74c3c'};border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${income-expenses>=0?'+':''}\$${(income-expenses).toLocaleString('en-US',{minimumFractionDigits:2})} balance</span>
+                  <span style="background:var(--danger-soft);color:var(--danger);border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${freshMessages.filter(m=>m.status==='new').length} new messages</span>
+                  <span style="background:${income-expenses>=0?'var(--success-soft)':'var(--danger-soft)'};color:${income-expenses>=0?'var(--success)':'var(--danger)'};border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${income-expenses>=0?'+':''}\$${(income-expenses).toLocaleString('en-US',{minimumFractionDigits:2})} balance</span>
                 </div>
               </div>
               <div style="font-size:0.91em;color:var(--text-primary);line-height:1.75;">
@@ -8548,12 +8545,12 @@
                 </style>
                 <p style="margin-bottom:10px;">${formatted}</p>
               </div>
-              <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;">
+              <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
                 <button onclick="document.getElementById('reportOutput').style.display='none'" class="btn-secondary" style="font-size:0.8em;padding:6px 14px;">Close Report</button>
               </div>
             </div>`;
         } catch (err) {
-          output.innerHTML = `<span style="color:#e74c3c;font-size:0.9em;">Error generating report: ${err.message}</span>`;
+          output.innerHTML = `<span style="color:var(--danger);font-size:0.9em;">Error generating report: ${err.message}</span>`;
         }
         btn.disabled = false;
         btn.innerHTML = '&#128196; Generate Snapshot';
@@ -8636,16 +8633,16 @@
           const acct = info.account;
           const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).toLocaleString() : 'Never';
           statusEl.innerHTML = `
-            <div style="padding:14px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:12px;">
+            <div style="padding:14px 16px;background:var(--success-soft);border:1px solid var(--success-soft);border-radius:10px;margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
                 <div>
-                  <div style="font-size:0.72em;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:0.8px;">✓ Connected · ${acct.provider}</div>
-                  <div style="font-weight:700;color:#1a2e4a;font-size:1em;margin-top:4px;">${acct.email}</div>
+                  <div style="font-size:0.72em;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.8px;">✓ Connected · ${acct.provider}</div>
+                  <div style="font-weight:700;color:var(--text-primary);font-size:1em;margin-top:4px;">${acct.email}</div>
                   <div style="font-size:0.78em;color:var(--text-muted);margin-top:4px;">Last sync: ${lastSync}</div>
                 </div>
                 <div style="display:flex;gap:6px;">
                   <button onclick="syncEmailNow()" class="btn-secondary" style="font-size:0.82em;padding:5px 12px;">↻ Sync now</button>
-                  <button onclick="disconnectEmail()" class="btn-secondary" style="font-size:0.82em;padding:5px 12px;color:#dc2626;">Disconnect</button>
+                  <button onclick="disconnectEmail()" class="btn-secondary" style="font-size:0.82em;padding:5px 12px;color:var(--danger);">Disconnect</button>
                 </div>
               </div>
             </div>`;
@@ -8679,7 +8676,7 @@
         if (!email || !email.includes('@')) { hint.textContent = ''; return; }
         const detected = await api('email-account/detect?email=' + encodeURIComponent(email));
         if (detected && detected.name) {
-          hint.innerHTML = `<span style="color:#15803d;">✓</span> Detected ${detected.name} — IMAP ${detected.imap}, SMTP ${detected.smtp}`;
+          hint.innerHTML = `<span style="color:var(--success);">✓</span> Detected ${detected.name} — IMAP ${detected.imap}, SMTP ${detected.smtp}`;
         }
       }
 
@@ -8693,10 +8690,10 @@
         });
         const data = await res.json();
         if (data.success) {
-          status.style.color = '#15803d';
+          status.style.color = 'var(--success)';
           status.innerHTML = `✓ Connection works. Found ${data.mailboxCount} mailboxes. Ready to save.`;
         } else {
-          status.style.color = '#dc2626';
+          status.style.color = 'var(--danger)';
           status.innerHTML = `⚠ ${data.error || 'Connection failed'}`;
         }
       }
@@ -8716,7 +8713,7 @@
         const status = document.getElementById('connStatus');
         const body = buildConnectPayload();
         if (!body.email || !body.password) {
-          status.style.color = '#dc2626';
+          status.style.color = 'var(--danger)';
           status.textContent = '⚠ Email and app password are required.';
           return;
         }
@@ -8727,11 +8724,11 @@
         });
         const data = await res.json();
         if (res.ok) {
-          status.style.color = '#15803d';
+          status.style.color = 'var(--success)';
           status.innerHTML = '✓ Connected! Syncing your inbox now...';
           setTimeout(() => { loadEmailAccount(); loadInbox(); }, 1500);
         } else {
-          status.style.color = '#dc2626';
+          status.style.color = 'var(--danger)';
           status.innerHTML = '⚠ ' + (data.error || 'Connection failed');
         }
       }
@@ -8779,11 +8776,11 @@
         }
         list.innerHTML = events.map(e => {
           const statusStyles = {
-            auto_matched: { bg: '#f0fdf4', bd: '#bbf7d0', c: '#15803d', lbl: '✓ Auto-matched' },
-            needs_review: { bg: '#fffbeb', bd: '#fde68a', c: '#d97706', lbl: '⚠ Needs review' },
-            unmatched:    { bg: '#fff1f0', bd: '#fecaca', c: '#dc2626', lbl: '✗ No match found' },
-            not_payment:  { bg: '#f8fafc', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '— Not a payment' },
-            dismissed:    { bg: '#f8fafc', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '🗑 Dismissed' }
+            auto_matched: { bg: 'var(--success-soft)', bd: 'var(--success-soft)', c: 'var(--success)', lbl: '✓ Auto-matched' },
+            needs_review: { bg: 'var(--warning-soft)', bd: 'var(--warning-soft)', c: 'var(--warning)', lbl: '⚠ Needs review' },
+            unmatched:    { bg: 'var(--danger-soft)', bd: 'var(--danger-soft)', c: 'var(--danger)', lbl: '✗ No match found' },
+            not_payment:  { bg: 'var(--bg-sunken)', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '— Not a payment' },
+            dismissed:    { bg: 'var(--bg-sunken)', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '🗑 Dismissed' }
           };
           const s = statusStyles[e.status] || statusStyles.unmatched;
           const amt = e.parsed_amount > 0 ? `$${Number(e.parsed_amount).toLocaleString('en-US',{minimumFractionDigits:0})}` : '';
@@ -8797,7 +8794,7 @@
           return `<div style="padding:11px 13px;background:${s.bg};border:1px solid ${s.bd};border-radius:8px;margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
               <div style="flex:1;min-width:0;">
-                <div style="font-weight:600;font-size:0.88em;color:#1e293b;">
+                <div style="font-weight:600;font-size:0.88em;color:var(--text-primary);">
                   ${e.parsed_tenant || '(no tenant)'} ${amt ? '· ' + amt : ''} ${e.parsed_source ? '· ' + e.parsed_source : ''}
                 </div>
                 <div style="font-size:0.77em;color:var(--text-muted);margin-top:2px;">${e.raw_subject || ''}</div>
@@ -8834,11 +8831,11 @@
         });
         const data = await res.json();
         if (res.ok) {
-          out.style.color = '#15803d';
+          out.style.color = 'var(--success)';
           out.textContent = '✓ Processed — check the events list below.';
           loadPaymentEvents(); loadRentTable();
         } else {
-          out.style.color = '#dc2626';
+          out.style.color = 'var(--danger)';
           out.textContent = '⚠ ' + (data.error || 'Test failed');
         }
       }
@@ -8936,8 +8933,8 @@
           const rate = unitCount > 0 ? Math.round((occupiedCount / unitCount) * 100) : 0;
 
           const rateColor = unitCount === 0 ? 'var(--text-muted)'
-            : rate === 100 ? '#16a34a'
-            : rate >= 1 ? '#0ea5e9'
+            : rate === 100 ? 'var(--success)'
+            : rate >= 1 ? 'var(--info)'
             : 'var(--text-muted)';
 
           const buildingType = e.building_type ? escapeHtmlInv(e.building_type) : '<span style="color:var(--text-secondary);">—</span>';
@@ -9187,7 +9184,7 @@
 
             <!-- Archived banner (visible only if this property is archived) -->
             ${e.archived_at ? `
-              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+              <div style="margin-top:28px;padding:12px 16px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:8px;color:var(--danger);font-size:0.88em;">
                 &#9888; This property is archived (since ${escapeHtmlInv(String(e.archived_at).slice(0,10))}). It is hidden from the default list. Restore via the database or an unarchive action (coming later).
               </div>
             ` : ''}
@@ -9217,13 +9214,13 @@
         let label, color, bg;
         if (activeEng) {
           label = 'Occupied' + (tenantName ? ' \u2014 ' + escapeHtmlInv(tenantName) : '');
-          color = '#7c3aed'; bg = '#f3e8ff';
+          color = 'var(--info)'; bg = 'var(--info-soft)';
         } else if (offering.status === 'unavailable') {
-          label = 'Off-market'; color = '#d97706'; bg = '#ffedd5';
+          label = 'Off-market'; color = 'var(--warning)'; bg = 'var(--warning-soft)';
         } else if (offering.status === 'retired') {
-          label = 'Retired'; color = 'var(--text-muted)'; bg = '#f8fafc';
+          label = 'Retired'; color = 'var(--text-muted)'; bg = 'var(--bg-sunken)';
         } else {
-          label = 'Vacant'; color = 'var(--text-muted)'; bg = '#f1f5f9';
+          label = 'Vacant'; color = 'var(--text-muted)'; bg = 'var(--bg-sunken)';
         }
         return `<span style="display:inline-block;padding:3px 10px;font-size:0.78em;font-weight:600;border-radius:12px;background:${bg};color:${color};">${label}</span>`;
       }
@@ -9268,7 +9265,7 @@
           return `
             <div style="margin-top:36px;padding-top:24px;border-top:1px solid var(--border);">
               ${header}
-              <div style="padding:30px 20px;text-align:center;color:var(--text-muted);background:#f8fafc;border-radius:8px;border:1px dashed var(--border);">
+              <div style="padding:30px 20px;text-align:center;color:var(--text-muted);background:var(--bg-sunken);border-radius:8px;border:1px dashed var(--border);">
                 <div style="font-size:1.8em;margin-bottom:6px;">&#127968;</div>
                 <div style="font-size:0.9em;margin-bottom:12px;">No units yet for this property.</div>
                 <button class="btn-primary" style="font-size:0.85em;" onclick="openAddUnit(${entityId})">+ Add First Unit</button>
@@ -9288,13 +9285,13 @@
           const rent = _invFmtRent(u.price_amount);
 
           return `
-            <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:var(--text-primary);">${escapeHtmlInv(u.name) || '<span style=color:var(--text-muted);>(unnamed)</span>'}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${bb}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${sqft}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${floor}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${rent}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${badge}</td>
+            <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='var(--bg-sunken)'" onmouseout="this.style.background=''">
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600;color:var(--text-primary);">${escapeHtmlInv(u.name) || '<span style=color:var(--text-muted);>(unnamed)</span>'}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${bb}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${sqft}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${floor}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${rent}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid var(--border);">${badge}</td>
             </tr>
           `;
         }).join('');
@@ -9692,13 +9689,13 @@
 
       function _invEngStatusBadge(status) {
         const map = {
-          active:     { color: '#16a34a', bg: '#dcfce7', label: 'Active' },
-          pending:    { color: '#0369a1', bg: '#e0f2fe', label: 'Pending' },
-          renewed:    { color: '#7c3aed', bg: '#f3e8ff', label: 'Renewed' },
-          terminated: { color: '#b45309', bg: '#fef3c7', label: 'Terminated' },
-          expired:    { color: 'var(--text-muted)', bg: '#f1f5f9', label: 'Expired' },
+          active:     { color: 'var(--success)', bg: 'var(--success-soft)', label: 'Active' },
+          pending:    { color: 'var(--info)', bg: 'var(--info-soft)', label: 'Pending' },
+          renewed:    { color: 'var(--info)', bg: 'var(--info-soft)', label: 'Renewed' },
+          terminated: { color: 'var(--warning)', bg: 'var(--warning-soft)', label: 'Terminated' },
+          expired:    { color: 'var(--text-muted)', bg: 'var(--bg-sunken)', label: 'Expired' },
         };
-        const m = map[status] || { color: 'var(--text-muted)', bg: '#f1f5f9', label: status || '(unknown)' };
+        const m = map[status] || { color: 'var(--text-muted)', bg: 'var(--bg-sunken)', label: status || '(unknown)' };
         return `<span style="display:inline-block;padding:2px 9px;font-size:0.75em;font-weight:600;border-radius:12px;background:${m.bg};color:${m.color};">${escapeHtmlInv(m.label)}</span>`;
       }
 
@@ -9725,8 +9722,8 @@
         let currentTenantBlock;
         if (activeEng) {
           currentTenantBlock = `
-            <div style="margin-top:12px;padding:14px 16px;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:8px;">
-              <div style="font-size:0.88em;font-weight:700;color:#7c3aed;margin-bottom:4px;">Current Tenant</div>
+            <div style="margin-top:12px;padding:14px 16px;background:var(--info-soft);border:1px solid var(--info-soft);border-radius:8px;">
+              <div style="font-size:0.88em;font-weight:700;color:var(--info);margin-bottom:4px;">Current Tenant</div>
               <div style="color:var(--text-primary);font-size:1.02em;font-weight:600;margin-bottom:4px;">
                 ${activeTenantName ? escapeHtmlInv(activeTenantName) : '<span style="color:var(--text-muted);">(unknown contact)</span>'}
               </div>
@@ -9738,7 +9735,7 @@
           `;
         } else {
           currentTenantBlock = `
-            <div style="margin-top:12px;padding:14px 16px;background:#f8fafc;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.92em;">
+            <div style="margin-top:12px;padding:14px 16px;background:var(--bg-sunken);border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.92em;">
               No active tenant. (Assign via the Contacts form &mdash; coming in chunk 6.)
             </div>
           `;
@@ -9755,10 +9752,10 @@
             const nm = c ? c.name : '(unknown)';
             return `
               <tr>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-primary);">${escapeHtmlInv(nm)}</td>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${_invFmtDate(e.start_date)}</td>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${_invFmtDate(e.end_date)}</td>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${_invEngStatusBadge(e.status)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-primary);">${escapeHtmlInv(nm)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${_invFmtDate(e.start_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${_invFmtDate(e.end_date)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid var(--border);">${_invEngStatusBadge(e.status)}</td>
               </tr>
             `;
           }).join('');
@@ -9822,7 +9819,7 @@
 
             <!-- Retired banner (if this unit was retired) -->
             ${o.status === 'retired' ? `
-              <div style="margin-top:28px;padding:12px 16px;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:0.88em;">
+              <div style="margin-top:28px;padding:12px 16px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:8px;color:var(--danger);font-size:0.88em;">
                 &#9888; This unit is retired. It is hidden from the default units list.
               </div>
             ` : ''}
@@ -10283,7 +10280,7 @@
       // --- Edit form rendering ---
 
       function _invEditLabel(text, required) {
-        return `<label style="display:block;font-size:0.78em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${text}${required ? ' <span style="color:#e53e3e;">*</span>' : ''}</label>`;
+        return `<label style="display:block;font-size:0.78em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">${text}${required ? ' <span style="color:var(--danger);">*</span>' : ''}</label>`;
       }
 
       function renderPropertyEdit(e) {
@@ -10382,7 +10379,7 @@
             <!-- Shared amenities: checkboxes + other -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Shared Amenities')}
-              <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+              <div style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 <div style="line-height:1.8;">${amenCheckboxes}</div>
                 <div style="margin-top:10px;">
                   <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Other (comma-separated)</label>
@@ -10394,7 +10391,7 @@
             <!-- Emergency contacts -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Emergency Contacts')}
-              <div id="editEmergencyContacts" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+              <div id="editEmergencyContacts" style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 ${ecRows.map(c => _invEditECRow(c)).join('')}
                 <button type="button" class="inv-ec-add-btn" onclick="_invAddECRow()" style="font-size:0.82em;padding:6px 10px;background:var(--bg-sunken);color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Contact</button>
               </div>
@@ -10403,7 +10400,7 @@
             <!-- Service vendors -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Service Vendors')}
-              <div id="editServiceVendors" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+              <div id="editServiceVendors" style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 ${svRows.map(v => _invEditSVRow(v)).join('')}
                 <button type="button" class="inv-sv-add-btn" onclick="_invAddSVRow()" style="font-size:0.82em;padding:6px 10px;background:var(--bg-sunken);color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Vendor</button>
               </div>
@@ -10590,13 +10587,13 @@
 
         if (status === 'ready') {
           badge.textContent = '✓ Active';
-          badge.style.background = 'rgba(34,197,94,0.15)';
-          badge.style.color = '#86efac';
+          badge.style.background = 'var(--success-soft)';
+          badge.style.color = 'var(--success)';
           subtitle.textContent = 'Card payments are active. You can accept cards from customers.';
           btn.style.display = 'none';
         } else if (status === 'restricted') {
           badge.textContent = 'Needs more info';
-          badge.style.background = 'rgba(248,113,113,0.15)';
+          badge.style.background = 'var(--danger-soft)';
           badge.style.color = 'var(--danger)';
           subtitle.textContent = 'Stripe needs more information before you can accept card payments.';
           btn.textContent = 'Finish setting up card payments';
@@ -10609,7 +10606,7 @@
         } else {
           // 'not_started' (default) — includes legacy/null rows
           badge.textContent = 'Not set up';
-          badge.style.background = 'rgba(148,163,184,0.15)';
+          badge.style.background = 'var(--bg-sunken)';
           badge.style.color = 'var(--text-muted)';
           subtitle.textContent = 'Accept card payments from customers via Stripe.';
           btn.textContent = 'Set up card payments';
@@ -10822,7 +10819,7 @@
         // don't get an empty header. 'stripe' renders as "Card" — the column
         // value is the rail; "Card" is how an owner thinks about it.
         const paymentsHtml = payments.length ? `
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
             <div style="color:var(--text-muted);font-size:0.78em;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Payments</div>
             ${payments.map(p => {
               const typeLabel = (p.payment_type || '').charAt(0).toUpperCase() + (p.payment_type || '').slice(1);
@@ -10839,15 +10836,15 @@
           </div>` : '';
 
         const refundsHtml = refunds.length ? `
-          <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
             <div style="color:var(--text-muted);font-size:0.78em;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Refunds</div>
             ${refunds.map(r => `<div style="font-size:0.86em;color:var(--text-secondary);margin-bottom:4px;">#${r.id} — ${_txFormatCents(Math.abs(r.total_cents))} on ${(r.created_at || '').slice(0, 10)}: ${escapeHtmlForChip(r.refund_reason || '')}</div>`).join('')}
           </div>` : '';
 
         const receiptHtml = tx.receipt_sent_via === 'email'
-          ? `<div style="color:#86efac;font-size:0.82em;margin-top:6px;">Receipt emailed${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
+          ? `<div style="color:var(--success);font-size:0.82em;margin-top:6px;">Receipt emailed${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
           : tx.receipt_sent_via === 'sms'
-          ? `<div style="color:#86efac;font-size:0.82em;margin-top:6px;">Receipt sent via SMS${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
+          ? `<div style="color:var(--success);font-size:0.82em;margin-top:6px;">Receipt sent via SMS${tx.receipt_sent_at ? ' on ' + (tx.receipt_sent_at + '').slice(0, 10) : ''}.</div>`
           : tx.receipt_sent_via === 'none'
           ? `<div style="color:var(--text-muted);font-size:0.82em;margin-top:6px;">Receipt saved (no email or phone on file to send to).</div>`
           : `<div style="color:var(--text-muted);font-size:0.82em;margin-top:6px;">Receipt not yet sent.</div>`;
@@ -10856,12 +10853,12 @@
           <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
             <tbody>${itemsHtml || '<tr><td colspan="2" style="color:var(--text-muted);padding:6px 0;">No itemized details</td></tr>'}</tbody>
           </table>
-          <table style="width:100%;border-collapse:collapse;border-top:1px solid rgba(148,163,184,0.2);padding-top:6px;">
+          <table style="width:100%;border-collapse:collapse;border-top:1px solid var(--border);padding-top:6px;">
             <tr><td style="color:var(--text-muted);padding:3px 0;">Subtotal</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.subtotal_cents)}</td></tr>
             ${tx.tax_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Tax</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
             ${tx.discount_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Discount</td><td style="text-align:right;color:var(--text-secondary);">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
             ${tx.tip_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Tip</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
-            <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:var(--text-primary);font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
+            <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid var(--border);">Total</td><td style="text-align:right;color:var(--text-primary);font-weight:700;border-top:1px solid var(--border);">${_txFormatCents(tx.total_cents)}</td></tr>
             ${tx.amount_refunded_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:var(--text-muted);font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
           </table>
           ${paymentsHtml}
@@ -10888,16 +10885,16 @@
         actions.innerHTML = [
           `<button onclick="resendReceipt(${tx.id})" class="btn-secondary" style="font-size:0.85em;">Send/Resend receipt</button>`,
           canRefund && remaining > 0
-            ? `<button onclick="openRefundModal(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:#fdba74;border-color:rgba(251,146,60,0.4);">Issue refund</button>`
+            ? `<button onclick="openRefundModal(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--warning);border-color:var(--warning);">Issue refund</button>`
             : '',
           canRequestDeposit
-            ? `<button onclick="requestPaymentLink(${tx.id}, 'deposit')" class="btn-secondary" style="font-size:0.85em;color:#86efac;border-color:rgba(134,239,172,0.4);">Request deposit</button>`
+            ? `<button onclick="requestPaymentLink(${tx.id}, 'deposit')" class="btn-secondary" style="font-size:0.85em;color:var(--success);border-color:var(--success);">Request deposit</button>`
             : '',
           canRequestPayment
-            ? `<button onclick="requestPaymentLink(${tx.id}, 'payment')" class="btn-secondary" style="font-size:0.85em;color:#86efac;border-color:rgba(134,239,172,0.4);">Request payment</button>`
+            ? `<button onclick="requestPaymentLink(${tx.id}, 'payment')" class="btn-secondary" style="font-size:0.85em;color:var(--success);border-color:var(--success);">Request payment</button>`
             : '',
           canVoid
-            ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--danger);border-color:rgba(239,68,68,0.4);">Void</button>`
+            ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--danger);border-color:var(--danger);">Void</button>`
             : '',
           `<button onclick="closeTxDetailModal()" class="btn-primary" style="font-size:0.85em;">Close</button>`,
         ].filter(Boolean).join('');
@@ -11147,7 +11144,7 @@
           }
           if (status) {
             status.textContent = 'Saved!';
-            status.style.color = '#86efac';
+            status.style.color = 'var(--success)';
           }
           // Refresh the remembered ids in case one of the three was a fresh
           // POST — the next save on that field should become a PUT.
@@ -11169,7 +11166,7 @@
       // distinguish PATCH (has id) from POST (no id / new blank row).
 
       const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9em;';
-      const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid rgba(148,163,184,0.12);vertical-align:middle;';
+      const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid var(--border);vertical-align:middle;';
       const _MB_REMOVE_STYLE = 'background:transparent;color:var(--danger);border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
 
       function _mbEsc(v) {
@@ -11302,7 +11299,7 @@
             const text = await r.text().catch(() => '');
             throw new Error('HTTP ' + r.status + (text ? ': ' + text : ''));
           }
-          _mbSetStatus(statusId, 'Removed.', '#86efac');
+          _mbSetStatus(statusId, 'Removed.', 'var(--success)');
           await reload();
         } catch (err) {
           console.error('[my-business remove] failed:', err);
@@ -11362,7 +11359,7 @@
             }
             saved++;
           }
-          _mbSetStatus('mbServicesStatus', 'Saved!', '#86efac');
+          _mbSetStatus('mbServicesStatus', 'Saved!', 'var(--success)');
           // Re-fetch so newly-POSTed rows gain their ids for future PATCH.
           await mbLoadServices();
         } catch (err) {
@@ -11416,7 +11413,7 @@
             }
             saved++;
           }
-          _mbSetStatus('mbProductsStatus', 'Saved!', '#86efac');
+          _mbSetStatus('mbProductsStatus', 'Saved!', 'var(--success)');
           await mbLoadProducts();
         } catch (err) {
           console.error('[my-business products] save failed:', err);
@@ -11488,7 +11485,7 @@
           // Same for the selects; null → '' → default option.
           if (toneEl)  toneEl.value  = (data && data.ai_tone) ? data.ai_tone : '';
           if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
-          _mbSetStatus('mbAISettingsStatus', 'Saved!', '#86efac');
+          _mbSetStatus('mbAISettingsStatus', 'Saved!', 'var(--success)');
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
@@ -11554,7 +11551,7 @@
             });
             if (!r.ok) throw new Error('Failed to save "' + f.title + '" (HTTP ' + r.status + ')');
           }
-          _mbSetStatus('mbGrowthStatus', 'Saved!', '#86efac');
+          _mbSetStatus('mbGrowthStatus', 'Saved!', 'var(--success)');
           // Refresh so newly-POSTed rows gain their ids; next save is PUT.
           await mbLoadGrowth();
         } catch (err) {
@@ -12438,7 +12435,7 @@
       <textarea id="maintDesc" rows="3" placeholder="Describe the issue in detail..." style="margin-bottom:14px;"></textarea>
 
       <!-- Update section (only shown when editing) -->
-      <div id="maintUpdateSection" style="display:none;border-top:1px solid #e8edf4;padding-top:16px;margin-top:4px;">
+      <div id="maintUpdateSection" style="display:none;border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
         <label>Status</label>
         <select id="maintStatus" style="margin-bottom:14px;">
           <option value="open">Open</option>
@@ -12449,7 +12446,7 @@
         <label>Maintenance Outcome / What Was Done</label>
         <textarea id="maintOutcome" rows="3" placeholder="What did maintenance do? What was the result?" style="margin-bottom:14px;"></textarea>
 
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;font-weight:600;color:#ea580c;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;font-weight:600;color:var(--warning);">
           <input type="checkbox" id="maintRequiresAction" style="width:16px;height:16px;" />
           Office action required (contractor, payment, approval, etc.)
         </label>
@@ -12475,33 +12472,33 @@
         <div style="display:flex;gap:12px;margin-bottom:14px;">
           <label style="flex:1;cursor:pointer;">
             <div style="font-size:0.83em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Transaction Type</div>
-            <select id="txType" onchange="updateTxCategories()" style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;">
+            <select id="txType" onchange="updateTxCategories()" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;">
               <option value="income">&#43; Income</option>
               <option value="expense">&#8722; Expense</option>
             </select>
           </label>
           <label style="flex:1;cursor:pointer;">
             <div style="font-size:0.83em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Category</div>
-            <select id="txCategory" style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;"></select>
+            <select id="txCategory" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;"></select>
           </label>
         </div>
 
         <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Description *</label>
-        <input id="txDescription" placeholder="e.g. Unit 101 April rent" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;margin-bottom:14px;" />
+        <input id="txDescription" placeholder="e.g. Unit 101 April rent" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;margin-bottom:14px;" />
 
         <div style="display:flex;gap:12px;margin-bottom:14px;">
           <div style="flex:1;">
             <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Amount ($) *</label>
-            <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;" />
+            <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;" />
           </div>
           <div style="flex:1;">
             <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Date *</label>
-            <input type="date" id="txDate" required style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;" />
+            <input type="date" id="txDate" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;" />
           </div>
         </div>
 
         <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Notes (optional)</label>
-        <input id="txNotes" placeholder="Vendor name, unit, etc." style="width:100%;padding:8px 10px;border:1px solid #dde3ec;border-radius:7px;font-size:0.9em;margin-bottom:18px;" />
+        <input id="txNotes" placeholder="Vendor name, unit, etc." style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;margin-bottom:18px;" />
 
         <div class="modal-footer" style="margin-top:0;">
           <button type="button" class="btn-secondary" onclick="closeTxModal()">Cancel</button>
@@ -12563,7 +12560,7 @@
 
       <!-- Lease fields — shown only for residents -->
       <div id="leaseFields" style="margin-top:6px;">
-        <div style="font-size:0.78em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;padding-top:10px;border-top:1px solid #f1f5f9;">Lease Details</div>
+        <div style="font-size:0.78em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;padding-top:10px;border-top:1px solid var(--border);">Lease Details</div>
         <div style="display:flex;gap:12px;">
           <div style="flex:1;">
             <label>Lease Start</label>
@@ -12593,12 +12590,12 @@
       <h3>&#127970; Add Property</h3>
 
       <div>
-        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <label>Name <span style="color:var(--danger);">*</span></label>
         <input id="propName" type="text" placeholder="e.g. Oakwood Apartments" />
       </div>
 
       <div>
-        <label>Address <span style="color:#e53e3e;">*</span></label>
+        <label>Address <span style="color:var(--danger);">*</span></label>
         <input id="propAddress" type="text" placeholder="e.g. 123 Main St, Seattle, WA" />
       </div>
 
@@ -12654,7 +12651,7 @@
       <input type="hidden" id="unitEntityId" />
 
       <div>
-        <label>Name <span style="color:#e53e3e;">*</span></label>
+        <label>Name <span style="color:var(--danger);">*</span></label>
         <input id="unitName" type="text" placeholder="e.g. Unit 101 or Apartment 2B" />
       </div>
 
@@ -12809,9 +12806,9 @@
         By enabling auto-reply, you accept responsibility for messages sent on your behalf.
       </p>
 
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin:14px 0 4px;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin:14px 0 4px;">
         <input type="checkbox" id="autoReplyConsentCheckbox" onchange="updateAutoReplyConsentBtn()" style="cursor:pointer;width:16px;height:16px;flex-shrink:0;">
-        <span style="color:#1e293b;font-size:0.9em;font-weight:500;">I understand and accept these terms</span>
+        <span style="color:var(--text-primary);font-size:0.9em;font-weight:500;">I understand and accept these terms</span>
       </label>
 
       <div class="modal-footer">
@@ -12883,7 +12880,7 @@
       <label>Label (optional)</label>
       <input id="blockOffLabel" placeholder="Time off" />
 
-      <div id="blockOffError" style="color:#dc2626;font-size:0.85em;min-height:16px;margin-top:8px;"></div>
+      <div id="blockOffError" style="color:var(--danger);font-size:0.85em;min-height:16px;margin-top:8px;"></div>
 
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeBlockOffModal()">Cancel</button>
@@ -12921,7 +12918,7 @@
         </div>
       </div>
 
-      <div id="genResult" style="margin-top:12px;font-size:0.85em;color:#059669;min-height:20px;"></div>
+      <div id="genResult" style="margin-top:12px;font-size:0.85em;color:var(--success);min-height:20px;"></div>
 
       <div class="modal-footer">
         <button class="btn-secondary" onclick="document.getElementById('generateRentModal').style.display='none'">Cancel</button>
@@ -13003,7 +13000,7 @@
           &#9993; Email
         </button>
         <button id="bc-ch-sms" onclick="setBroadcastChannel('sms')"
-          style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border-strong);background:#f8fafc;color:var(--text-muted);font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border-strong);background:var(--bg-sunken);color:var(--text-muted);font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
           &#128172; SMS
         </button>
       </div>
