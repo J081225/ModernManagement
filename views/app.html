@@ -48,15 +48,12 @@
         gap: 13px;
         position: relative;
       }
-      /* Logo tile. Explicit padding/font-size guard against the
-         design-system .mm-badge pill styles, which share this
-         legacy markup class name. */
-      #sidebar .logo .mm-badge {
+      #sidebar .logo .logo-mark {
         width: 44px;
         height: 44px;
         padding: 0;
         background: var(--accent);
-        border-radius: 12px;
+        border-radius: var(--radius-sm);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -167,15 +164,12 @@
         width: 46px;
         height: 46px;
         border-radius: 12px;
-        background: linear-gradient(135deg, var(--accent) 0%, #2d8659 50%, #d4af37 100%);
+        background: var(--accent);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        color: #0a1828;
-        box-shadow:
-          0 6px 20px rgba(212,175,55,0.40),
-          inset 0 1px 0 rgba(255,255,255,0.18);
+        color: var(--text-on-accent);
         position: relative;
       }
       .card-head-tile::after {
@@ -183,7 +177,7 @@
         position: absolute;
         inset: -10px;
         border-radius: 18px;
-        background: radial-gradient(circle, rgba(212,175,55,0.40) 0%, rgba(45,134,89,0.18) 40%, transparent 70%);
+        background: none;
         z-index: -1;
         pointer-events: none;
         filter: blur(4px);
@@ -191,7 +185,7 @@
       .card-head-tile svg {
         width: 20px;
         height: 20px;
-        stroke: #0a1828;
+        stroke: var(--text-on-accent);
         stroke-width: 1.8;
         stroke-linecap: round;
         stroke-linejoin: round;
@@ -216,7 +210,7 @@
       }
       .card-head-rule {
         height: 1px;
-        background: linear-gradient(90deg, rgba(212,175,55,0.55), rgba(212,175,55,0.05));
+        background: var(--border);
         margin: 18px 0 22px;
       }
 
@@ -234,7 +228,7 @@
         justify-content: space-between;
         gap: 14px;
         padding: 13px 0;
-        border-bottom: 0.5px solid rgba(212,175,55,0.10);
+        border-bottom: 1px solid var(--border);
       }
       .settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
       .settings-row-label {
@@ -255,7 +249,7 @@
         font-size: 11px;
         font-weight: 500;
         letter-spacing: 0.18em;
-        color: #d4af37;
+        color: var(--text-muted);
         text-transform: uppercase;
       }
       .form-block input,
@@ -272,15 +266,15 @@
         margin: 0;
       }
       .form-block input:focus {
-        border-color: #d4af37 !important;
-        box-shadow: 0 0 0 3px rgba(212,175,55,0.18) !important;
-        background: rgba(10,20,32,0.75) !important;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+        background: var(--bg-surface);
       }
 
       /* Routing pills — used in Phone & Email Routing card. */
       .routing-pill {
-        background: rgba(10,20,32,0.55);
-        border: 1px solid rgba(212,175,55,0.28);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
         border-radius: 10px;
         padding: 14px 16px;
         display: flex;
@@ -291,7 +285,7 @@
         font-size: 10px;
         font-weight: 500;
         letter-spacing: 0.22em;
-        color: #d4af37;
+        color: var(--text-muted);
         text-transform: uppercase;
       }
       .routing-pill-value {
@@ -312,8 +306,8 @@
          inline styles on #label-auto / #label-review (untouched), but
          we update those JS color values in Step 5 so they match brass. */
       .mode-card {
-        background: rgba(10,20,32,0.55);
-        border: 1px solid rgba(212,175,55,0.28);
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
         border-radius: 10px;
         padding: 16px;
         display: flex;
@@ -419,11 +413,11 @@
         letter-spacing: 0.1px;
       }
       .btn-primary {
-        background: linear-gradient(135deg, var(--accent) 0%, #2d8659 50%, #d4af37 100%);
-        color:var(--text-primary);
-        box-shadow: 0 3px 10px rgba(212,175,55,0.40);
+        background: var(--accent);
+        color: var(--text-on-accent);
+        box-shadow: var(--shadow-card);
       }
-      .btn-primary:hover { box-shadow: 0 6px 18px rgba(212,175,55,0.40); transform: translateY(-1px); }
+      .btn-primary:hover { box-shadow: var(--shadow-popup); transform: translateY(-1px); }
       .btn-success {
         background: linear-gradient(135deg, #27ae60, #2ecc71);
         color: white;
@@ -652,8 +646,8 @@
         position: relative;
         margin: 0 0 18px;
         padding: 14px 44px 14px 18px;
-        background: rgba(212, 175, 55, 0.08);
-        border: 1px solid rgba(212, 175, 55, 0.28);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
         border-radius: 10px;
         color:var(--text-primary);
         font-size: 0.92em;
@@ -668,7 +662,7 @@
       .b5-ai-banner-chips {
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid rgba(212, 175, 55, 0.18);
+        border-top: 1px solid var(--border);
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -677,8 +671,8 @@
         font-size: 0.8em;
         font-weight: 500;
         color:var(--text-secondary);
-        background: rgba(10, 20, 32, 0.45);
-        border: 1px solid rgba(212, 175, 55, 0.18);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 6px;
         padding: 4px 9px;
       }
@@ -697,8 +691,8 @@
         transition: color 0.15s ease, background 0.15s ease;
       }
       .b5-ai-banner-close:hover {
-        color: #d4af37;
-        background: rgba(212, 175, 55, 0.08);
+        color: var(--accent);
+        background: var(--bg-hover);
       }
       @keyframes b5BannerIn {
         from { opacity: 0; transform: translateY(-4px); }
@@ -708,9 +702,9 @@
         animation: b5FocusFlash 1.4s ease;
       }
       @keyframes b5FocusFlash {
-        0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.55); }
-        50% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.32); }
-        100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+        0% { box-shadow: 0 0 0 0 var(--accent-soft); }
+        50% { box-shadow: 0 0 0 6px var(--accent-soft); }
+        100% { box-shadow: 0 0 0 0 transparent; }
       }
       .hero-title {
         font-family: 'Inter', sans-serif;
@@ -754,60 +748,50 @@
         position: absolute;
         inset: -10px;
         border-radius: 18px;
-        background: radial-gradient(circle, rgba(212,175,55,0.40) 0%, rgba(45,134,89,0.18) 40%, transparent 70%);
+        background: none;
         z-index: -1;
         pointer-events: none;
         filter: blur(4px);
       }
       /* Ask AI input on dark glass card (navy + gold border) */
       #homeCommandInput {
-        background: rgba(10,20,32,0.60) !important;
-        border: 1.5px solid rgba(212,175,55,0.30) !important;
+        background: var(--bg-surface) !important;
+        border: 1.5px solid var(--border-strong) !important;
         color:var(--text-primary) !important;
         font-family: 'Inter', sans-serif !important;
         transition: all 0.25s ease !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
       }
       #homeCommandInput:focus {
-        background: rgba(10,20,32,0.80) !important;
-        border-color: #d4af37 !important;
-        box-shadow:
-          0 0 0 4px rgba(212,175,55,0.18),
-          0 0 28px rgba(212,175,55,0.32) !important;
+        background: var(--bg-surface) !important;
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px var(--accent-soft) !important;
       }
       #homeCommandInput::placeholder {
-        color: rgba(148,163,184,0.7) !important;
+        color: var(--text-muted) !important;
         font-style: italic;
       }
       /* Mic button recolored */
       #micBtn {
-        background: rgba(10,20,32,0.60) !important;
-        border-color: rgba(212,175,55,0.30) !important;
+        background: var(--bg-surface) !important;
+        border-color: var(--border-strong) !important;
         color:var(--text-primary) !important;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
       }
       #micBtn:hover {
-        border-color: #d4af37 !important;
+        border-color: var(--accent) !important;
       }
       /* Response area: dark glass with gold accent */
       #homeCommandResponse {
-        background: linear-gradient(135deg, rgba(20,38,58,0.70) 0%, rgba(15,28,46,0.70) 100%) !important;
-        border: 1px solid rgba(212,175,55,0.25) !important;
-        border-left: 3px solid #d4af37 !important;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.05),
-          0 2px 12px rgba(0,0,0,0.30) !important;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        background: var(--bg-sunken) !important;
+        border: 1px solid var(--border) !important;
+        border-left: 3px solid var(--accent) !important;
+        box-shadow: var(--shadow-card) !important;
         color:var(--text-secondary) !important;
         font-family: 'Inter', sans-serif !important;
       }
       /* AI response markdown text adapts to dark bg */
       .ai-response-body { color:var(--text-secondary) !important; }
       .ai-response-body strong { color:var(--text-primary) !important; }
-      .ai-response-body em { color: #d4af37 !important; }
+      .ai-response-body em { color: var(--text-secondary) !important; }
       .ai-response-body h1,
       .ai-response-body h2,
       .ai-response-body h3,
@@ -815,8 +799,8 @@
         color:var(--text-primary) !important;
       }
       .ai-response-body code {
-        background: rgba(212,175,55,0.10) !important;
-        color: #d4af37 !important;
+        background: var(--bg-sunken) !important;
+        color: var(--accent) !important;
       }
       #reportDetailModal #reportDetailTitle {
         font-weight: 600;
@@ -848,9 +832,9 @@
         font-family: 'Inter', sans-serif;
       }
       .plan-badge-trial {
-        background: rgba(212, 175, 55, 0.15);
-        color: #d4af37;
-        border: 1px solid rgba(212, 175, 55, 0.4);
+        background: var(--warning-soft);
+        color: var(--warning);
+        border: 1px solid var(--warning-soft);
       }
       .plan-badge-solo {
         background: rgba(148, 163, 184, 0.15);
@@ -858,15 +842,14 @@
         border: 1px solid rgba(148, 163, 184, 0.4);
       }
       .plan-badge-team {
-        background: rgba(34, 197, 94, 0.15);
-        color: #86efac;
-        border: 1px solid rgba(34, 197, 94, 0.4);
+        background: var(--success-soft);
+        color: var(--success);
+        border: 1px solid var(--success-soft);
       }
       .plan-badge-enterprise {
-        background: rgba(212, 175, 55, 0.2);
-        color:var(--text-primary);
-        border: 1px solid rgba(212, 175, 55, 0.6);
-        box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid var(--accent-soft);
       }
 
       /* Subscription status banner (past_due / canceled) */
@@ -885,20 +868,20 @@
         gap: 16px;
       }
       .subscription-banner-past-due {
-        background: rgba(251, 146, 60, 0.15);
-        color: #fdba74;
-        border-bottom-color: rgba(251, 146, 60, 0.3);
+        background: var(--warning-soft);
+        color: var(--warning);
+        border-bottom-color: var(--warning-soft);
       }
       .subscription-banner-canceled {
-        background: rgba(239, 68, 68, 0.15);
-        color: #fca5a5;
-        border-bottom-color: rgba(239, 68, 68, 0.3);
+        background: var(--danger-soft);
+        color: var(--danger);
+        border-bottom-color: var(--danger-soft);
       }
       .subscription-banner-cta {
         padding: 6px 14px;
-        background: rgba(212, 175, 55, 0.2);
-        color:var(--text-primary);
-        border: 1px solid rgba(212, 175, 55, 0.5);
+        background: var(--accent);
+        color: var(--text-on-accent);
+        border: 1px solid var(--accent);
         border-radius: 6px;
         cursor: pointer;
         font-size: 13px;
@@ -906,7 +889,7 @@
         flex-shrink: 0;
       }
       .subscription-banner-cta:hover {
-        background: rgba(212, 175, 55, 0.3);
+        background: var(--accent-hover);
       }
 
       /* Plan & Usage card body (slots inside the existing card chrome) */
@@ -916,7 +899,7 @@
         align-items: center;
         margin-bottom: 16px;
         padding-bottom: 16px;
-        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        border-bottom: 1px solid var(--border);
         flex-wrap: wrap;
         gap: 12px;
       }
@@ -934,10 +917,10 @@
         font-weight: 500;
         text-transform: capitalize;
       }
-      .plan-usage-status-active   { color: #86efac; }
-      .plan-usage-status-trial    { color: #d4af37; }
-      .plan-usage-status-past_due { color: #fdba74; }
-      .plan-usage-status-canceled { color: #fca5a5; }
+      .plan-usage-status-active   { color: var(--success); }
+      .plan-usage-status-trial    { color: var(--warning); }
+      .plan-usage-status-past_due { color: var(--warning); }
+      .plan-usage-status-canceled { color: var(--danger); }
       .plan-usage-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -946,8 +929,8 @@
       }
       .plan-usage-stat {
         padding: 12px 14px;
-        background: rgba(20, 38, 58, 0.5);
-        border: 1px solid rgba(212, 175, 55, 0.10);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
         border-radius: 8px;
       }
       .plan-usage-stat-label {
@@ -1017,26 +1000,26 @@
         justify-content: flex-end;
       }
       .ai-thinking-bubble {
-        background: rgba(10,20,32,0.60) !important;
-        border: 1px solid rgba(212,175,55,0.22);
+        background: var(--bg-sunken) !important;
+        border: 1px solid var(--border);
       }
       .ai-thinking-bubble span {
-        background: linear-gradient(135deg, #2d8659, #d4af37) !important;
+        background: var(--accent) !important;
       }
-      .ai-cursor { background: #d4af37 !important; }
+      .ai-cursor { background: var(--accent) !important; }
       .ai-action-chip {
-        background: linear-gradient(135deg, rgba(45,134,89,0.22), rgba(26,95,63,0.22)) !important;
-        border: 1px solid rgba(45,134,89,0.45) !important;
-        color: #86efac !important;
+        background: var(--success-soft) !important;
+        border: 1px solid var(--success-soft) !important;
+        color: var(--success) !important;
       }
       .ai-action-chip-warn {
-        background: linear-gradient(135deg, rgba(212,175,55,0.22), rgba(180,140,40,0.22)) !important;
-        border: 1px solid rgba(212,175,55,0.45) !important;
-        color: #fde68a !important;
+        background: var(--warning-soft) !important;
+        border: 1px solid var(--warning-soft) !important;
+        color: var(--warning) !important;
       }
-      .ai-action-chip .chip-check { background: #2d8659; }
-      .ai-action-chip-warn .chip-check { background: #d4af37; }
-      .ai-actions-row { border-top-color: rgba(212,175,55,0.22) !important; }
+      .ai-action-chip .chip-check { background: var(--success); }
+      .ai-action-chip-warn .chip-check { background: var(--warning); }
+      .ai-actions-row { border-top-color: var(--border) !important; }
       /* Lease expirations card list items adapt */
       #leaseExpirationsList { color:var(--text-secondary); }
 
@@ -1060,19 +1043,16 @@
         border-radius: 20px;
         overflow: hidden;
         margin-bottom: 48px;
-        background: linear-gradient(135deg, #0a1828 0%, #14253a 50%, #0a1422 100%);
+        background: var(--bg-sunken);
         display: flex;
         align-items: flex-end;
-        border: 1px solid rgba(212,175,55,0.25);
-        box-shadow:
-          0 24px 64px -16px rgba(212,175,55,0.20),
-          0 12px 36px rgba(0,0,0,0.50),
-          inset 0 1px 0 rgba(255,255,255,0.06);
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-card);
       }
       .page-hero-overlay-dark {
         position: absolute;
         inset: 0;
-        background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(45,134,89,0.10) 50%, rgba(0,0,0,0.15) 100%);
+        background: none;
         pointer-events: none;
       }
       .page-hero-glow {
@@ -1081,7 +1061,7 @@
         right: -60px;
         width: 340px;
         height: 340px;
-        background: radial-gradient(circle, rgba(212,175,55,0.30) 0%, rgba(45,134,89,0.14) 40%, transparent 70%);
+        background: none;
         pointer-events: none;
       }
       .page-hero-content {
@@ -1124,16 +1104,15 @@
         content: '';
         flex: 1;
         height: 2px;
-        background: linear-gradient(to right, rgba(212,175,55,0.65), rgba(212,175,55,0)) !important;
+        background: var(--border) !important;
         align-self: center;
       }
       .section-label .dot {
         width: 12px !important;
         height: 12px !important;
         border-radius: 50% !important;
-        background: linear-gradient(135deg, #d4af37, #2d8659) !important;
+        background: var(--accent) !important;
         flex-shrink: 0 !important;
-        box-shadow: 0 0 18px rgba(212,175,55,0.75) !important;
         align-self: center !important;
       }
       .section-label .accent {
@@ -1143,7 +1122,7 @@
         text-transform: none !important;
         letter-spacing: 0 !important;
         font-size: 0.92em !important;
-        color: #d4af37 !important;
+        color: var(--text-secondary) !important;
         margin-left: 2px !important;
       }
 
@@ -1190,7 +1169,7 @@
       .stat-tile-label {
         font-family: 'Inter', sans-serif;
         font-size: 0.72em;
-        color: #d4af37;
+        color: var(--text-muted);
         margin-top: 6px;
         font-weight: 600;
         text-transform: uppercase;
@@ -1565,9 +1544,9 @@
         justify-content: center;
       }
       .cc-quick-prompt {
-        background: rgba(212,175,55,0.10);
-        color: #d4af37;
-        border: 1px solid rgba(212,175,55,0.35);
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid var(--border-strong);
         border-radius: 18px;
         padding: 10px 16px;
         font-size: 0.85em;
@@ -1577,7 +1556,7 @@
         font-family: inherit;
       }
       .cc-quick-prompt:hover {
-        background: rgba(212,175,55,0.20);
+        background: var(--bg-hover);
         color:var(--text-primary);
       }
 
@@ -1599,8 +1578,8 @@
         word-wrap: break-word;
       }
       .cc-bubble-user {
-        background: #d4af37;
-        color: #0d1117;
+        background: var(--accent);
+        color: var(--text-on-accent);
         border-bottom-right-radius: 4px;
       }
       .cc-bubble-ai {
@@ -1646,8 +1625,8 @@
         justify-content: center;
         transition: color 0.15s, transform 0.2s, border-color 0.15s;
       }
-      .cc-toggle:hover { color: #d4af37; border-color: rgba(212,175,55,0.45); }
-      .cc-toggle.expanded { color: #d4af37; border-color: rgba(212,175,55,0.55); transform: rotate(180deg); }
+      .cc-toggle:hover { color: var(--accent); border-color: var(--border-strong); }
+      .cc-toggle.expanded { color: var(--accent); border-color: var(--border-strong); transform: rotate(180deg); }
 
       .cc-input {
         flex: 1;
@@ -1661,12 +1640,12 @@
         outline: none;
         min-height: 44px;
       }
-      .cc-input:focus { border-color: #d4af37; background: rgba(255,255,255,0.08); }
+      .cc-input:focus { border-color: var(--accent); background: var(--bg-surface); }
       .cc-input::placeholder { color:var(--text-muted); }
 
       .cc-send {
-        background: #d4af37;
-        color: #0d1117;
+        background: var(--accent);
+        color: var(--text-on-accent);
         border: none;
         border-radius: 22px;
         padding: 10px 22px;
@@ -1775,7 +1754,7 @@
         margin: 0;
       }
       .ps-card-link {
-        color: #d4af37;
+        color: var(--accent);
         font-size: 0.85em;
         font-weight: 600;
         text-decoration: none;
@@ -1801,7 +1780,7 @@
         flex-wrap: wrap;
       }
       .ps-card-row:hover {
-        background: rgba(212,175,55,0.06);
+        background: var(--bg-hover);
       }
       .ps-card-row-main {
         flex: 1 1 60%;
@@ -1846,8 +1825,8 @@
         text-transform: uppercase;
         white-space: nowrap;
       }
-      .ps-badge-paid       { color: #d4af37; background: rgba(212,175,55,0.14); }
-      .ps-badge-pending    { color: #d4af37; background: rgba(212,175,55,0.06); }
+      .ps-badge-paid       { color: var(--success); background: var(--success-soft); }
+      .ps-badge-pending    { color: var(--warning); background: var(--warning-soft); }
       .ps-badge-attention  { color:var(--text-primary); background: rgba(245,230,211,0.10); font-weight: 800; }
       .ps-badge-muted      { color:var(--text-muted); background: rgba(148,163,184,0.10); }
 
@@ -1864,8 +1843,8 @@
         border: 1px solid transparent;
       }
       .ps-card-row .ps-btn-approve {
-        background: #d4af37;
-        color: #0d1117;
+        background: var(--accent);
+        color: var(--text-on-accent);
       }
       .ps-card-row .ps-btn-reject {
         background: transparent;
@@ -1905,7 +1884,7 @@
     <!-- Sidebar -->
     <div id="sidebar">
       <div class="logo">
-        <div class="mm-badge">MM</div>
+        <div class="logo-mark">MM</div>
         <div class="logo-text">
           <span>Modern</span>
           <span>Management</span>
@@ -1959,20 +1938,20 @@
                sibling #page-home-ps below). PM behavior unchanged. -->
           <div class="page-content pm-home" id="page-home-pm">
           <!-- Hero Banner -->
-          <div id="homeBanner" class="home-fade" style="position:relative;width:100%;height:280px;border-radius:20px;overflow:hidden;margin-bottom:48px;background:linear-gradient(135deg,#0a1828 0%,#14253a 50%,#0a1422 100%);display:flex;align-items:flex-end;border:1px solid rgba(212,175,55,0.25);box-shadow:0 24px 64px -16px rgba(212,175,55,0.20),0 12px 36px rgba(0,0,0,0.50);">
+          <div id="homeBanner" class="home-fade" style="position:relative;width:100%;height:280px;border-radius:20px;overflow:hidden;margin-bottom:48px;background:linear-gradient(135deg,#0a1828 0%,#14253a 50%,#0a1422 100%);display:flex;align-items:flex-end;border:1px solid var(--border);box-shadow:var(--shadow-card);">
             <img id="bannerImg" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;" />
             <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(45,134,89,0.10) 50%, rgba(0,0,0,0.15) 100%);"></div>
-            <div style="position:absolute;top:-80px;right:-60px;width:340px;height:340px;background:radial-gradient(circle,rgba(212,175,55,0.30) 0%,rgba(45,134,89,0.14) 40%,transparent 70%);pointer-events:none;"></div>
+            <div style="position:absolute;top:-80px;right:-60px;width:340px;height:340px;pointer-events:none;"></div>
             <div style="position:relative;padding:32px 36px;flex:1;">
               <div id="homePropertyName" class="display-banner-title">Welcome to Modern Management</div>
               <div id="homePropertySub" class="display-banner-sub">Your property dashboard</div>
             </div>
             <div style="position:relative;padding:20px 24px;display:flex;gap:10px;">
-              <label style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">
+              <label style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;">
                 &#128247; Change Photo
                 <input type="file" accept="image/*" style="display:none;" onchange="uploadBannerPhoto(this)" />
               </label>
-              <button onclick="editPropertyName()" style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">&#9998; Edit Name</button>
+              <button onclick="editPropertyName()" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;">&#9998; Edit Name</button>
             </div>
           </div>
 
@@ -2009,7 +1988,7 @@
           <!-- AI Command Bar -->
           <div class="card card-hero home-fade" style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;position:relative;">
-              <div class="hero-avatar" style="width:46px;height:46px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;box-shadow:0 6px 20px rgba(212,175,55,0.50),inset 0 1px 0 rgba(255,255,255,0.20);">&#129302;</div>
+              <div class="hero-avatar" style="width:46px;height:46px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;">&#129302;</div>
               <div>
                 <div class="hero-title">Ask AI</div>
                 <div class="hero-subtitle">Type or speak — add events, create tasks, compose messages</div>
@@ -2024,7 +2003,7 @@
                 onmouseover="if(!window.micActive)this.style.borderColor='#ff6b6b'" onmouseout="if(!window.micActive)this.style.borderColor='#e8dcd2'">
                 &#127908;
               </button>
-              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;color:var(--text-primary);box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);font-weight:600;">Send &#9654;</button>
+              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:var(--accent);border:none;color:var(--text-on-accent);font-weight:600;">Send &#9654;</button>
             </div>
             <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:#ff6b6b;align-items:center;gap:7px;position:relative;">
               <span style="width:8px;height:8px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
@@ -2043,7 +2022,7 @@
                 </svg>
               </div>
               <div class="card-head-titles">
-                <div class="card-head-title">Pending Approvals <span id="approvalQueueCount" style="background:#d4af37;color:#0a1420;font-size:0.7em;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px;vertical-align:middle;"></span></div>
+                <div class="card-head-title">Pending Approvals <span id="approvalQueueCount" style="background:var(--accent);color:var(--text-on-accent);font-size:0.7em;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:6px;vertical-align:middle;"></span></div>
                 <div class="card-head-subtitle">Actions the AI wants to take on your behalf. Review each one before it executes.</div>
               </div>
             </div>
@@ -2061,7 +2040,7 @@
                   <div class="hero-subtitle">A fast AI-generated overview of your property. For detailed reports — budget, tenant, inventory, activity — use the Reports page.</div>
                 </div>
               </div>
-              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;padding:11px 22px;white-space:nowrap;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);color:var(--text-primary);font-weight:600;">
+              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:var(--accent);border:none;padding:11px 22px;white-space:nowrap;color:var(--text-primary);font-weight:600;">
                 &#128196; Generate Snapshot
               </button>
             </div>
@@ -2075,7 +2054,7 @@
           <div class="card home-fade" id="leaseCard" style="margin-bottom:24px;display:none;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
               <div style="display:flex;align-items:center;gap:14px;">
-                <div class="hero-avatar" style="width:42px;height:42px;background:linear-gradient(135deg,#d4af37 0%,#b8941f 50%,var(--accent) 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.15em;flex-shrink:0;box-shadow:0 6px 20px rgba(212,175,55,0.45),inset 0 1px 0 rgba(255,255,255,0.20);">&#128196;</div>
+                <div class="hero-avatar" style="width:42px;height:42px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.15em;flex-shrink:0;">&#128196;</div>
                 <div>
                   <div class="hero-title" style="font-size:1.2em;">Lease Expirations</div>
                   <div class="hero-subtitle">Residents expiring in the next 90 days</div>
@@ -2277,16 +2256,16 @@
             <div class="card-head-rule"></div>
 
             <div class="asymmetric-1-1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
-              <label id="label-auto" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid rgba(212,175,55,0.28);">
+              <label id="label-auto" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:#d4af37;width:16px;height:16px;" />
+                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
                   <span class="mode-card-title">Auto-reply</span>
                 </div>
                 <span class="mode-card-hint" style="padding-left:26px;">AI sends responses immediately under your name. Use after you trust the knowledge base.</span>
               </label>
-              <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid rgba(212,175,55,0.28);">
+              <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
                 <div style="display:flex;align-items:center;gap:10px;">
-                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:#d4af37;width:16px;height:16px;" />
+                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
                   <span class="mode-card-title">Manager review</span>
                 </div>
                 <span class="mode-card-hint" style="padding-left:26px;">AI drafts every reply; nothing leaves until you approve. Recommended default.</span>
@@ -2491,7 +2470,7 @@
               <div class="card-head-rule"></div>
 
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap;">
-                <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:var(--text-primary);font-family:inherit;cursor:pointer;">
+                <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);font-family:inherit;cursor:pointer;">
                   <option value="">All types</option>
                   <option value="budget">Budget</option>
                   <option value="tenant">Tenant</option>
@@ -2927,7 +2906,7 @@
             <div class="plan-usage-grid" id="planUsageGrid"></div>
             <div class="plan-usage-features" id="planUsageFeatures"></div>
             <!-- E4: Workspace settings — only the inventory tracking toggle for now. Hidden for non-PS workspaces. -->
-            <div id="workspaceSettingsRow" style="display:none;border-top:1px solid rgba(212,175,55,0.15);padding-top:14px;margin-top:8px;margin-bottom:14px;">
+            <div id="workspaceSettingsRow" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;margin-bottom:14px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
                 <div>
                   <div style="color:var(--text-primary);font-size:0.95em;font-weight:600;">Track inventory</div>
@@ -3169,7 +3148,7 @@
               </div>
               <div id="connectCardBody" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
                 <span id="connectStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
-                <button id="connectActionBtn" type="button" onclick="startConnectOnboarding()" style="padding:9px 16px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Set up card payments</button>
+                <button id="connectActionBtn" type="button" onclick="startConnectOnboarding()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Set up card payments</button>
                 <span id="connectActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
               </div>
             </div>
@@ -3188,13 +3167,13 @@
                 <input type="search" id="txSearch" placeholder="Search by customer, notes, or description&hellip;"
                   style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadTransactions()" />
-                <button onclick="loadTransactions()" style="padding:9px 14px;background:rgba(212,175,55,0.15);color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
+                <button onclick="loadTransactions()" style="padding:9px 14px;background:var(--bg-surface);color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
                 <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:var(--text-secondary);border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
-                <button onclick="openNewTransactionModal()" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">New transaction</button>
+                <button onclick="openNewTransactionModal()" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">New transaction</button>
               </div>
 
               <details style="margin-bottom:14px;">
-                <summary style="color:#d4af37;cursor:pointer;font-size:0.85em;font-weight:600;padding:6px 0;">More filters</summary>
+                <summary style="color:var(--accent);cursor:pointer;font-size:0.85em;font-weight:600;padding:6px 0;">More filters</summary>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(148,163,184,0.15);border-radius:8px;">
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Customer</label>
@@ -3252,7 +3231,7 @@
                 </div>
               </div>
               <div id="financesInvoicesSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Manage invoices in Admin &rarr;</a>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Manage invoices in Admin &rarr;</a>
             </div>
 
             <!-- Both verticals: Budget summary -->
@@ -3265,7 +3244,7 @@
                 </div>
               </div>
               <div id="financesBudgetSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Open full budget in Admin &rarr;</a>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Open full budget in Admin &rarr;</a>
             </div>
 
             <!-- PM-only: Rent Payments summary -->
@@ -3278,7 +3257,7 @@
                 </div>
               </div>
               <div id="financesRentSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:#d4af37;font-size:0.88em;font-weight:600;text-decoration:none;">Open rent ledger in Admin &rarr;</a>
+              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Open rent ledger in Admin &rarr;</a>
             </div>
 
           </div>
@@ -3338,7 +3317,7 @@
 
                 <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
                   <button onclick="saveMyBusiness()"
-                    style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save</button>
+                    style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save</button>
                   <div id="mbSaveStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
                 </div>
               </div>
@@ -3376,7 +3355,7 @@
                 <button onclick="mbAddServiceRow()"
                   style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
                 <button onclick="mbSaveServices()"
-                  style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Services</button>
+                  style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Services</button>
                 <div id="mbServicesStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
               </div>
             </div>
@@ -3411,7 +3390,7 @@
                 <button onclick="mbAddProductRow()"
                   style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
                 <button onclick="mbSaveProducts()"
-                  style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Products</button>
+                  style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Products</button>
                 <div id="mbProductsStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
               </div>
             </div>
@@ -3432,7 +3411,7 @@
               <div style="display:flex;flex-direction:column;gap:22px;">
                 <div>
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
-                    <input type="checkbox" id="mbAutoRespond" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
+                    <input type="checkbox" id="mbAutoRespond" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;" />
                     <span>
                       <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant reply to customers on its own</span>
                       <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, your assistant answers calls and texts and can book appointments. When OFF, incoming messages come to you to handle yourself and the assistant stays quiet.</span>
@@ -3442,7 +3421,7 @@
 
                 <div>
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
-                    <input type="checkbox" id="mbAutoConfirm" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
+                    <input type="checkbox" id="mbAutoConfirm" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;" />
                     <span>
                       <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant book appointments automatically</span>
                       <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, the assistant confirms bookings right away and adds them to your calendar. When OFF, new bookings are held as "pending" for you to approve first. Many owners start with this OFF until they trust the assistant, then turn it on.</span>
@@ -3485,7 +3464,7 @@
 
                 <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
                   <button onclick="mbSaveAISettings()"
-                    style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save settings</button>
+                    style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save settings</button>
                   <div id="mbAISettingsStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
                 </div>
               </div>
@@ -3528,13 +3507,13 @@
                 </div>
               </div>
 
-              <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:6px;">
+              <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:var(--bg-sunken);border-left:2px solid var(--accent);border-radius:6px;">
                 <p style="margin:0;"><strong style="color:var(--text-primary);">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your assistant gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
               </div>
 
               <div style="display:flex;align-items:center;gap:14px;">
                 <button onclick="mbSaveGrowth()"
-                  style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save links</button>
+                  style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save links</button>
                 <div id="mbGrowthStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
               </div>
             </div>
@@ -3554,7 +3533,7 @@
               </div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
-                <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
+                <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid var(--accent);cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
                 <button class="menu-tab" data-mtab="product" onclick="switchMenuTab('product')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Products</button>
                 <button class="menu-tab" data-mtab="addon" onclick="switchMenuTab('addon')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Add-ons</button>
               </div>
@@ -3563,7 +3542,7 @@
                 <input type="search" id="menuSearch" placeholder="Search menu items&hellip;"
                   style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadMenuList()" />
-                <button onclick="openMenuItemModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add new</button>
+                <button onclick="openMenuItemModal(null)" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add new</button>
               </div>
 
               <div id="menuList" style="display:flex;flex-direction:column;gap:8px;">
@@ -3589,7 +3568,7 @@
               </div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
-                <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
+                <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid var(--accent);cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
                 <button class="inv-tab" data-itab="vendors" onclick="switchInventoryTab('vendors')" style="padding:10px 16px;background:transparent;color:var(--text-muted);border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Vendors</button>
               </div>
 
@@ -3605,7 +3584,7 @@
                     <option value="low">Low</option>
                     <option value="out">Out</option>
                   </select>
-                  <button onclick="openInventoryItemModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add item</button>
+                  <button onclick="openInventoryItemModal(null)" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add item</button>
                 </div>
                 <div id="invList" style="display:flex;flex-direction:column;gap:8px;">
                   <div style="color:var(--text-muted);padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
@@ -3618,7 +3597,7 @@
                   <input type="search" id="vendorSearch" placeholder="Search vendors&hellip;"
                     style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                     oninput="loadVendorList()" />
-                  <button onclick="openVendorModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add vendor</button>
+                  <button onclick="openVendorModal(null)" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add vendor</button>
                 </div>
                 <div id="vendorList" style="display:flex;flex-direction:column;gap:8px;">
                   <div style="color:var(--text-muted);padding:20px;text-align:center;font-style:italic;">Loading&hellip;</div>
@@ -4474,8 +4453,8 @@
       // --- Operations ---
       function updateModeUI() {
         const isAuto = document.getElementById('autoReply').checked;
-        const onColor = '#d4af37';
-        const offColor = 'rgba(212,175,55,0.28)';
+        const onColor = 'var(--accent)';
+        const offColor = 'var(--border-strong)';
         const onBg = 'rgba(45,134,89,0.18)';
         document.getElementById('label-auto').style.borderColor = isAuto ? onColor : offColor;
         document.getElementById('label-auto').style.background = isAuto ? onBg : '';
@@ -5329,8 +5308,8 @@
         // time_off gets a muted gray badge so it reads as "unavailable"
         // rather than "gold accent" like normal event types.
         const isTimeOff = type === 'time_off';
-        const badgeBg = isTimeOff ? 'rgba(148,163,184,0.22)' : 'rgba(212,175,55,0.18)';
-        const badgeFg = isTimeOff ? 'var(--text-muted)' : '#d4af37';
+        const badgeBg = isTimeOff ? 'var(--bg-sunken)' : 'var(--bg-sunken)';
+        const badgeFg = isTimeOff ? "var(--text-muted)" : "var(--text-secondary)";
         const badgeLabel = isTimeOff ? 'time off' : type;
         const typeBadge = '<span style="display:inline-block;font-size:0.78em;padding:2px 8px;border-radius:10px;background:' + badgeBg + ';color:' + badgeFg + ';font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:8px;">' + _calEscape(badgeLabel) + '</span>';
         const metaParts = [dateLabel, timeLabel, durLabel].filter(Boolean).map(_calEscape).join(' · ');
@@ -5374,7 +5353,7 @@
         // the same view without another round-trip).
         window._openCalEventData = data;
         const editBtn = isAppt
-          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(212,175,55,0.5);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
+          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
           : '';
         document.getElementById('calEventDetailActions').innerHTML =
           editBtn
@@ -5442,7 +5421,7 @@
           + '<div id="calEditError" style="font-size:0.85em;color:#fca5a5;margin-top:6px;min-height:1em;"></div>';
 
         document.getElementById('calEventDetailActions').innerHTML =
-          '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
+          '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
           + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
       }
 
@@ -6748,14 +6727,14 @@
           return;
         }
         list.innerHTML = reports.map(r => `
-          <div data-report-id="${r.id}" onclick="viewReport(${r.id})" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:all 0.18s ease;" onmouseover="this.style.borderColor='rgba(212,175,55,0.45)';this.style.background='rgba(10,20,32,0.65)';" onmouseout="this.style.borderColor='rgba(212,175,55,0.18)';this.style.background='rgba(10,20,32,0.45)';">
+          <div data-report-id="${r.id}" onclick="viewReport(${r.id})" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:all 0.18s ease;" onmouseover="this.style.borderColor='var(--border-strong)';this.style.background='var(--bg-hover)';" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--bg-surface)';">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
               <div style="flex:1;min-width:0;">
                 <div style="font-weight:600;color:var(--text-primary);font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
                 <div style="font-size:0.78em;color:var(--text-muted);">${escapeHtmlForChip(r.type)} &middot; ${formatReportDate(r.created_at)}</div>
                 ${r.prompt ? `<div style="font-size:0.85em;color:var(--text-secondary);margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
               </div>
-              <div style="font-size:0.75em;color:rgba(212,175,55,0.65);font-weight:500;letter-spacing:0.18em;text-transform:uppercase;flex-shrink:0;padding-top:4px;">${escapeHtmlForChip(r.type)}</div>
+              <div style="font-size:0.75em;color:var(--text-muted);font-weight:500;letter-spacing:0.18em;text-transform:uppercase;flex-shrink:0;padding-top:4px;">${escapeHtmlForChip(r.type)}</div>
             </div>
           </div>
         `).join('');
@@ -7948,10 +7927,10 @@
         if (entry && typeof entry === 'object' && entry.queued && entry.pendingId) {
           const summary = escapeHtmlForChip(entry.summary || entry.message || entry.type || '');
           return `
-            <div class="ai-action-chip ai-action-chip-queued" data-pending-id="${entry.pendingId}" style="display:block;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.3);padding:10px 14px;border-radius:10px;margin-top:6px;animation-delay:${delay}ms;">
+            <div class="ai-action-chip ai-action-chip-queued" data-pending-id="${entry.pendingId}" style="display:block;background:var(--warning-soft);border:1px solid var(--border);padding:10px 14px;border-radius:10px;margin-top:6px;animation-delay:${delay}ms;">
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:180px;">
-                  <div style="font-size:0.72em;color:#d4af37;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:3px;">Awaiting approval</div>
+                  <div style="font-size:0.72em;color:var(--warning);font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:3px;">Awaiting approval</div>
                   <div style="color:var(--text-primary);font-size:0.9em;line-height:1.4;">${summary}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -8002,10 +7981,10 @@
           if (countEl) countEl.textContent = pending.length;
 
           list.innerHTML = pending.map(p => `
-            <div class="pending-action-row" data-pending-id="${p.id}" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
+            <div class="pending-action-row" data-pending-id="${p.id}" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:10px;">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:200px;">
-                  <div style="font-size:0.78em;color:#d4af37;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">${escapeHtmlForChip(p.tool_name)}</div>
+                  <div style="font-size:0.78em;color:var(--text-muted);font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">${escapeHtmlForChip(p.tool_name)}</div>
                   <div style="color:var(--text-primary);font-size:0.95em;line-height:1.45;">${escapeHtmlForChip(p.ai_summary || p.tool_name)}</div>
                   <div style="color:var(--text-muted);font-size:0.78em;margin-top:6px;">Queued ${formatPendingTime(p.created_at)}</div>
                 </div>
@@ -8372,7 +8351,7 @@
         responseBox.style.display = 'block';
         responseBox.innerHTML = `
           <div class="ai-thinking">
-              <div style="width:28px;height:28px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;box-shadow:0 4px 10px rgba(212,175,55,0.45);">&#129302;</div>
+              <div style="width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
             <div class="ai-thinking-bubble">
               <span></span><span></span><span></span>
             </div>
@@ -8480,7 +8459,7 @@
           // The body gets typewriter-revealed, then chips animate in after.
           responseBox.innerHTML = `
             <div style="display:flex;gap:10px;align-items:flex-start;">
-              <div style="width:28px;height:28px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;box-shadow:0 4px 10px rgba(212,175,55,0.45);">&#129302;</div>
+              <div style="width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
               <div style="flex:1;min-width:0;" id="aiResponseBodyHost"></div>
             </div>`;
           const bodyHost = document.getElementById('aiResponseBodyHost');
@@ -9149,7 +9128,7 @@
       function _invField(label, valueHtml) {
         return `
           <div>
-            <div style="font-size:0.72em;font-weight:700;color:#d4af37;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
+            <div style="font-size:0.72em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
             <div style="color:var(--text-secondary);font-size:0.95em;line-height:1.5;">${valueHtml}</div>
           </div>
         `;
@@ -9325,7 +9304,7 @@
             ${header}
             <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
               <thead>
-                <tr style="text-align:left;color:#d4af37;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
+                <tr style="text-align:left;color:var(--text-muted);font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
                   <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Unit</th>
                   <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">BR / BA</th>
                   <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Sq Ft</th>
@@ -10623,8 +10602,8 @@
           btn.textContent = 'Finish setting up card payments';
         } else if (status === 'pending') {
           badge.textContent = 'In progress';
-          badge.style.background = 'rgba(212,175,55,0.15)';
-          badge.style.color = '#d4af37';
+          badge.style.background = 'var(--warning-soft)';
+          badge.style.color = "var(--warning)";
           subtitle.textContent = 'Onboarding started but not yet complete.';
           btn.textContent = 'Continue setup';
         } else {
@@ -10782,7 +10761,7 @@
                   <div style="color:var(--text-primary);font-weight:600;font-size:0.92em;">${escapeHtmlForChip(t.customer_display_name)}${refundTag}</div>
                   <div style="color:var(--text-muted);font-size:0.82em;">${escapeHtmlForChip(summary)}</div>
                 </div>
-                <div style="color:#d4af37;font-weight:700;text-align:right;">${_txFormatCents(t.total_cents)}</div>
+                <div style="color:var(--text-primary);font-weight:700;text-align:right;">${_txFormatCents(t.total_cents)}</div>
                 <div style="color:var(--text-muted);font-size:0.82em;text-align:right;">${escapeHtmlForChip(t.payment_method || '—')}</div>
                 <div style="color:${statusColor};font-size:0.78em;font-weight:700;text-transform:uppercase;text-align:right;">${escapeHtmlForChip(t.status)}</div>
               </div>`;
@@ -10882,15 +10861,15 @@
             ${tx.tax_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Tax</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
             ${tx.discount_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Discount</td><td style="text-align:right;color:var(--text-secondary);">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
             ${tx.tip_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;">Tip</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
-            <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
+            <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:var(--text-primary);font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
             ${tx.amount_refunded_cents ? `<tr><td style="color:var(--text-muted);padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:var(--text-muted);font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
           </table>
           ${paymentsHtml}
-          ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:#d4af37;">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
+          ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:var(--bg-sunken);border-left:2px solid var(--accent);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:var(--text-primary);">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
           ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:var(--text-muted);">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
           ${receiptHtml}
           ${tx.appointment_id ? `<div style="margin-top:12px;color:var(--text-muted);font-size:0.82em;">Linked appointment: #${tx.appointment_id}</div>` : ''}
-          ${tx.parent_transaction_id ? `<div style="margin-top:6px;color:var(--text-muted);font-size:0.82em;">This is a refund of <a href="#" onclick="event.preventDefault();openTxDetail(${tx.parent_transaction_id});" style="color:#d4af37;">transaction #${tx.parent_transaction_id}</a>.</div>` : ''}
+          ${tx.parent_transaction_id ? `<div style="margin-top:6px;color:var(--text-muted);font-size:0.82em;">This is a refund of <a href="#" onclick="event.preventDefault();openTxDetail(${tx.parent_transaction_id});" style="color:var(--accent);">transaction #${tx.parent_transaction_id}</a>.</div>` : ''}
           ${refundsHtml}
         `;
 
@@ -11593,7 +11572,7 @@
         document.querySelectorAll('.menu-tab').forEach(b => {
           const isActive = b.dataset.mtab === tab;
           b.style.color = isActive ? 'var(--text-primary)' : 'var(--text-muted)';
-          b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
+          b.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
         });
         loadMenuList();
       }
@@ -11627,7 +11606,7 @@
                 <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}${inactive}</div>
                 <div style="color:var(--text-muted);font-size:0.82em;">${cat}${dur}${parent}</div>
               </div>
-              <div style="color:#d4af37;font-weight:700;font-size:0.95em;">${price}</div>
+              <div style="color:var(--text-primary);font-weight:700;font-size:0.95em;">${price}</div>
             </div>`;
           }).join('');
         } catch (e) {
@@ -11772,7 +11751,7 @@
         document.querySelectorAll('.inv-tab').forEach(b => {
           const isActive = b.dataset.itab === tab;
           b.style.color = isActive ? 'var(--text-primary)' : 'var(--text-muted)';
-          b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
+          b.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
         });
         document.getElementById('invInventoryBody').style.display = tab === 'inventory' ? '' : 'none';
         document.getElementById('invVendorsBody').style.display = tab === 'vendors' ? '' : 'none';
@@ -11782,7 +11761,7 @@
 
       function _invStatusBadge(status) {
         if (status === 'in_stock') return '<span style="color:var(--text-primary);font-weight:700;font-size:0.78em;text-transform:uppercase;">In stock</span>';
-        if (status === 'low') return '<span style="color:#d4af37;font-weight:700;font-size:0.78em;text-transform:uppercase;">Low</span>';
+        if (status === 'low') return '<span style="color:var(--warning);font-weight:700;font-size:0.78em;text-transform:uppercase;">Low</span>';
         if (status === 'out') return '<span style="color:var(--text-muted);font-weight:700;font-size:0.78em;text-transform:uppercase;text-decoration:line-through;">Out</span>';
         return escapeHtmlForChip(status);
       }
