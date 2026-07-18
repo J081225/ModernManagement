@@ -202,7 +202,7 @@
         font-family: 'Inter', sans-serif;
         font-weight: 600;
         font-size: 1.4em;
-        color: #f5e6d3;
+        color:var(--text-primary);
         letter-spacing: -0.3px;
         line-height: 1.2;
       }
@@ -262,9 +262,9 @@
       .form-block input[type="email"],
       .form-block input[type="tel"],
       .form-block input[type="text"] {
-        background: rgba(10,20,32,0.55) !important;
-        border: 1px solid rgba(212,175,55,0.28) !important;
-        color: #f3ead8 !important;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-strong);
+        color: var(--text-primary);
         padding: 10px 12px;
         border-radius: 8px;
         font-family: 'Inter', sans-serif;
@@ -295,7 +295,7 @@
         text-transform: uppercase;
       }
       .routing-pill-value {
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 14px;
         font-weight: 500;
         font-family: 'Inter', sans-serif;
@@ -325,7 +325,7 @@
       .mode-card .mode-card-title {
         font-size: 14px;
         font-weight: 500;
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-family: 'Inter', sans-serif;
       }
       .mode-card .mode-card-hint {
@@ -420,7 +420,7 @@
       }
       .btn-primary {
         background: linear-gradient(135deg, var(--accent) 0%, #2d8659 50%, #d4af37 100%);
-        color: #f5e6d3;
+        color:var(--text-primary);
         box-shadow: 0 3px 10px rgba(212,175,55,0.40);
       }
       .btn-primary:hover { box-shadow: 0 6px 18px rgba(212,175,55,0.40); transform: translateY(-1px); }
@@ -655,13 +655,13 @@
         background: rgba(212, 175, 55, 0.08);
         border: 1px solid rgba(212, 175, 55, 0.28);
         border-radius: 10px;
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 0.92em;
         line-height: 1.55;
         animation: b5BannerIn 0.32s ease;
       }
       .b5-ai-banner-reply {
-        color: #f5e6d3;
+        color:var(--text-primary);
         white-space: pre-wrap;
         word-wrap: break-word;
       }
@@ -712,16 +712,11 @@
         50% { box-shadow: 0 0 0 6px rgba(212, 175, 55, 0.32); }
         100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
       }
-      /* Navy/green/gold scheme: dark-glass typography utilities + animated banner title */
-      @keyframes bannerGradientShift {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-      }
       .hero-title {
         font-family: 'Inter', sans-serif;
         font-weight: 600;
         font-size: 1.4em;
-        color: #f5e6d3;
+        color:var(--text-primary);
         letter-spacing: -0.4px;
         line-height: 1.2;
       }
@@ -737,12 +732,7 @@
         font-weight: 700 !important;
         font-size: 2.8em !important;
         letter-spacing: -1.2px !important;
-        background: linear-gradient(135deg, #ffffff 0%, #f5e6d3 25%, #d4af37 55%, #2d8659 85%, var(--accent) 100%) !important;
-        background-size: 200% auto !important;
-        animation: bannerGradientShift 10s ease-in-out infinite !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
+        color: var(--text-primary);
         color: transparent !important;
         line-height: 1.1 !important;
         text-shadow: none !important;
@@ -773,7 +763,7 @@
       #homeCommandInput {
         background: rgba(10,20,32,0.60) !important;
         border: 1.5px solid rgba(212,175,55,0.30) !important;
-        color: #f5e6d3 !important;
+        color:var(--text-primary) !important;
         font-family: 'Inter', sans-serif !important;
         transition: all 0.25s ease !important;
         backdrop-filter: blur(12px);
@@ -794,7 +784,7 @@
       #micBtn {
         background: rgba(10,20,32,0.60) !important;
         border-color: rgba(212,175,55,0.30) !important;
-        color: #f5e6d3 !important;
+        color:var(--text-primary) !important;
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
@@ -816,13 +806,13 @@
       }
       /* AI response markdown text adapts to dark bg */
       .ai-response-body { color: #e2e8f0 !important; }
-      .ai-response-body strong { color: #f5e6d3 !important; }
+      .ai-response-body strong { color:var(--text-primary) !important; }
       .ai-response-body em { color: #d4af37 !important; }
       .ai-response-body h1,
       .ai-response-body h2,
       .ai-response-body h3,
       .ai-response-body h4 {
-        color: #f5e6d3 !important;
+        color:var(--text-primary) !important;
       }
       .ai-response-body code {
         background: rgba(212,175,55,0.10) !important;
@@ -843,7 +833,7 @@
        * Session D5: customer-facing billing UI
        * Plan badge (topbar chrome + admin card), subscription banner,
        * plan & usage card, upgrade prompt modal. All colors taken from
-       * the C2.5 four-tier palette (#f5e6d3 / #d4af37 / #e2e8f0 / #94a3b8).
+       * the C2.5 four-tier palette (ivory / gold / light gray / muted).
        * ============================================================ */
       .plan-badge {
         display: inline-flex;
@@ -874,7 +864,7 @@
       }
       .plan-badge-enterprise {
         background: rgba(212, 175, 55, 0.2);
-        color: #f5e6d3;
+        color:var(--text-primary);
         border: 1px solid rgba(212, 175, 55, 0.6);
         box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
       }
@@ -907,7 +897,7 @@
       .subscription-banner-cta {
         padding: 6px 14px;
         background: rgba(212, 175, 55, 0.2);
-        color: #f5e6d3;
+        color:var(--text-primary);
         border: 1px solid rgba(212, 175, 55, 0.5);
         border-radius: 6px;
         cursor: pointer;
@@ -969,7 +959,7 @@
       }
       .plan-usage-stat-value {
         font-size: 18px;
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-family: 'Inter', sans-serif;
       }
       .plan-usage-stat-value-warn  { color: #fdba74; }
@@ -1105,13 +1095,7 @@
         font-size: 2.6em;
         letter-spacing: -1.2px;
         line-height: 1.1;
-        background: linear-gradient(135deg, #ffffff 0%, #f5e6d3 25%, #d4af37 55%, #2d8659 85%, var(--accent) 100%);
-        background-size: 200% auto;
-        animation: bannerGradientShift 10s ease-in-out infinite;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        color: transparent;
+        color: var(--text-primary);
       }
       .page-hero-sub {
         font-family: 'Inter', sans-serif;
@@ -1131,7 +1115,7 @@
         font-family: 'Inter', sans-serif !important;
         font-size: 1.55em !important;
         font-weight: 800 !important;
-        color: #f5e6d3 !important;
+        color:var(--text-primary) !important;
         text-transform: uppercase !important;
         letter-spacing: 2.6px !important;
       }
@@ -1237,7 +1221,7 @@
       .quick-tile-title {
         font-family: 'Inter', sans-serif;
         font-weight: 600;
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 1.22em;
         margin-bottom: 5px;
         letter-spacing: -0.3px;
@@ -1323,7 +1307,7 @@
       .avatar-vendor   { background: linear-gradient(135deg, #667eea, #764ba2); }
       .avatar-important { background: linear-gradient(135deg, #f093fb, #f5576c); }
       .contact-info { flex: 1; min-width: 0; }
-      .contact-name { font-weight: 600; font-size: 0.93em; color: #f5e6d3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .contact-name { font-weight: 600; font-size: 0.93em; color:var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .contact-sub { font-size: 0.78em; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .contact-type-tag {
         font-size: 0.68em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
@@ -1373,7 +1357,7 @@
       .task-check:hover { border-color: #4a90e2; background: #eef4ff; }
       .task-check.checked { background: linear-gradient(135deg, #ff6b6b, #ff8e53); border-color: transparent; color: white; font-size: 0.75em; }
       .task-body { flex: 1; }
-      .task-title { font-size: 0.92em; font-weight: 600; color: #f5e6d3; margin-bottom: 3px; }
+      .task-title { font-size: 0.92em; font-weight: 600; color:var(--text-primary); margin-bottom: 3px; }
       .task-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
       .task-due { font-size: 0.78em; color: #94a3b8; }
       .task-cat {
@@ -1521,8 +1505,8 @@
          E9 — Command Center. Always-visible AI chat bar at the bottom
          of every page, expandable chat panel above. Mobile-first.
          Namespaced .cc-*.
-         Palette: #0d1117 bg, #f5e6d3 ivory, #d4af37 gold,
-         #e2e8f0 light gray, #94a3b8 muted.
+         Palette (legacy note): dark bg, ivory, gold,
+         light gray, muted.
          ───────────────────────────────────────────────────────────── */
 
       /* Clear bottom space on each page so content isn't hidden behind
@@ -1563,7 +1547,7 @@
         color: #94a3b8;
       }
       .cc-welcome h3 {
-        color: #f5e6d3;
+        color:var(--text-primary);
         margin: 0 0 8px 0;
         font-size: 1.1em;
         font-weight: 700;
@@ -1594,7 +1578,7 @@
       }
       .cc-quick-prompt:hover {
         background: rgba(212,175,55,0.20);
-        color: #f5e6d3;
+        color:var(--text-primary);
       }
 
       .cc-msg {
@@ -1668,7 +1652,7 @@
       .cc-input {
         flex: 1;
         background: rgba(255,255,255,0.05);
-        color: #f5e6d3;
+        color:var(--text-primary);
         border: 1px solid rgba(148,163,184,0.3);
         border-radius: 22px;
         padding: 11px 18px;
@@ -1709,8 +1693,8 @@
          E8 — PS Home dashboard. Mobile-first, 375px baseline.
          All selectors namespaced to .ps-dashboard-*, .ps-card-*,
          .ps-stat-*, and .ps-badge-* so they don't leak.
-         Palette: #0d1117 bg, #f5e6d3 ivory, #d4af37 gold,
-         #e2e8f0 light gray, #94a3b8 muted. No new color tokens.
+         Palette (legacy note): dark bg, ivory, gold,
+         light gray, muted. No new color tokens.
          ───────────────────────────────────────────────────────────── */
 
       #page-home-ps {
@@ -1722,7 +1706,7 @@
         border-bottom: 1px solid rgba(148,163,184,0.18);
       }
       .ps-dashboard-greeting h1 {
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 1.5em;
         font-weight: 700;
         letter-spacing: -0.3px;
@@ -1760,7 +1744,7 @@
         letter-spacing: 0.06em;
       }
       .ps-stat-value {
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 1.8em;
         font-weight: 700;
         letter-spacing: -0.5px;
@@ -1784,7 +1768,7 @@
         gap: 12px;
       }
       .ps-card-header h2 {
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 1em;
         font-weight: 700;
         letter-spacing: -0.2px;
@@ -1827,7 +1811,7 @@
         gap: 2px;
       }
       .ps-card-row-title {
-        color: #f5e6d3;
+        color:var(--text-primary);
         font-size: 0.95em;
         font-weight: 600;
         line-height: 1.35;
@@ -1864,7 +1848,7 @@
       }
       .ps-badge-paid       { color: #d4af37; background: rgba(212,175,55,0.14); }
       .ps-badge-pending    { color: #d4af37; background: rgba(212,175,55,0.06); }
-      .ps-badge-attention  { color: #f5e6d3; background: rgba(245,230,211,0.10); font-weight: 800; }
+      .ps-badge-attention  { color:var(--text-primary); background: rgba(245,230,211,0.10); font-weight: 800; }
       .ps-badge-muted      { color: #94a3b8; background: rgba(148,163,184,0.10); }
 
       /* Approve / Reject buttons inside the approvals card */
@@ -1984,11 +1968,11 @@
               <div id="homePropertySub" class="display-banner-sub">Your property dashboard</div>
             </div>
             <div style="position:relative;padding:20px 24px;display:flex;gap:10px;">
-              <label style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:#f5e6d3;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">
+              <label style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">
                 &#128247; Change Photo
                 <input type="file" accept="image/*" style="display:none;" onchange="uploadBannerPhoto(this)" />
               </label>
-              <button onclick="editPropertyName()" style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:#f5e6d3;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">&#9998; Edit Name</button>
+              <button onclick="editPropertyName()" style="background:rgba(10,20,32,0.60);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(212,175,55,0.35);color:var(--text-primary);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:0.82em;font-family:inherit;font-weight:500;transition:all 0.2s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);">&#9998; Edit Name</button>
             </div>
           </div>
 
@@ -2040,7 +2024,7 @@
                 onmouseover="if(!window.micActive)this.style.borderColor='#ff6b6b'" onmouseout="if(!window.micActive)this.style.borderColor='#e8dcd2'">
                 &#127908;
               </button>
-              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;color:#f5e6d3;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);font-weight:600;">Send &#9654;</button>
+              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;color:var(--text-primary);box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);font-weight:600;">Send &#9654;</button>
             </div>
             <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:#ff6b6b;align-items:center;gap:7px;position:relative;">
               <span style="width:8px;height:8px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
@@ -2077,7 +2061,7 @@
                   <div class="hero-subtitle">A fast AI-generated overview of your property. For detailed reports — budget, tenant, inventory, activity — use the Reports page.</div>
                 </div>
               </div>
-              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;padding:11px 22px;white-space:nowrap;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);color:#f5e6d3;font-weight:600;">
+              <button id="generateReportBtn" onclick="generateReport()" class="btn-primary" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 50%,#d4af37 100%);border:none;padding:11px 22px;white-space:nowrap;box-shadow:0 6px 18px rgba(212,175,55,0.40),inset 0 1px 0 rgba(255,255,255,0.20);color:var(--text-primary);font-weight:600;">
                 &#128196; Generate Snapshot
               </button>
             </div>
@@ -2507,7 +2491,7 @@
               <div class="card-head-rule"></div>
 
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap;">
-                <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f5e6d3;font-family:inherit;cursor:pointer;">
+                <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:var(--text-primary);font-family:inherit;cursor:pointer;">
                   <option value="">All types</option>
                   <option value="budget">Budget</option>
                   <option value="tenant">Tenant</option>
@@ -2946,13 +2930,13 @@
             <div id="workspaceSettingsRow" style="display:none;border-top:1px solid rgba(212,175,55,0.15);padding-top:14px;margin-top:8px;margin-bottom:14px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
                 <div>
-                  <div style="color:#f5e6d3;font-size:0.95em;font-weight:600;">Track inventory</div>
+                  <div style="color:var(--text-primary);font-size:0.95em;font-weight:600;">Track inventory</div>
                   <div style="color:#94a3b8;font-size:0.82em;margin-top:2px;">Surfaces the Inventory page in the sidebar. Off by default for new workspaces — turn on to track stock and vendors.</div>
                 </div>
                 <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
                   <input type="checkbox" id="invTrackToggle" onchange="toggleInventoryTracking(this.checked)" style="opacity:0;width:0;height:0;position:absolute;">
                   <span id="invTrackTrack" style="position:absolute;inset:0;background:#94a3b8;border-radius:24px;transition:background 0.2s;"></span>
-                  <span id="invTrackThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:#f5e6d3;border-radius:50%;transition:transform 0.2s;"></span>
+                  <span id="invTrackThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--bg-surface);border-radius:50%;transition:transform 0.2s;"></span>
                 </label>
               </div>
             </div>
@@ -3202,7 +3186,7 @@
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
                 <input type="search" id="txSearch" placeholder="Search by customer, notes, or description&hellip;"
-                  style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                  style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadTransactions()" />
                 <button onclick="loadTransactions()" style="padding:9px 14px;background:rgba(212,175,55,0.15);color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
                 <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:#e2e8f0;border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
@@ -3214,19 +3198,19 @@
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(148,163,184,0.15);border-radius:8px;">
                   <div>
                     <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Customer</label>
-                    <input type="text" id="txFilterCustomer" oninput="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                    <input type="text" id="txFilterCustomer" oninput="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">From</label>
-                    <input type="date" id="txFilterStart" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                    <input type="date" id="txFilterStart" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">To</label>
-                    <input type="date" id="txFilterEnd" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                    <input type="date" id="txFilterEnd" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Payment</label>
-                    <select id="txFilterMethod" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                    <select id="txFilterMethod" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                       <option value="">Any</option>
                       <option value="cash">Cash</option>
                       <option value="card">Card</option>
@@ -3239,7 +3223,7 @@
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Status</label>
-                    <select id="txFilterStatus" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-size:0.88em;">
+                    <select id="txFilterStatus" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                       <option value="">Any</option>
                       <option value="draft">Draft</option>
                       <option value="pending">Pending</option>
@@ -3331,25 +3315,25 @@
 
               <div style="display:flex;flex-direction:column;gap:20px;">
                 <div>
-                  <label for="mbDescription" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Business Description</label>
+                  <label for="mbDescription" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Business Description</label>
                   <textarea id="mbDescription" rows="4"
                     placeholder="e.g. We're a men's barbershop specializing in classic cuts, beard trims, and hot towel shaves. Walk-ins welcome, but appointments preferred."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                   <div style="font-size:0.8em;color:#94a3b8;margin-top:6px;line-height:1.5;">Tip: Be specific and detailed &mdash; describe what you offer, what makes you different, and anything you do NOT do (e.g. no perms, no kids under 3). The more nuance you include, the smarter your assistant becomes.</div>
                 </div>
 
                 <div>
-                  <label for="mbHours" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Hours of Operation</label>
+                  <label for="mbHours" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Hours of Operation</label>
                   <textarea id="mbHours" rows="3"
                     placeholder="e.g. Mon-Fri 9am-7pm, Sat 10am-5pm, Closed Sunday"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                 </div>
 
                 <div>
-                  <label for="mbPolicies" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Policies</label>
+                  <label for="mbPolicies" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Policies</label>
                   <textarea id="mbPolicies" rows="4"
                     placeholder="e.g. 24-hour cancellation notice required. Late arrivals over 15 minutes may need to reschedule."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                 </div>
 
                 <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
@@ -3390,7 +3374,7 @@
 
               <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
                 <button onclick="mbAddServiceRow()"
-                  style="padding:8px 16px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
+                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Service</button>
                 <button onclick="mbSaveServices()"
                   style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Services</button>
                 <div id="mbServicesStatus" style="font-size:0.85em;color:#94a3b8;min-height:1em;"></div>
@@ -3425,7 +3409,7 @@
 
               <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap;">
                 <button onclick="mbAddProductRow()"
-                  style="padding:8px 16px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
+                  style="padding:8px 16px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.35);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">+ Add Product</button>
                 <button onclick="mbSaveProducts()"
                   style="padding:10px 22px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save Products</button>
                 <div id="mbProductsStatus" style="font-size:0.85em;color:#94a3b8;min-height:1em;"></div>
@@ -3450,7 +3434,7 @@
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
                     <input type="checkbox" id="mbAutoRespond" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
                     <span>
-                      <span style="display:block;font-size:0.94em;font-weight:600;color:#f5e6d3;line-height:1.4;">Let my assistant reply to customers on its own</span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant reply to customers on its own</span>
                       <span style="display:block;font-size:0.82em;color:#94a3b8;margin-top:4px;line-height:1.55;">When ON, your assistant answers calls and texts and can book appointments. When OFF, incoming messages come to you to handle yourself and the assistant stays quiet.</span>
                     </span>
                   </label>
@@ -3460,7 +3444,7 @@
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
                     <input type="checkbox" id="mbAutoConfirm" style="margin-top:3px;accent-color:#d4af37;width:16px;height:16px;flex-shrink:0;" />
                     <span>
-                      <span style="display:block;font-size:0.94em;font-weight:600;color:#f5e6d3;line-height:1.4;">Let my assistant book appointments automatically</span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant book appointments automatically</span>
                       <span style="display:block;font-size:0.82em;color:#94a3b8;margin-top:4px;line-height:1.55;">When ON, the assistant confirms bookings right away and adds them to your calendar. When OFF, new bookings are held as "pending" for you to approve first. Many owners start with this OFF until they trust the assistant, then turn it on.</span>
                     </span>
                   </label>
@@ -3475,10 +3459,10 @@
 
                   <div style="display:flex;flex-direction:column;gap:18px;">
                     <div>
-                      <label for="mbTone" style="display:block;font-size:0.9em;font-weight:600;color:#f5e6d3;line-height:1.4;margin-bottom:4px;">Tone</label>
+                      <label for="mbTone" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Tone</label>
                       <span style="display:block;font-size:0.82em;color:#94a3b8;margin-bottom:8px;line-height:1.5;">How your assistant sounds to customers.</span>
                       <select id="mbTone"
-                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Warm &amp; friendly (default)</option>
                         <option value="warm">Warm &amp; friendly</option>
                         <option value="professional">Polished &amp; professional</option>
@@ -3487,10 +3471,10 @@
                     </div>
 
                     <div>
-                      <label for="mbSalesPosture" style="display:block;font-size:0.9em;font-weight:600;color:#f5e6d3;line-height:1.4;margin-bottom:4px;">Sales approach</label>
+                      <label for="mbSalesPosture" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Sales approach</label>
                       <span style="display:block;font-size:0.82em;color:#94a3b8;margin-bottom:8px;line-height:1.5;">Whether your assistant suggests extras.</span>
                       <select id="mbSalesPosture"
-                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Helpful, not pushy (default)</option>
                         <option value="reactive">Helpful, not pushy</option>
                         <option value="proactive">Gently suggest add-ons</option>
@@ -3522,30 +3506,30 @@
               <div class="card-head-rule"></div>
 
               <div style="color:#cbd5e1;font-size:0.88em;line-height:1.7;margin-bottom:22px;">
-                <p style="margin:0 0 10px;"><strong style="color:#f5e6d3;">Why reviews matter:</strong> When someone searches for a business like yours nearby, the ones with lots of recent, positive reviews show up first and win the customer. Reviews are one of the highest-impact, lowest-cost ways to grow. The best moment to ask is right after a happy customer has been served, while the good experience is fresh.</p>
-                <p style="margin:0;"><strong style="color:#f5e6d3;">One important rule:</strong> Google and Yelp do <strong>NOT</strong> allow you to offer any reward &mdash; a discount, a freebie, anything &mdash; in exchange for a review. This is called an "incentivized review," and it can get all of your reviews removed and your listing penalized. So the safe, effective approach is simply to <strong>ASK</strong> &mdash; "we'd love your feedback" &mdash; and share your review link. Add your links below and your assistant will have them ready to share when a customer wants to leave feedback.</p>
+                <p style="margin:0 0 10px;"><strong style="color:var(--text-primary);">Why reviews matter:</strong> When someone searches for a business like yours nearby, the ones with lots of recent, positive reviews show up first and win the customer. Reviews are one of the highest-impact, lowest-cost ways to grow. The best moment to ask is right after a happy customer has been served, while the good experience is fresh.</p>
+                <p style="margin:0;"><strong style="color:var(--text-primary);">One important rule:</strong> Google and Yelp do <strong>NOT</strong> allow you to offer any reward &mdash; a discount, a freebie, anything &mdash; in exchange for a review. This is called an "incentivized review," and it can get all of your reviews removed and your listing penalized. So the safe, effective approach is simply to <strong>ASK</strong> &mdash; "we'd love your feedback" &mdash; and share your review link. Add your links below and your assistant will have them ready to share when a customer wants to leave feedback.</p>
               </div>
 
               <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:22px;">
                 <div>
-                  <label for="mbWebsite" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Website</label>
+                  <label for="mbWebsite" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Website</label>
                   <input type="url" id="mbWebsite" placeholder="https://yourbusiness.com"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
                 <div>
-                  <label for="mbGoogleReview" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Google Review Link</label>
+                  <label for="mbGoogleReview" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Google Review Link</label>
                   <input type="url" id="mbGoogleReview" placeholder="https://g.page/r/.../review"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
                 <div>
-                  <label for="mbYelpReview" style="display:block;font-size:0.88em;font-weight:600;color:#f5e6d3;margin-bottom:6px;">Yelp Review Link</label>
+                  <label for="mbYelpReview" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Yelp Review Link</label>
                   <input type="url" id="mbYelpReview" placeholder="https://www.yelp.com/writeareview/biz/..."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
               </div>
 
               <div style="color:#cbd5e1;font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:6px;">
-                <p style="margin:0;"><strong style="color:#f5e6d3;">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your assistant gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
+                <p style="margin:0;"><strong style="color:var(--text-primary);">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your assistant gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
               </div>
 
               <div style="display:flex;align-items:center;gap:14px;">
@@ -3570,14 +3554,14 @@
               </div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
-                <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:#f5e6d3;border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
+                <button class="menu-tab active" data-mtab="service" onclick="switchMenuTab('service')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Services</button>
                 <button class="menu-tab" data-mtab="product" onclick="switchMenuTab('product')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Products</button>
                 <button class="menu-tab" data-mtab="addon" onclick="switchMenuTab('addon')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Add-ons</button>
               </div>
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                 <input type="search" id="menuSearch" placeholder="Search menu items&hellip;"
-                  style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                  style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadMenuList()" />
                 <button onclick="openMenuItemModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add new</button>
               </div>
@@ -3605,7 +3589,7 @@
               </div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,0.18);margin-bottom:14px;">
-                <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:#f5e6d3;border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
+                <button class="inv-tab active" data-itab="inventory" onclick="switchInventoryTab('inventory')" style="padding:10px 16px;background:transparent;color:var(--text-primary);border:none;border-bottom:2px solid #d4af37;cursor:pointer;font-size:0.92em;font-weight:600;">Inventory</button>
                 <button class="inv-tab" data-itab="vendors" onclick="switchInventoryTab('vendors')" style="padding:10px 16px;background:transparent;color:#94a3b8;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.92em;font-weight:600;">Vendors</button>
               </div>
 
@@ -3613,9 +3597,9 @@
               <div id="invInventoryBody">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                   <input type="search" id="invSearch" placeholder="Search inventory&hellip;"
-                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                     oninput="loadInventoryList()" />
-                  <select id="invStatusFilter" onchange="loadInventoryList()" style="padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+                  <select id="invStatusFilter" onchange="loadInventoryList()" style="padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
                     <option value="">All</option>
                     <option value="in_stock">In stock</option>
                     <option value="low">Low</option>
@@ -3632,7 +3616,7 @@
               <div id="invVendorsBody" style="display:none;">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                   <input type="search" id="vendorSearch" placeholder="Search vendors&hellip;"
-                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                     oninput="loadVendorList()" />
                   <button onclick="openVendorModal(null)" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add vendor</button>
                 </div>
@@ -4787,7 +4771,7 @@
           const typeColor = d.type === 'uploaded' ? '#667eea' : d.type === 'procedure' ? '#f59e0b' : '#ff6b6b';
           return `<div style="border-bottom:1px solid #eee;padding:14px 0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;color:#f5e6d3;font-size:0.95em;">${d.title}
+              <div style="font-weight:700;color:var(--text-primary);font-size:0.95em;">${d.title}
                 <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;background:${typeColor}18;color:${typeColor};font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;vertical-align:1px;">${d.type}</span>
               </div>
               <p style="margin-top:6px;font-size:0.86em;color:#e2e8f0;line-height:1.55;">${preview}${more}</p>
@@ -5390,13 +5374,13 @@
         // the same view without another round-trip).
         window._openCalEventData = data;
         const editBtn = isAppt
-          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(212,175,55,0.5);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
+          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(212,175,55,0.5);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
           : '';
         document.getElementById('calEventDetailActions').innerHTML =
           editBtn
           + '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
           + 'style="padding:9px 18px;background:rgba(248,113,113,0.12);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
-          + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
+          + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
       }
 
       // Split an ISO timestamp into local-time YYYY-MM-DD + HH:MM strings
@@ -5428,7 +5412,7 @@
           ? (appt.quoted_price_cents / 100).toFixed(2)
           : '';
 
-        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-family:inherit;font-size:0.92em;';
+        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;';
         const labelStyle = 'display:block;font-size:0.82em;font-weight:600;color:#94a3b8;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;';
         const rowStyle = 'margin-bottom:14px;';
 
@@ -5459,7 +5443,7 @@
 
         document.getElementById('calEventDetailActions').innerHTML =
           '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
-          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:#f5e6d3;border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
+          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid rgba(148,163,184,0.3);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
       }
 
       async function calEventDetailSave(calEventId, appointmentId) {
@@ -6197,7 +6181,7 @@
                   <span style="background:#f1f5f9;color:var(--text-muted);border-radius:5px;padding:2px 8px;font-size:0.75em;">${t.category}</span>
                   ${t.requires_action ? '<span style="background:#fff7ed;color:#ea580c;border-radius:5px;padding:2px 8px;font-size:0.75em;font-weight:600;">⚠ Office Action Required</span>' : ''}
                 </div>
-                <div style="font-size:1.02em;font-weight:700;color:#f5e6d3;margin-bottom:4px;">${t.title}</div>
+                <div style="font-size:1.02em;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${t.title}</div>
                 <div style="font-size:0.82em;color:#94a3b8;margin-bottom:6px;">
                   ${t.unit ? `Unit ${t.unit} · ` : ''}${t.resident || ''} · Created ${created}
                   ${t.emergency_sms_sent ? ' · <span style="color:#86efac;">✓ Emergency SMS sent</span>' : ''}
@@ -6758,7 +6742,7 @@
           list.innerHTML = `
             <div style="text-align:center;padding:48px 24px;color:#e2e8f0;">
               <div style="font-size:2.4em;margin-bottom:12px;opacity:0.6;">&#128203;</div>
-              <div style="font-size:1.15em;color:#f5e6d3;margin-bottom:6px;">No reports yet</div>
+              <div style="font-size:1.15em;color:var(--text-primary);margin-bottom:6px;">No reports yet</div>
               <div style="font-size:0.88em;line-height:1.5;">Click <strong>+ New Report</strong> above, or ask the AI from the Home page command bar &mdash; for example: <em>"Generate me a budget report with suggestions for next quarter"</em>.</div>
             </div>`;
           return;
@@ -6767,7 +6751,7 @@
           <div data-report-id="${r.id}" onclick="viewReport(${r.id})" style="background:rgba(10,20,32,0.45);border:1px solid rgba(212,175,55,0.18);border-radius:10px;padding:14px 18px;margin-bottom:10px;cursor:pointer;transition:all 0.18s ease;" onmouseover="this.style.borderColor='rgba(212,175,55,0.45)';this.style.background='rgba(10,20,32,0.65)';" onmouseout="this.style.borderColor='rgba(212,175,55,0.18)';this.style.background='rgba(10,20,32,0.45)';">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;">
               <div style="flex:1;min-width:0;">
-                <div style="font-weight:600;color:#f5e6d3;font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
+                <div style="font-weight:600;color:var(--text-primary);font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
                 <div style="font-size:0.78em;color:#94a3b8;">${escapeHtmlForChip(r.type)} &middot; ${formatReportDate(r.created_at)}</div>
                 ${r.prompt ? `<div style="font-size:0.85em;color:#cbd5e1;margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
               </div>
@@ -7968,10 +7952,10 @@
               <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:180px;">
                   <div style="font-size:0.72em;color:#d4af37;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:3px;">Awaiting approval</div>
-                  <div style="color:#f5e6d3;font-size:0.9em;line-height:1.4;">${summary}</div>
+                  <div style="color:var(--text-primary);font-size:0.9em;line-height:1.4;">${summary}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
-                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:#f5e6d3;border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
+                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
                   <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
                 </div>
               </div>
@@ -8022,11 +8006,11 @@
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:200px;">
                   <div style="font-size:0.78em;color:#d4af37;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">${escapeHtmlForChip(p.tool_name)}</div>
-                  <div style="color:#f5e6d3;font-size:0.95em;line-height:1.45;">${escapeHtmlForChip(p.ai_summary || p.tool_name)}</div>
+                  <div style="color:var(--text-primary);font-size:0.95em;line-height:1.45;">${escapeHtmlForChip(p.ai_summary || p.tool_name)}</div>
                   <div style="color:#94a3b8;font-size:0.78em;margin-top:6px;">Queued ${formatPendingTime(p.created_at)}</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0;">
-                  <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:#f5e6d3;border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
+                  <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
                   <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:#fca5a5;border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
                 </div>
               </div>
@@ -8985,7 +8969,7 @@
 
           return `
             <div class="card" data-property-id="${e.id}" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
-              <div style="font-weight:700;color:#f5e6d3;font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
+              <div style="font-weight:700;color:var(--text-primary);font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
               <div style="font-size:0.85em;color:#e2e8f0;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
               <div style="display:flex;gap:14px;font-size:0.82em;color:#e2e8f0;flex-wrap:wrap;">
                 <div style="text-transform:capitalize;">${buildingType}</div>
@@ -9176,7 +9160,7 @@
           <div class="card" style="padding:28px 32px;">
 
             <!-- Title area -->
-            <div style="font-size:1.5em;font-weight:800;color:#f5e6d3;letter-spacing:-0.3px;margin-bottom:4px;">
+            <div style="font-size:1.5em;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:4px;">
               ${escapeHtmlInv(e.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
             </div>
             <div style="color:#e2e8f0;font-size:0.92em;margin-bottom:24px;">
@@ -9326,7 +9310,7 @@
 
           return `
             <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:#f5e6d3;">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:var(--text-primary);">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${bb}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${sqft}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${floor}</td>
@@ -10795,7 +10779,7 @@
               <div onclick="openTxDetail(${t.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:90px 1fr 100px 100px 90px;gap:12px;align-items:center;${struck}">
                 <div style="color:#94a3b8;font-size:0.82em;">${date}</div>
                 <div>
-                  <div style="color:#f5e6d3;font-weight:600;font-size:0.92em;">${escapeHtmlForChip(t.customer_display_name)}${refundTag}</div>
+                  <div style="color:var(--text-primary);font-weight:600;font-size:0.92em;">${escapeHtmlForChip(t.customer_display_name)}${refundTag}</div>
                   <div style="color:#94a3b8;font-size:0.82em;">${escapeHtmlForChip(summary)}</div>
                 </div>
                 <div style="color:#d4af37;font-weight:700;text-align:right;">${_txFormatCents(t.total_cents)}</div>
@@ -10898,7 +10882,7 @@
             ${tx.tax_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tax</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
             ${tx.discount_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Discount</td><td style="text-align:right;color:#e2e8f0;">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
             ${tx.tip_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tip</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
-            <tr><td style="color:#f5e6d3;font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
+            <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
             ${tx.amount_refunded_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:#94a3b8;font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
           </table>
           ${paymentsHtml}
@@ -11205,7 +11189,7 @@
       // their menu_items.id in a data-id attribute so the save loop can
       // distinguish PATCH (has id) from POST (no id / new blank row).
 
-      const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:#f5e6d3;font-family:inherit;font-size:0.9em;';
+      const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9em;';
       const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid rgba(148,163,184,0.12);vertical-align:middle;';
       const _MB_REMOVE_STYLE = 'background:transparent;color:#fca5a5;border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
 
@@ -11608,7 +11592,7 @@
         _menuTab = tab;
         document.querySelectorAll('.menu-tab').forEach(b => {
           const isActive = b.dataset.mtab === tab;
-          b.style.color = isActive ? '#f5e6d3' : '#94a3b8';
+          b.style.color = isActive ? 'var(--text-primary)' : 'var(--text-muted)';
           b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
         });
         loadMenuList();
@@ -11640,7 +11624,7 @@
             const parent = it.parent_name ? ` · parent: ${escapeHtmlForChip(it.parent_name)}` : '';
             return `<div onclick="openMenuItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
               <div style="flex:1;min-width:0;">
-                <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}${inactive}</div>
+                <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}${inactive}</div>
                 <div style="color:#94a3b8;font-size:0.82em;">${cat}${dur}${parent}</div>
               </div>
               <div style="color:#d4af37;font-weight:700;font-size:0.95em;">${price}</div>
@@ -11787,7 +11771,7 @@
         _invTab = tab;
         document.querySelectorAll('.inv-tab').forEach(b => {
           const isActive = b.dataset.itab === tab;
-          b.style.color = isActive ? '#f5e6d3' : '#94a3b8';
+          b.style.color = isActive ? 'var(--text-primary)' : 'var(--text-muted)';
           b.style.borderBottomColor = isActive ? '#d4af37' : 'transparent';
         });
         document.getElementById('invInventoryBody').style.display = tab === 'inventory' ? '' : 'none';
@@ -11797,7 +11781,7 @@
       }
 
       function _invStatusBadge(status) {
-        if (status === 'in_stock') return '<span style="color:#f5e6d3;font-weight:700;font-size:0.78em;text-transform:uppercase;">In stock</span>';
+        if (status === 'in_stock') return '<span style="color:var(--text-primary);font-weight:700;font-size:0.78em;text-transform:uppercase;">In stock</span>';
         if (status === 'low') return '<span style="color:#d4af37;font-weight:700;font-size:0.78em;text-transform:uppercase;">Low</span>';
         if (status === 'out') return '<span style="color:#94a3b8;font-weight:700;font-size:0.78em;text-transform:uppercase;text-decoration:line-through;">Out</span>';
         return escapeHtmlForChip(status);
@@ -11828,7 +11812,7 @@
             const struck = it.status === 'out' ? 'opacity:0.7;' : '';
             return `<div onclick="openInventoryItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:1fr 100px 100px;gap:12px;align-items:center;${struck}">
               <div>
-                <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}</div>
+                <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}</div>
                 <div style="color:#94a3b8;font-size:0.82em;">${cat}${vendor}${restockLabel}</div>
               </div>
               <div style="color:#e2e8f0;text-align:right;font-size:0.88em;">${qty}</div>
@@ -11976,7 +11960,7 @@
             const contactBits = [v.contact_phone, v.contact_email, v.contact_url].filter(Boolean).map(escapeHtmlForChip).join(' · ');
             const note = v.notes ? `<div style="color:#94a3b8;font-size:0.82em;margin-top:4px;">${escapeHtmlForChip(v.notes.slice(0, 120))}${v.notes.length > 120 ? '…' : ''}</div>` : '';
             return `<div onclick="openVendorModal(${v.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;">
-              <div style="color:#f5e6d3;font-weight:600;font-size:0.94em;">${escapeHtmlForChip(v.name)}</div>
+              <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(v.name)}</div>
               <div style="color:#94a3b8;font-size:0.82em;margin-top:2px;">${contactBits || '<em style="color:#fca5a5;">no contact info</em>'}</div>
               ${note}
             </div>`;
