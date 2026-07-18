@@ -516,19 +516,20 @@
       .modal-overlay {
         display: none;
         position: fixed; inset: 0;
-        background: rgba(8,15,30,0.55);
+        background: rgba(16,24,40,0.4);
         backdrop-filter: blur(3px);
         z-index: 1000;
         align-items: center;
         justify-content: center;
       }
       .modal {
-        background: white;
-        border-radius: 18px;
+        background: var(--bg-surface);
+        border-radius: var(--radius-md);
         padding: 32px;
         width: 440px;
         max-width: 95vw;
-        box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+        box-shadow: var(--shadow-popup);
+        color: var(--text-primary);
         animation: modalIn 0.2s ease;
       }
       @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
@@ -827,32 +828,16 @@
         background: rgba(212,175,55,0.10) !important;
         color: #d4af37 !important;
       }
-      /* Session C2.5: Report Detail modal converted to dark navy so the
-         Tier 3 .ai-response-body colors render readably. */
-      #reportDetailModal .modal {
-        background:
-          linear-gradient(160deg, rgba(20,38,58,0.97) 0%, rgba(10,20,32,0.97) 100%) !important;
-        border: 1px solid rgba(212,175,55,0.28) !important;
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,0.06),
-          0 24px 60px rgba(0,0,0,0.55) !important;
-        color: #f5e6d3;
-      }
       #reportDetailModal #reportDetailTitle {
-        color: #f5e6d3;
-        font-family: 'Inter', sans-serif;
         font-weight: 600;
       }
       #reportDetailModal #reportDetailMeta {
-        color: #94a3b8;
+        color: var(--text-muted);
       }
       #reportDetailModal #reportDetailPrompt {
-        color: #e2e8f0;
-        background: rgba(212,175,55,0.08);
-        border-left: 3px solid #d4af37;
-      }
-      #reportDetailModal #reportDetailContent {
-        color: #e2e8f0;
+        color: var(--text-secondary);
+        background: var(--bg-sunken);
+        border-left: 3px solid var(--accent);
       }
       /* ============================================================
        * Session D5: customer-facing billing UI
@@ -1024,25 +1009,14 @@
         flex-wrap: wrap;
       }
 
-      /* Upgrade prompt modal — uses the C2.5 dark-navy aesthetic */
-      .modal-content-dark {
-        background: linear-gradient(160deg, rgba(20,38,58,0.97) 0%, rgba(10,20,32,0.97) 100%);
-        border: 1px solid rgba(212,175,55,0.28);
-        color: #e2e8f0;
-        border-radius: 16px;
-        padding: 28px 32px;
-        max-width: 480px;
-        width: 96vw;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.55);
-      }
       .upgrade-prompt-title {
         margin: 0 0 12px;
         font-family: 'Inter', sans-serif;
         font-size: 20px;
-        color: #f5e6d3;
+        color: var(--text-primary);
       }
       .upgrade-prompt-message {
-        color: #e2e8f0;
+        color: var(--text-secondary);
         font-size: 15px;
         line-height: 1.6;
         margin: 0 0 24px;
@@ -3677,42 +3651,42 @@
     <!-- ============= MENU ITEM EDIT/CREATE MODAL (E4) ============= -->
     <div class="modal-overlay" id="menuItemModal" onclick="if(event.target===this)closeMenuItemModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:560px;">
-        <h3 id="menuItemModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add menu item</h3>
+        <h3 id="menuItemModalTitle" style="margin:0 0 14px;color:var(--text-primary);">Add menu item</h3>
         <input type="hidden" id="menuItemId" value="">
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Type</label>
-          <select id="menuItemType" onchange="onMenuItemTypeChange()" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Type</label>
+          <select id="menuItemType" onchange="onMenuItemTypeChange()" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
             <option value="service">Service</option>
             <option value="product">Product</option>
             <option value="addon">Add-on</option>
           </select>
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
-          <input type="text" id="menuItemName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Name</label>
+          <input type="text" id="menuItemName" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Description</label>
-          <textarea id="menuItemDesc" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Description</label>
+          <textarea id="menuItemDesc" rows="2" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Category</label>
-            <input type="text" id="menuItemCategory" placeholder="e.g., Nails" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Category</label>
+            <input type="text" id="menuItemCategory" placeholder="e.g., Nails" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Base price (USD)</label>
-            <input type="number" step="0.01" min="0" id="menuItemPrice" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Base price (USD)</label>
+            <input type="number" step="0.01" min="0" id="menuItemPrice" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div id="menuItemDurationRow">
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Duration (minutes)</label>
-            <input type="number" min="1" id="menuItemDuration" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Duration (minutes)</label>
+            <input type="number" min="1" id="menuItemDuration" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Tax behavior</label>
-            <select id="menuItemTax" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Tax behavior</label>
+            <select id="menuItemTax" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
               <option value="none">None</option>
               <option value="included">Tax included in price</option>
               <option value="added">Sales tax added at checkout</option>
@@ -3720,19 +3694,19 @@
           </div>
         </div>
         <div id="menuItemParentRow" style="margin-bottom:10px;display:none;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Parent service (required for add-ons)</label>
-          <select id="menuItemParent" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Parent service (required for add-ons)</label>
+          <select id="menuItemParent" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
             <option value="">— pick one —</option>
           </select>
         </div>
         <div id="menuItemInventoryRow" style="margin-bottom:14px;display:none;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Linked inventory item (products only, optional)</label>
-          <select id="menuItemInventory" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Linked inventory item (products only, optional)</label>
+          <select id="menuItemInventory" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
             <option value="">— none —</option>
           </select>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-          <button id="menuItemArchiveBtn" onclick="archiveMenuItem()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button id="menuItemArchiveBtn" onclick="archiveMenuItem()" style="display:none;padding:9px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
           <button onclick="closeMenuItemModal()" class="btn-secondary">Cancel</button>
           <button onclick="submitMenuItem()" class="btn-primary">Save</button>
         </div>
@@ -3742,20 +3716,20 @@
     <!-- ============= INVENTORY ITEM MODAL (E4) ============= -->
     <div class="modal-overlay" id="invItemModal" onclick="if(event.target===this)closeInvItemModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:520px;">
-        <h3 id="invItemModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add inventory item</h3>
+        <h3 id="invItemModalTitle" style="margin:0 0 14px;color:var(--text-primary);">Add inventory item</h3>
         <input type="hidden" id="invItemId" value="">
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
-          <input type="text" id="invItemName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Name</label>
+          <input type="text" id="invItemName" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Category</label>
-            <input type="text" id="invItemCategory" placeholder="e.g., Polish" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Category</label>
+            <input type="text" id="invItemCategory" placeholder="e.g., Polish" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Status</label>
-            <select id="invItemStatus" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Status</label>
+            <select id="invItemStatus" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
               <option value="in_stock">In stock</option>
               <option value="low">Low</option>
               <option value="out">Out</option>
@@ -3764,27 +3738,27 @@
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Quantity</label>
-            <input type="number" step="any" id="invItemQty" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Quantity</label>
+            <input type="number" step="any" id="invItemQty" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Unit</label>
-            <input type="text" id="invItemUnit" placeholder="bottle" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Unit</label>
+            <input type="text" id="invItemUnit" placeholder="bottle" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Preferred vendor</label>
-          <select id="invItemVendor" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Preferred vendor</label>
+          <select id="invItemVendor" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
             <option value="">— none —</option>
           </select>
         </div>
         <div style="margin-bottom:14px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes</label>
-          <textarea id="invItemNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Notes</label>
+          <textarea id="invItemNotes" rows="2" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-          <button id="invItemArchiveBtn" onclick="archiveInvItem()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
-          <button id="invItemRestockBtn" onclick="restockFromInventory()" style="display:none;padding:9px 14px;background:transparent;color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Message vendor for restock</button>
+          <button id="invItemArchiveBtn" onclick="archiveInvItem()" style="display:none;padding:9px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button id="invItemRestockBtn" onclick="restockFromInventory()" style="display:none;padding:9px 14px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Message vendor for restock</button>
           <button onclick="closeInvItemModal()" class="btn-secondary">Cancel</button>
           <button onclick="submitInvItem()" class="btn-primary">Save</button>
         </div>
@@ -3794,30 +3768,30 @@
     <!-- ============= VENDOR MODAL (E4) ============= -->
     <div class="modal-overlay" id="vendorModal" onclick="if(event.target===this)closeVendorModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:480px;">
-        <h3 id="vendorModalTitle" style="margin:0 0 14px;color:#f5e6d3;">Add vendor</h3>
+        <h3 id="vendorModalTitle" style="margin:0 0 14px;color:var(--text-primary);">Add vendor</h3>
         <input type="hidden" id="vendorId" value="">
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Name</label>
-          <input type="text" id="vendorName" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Name</label>
+          <input type="text" id="vendorName" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Phone</label>
-          <input type="tel" id="vendorPhone" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Phone</label>
+          <input type="tel" id="vendorPhone" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Email</label>
-          <input type="email" id="vendorEmail" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Email</label>
+          <input type="email" id="vendorEmail" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">URL</label>
-          <input type="url" id="vendorUrl" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">URL</label>
+          <input type="url" id="vendorUrl" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:14px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes</label>
-          <textarea id="vendorNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Notes</label>
+          <textarea id="vendorNotes" rows="2" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-          <button id="vendorArchiveBtn" onclick="archiveVendor()" style="display:none;padding:9px 14px;background:transparent;color:#fca5a5;border:1px solid rgba(239,68,68,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
+          <button id="vendorArchiveBtn" onclick="archiveVendor()" style="display:none;padding:9px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Archive</button>
           <button onclick="closeVendorModal()" class="btn-secondary">Cancel</button>
           <button onclick="submitVendor()" class="btn-primary">Save</button>
         </div>
@@ -3829,13 +3803,13 @@
       <div class="modal" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:8px;">
           <div style="flex:1;min-width:0;">
-            <h3 id="txDetailTitle" style="margin:0 0 4px;color:#f5e6d3;">Transaction</h3>
-            <div id="txDetailMeta" style="font-size:0.82em;color:#94a3b8;"></div>
+            <h3 id="txDetailTitle" style="margin:0 0 4px;color:var(--text-primary);">Transaction</h3>
+            <div id="txDetailMeta" style="font-size:0.82em;color:var(--text-muted);"></div>
           </div>
-          <button onclick="closeTxDetailModal()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+          <button onclick="closeTxDetailModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
         </div>
-        <div id="txDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:#e2e8f0;font-size:0.92em;line-height:1.55;"></div>
-        <div id="txDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(212,175,55,0.18);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
+        <div id="txDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:var(--text-secondary);font-size:0.92em;line-height:1.55;"></div>
+        <div id="txDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
       </div>
     </div>
 
@@ -3847,28 +3821,28 @@
       <div class="modal" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:8px;">
           <div style="flex:1;min-width:0;">
-            <h3 id="calEventDetailTitle" style="margin:0 0 4px;color:#f5e6d3;">Event</h3>
-            <div id="calEventDetailMeta" style="font-size:0.82em;color:#94a3b8;"></div>
+            <h3 id="calEventDetailTitle" style="margin:0 0 4px;color:var(--text-primary);">Event</h3>
+            <div id="calEventDetailMeta" style="font-size:0.82em;color:var(--text-muted);"></div>
           </div>
-          <button onclick="closeCalEventDetail()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+          <button onclick="closeCalEventDetail()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
         </div>
-        <div id="calEventDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:#e2e8f0;font-size:0.92em;line-height:1.55;"></div>
-        <div id="calEventDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid rgba(212,175,55,0.18);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
+        <div id="calEventDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:var(--text-secondary);font-size:0.92em;line-height:1.55;"></div>
+        <div id="calEventDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
       </div>
     </div>
 
     <!-- ============= REFUND MODAL (E3) ============= -->
     <div class="modal-overlay" id="txRefundModal" onclick="if(event.target===this)closeTxRefundModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:480px;">
-        <h3 style="margin:0 0 8px;color:#f5e6d3;">Issue refund</h3>
-        <div id="txRefundContext" style="color:#94a3b8;font-size:0.85em;margin-bottom:14px;"></div>
+        <h3 style="margin:0 0 8px;color:var(--text-primary);">Issue refund</h3>
+        <div id="txRefundContext" style="color:var(--text-muted);font-size:0.85em;margin-bottom:14px;"></div>
         <div style="margin-bottom:12px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Amount (USD)</label>
-          <input type="number" id="txRefundAmount" step="0.01" min="0.01" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Amount (USD)</label>
+          <input type="number" id="txRefundAmount" step="0.01" min="0.01" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:14px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Reason</label>
-          <textarea id="txRefundReason" rows="3" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Reason</label>
+          <textarea id="txRefundReason" rows="3" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button onclick="closeTxRefundModal()" class="btn-secondary">Cancel</button>
@@ -3880,23 +3854,23 @@
     <!-- ============= NEW TRANSACTION MODAL (E3) ============= -->
     <div class="modal-overlay" id="txNewModal" onclick="if(event.target===this)closeNewTransactionModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:560px;">
-        <h3 style="margin:0 0 14px;color:#f5e6d3;">New transaction</h3>
+        <h3 style="margin:0 0 14px;color:var(--text-primary);">New transaction</h3>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Customer name</label>
-          <input type="text" id="newTxCustomer" placeholder="Walk-in" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Customer name</label>
+          <input type="text" id="newTxCustomer" placeholder="Walk-in" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="margin-bottom:10px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Description</label>
-          <input type="text" id="newTxDescription" placeholder="Service or product" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Description</label>
+          <input type="text" id="newTxDescription" placeholder="Service or product" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Amount (USD)</label>
-            <input type="number" id="newTxAmount" step="0.01" min="0" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Amount (USD)</label>
+            <input type="number" id="newTxAmount" step="0.01" min="0" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
           </div>
           <div>
-            <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Payment</label>
-            <select id="newTxMethod" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;">
+            <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Payment</label>
+            <select id="newTxMethod" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
               <option value="">(unset)</option>
               <option value="cash">Cash</option>
               <option value="card">Card</option>
@@ -3909,8 +3883,8 @@
           </div>
         </div>
         <div style="margin-bottom:14px;">
-          <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Notes (internal)</label>
-          <textarea id="newTxNotes" rows="2" style="width:100%;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:#f5e6d3;font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Notes (internal)</label>
+          <textarea id="newTxNotes" rows="2" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button onclick="closeNewTransactionModal()" class="btn-secondary">Cancel</button>
@@ -12418,7 +12392,7 @@
   <!-- Maintenance Ticket Modal -->
   <!-- Session D5: Upgrade prompt modal — fired by handlePlanError on 403/429 from D4 gates -->
   <div class="modal-overlay" id="upgradePromptModal" style="display:none;align-items:center;justify-content:center;" onclick="if(event.target===this)closeUpgradePrompt()">
-    <div class="modal modal-content-dark">
+    <div class="modal">
       <h2 class="upgrade-prompt-title">Upgrade Your Plan</h2>
       <p id="upgradePromptMessage" class="upgrade-prompt-message"></p>
       <div class="modal-actions">
@@ -12796,16 +12770,16 @@
   <div class="modal-overlay" id="newReportModal" onclick="if(event.target===this)closeNewReportModal()" style="display:none;align-items:center;justify-content:center;">
     <div class="modal" style="max-width:560px;">
       <h3>&#128203; New Report</h3>
-      <p style="font-size:0.88em;color:#94a3b8;margin-bottom:18px;">Describe the report you want. The AI will generate it based on your current property data.</p>
+      <p style="font-size:0.88em;color:var(--text-muted);margin-bottom:18px;">Describe the report you want. The AI will generate it based on your current property data.</p>
 
       <div class="form-block">
         <label class="form-block-label">Description</label>
-        <textarea id="newReportDescription" rows="4" placeholder="e.g. 'Generate a budget report with suggestions for next quarter' or 'Summarize tenant activity over the last month'" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;font-size:0.95em;width:100%;resize:vertical;"></textarea>
+        <textarea id="newReportDescription" rows="4" placeholder="e.g. 'Generate a budget report with suggestions for next quarter' or 'Summarize tenant activity over the last month'" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:10px 12px;border-radius:8px;font-family:inherit;font-size:0.95em;width:100%;resize:vertical;"></textarea>
       </div>
 
       <div class="form-block">
         <label class="form-block-label">Type</label>
-        <select id="newReportType" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f5e6d3;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+        <select id="newReportType" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
           <option value="">Auto-detect</option>
           <option value="budget">Budget</option>
           <option value="tenant">Tenant</option>
@@ -12817,12 +12791,12 @@
 
       <div class="form-block">
         <label class="form-block-label">Date range (optional)</label>
-        <input type="text" id="newReportDateRange" placeholder="e.g. 'last 30 days', 'Q1 2026'" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+        <input type="text" id="newReportDateRange" placeholder="e.g. 'last 30 days', 'Q1 2026'" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
       </div>
 
       <div class="form-block">
         <label class="form-block-label">Title (optional)</label>
-        <input type="text" id="newReportTitle" placeholder="Will be auto-generated if blank" style="background:rgba(10,20,32,0.55);border:1px solid rgba(212,175,55,0.28);color:#f3ead8;padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
+        <input type="text" id="newReportTitle" placeholder="Will be auto-generated if blank" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;">
@@ -12840,12 +12814,12 @@
           <h3 id="reportDetailTitle" style="margin:0 0 4px;"></h3>
           <div id="reportDetailMeta" style="font-size:0.82em;"></div>
         </div>
-        <button onclick="closeReportDetailModal()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+        <button onclick="closeReportDetailModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
       </div>
       <div id="reportDetailPrompt" style="font-size:0.85em;padding:10px 14px;border-radius:8px;margin:12px 0;font-style:italic;"></div>
       <div id="reportDetailContent" class="ai-response-body" style="flex:1;overflow-y:auto;padding:12px 0 16px;"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid rgba(212,175,55,0.18);padding-top:14px;margin-top:8px;">
-        <button id="reportDetailDeleteBtn" onclick="deleteCurrentReport()" class="btn-secondary" style="color:#f87171;">Delete</button>
+      <div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;">
+        <button id="reportDetailDeleteBtn" onclick="deleteCurrentReport()" class="btn-secondary" style="color:var(--danger);">Delete</button>
         <button onclick="closeReportDetailModal()" class="btn-primary">Close</button>
       </div>
     </div>
