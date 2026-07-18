@@ -209,7 +209,7 @@
       .card-head-subtitle {
         font-family: 'Inter', sans-serif;
         font-size: 0.86em;
-        color: #e2e8f0;
+        color:var(--text-secondary);
         margin-top: 4px;
         line-height: 1.55;
         font-weight: 400;
@@ -329,7 +329,7 @@
         font-family: 'Inter', sans-serif;
       }
       .mode-card .mode-card-hint {
-        color: #e2e8f0;
+        color:var(--text-secondary);
         font-size: 12px;
         line-height: 1.45;
         font-family: 'Inter', sans-serif;
@@ -391,14 +391,14 @@
       textarea, input[type="text"], input:not([type="checkbox"]), select {
         width: 100%;
         padding: 10px 13px;
-        border: 1.5px solid #e2e8f0;
+        border: 1.5px solid var(--border-strong);
         border-radius: 10px;
         margin: 5px 0 10px;
         font-size: 0.92em;
         font-family: 'Inter', sans-serif;
         background: #fafbfc;
         transition: all 0.15s;
-        color: #2d3748;
+        color:var(--text-primary);
       }
       textarea:focus, input:focus, select:focus {
         outline: none;
@@ -430,8 +430,8 @@
         box-shadow: 0 3px 10px rgba(39,174,96,0.3);
       }
       .btn-success:hover { box-shadow: 0 6px 18px rgba(39,174,96,0.4); transform: translateY(-1px); }
-      .btn-secondary { background: #f1f5f9; color: var(--text-secondary); border: 1px solid #e2e8f0; }
-      .btn-secondary:hover { background: #e2e8f0; transform: translateY(-1px); }
+      .btn-secondary { background: #f1f5f9; color: var(--text-secondary); border: 1px solid var(--border); }
+      .btn-secondary:hover { background: var(--bg-hover); transform: translateY(-1px); }
       .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; box-shadow: 0 3px 10px rgba(231,76,60,0.3); }
       .btn-danger:hover { box-shadow: 0 6px 18px rgba(231,76,60,0.4); transform: translateY(-1px); }
 
@@ -442,7 +442,7 @@
         gap: 4px;
         margin-top: 10px;
       }
-      .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color: #a0aec0; padding: 6px 0; }
+      .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color:var(--text-muted); padding: 6px 0; }
       .cal-day {
         min-height: 80px;
         border: 1px solid #edf2f7;
@@ -458,16 +458,16 @@
       .cal-day.today { border-color: #ff6b6b; background: #fff5f5; }
       .cal-day.selected { border-color: #ff6b6b; background: #fff5f5; box-shadow: 0 0 0 2px rgba(255,107,107,0.25); }
       .cal-day.empty { background: #fafafa; border-color: #f0f0f0; cursor: default; pointer-events: none; }
-      .cal-day-num { font-weight: 700; margin-bottom: 4px; color: #2d3748; font-size: 0.92em; }
+      .cal-day-num { font-weight: 700; margin-bottom: 4px; color:var(--text-primary); font-size: 0.92em; }
       .cal-day.today .cal-day-num { color: #ff6b6b; }
       .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
       .cal-nav h3 { flex: 1; }
       .cal-nav select {
         padding: 7px 10px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 0.92em;
-        color: #2d3748;
+        color:var(--text-primary);
         background: white;
         font-family: inherit;
         cursor: pointer;
@@ -489,14 +489,14 @@
         transition: all 0.15s;
       }
       .cal-mini:hover { border-color: #ff6b6b; background: #fff9f9; }
-      .cal-mini-head { font-weight: 700; color: #2d3748; font-size: 0.92em; margin-bottom: 6px; text-align: center; }
+      .cal-mini-head { font-weight: 700; color:var(--text-primary); font-size: 0.92em; margin-bottom: 6px; text-align: center; }
       .cal-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-      .cal-mini-dow { font-size: 0.62em; color: #a0aec0; text-align: center; font-weight: 700; padding-bottom: 2px; }
+      .cal-mini-dow { font-size: 0.62em; color:var(--text-muted); text-align: center; font-weight: 700; padding-bottom: 2px; }
       .cal-mini-day {
         font-size: 0.72em;
         text-align: center;
         padding: 4px 0 6px;
-        color: #2d3748;
+        color:var(--text-primary);
         border-radius: 4px;
         position: relative;
         cursor: pointer;
@@ -574,7 +574,7 @@
       }
       .ai-thinking-bubble span:nth-child(2) { animation-delay: 0.15s; }
       .ai-thinking-bubble span:nth-child(3) { animation-delay: 0.3s; }
-      .ai-response-body { line-height: 1.65; color: #2d3748; }
+      .ai-response-body { line-height: 1.65; color:var(--text-primary); }
       .ai-response-body p { margin: 0 0 10px; }
       .ai-response-body p:last-child { margin-bottom: 0; }
       .ai-response-body strong { color: #1a2e4a; font-weight: 700; }
@@ -676,7 +676,7 @@
       .b5-ai-banner-chip {
         font-size: 0.8em;
         font-weight: 500;
-        color: #e2e8f0;
+        color:var(--text-secondary);
         background: rgba(10, 20, 32, 0.45);
         border: 1px solid rgba(212, 175, 55, 0.18);
         border-radius: 6px;
@@ -741,7 +741,7 @@
         font-family: 'Inter', sans-serif !important;
         font-size: 0.95em !important;
         font-weight: 400 !important;
-        color: #e2e8f0 !important;
+        color:var(--text-secondary) !important;
         margin-top: 10px !important;
         letter-spacing: 0.2px !important;
       }
@@ -801,11 +801,11 @@
           0 2px 12px rgba(0,0,0,0.30) !important;
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        color: #e2e8f0 !important;
+        color:var(--text-secondary) !important;
         font-family: 'Inter', sans-serif !important;
       }
       /* AI response markdown text adapts to dark bg */
-      .ai-response-body { color: #e2e8f0 !important; }
+      .ai-response-body { color:var(--text-secondary) !important; }
       .ai-response-body strong { color:var(--text-primary) !important; }
       .ai-response-body em { color: #d4af37 !important; }
       .ai-response-body h1,
@@ -975,7 +975,7 @@
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        color: #e2e8f0;
+        color:var(--text-secondary);
       }
       .plan-usage-feature::before {
         font-weight: bold;
@@ -1038,7 +1038,7 @@
       .ai-action-chip-warn .chip-check { background: #d4af37; }
       .ai-actions-row { border-top-color: rgba(212,175,55,0.22) !important; }
       /* Lease expirations card list items adapt */
-      #leaseExpirationsList { color: #cbd5e1; }
+      #leaseExpirationsList { color:var(--text-secondary); }
 
       /* ==================================================================
          Global Layout — Magazine container, page heroes, header hierarchy
@@ -1101,7 +1101,7 @@
         font-family: 'Inter', sans-serif;
         font-size: 0.98em;
         font-weight: 400;
-        color: #e2e8f0;
+        color:var(--text-secondary);
         margin-top: 12px;
         letter-spacing: 0.2px;
       }
@@ -1266,7 +1266,7 @@
         align-items: center;
         gap: 10px;
         background: #f8fafc;
-        border: 1.5px solid #e2e8f0;
+        border: 1.5px solid var(--border-strong);
         border-radius: 10px;
         padding: 12px 14px;
         margin: 14px 0 10px;
@@ -1285,7 +1285,7 @@
       .contact-card {
         background: white;
         border-radius: 14px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         padding: 20px;
         cursor: pointer;
         transition: all 0.18s;
@@ -1326,7 +1326,7 @@
       .lease-row {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
-        background: white; border: 1px solid #e2e8f0; font-size: 0.88em;
+        background: white; border: 1px solid var(--border); font-size: 0.88em;
       }
       .lease-row:last-child { margin-bottom: 0; }
 
@@ -1346,7 +1346,7 @@
       .task-item.overdue .task-due { color: #e74c3c; font-weight: 600; }
       .task-check {
         width: 20px; height: 20px;
-        border: 2px solid #cbd5e1;
+        border: 2px solid var(--border-strong);
         border-radius: 6px;
         flex-shrink: 0;
         cursor: pointer;
@@ -1374,14 +1374,14 @@
       .cat-finance { background: #eff6ff; color: #2563eb; }
       .cat-other { background: #f1f5f9; color: var(--text-secondary); }
       .task-notes { font-size: 0.8em; color: #94a3b8; margin-top: 3px; }
-      .task-delete { color: #cbd5e1; cursor: pointer; font-size: 1em; padding: 2px 6px; border-radius: 4px; }
+      .task-delete { color:var(--text-secondary); cursor: pointer; font-size: 1em; padding: 2px 6px; border-radius: 4px; }
       .task-delete:hover { color: #e74c3c; background: #fff1f0; }
       .active-filter { background: linear-gradient(135deg, #4a90e2, #6c63d4) !important; color: white !important; border-color: transparent !important; }
       .stat-chip {
         flex: 1;
         background: white;
         border-radius: 14px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         padding: 18px 20px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.04);
       }
@@ -1389,14 +1389,14 @@
       .stat-chip .stat-label { font-size: 0.75em; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
       .week-task { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.87em; }
       .week-task .wt-date { font-size: 0.75em; color: #94a3b8; margin-top: 2px; }
-      .ob-step-dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; transition: all 0.2s; }
+      .ob-step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); transition: all 0.2s; }
       .ob-step-dot.active { background: linear-gradient(135deg, #ff6b6b, #ff8e53); width: 24px; border-radius: 4px; }
 
       /* ── Mobile hamburger button ── */
       #hamburger-btn {
         display: none;
         background: none;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         border-radius: 8px;
         padding: 6px 10px;
         cursor: pointer;
@@ -1605,7 +1605,7 @@
       }
       .cc-bubble-ai {
         background: rgba(245,230,211,0.08);
-        color: #e2e8f0;
+        color:var(--text-secondary);
         border: 1px solid rgba(148,163,184,0.22);
         border-bottom-left-radius: 4px;
       }
@@ -2030,7 +2030,7 @@
               <span style="width:8px;height:8px;background:#ff6b6b;border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
               <span id="micStatusText">Listening... speak now</span>
             </div>
-            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:#2d3748;line-height:1.65;position:relative;"></div>
+            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:rgba(248,247,243,0.7);border:1px solid rgba(232,220,210,0.7);border-radius:12px;font-size:0.92em;color:var(--text-primary);line-height:1.65;position:relative;"></div>
           </div>
 
           <!-- Approval Queue (Session C1) -->
@@ -2316,16 +2316,16 @@
               <div id="emailPathPicker">
                 <div style="font-size:0.82em;font-weight:600;color:var(--text-secondary);margin-bottom:10px;">Which email will you use?</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-                  <button onclick="chooseEmailPath('existing')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid #e2e8f0;">
+                  <button onclick="chooseEmailPath('existing')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid var(--border-strong);">
                     <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">I already have a business email</div>
                     <div style="font-size:0.78em;color:var(--text-muted);">Connect a Gmail, Outlook, Yahoo, or custom domain you already own.</div>
                   </button>
-                  <button onclick="chooseEmailPath('new')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid #e2e8f0;">
+                  <button onclick="chooseEmailPath('new')" class="btn-secondary" style="text-align:left;padding:14px 16px;border:1.5px solid var(--border-strong);">
                     <div style="font-weight:700;color:#1a2e4a;font-size:0.92em;margin-bottom:4px;">Create a new dedicated Gmail</div>
                     <div style="font-size:0.78em;color:var(--text-muted);">Takes ~3 minutes, free, keeps personal mail separate.</div>
                   </button>
                 </div>
-                <div style="padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:0.85em;color:var(--text-secondary);">
+                <div style="padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;font-size:0.85em;color:var(--text-secondary);">
                   <strong>⚠ Don't connect your personal email.</strong> Use a dedicated address (e.g. <code>mypropertyapartments@gmail.com</code>) so personal mail stays out of your property inbox.
                 </div>
               </div>
@@ -2539,11 +2539,11 @@
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('vendor',this)" style="font-size:0.8em;padding:7px 14px;">Vendors</button>
               <button class="btn-secondary contact-type-filter" onclick="filterContactType('important',this)" style="font-size:0.8em;padding:7px 14px;">Important</button>
             </div>
-            <label class="btn-secondary" style="margin-left:auto;cursor:pointer;padding:10px 18px;font-size:0.87em;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;border-radius:10px;background:#f1f5f9;color:var(--text-secondary);" title="Import contacts from a CSV file">
+            <label class="btn-secondary" style="margin-left:auto;cursor:pointer;padding:10px 18px;font-size:0.87em;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:10px;background:#f1f5f9;color:var(--text-secondary);" title="Import contacts from a CSV file">
               &#128196; Import CSV
               <input type="file" accept=".csv" style="display:none;" onchange="importContactsCSV(this)" />
             </label>
-            <button class="btn-secondary" onclick="openBroadcast()" style="display:inline-flex;align-items:center;gap:6px;border:1px solid #e2e8f0;">&#128226; Broadcast</button>
+            <button class="btn-secondary" onclick="openBroadcast()" style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);">&#128226; Broadcast</button>
             <button class="btn-primary" onclick="openAddContact()">+ Add Contact</button>
           </div>
 
@@ -2555,7 +2555,7 @@
 
             <!-- Contact detail -->
             <div style="width:300px;flex-shrink:0;" id="contactDetailPanel">
-              <div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;">
+              <div class="card" style="color:var(--text-muted);text-align:center;padding:40px 20px;">
                 <div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div>
                 <div style="font-size:0.9em;">Select a contact to view details</div>
               </div>
@@ -2835,7 +2835,7 @@
                   </div>
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
                     <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
-                    <span id="notifToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
+                    <span id="notifToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
                     <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
                   </label>
                 </div>
@@ -2849,7 +2849,7 @@
                   </div>
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
                     <input type="checkbox" id="pushToggle" style="opacity:0;width:0;height:0;position:absolute;">
-                    <span id="pushToggleTrack" style="position:absolute;inset:0;background:#e2e8f0;border-radius:24px;transition:background 0.2s;"></span>
+                    <span id="pushToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
                     <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.15);transition:transform 0.2s;"></span>
                   </label>
                 </div>
@@ -2959,10 +2959,10 @@
             </div>
             <div class="card-head-rule"></div>
 
-            <div id="forwardingInfo" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div id="forwardingInfo" style="background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
               <div style="font-size:0.72em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Your forwarding address</div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid #e2e8f0;border-radius:7px;font-size:0.88em;color:#1e293b;word-break:break-all;">Loading...</code>
+                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:0.88em;color:#1e293b;word-break:break-all;">Loading...</code>
                 <button onclick="copyForwardingAddress()" class="btn-secondary" style="font-size:0.82em;">Copy</button>
               </div>
               <div style="font-size:0.78em;color:#94a3b8;margin-top:10px;line-height:1.6;">
@@ -3006,13 +3006,13 @@
             <!-- Controls row -->
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
               <div style="display:flex;align-items:center;gap:8px;">
-                <select id="rentMonthSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88em;color:#2d3748;">
+                <select id="rentMonthSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.88em;color:var(--text-primary);">
                   <option value="1">January</option><option value="2">February</option><option value="3">March</option>
                   <option value="4">April</option><option value="5">May</option><option value="6">June</option>
                   <option value="7">July</option><option value="8">August</option><option value="9">September</option>
                   <option value="10">October</option><option value="11">November</option><option value="12">December</option>
                 </select>
-                <select id="rentYearSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88em;color:#2d3748;">
+                <select id="rentYearSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.88em;color:var(--text-primary);">
                   <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
                 </select>
               </div>
@@ -3189,7 +3189,7 @@
                   style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadTransactions()" />
                 <button onclick="loadTransactions()" style="padding:9px 14px;background:rgba(212,175,55,0.15);color:#d4af37;border:1px solid rgba(212,175,55,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
-                <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:#e2e8f0;border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
+                <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:var(--text-secondary);border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
                 <button onclick="openNewTransactionModal()" style="padding:9px 14px;background:#d4af37;color:#0d1117;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">New transaction</button>
               </div>
 
@@ -3505,7 +3505,7 @@
               </div>
               <div class="card-head-rule"></div>
 
-              <div style="color:#cbd5e1;font-size:0.88em;line-height:1.7;margin-bottom:22px;">
+              <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;">
                 <p style="margin:0 0 10px;"><strong style="color:var(--text-primary);">Why reviews matter:</strong> When someone searches for a business like yours nearby, the ones with lots of recent, positive reviews show up first and win the customer. Reviews are one of the highest-impact, lowest-cost ways to grow. The best moment to ask is right after a happy customer has been served, while the good experience is fresh.</p>
                 <p style="margin:0;"><strong style="color:var(--text-primary);">One important rule:</strong> Google and Yelp do <strong>NOT</strong> allow you to offer any reward &mdash; a discount, a freebie, anything &mdash; in exchange for a review. This is called an "incentivized review," and it can get all of your reviews removed and your listing penalized. So the safe, effective approach is simply to <strong>ASK</strong> &mdash; "we'd love your feedback" &mdash; and share your review link. Add your links below and your assistant will have them ready to share when a customer wants to leave feedback.</p>
               </div>
@@ -3528,7 +3528,7 @@
                 </div>
               </div>
 
-              <div style="color:#cbd5e1;font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:6px;">
+              <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:6px;">
                 <p style="margin:0;"><strong style="color:var(--text-primary);">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your assistant gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
               </div>
 
@@ -4505,7 +4505,7 @@
       }
 
       function updateNotifToggleUI(on, track, thumb) {
-        track.style.background = on ? 'linear-gradient(135deg,#ff6b6b,#ff8e53)' : '#e2e8f0';
+        track.style.background = on ? 'var(--accent)' : 'var(--border-strong)';
         thumb.style.transform = on ? 'translateX(20px)' : 'translateX(0)';
       }
 
@@ -4774,9 +4774,9 @@
               <div style="font-weight:700;color:var(--text-primary);font-size:0.95em;">${d.title}
                 <span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:20px;background:${typeColor}18;color:${typeColor};font-size:0.7em;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;vertical-align:1px;">${d.type}</span>
               </div>
-              <p style="margin-top:6px;font-size:0.86em;color:#e2e8f0;line-height:1.55;">${preview}${more}</p>
+              <p style="margin-top:6px;font-size:0.86em;color:var(--text-secondary);line-height:1.55;">${preview}${more}</p>
             </div>
-            <button onclick="deleteKnowledge(${d.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1.05em;padding:4px 6px;flex-shrink:0;" title="Remove">🗑</button>
+            <button onclick="deleteKnowledge(${d.id})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1.05em;padding:4px 6px;flex-shrink:0;" title="Remove">🗑</button>
           </div>`;
         }).join('');
       }
@@ -5102,7 +5102,7 @@
               const xColor = isTimeOff ? 'var(--text-muted)' : '#ff6b6b';
               const icon = isTimeOff ? '&#128683;' : '&#128197;';
               return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${rowBg};border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:#2d3748;flex:1;min-width:0;" title="View details">${icon} ${timePrefix}${e.title}</span>
+                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:var(--text-primary);flex:1;min-width:0;" title="View details">${icon} ${timePrefix}${e.title}</span>
                 <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:${xColor};font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
               </div>`;
             }).join('')
@@ -5111,7 +5111,7 @@
         const tasksHtml = dayTasks.length
           ? dayTasks.map(t => `
               <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#f5f0ff;border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span style="color:#2d3748;${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${t.title}</span>
+                <span style="color:var(--text-primary);${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${t.title}</span>
                 <div style="display:flex;gap:6px;">
                   <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:#7b5ea7;font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
                   <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:#e74c3c;font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
@@ -5342,7 +5342,7 @@
         function row(label, value) {
           rows.push('<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid rgba(148,163,184,0.14);">'
             + '<div style="width:110px;color:#94a3b8;font-size:0.82em;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">' + _calEscape(label) + '</div>'
-            + '<div style="flex:1;color:#e2e8f0;">' + value + '</div>'
+            + '<div style="flex:1;color:var(--text-secondary);">' + value + '</div>'
             + '</div>');
         }
         row('Service', _calEscape(event.title || '—'));
@@ -5631,7 +5631,7 @@
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 ${s !== 'paid' ? `<button class="btn-primary" style="font-size:0.78em;padding:5px 12px;" onclick="markRentPaid(${r.id},${r.amount},'${r.due_date||''}')">&#10003; Mark Paid</button>` : ''}
                 ${s !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:5px 10px;" onclick="sendLateNotice(${r.id})">&#128232; Notice</button>` : ''}
-                <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
+                <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
               </div>
             </td>
           </tr>`;
@@ -5745,7 +5745,7 @@
               ${inv.status === 'pending' ? `<button class="btn-success" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'approved')">&#10003; Approve</button>` : ''}
               ${inv.status === 'pending' ? `<button class="btn-danger" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'rejected')">&#10005; Reject</button>` : ''}
               ${inv.status !== 'pending' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'pending')">Reset</button>` : ''}
-              <button onclick="deleteInvoice(${inv.id})" style="background:none;border:none;color:#cbd5e1;cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
+              <button onclick="deleteInvoice(${inv.id})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
             </td>
           </tr>`;
         }).join('');
@@ -5815,7 +5815,7 @@
           </div>
           <div style="flex:1;min-width:140px;background:#f4f6f9;border:1px solid #dde3ec;border-radius:10px;padding:16px;text-align:center;">
             <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">TRANSACTIONS</div>
-            <div style="font-size:1.55em;font-weight:800;color:#2d3748;">${budgetTransactions.length}</div>
+            <div style="font-size:1.55em;font-weight:800;color:var(--text-primary);">${budgetTransactions.length}</div>
           </div>
         `;
 
@@ -5847,7 +5847,7 @@
               <td style="padding:9px 10px;white-space:nowrap;color:var(--text-muted);font-size:0.88em;">${t.date || ''}</td>
               <td style="padding:9px 10px;">${typeBadge}</td>
               <td style="padding:9px 10px;color:var(--text-secondary);font-size:0.9em;">${t.category || ''}</td>
-              <td style="padding:9px 10px;color:#2d3748;">${t.description || ''}${t.notes ? `<div style="font-size:0.78em;color:#94a3b8;margin-top:1px;">${t.notes}</div>` : ''}</td>
+              <td style="padding:9px 10px;color:var(--text-primary);">${t.description || ''}${t.notes ? `<div style="font-size:0.78em;color:#94a3b8;margin-top:1px;">${t.notes}</div>` : ''}</td>
               <td style="padding:9px 10px;text-align:right;font-weight:700;color:${amtColor};">${amtStr}</td>
               <td style="padding:9px 10px;text-align:right;font-weight:600;color:${balColor};">$${bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
               <td style="padding:9px 6px;text-align:right;">
@@ -6186,7 +6186,7 @@
                   ${t.unit ? `Unit ${t.unit} · ` : ''}${t.resident || ''} · Created ${created}
                   ${t.emergency_sms_sent ? ' · <span style="color:#86efac;">✓ Emergency SMS sent</span>' : ''}
                 </div>
-                ${t.description ? `<div style="font-size:0.88em;color:#e2e8f0;margin-bottom:8px;">${t.description}</div>` : ''}
+                ${t.description ? `<div style="font-size:0.88em;color:var(--text-secondary);margin-bottom:8px;">${t.description}</div>` : ''}
                 ${t.outcome ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#166534;margin-bottom:8px;"><strong>Maintenance Outcome:</strong> ${t.outcome}</div>` : ''}
                 ${t.action_notes ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;padding:10px 12px;font-size:0.85em;color:#9a3412;"><strong>Office Action Notes:</strong> ${t.action_notes}</div>` : ''}
               </div>
@@ -6346,13 +6346,13 @@
             const urgencyColor = days <= 0 ? '#e74c3c' : days <= 30 ? '#e74c3c' : days <= 60 ? '#d97706' : '#059669';
             const urgencyText = days <= 0 ? 'Expired' : days === 1 ? '1 day left' : `${days} days left`;
             leaseHtml = `
-              <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+              <div style="margin:16px 0;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid var(--border);">
                 <div style="font-size:0.75em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Lease</div>
                 <div style="display:flex;flex-direction:column;gap:8px;font-size:0.86em;">
-                  ${c.lease_start ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Start</span><span style="color:#2d3748;font-weight:600;">${c.lease_start}</span></div>` : ''}
-                  <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">End</span><span style="color:#2d3748;font-weight:600;">${c.lease_end}</span></div>
+                  ${c.lease_start ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Start</span><span style="color:var(--text-primary);font-weight:600;">${c.lease_start}</span></div>` : ''}
+                  <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">End</span><span style="color:var(--text-primary);font-weight:600;">${c.lease_end}</span></div>
                   <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Status</span><span style="color:${urgencyColor};font-weight:700;">${urgencyText}</span></div>
-                  ${c.monthly_rent > 0 ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Monthly Rent</span><span style="color:#2d3748;font-weight:600;">$${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}</span></div>` : ''}
+                  ${c.monthly_rent > 0 ? `<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Monthly Rent</span><span style="color:var(--text-primary);font-weight:600;">$${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}</span></div>` : ''}
                 </div>
               </div>`;
           } else {
@@ -6364,14 +6364,14 @@
           <div class="card" style="padding:28px 24px;">
             <div style="text-align:center;margin-bottom:20px;">
               <div class="contact-avatar avatar-${c.type}" style="width:64px;height:64px;font-size:1.5em;margin:0 auto 12px;">${initials}</div>
-              <div style="font-size:1.1em;font-weight:700;color:#2d3748;">${c.name}</div>
+              <div style="font-size:1.1em;font-weight:700;color:var(--text-primary);">${c.name}</div>
               <span class="contact-type-tag tag-${c.type}" style="margin-top:6px;display:inline-block;">${c.type}</span>
               ${c.unit ? `<div style="font-size:0.82em;color:#94a3b8;margin-top:4px;">Unit ${c.unit}</div>` : ''}
             </div>
             <div style="display:flex;flex-direction:column;gap:12px;font-size:0.88em;">
-              ${c.email ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Email</span><div style="margin-top:3px;color:#2d3748;">${c.email}</div></div>` : ''}
-              ${c.phone ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Phone</span><div style="margin-top:3px;color:#2d3748;">${c.phone}</div></div>` : ''}
-              ${c.notes ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Notes</span><div style="margin-top:3px;color:#2d3748;">${c.notes}</div></div>` : ''}
+              ${c.email ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Email</span><div style="margin-top:3px;color:var(--text-primary);">${c.email}</div></div>` : ''}
+              ${c.phone ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Phone</span><div style="margin-top:3px;color:var(--text-primary);">${c.phone}</div></div>` : ''}
+              ${c.notes ? `<div><span style="color:#94a3b8;font-size:0.8em;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Notes</span><div style="margin-top:3px;color:var(--text-primary);">${c.notes}</div></div>` : ''}
             </div>
             ${leaseHtml}
             <div style="margin-top:20px;display:flex;flex-direction:column;gap:8px;">
@@ -6740,7 +6740,7 @@
         if (!list) return;
         if (!reports || reports.length === 0) {
           list.innerHTML = `
-            <div style="text-align:center;padding:48px 24px;color:#e2e8f0;">
+            <div style="text-align:center;padding:48px 24px;color:var(--text-secondary);">
               <div style="font-size:2.4em;margin-bottom:12px;opacity:0.6;">&#128203;</div>
               <div style="font-size:1.15em;color:var(--text-primary);margin-bottom:6px;">No reports yet</div>
               <div style="font-size:0.88em;line-height:1.5;">Click <strong>+ New Report</strong> above, or ask the AI from the Home page command bar &mdash; for example: <em>"Generate me a budget report with suggestions for next quarter"</em>.</div>
@@ -6753,7 +6753,7 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-weight:600;color:var(--text-primary);font-size:1.08em;margin-bottom:4px;">${escapeHtmlForChip(r.title)}</div>
                 <div style="font-size:0.78em;color:#94a3b8;">${escapeHtmlForChip(r.type)} &middot; ${formatReportDate(r.created_at)}</div>
-                ${r.prompt ? `<div style="font-size:0.85em;color:#cbd5e1;margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
+                ${r.prompt ? `<div style="font-size:0.85em;color:var(--text-secondary);margin-top:6px;font-style:italic;">"${escapeHtmlForChip(r.prompt.length > 120 ? r.prompt.slice(0, 120) + '...' : r.prompt)}"</div>` : ''}
               </div>
               <div style="font-size:0.75em;color:rgba(212,175,55,0.65);font-weight:500;letter-spacing:0.18em;text-transform:uppercase;flex-shrink:0;padding-top:4px;">${escapeHtmlForChip(r.type)}</div>
             </div>
@@ -6890,7 +6890,7 @@
           const rent = c.monthly_rent > 0 ? ` · $${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}/mo` : '';
           return `<div class="lease-row" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'));setTimeout(()=>selectContact(${c.id}),200);" style="cursor:pointer;">
             <div>
-              <div style="font-weight:600;color:#2d3748;font-size:0.9em;">${c.name}${c.unit ? ' <span style="color:#94a3b8;">· Unit ' + c.unit + '</span>' : ''}</div>
+              <div style="font-weight:600;color:var(--text-primary);font-size:0.9em;">${c.name}${c.unit ? ' <span style="color:#94a3b8;">· Unit ' + c.unit + '</span>' : ''}</div>
               <div style="font-size:0.78em;color:#94a3b8;margin-top:2px;">Expires ${c.lease_end}${rent}</div>
             </div>
             <span class="lease-badge ${cls}">${label}</span>
@@ -6903,7 +6903,7 @@
         if (!confirm('Remove this contact?')) return;
         await fetch('/api/contacts/' + id, { method: 'DELETE' });
         selectedContact = null;
-        document.getElementById('contactDetailPanel').innerHTML = `<div class="card" style="color:#a0aec0;text-align:center;padding:40px 20px;"><div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div><div style="font-size:0.9em;">Select a contact to view details</div></div>`;
+        document.getElementById('contactDetailPanel').innerHTML = `<div class="card" style="color:var(--text-muted);text-align:center;padding:40px 20px;"><div style="font-size:2.5em;margin-bottom:10px;">&#128100;</div><div style="font-size:0.9em;">Select a contact to view details</div></div>`;
         loadContacts();
       }
 
@@ -7571,10 +7571,10 @@
         const subjectRow = document.getElementById('bc-subject-row');
         const counter = document.getElementById('bc-sms-counter');
 
-        emailBtn.style.borderColor = ch === 'email' ? '#ff6b6b' : '#e2e8f0';
+        emailBtn.style.borderColor = ch === 'email' ? 'var(--accent)' : 'var(--border-strong)';
         emailBtn.style.background = ch === 'email' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
         emailBtn.style.color = ch === 'email' ? '#ff6b6b' : 'var(--text-muted)';
-        smsBtn.style.borderColor = ch === 'sms' ? '#ff6b6b' : '#e2e8f0';
+        smsBtn.style.borderColor = ch === 'sms' ? 'var(--accent)' : 'var(--border-strong)';
         smsBtn.style.background = ch === 'sms' ? 'rgba(255,107,107,0.08)' : '#f8fafc';
         smsBtn.style.color = ch === 'sms' ? '#ff6b6b' : 'var(--text-muted)';
         subjectRow.style.display = ch === 'email' ? '' : 'none';
@@ -7606,7 +7606,7 @@
         preview.innerHTML = eligible.length === 0
           ? `<span style="font-size:0.8em;color:#94a3b8;">No contacts with a valid ${bcChannel === 'email' ? 'email' : 'phone number'} in this group.</span>`
           : eligible.slice(0, 12).map(c =>
-              `<span style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:3px 10px;font-size:0.76em;color:var(--text-secondary);white-space:nowrap;">${c.name}</span>`
+              `<span style="background:#f1f5f9;border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:0.76em;color:var(--text-secondary);white-space:nowrap;">${c.name}</span>`
             ).join('') + (eligible.length > 12 ? `<span style="font-size:0.76em;color:#94a3b8;padding:3px 6px;">+${eligible.length - 12} more</span>` : '');
       }
 
@@ -7677,7 +7677,7 @@
             ? Math.round((b.sent_count / b.recipient_count) * 100) : 0;
           const statusColor = b.failed_count === 0 ? '#27ae60' : b.sent_count === 0 ? '#e74c3c' : '#f39c12';
           return `
-            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:14px;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;gap:10px;">
               <div style="font-size:1.2em;">${chIcon}</div>
               <div style="flex:1;min-width:0;">
                 <div style="font-size:0.9em;font-weight:600;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
@@ -8563,7 +8563,7 @@
                   <span style="background:${income-expenses>=0?'#f0fdf4':'#fef3f2'};color:${income-expenses>=0?'#27ae60':'#e74c3c'};border-radius:6px;padding:4px 10px;font-size:0.78em;font-weight:600;">${income-expenses>=0?'+':''}\$${(income-expenses).toLocaleString('en-US',{minimumFractionDigits:2})} balance</span>
                 </div>
               </div>
-              <div style="font-size:0.91em;color:#2d3748;line-height:1.75;">
+              <div style="font-size:0.91em;color:var(--text-primary);line-height:1.75;">
                 <style>
                   .report-section-head { font-size:0.82em;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid #eef2ff; }
                 </style>
@@ -8803,8 +8803,8 @@
             auto_matched: { bg: '#f0fdf4', bd: '#bbf7d0', c: '#15803d', lbl: '✓ Auto-matched' },
             needs_review: { bg: '#fffbeb', bd: '#fde68a', c: '#d97706', lbl: '⚠ Needs review' },
             unmatched:    { bg: '#fff1f0', bd: '#fecaca', c: '#dc2626', lbl: '✗ No match found' },
-            not_payment:  { bg: '#f8fafc', bd: '#e2e8f0', c: 'var(--text-muted)', lbl: '— Not a payment' },
-            dismissed:    { bg: '#f8fafc', bd: '#e2e8f0', c: '#94a3b8', lbl: '🗑 Dismissed' }
+            not_payment:  { bg: '#f8fafc', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '— Not a payment' },
+            dismissed:    { bg: '#f8fafc', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '🗑 Dismissed' }
           };
           const s = statusStyles[e.status] || statusStyles.unmatched;
           const amt = e.parsed_amount > 0 ? `$${Number(e.parsed_amount).toLocaleString('en-US',{minimumFractionDigits:0})}` : '';
@@ -8961,7 +8961,7 @@
             : rate >= 1 ? '#0ea5e9'
             : '#94a3b8';
 
-          const buildingType = e.building_type ? escapeHtmlInv(e.building_type) : '<span style="color:#cbd5e1;">—</span>';
+          const buildingType = e.building_type ? escapeHtmlInv(e.building_type) : '<span style="color:var(--text-secondary);">—</span>';
           const unitLabel = unitCount === 0
             ? '<span style="color:#94a3b8;">No units</span>'
             : `${unitCount} unit${unitCount === 1 ? '' : 's'}`;
@@ -8970,8 +8970,8 @@
           return `
             <div class="card" data-property-id="${e.id}" style="cursor:pointer;transition:all 0.2s;" onclick="openPropertyDetail(${e.id})" onmouseover="this.style.boxShadow='0 4px 20px rgba(255,107,107,0.18)';this.style.transform='translateY(-1px)'" onmouseout="this.style.boxShadow='';this.style.transform=''">
               <div style="font-weight:700;color:var(--text-primary);font-size:1.05em;margin-bottom:4px;">${escapeHtmlInv(e.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</div>
-              <div style="font-size:0.85em;color:#e2e8f0;margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
-              <div style="display:flex;gap:14px;font-size:0.82em;color:#e2e8f0;flex-wrap:wrap;">
+              <div style="font-size:0.85em;color:var(--text-secondary);margin-bottom:14px;min-height:1.2em;">${escapeHtmlInv(e.address) || '&nbsp;'}</div>
+              <div style="display:flex;gap:14px;font-size:0.82em;color:var(--text-secondary);flex-wrap:wrap;">
                 <div style="text-transform:capitalize;">${buildingType}</div>
                 <div>${unitLabel}</div>
                 <div style="color:${rateColor};font-weight:600;">${rateLabel}</div>
@@ -9082,8 +9082,8 @@
         // Update breadcrumb with back-link
         document.getElementById('inventoryBreadcrumb').innerHTML =
           '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
-          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
-          '<span style="color:#2d3748;">' + (escapeHtmlInv(entity.name) || '(unnamed)') + '</span>';
+          ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:var(--text-primary);">' + (escapeHtmlInv(entity.name) || '(unnamed)') + '</span>';
 
         // Render detail content
         document.getElementById('inventoryDetailPane').innerHTML = renderPropertyDetail(entity);
@@ -9107,7 +9107,7 @@
 
       // Detail rendering helpers
       function _invEmpty() {
-        return '<span style="color:#cbd5e1;">&mdash;</span>';
+        return '<span style="color:var(--text-secondary);">&mdash;</span>';
       }
 
       function _invDispScalar(v) {
@@ -9129,7 +9129,7 @@
             const parts = [c && c.name, c && c.phone, c && c.role]
               .filter(p => p != null && String(p).trim() !== '')
               .map(p => escapeHtmlInv(String(p)));
-            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:var(--text-secondary);">(empty entry)</span>') + '</li>';
           }).join('') +
           '</ul>';
       }
@@ -9141,7 +9141,7 @@
             const parts = [v && v.name, v && v.trade, v && v.phone]
               .filter(p => p != null && String(p).trim() !== '')
               .map(p => escapeHtmlInv(String(p)));
-            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:#cbd5e1;">(empty entry)</span>') + '</li>';
+            return '<li>' + (parts.length ? parts.join(' &mdash; ') : '<span style="color:var(--text-secondary);">(empty entry)</span>') + '</li>';
           }).join('') +
           '</ul>';
       }
@@ -9150,7 +9150,7 @@
         return `
           <div>
             <div style="font-size:0.72em;font-weight:700;color:#d4af37;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">${label}</div>
-            <div style="color:#e2e8f0;font-size:0.95em;line-height:1.5;">${valueHtml}</div>
+            <div style="color:var(--text-secondary);font-size:0.95em;line-height:1.5;">${valueHtml}</div>
           </div>
         `;
       }
@@ -9163,7 +9163,7 @@
             <div style="font-size:1.5em;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:4px;">
               ${escapeHtmlInv(e.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
             </div>
-            <div style="color:#e2e8f0;font-size:0.92em;margin-bottom:24px;">
+            <div style="color:var(--text-secondary);font-size:0.92em;margin-bottom:24px;">
               ${escapeHtmlInv(e.address) || _invEmpty()}
             </div>
 
@@ -9251,20 +9251,20 @@
 
       function _invFmtRent(amount) {
         const n = Number(amount);
-        if (!Number.isFinite(n) || n <= 0) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        if (!Number.isFinite(n) || n <= 0) return '<span style="color:var(--text-secondary);">&mdash;</span>';
         return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 2 });
       }
 
       function _invFmtBedsBaths(md) {
         const br = md && md.bedrooms != null ? md.bedrooms : null;
         const ba = md && md.bathrooms != null ? md.bathrooms : null;
-        if (br == null && ba == null) return '<span style="color:#cbd5e1;">&mdash;</span>';
+        if (br == null && ba == null) return '<span style="color:var(--text-secondary);">&mdash;</span>';
         return escapeHtmlInv(br != null ? String(br) : '—') + ' / ' + escapeHtmlInv(ba != null ? String(ba) : '—');
       }
 
       function _invFmtSqft(md) {
         const s = md && md.sqft != null ? md.sqft : null;
-        if (s == null || s === '') return '<span style="color:#cbd5e1;">&mdash;</span>';
+        if (s == null || s === '') return '<span style="color:var(--text-secondary);">&mdash;</span>';
         return escapeHtmlInv(String(s));
       }
 
@@ -9287,9 +9287,9 @@
 
         if (!units.length) {
           return `
-            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid var(--border);">
               ${header}
-              <div style="padding:30px 20px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:8px;border:1px dashed #e2e8f0;">
+              <div style="padding:30px 20px;text-align:center;color:#94a3b8;background:#f8fafc;border-radius:8px;border:1px dashed var(--border);">
                 <div style="font-size:1.8em;margin-bottom:6px;">&#127968;</div>
                 <div style="font-size:0.9em;margin-bottom:12px;">No units yet for this property.</div>
                 <button class="btn-primary" style="font-size:0.85em;" onclick="openAddUnit(${entityId})">+ Add First Unit</button>
@@ -9305,33 +9305,33 @@
           const badge = _invUnitStatusBadge(u, activeEng, tenantName);
           const bb = _invFmtBedsBaths(u.metadata);
           const sqft = _invFmtSqft(u.metadata);
-          const floor = (u.floor && String(u.floor).trim()) ? escapeHtmlInv(u.floor) : '<span style="color:#cbd5e1;">&mdash;</span>';
+          const floor = (u.floor && String(u.floor).trim()) ? escapeHtmlInv(u.floor) : '<span style="color:var(--text-secondary);">&mdash;</span>';
           const rent = _invFmtRent(u.price_amount);
 
           return `
             <tr onclick="openUnitDetail(${u.id})" style="cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:600;color:var(--text-primary);">${escapeHtmlInv(u.name) || '<span style=color:#94a3b8;>(unnamed)</span>'}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${bb}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${sqft}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${floor}</td>
-              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#e2e8f0;">${rent}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${bb}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${sqft}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${floor}</td>
+              <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${rent}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${badge}</td>
             </tr>
           `;
         }).join('');
 
         return `
-          <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+          <div style="margin-top:36px;padding-top:24px;border-top:1px solid var(--border);">
             ${header}
             <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
               <thead>
                 <tr style="text-align:left;color:#d4af37;font-size:0.74em;text-transform:uppercase;letter-spacing:0.6px;">
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Unit</th>
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">BR / BA</th>
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Sq Ft</th>
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Floor</th>
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Rent</th>
-                  <th style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Unit</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">BR / BA</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Sq Ft</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Floor</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Rent</th>
+                  <th style="padding:8px 12px;border-bottom:1px solid var(--border);font-weight:700;">Status</th>
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
@@ -9661,12 +9661,12 @@
         // Breadcrumb: Properties > [Property] > [Unit]
         document.getElementById('inventoryBreadcrumb').innerHTML =
           '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
-          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
+          ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
           '<a href="#" onclick="event.preventDefault();openPropertyDetail(' + entity.id + ');" style="color:#ff6b6b;text-decoration:none;font-weight:600;">' +
             (escapeHtmlInv(entity.name) || '(unnamed)') +
           '</a>' +
-          ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
-          '<span style="color:#2d3748;">' + (escapeHtmlInv(offering.name) || '(unnamed)') + '</span>';
+          ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
+          '<span style="color:var(--text-primary);">' + (escapeHtmlInv(offering.name) || '(unnamed)') + '</span>';
 
         // Loading placeholder while we fetch history
         document.getElementById('inventoryDetailPane').innerHTML =
@@ -9748,7 +9748,7 @@
           currentTenantBlock = `
             <div style="margin-top:12px;padding:14px 16px;background:#f3e8ff;border:1px solid #e9d5ff;border-radius:8px;">
               <div style="font-size:0.88em;font-weight:700;color:#7c3aed;margin-bottom:4px;">Current Tenant</div>
-              <div style="color:#2d3748;font-size:1.02em;font-weight:600;margin-bottom:4px;">
+              <div style="color:var(--text-primary);font-size:1.02em;font-weight:600;margin-bottom:4px;">
                 ${activeTenantName ? escapeHtmlInv(activeTenantName) : '<span style="color:#94a3b8;">(unknown contact)</span>'}
               </div>
               <div style="color:var(--text-muted);font-size:0.88em;">
@@ -9759,7 +9759,7 @@
           `;
         } else {
           currentTenantBlock = `
-            <div style="margin-top:12px;padding:14px 16px;background:#f8fafc;border:1px dashed #e2e8f0;border-radius:8px;color:#94a3b8;font-size:0.92em;">
+            <div style="margin-top:12px;padding:14px 16px;background:#f8fafc;border:1px dashed var(--border);border-radius:8px;color:#94a3b8;font-size:0.92em;">
               No active tenant. (Assign via the Contacts form &mdash; coming in chunk 6.)
             </div>
           `;
@@ -9776,7 +9776,7 @@
             const nm = c ? c.name : '(unknown)';
             return `
               <tr>
-                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:#2d3748;">${escapeHtmlInv(nm)}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-primary);">${escapeHtmlInv(nm)}</td>
                 <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${_invFmtDate(e.start_date)}</td>
                 <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;color:var(--text-secondary);">${_invFmtDate(e.end_date)}</td>
                 <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;">${_invEngStatusBadge(e.status)}</td>
@@ -9787,10 +9787,10 @@
             <table style="width:100%;border-collapse:collapse;font-size:0.9em;margin-top:10px;">
               <thead>
                 <tr style="text-align:left;color:#94a3b8;font-size:0.72em;text-transform:uppercase;letter-spacing:0.6px;">
-                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Tenant</th>
-                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Start</th>
-                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">End</th>
-                  <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;">Status</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:700;">Tenant</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:700;">Start</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:700;">End</th>
+                  <th style="padding:6px 10px;border-bottom:1px solid var(--border);font-weight:700;">Status</th>
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
@@ -9803,7 +9803,7 @@
 
             <!-- Title area -->
             <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;flex-wrap:wrap;">
-              <div style="font-size:1.5em;font-weight:800;color:#2d3748;letter-spacing:-0.3px;">
+              <div style="font-size:1.5em;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;">
                 ${escapeHtmlInv(o.name) || '<span style="color:#94a3b8;">(unnamed)</span>'}
               </div>
               <div>${statusBadge}</div>
@@ -9849,7 +9849,7 @@
             ` : ''}
 
             <!-- Occupancy section -->
-            <div style="margin-top:36px;padding-top:24px;border-top:1px solid #e2e8f0;">
+            <div style="margin-top:36px;padding-top:24px;border-top:1px solid var(--border);">
               <div style="font-weight:700;color:var(--text-secondary);font-size:1.05em;margin-bottom:8px;">Occupancy</div>
               ${currentTenantBlock}
               <div style="margin-top:22px;font-size:0.88em;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.8px;">History</div>
@@ -10041,7 +10041,7 @@
         return `
           <div class="card" style="padding:28px 32px;">
 
-            <div style="font-size:1.2em;font-weight:700;color:#2d3748;margin-bottom:20px;">
+            <div style="font-size:1.2em;font-weight:700;color:var(--text-primary);margin-bottom:20px;">
               Edit Unit
             </div>
 
@@ -10268,8 +10268,8 @@
           // Refresh the breadcrumb (name may have changed)
           document.getElementById('inventoryBreadcrumb').innerHTML =
             '<a href="#" onclick="event.preventDefault();showPropertyList();" style="color:#ff6b6b;text-decoration:none;font-weight:600;">Properties</a>' +
-            ' <span style="color:#cbd5e1;margin:0 8px;">&rsaquo;</span>' +
-            '<span style="color:#2d3748;">' + (escapeHtmlInv(body.name) || '(unnamed)') + '</span>';
+            ' <span style="color:var(--text-secondary);margin:0 8px;">&rsaquo;</span>' +
+            '<span style="color:var(--text-primary);">' + (escapeHtmlInv(body.name) || '(unnamed)') + '</span>';
         } catch (err) {
           alert('Error saving: ' + err.message);
         } finally {
@@ -10403,7 +10403,7 @@
             <!-- Shared amenities: checkboxes + other -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Shared Amenities')}
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+              <div style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 <div style="line-height:1.8;">${amenCheckboxes}</div>
                 <div style="margin-top:10px;">
                   <label style="display:block;font-size:0.78em;color:#94a3b8;margin-bottom:4px;">Other (comma-separated)</label>
@@ -10415,18 +10415,18 @@
             <!-- Emergency contacts -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Emergency Contacts')}
-              <div id="editEmergencyContacts" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+              <div id="editEmergencyContacts" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 ${ecRows.map(c => _invEditECRow(c)).join('')}
-                <button type="button" class="inv-ec-add-btn" onclick="_invAddECRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Contact</button>
+                <button type="button" class="inv-ec-add-btn" onclick="_invAddECRow()" style="font-size:0.82em;padding:6px 10px;background:var(--bg-sunken);color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Contact</button>
               </div>
             </div>
 
             <!-- Service vendors -->
             <div style="margin-bottom:20px;">
               ${_invEditLabel('Service Vendors')}
-              <div id="editServiceVendors" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;">
+              <div id="editServiceVendors" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
                 ${svRows.map(v => _invEditSVRow(v)).join('')}
-                <button type="button" class="inv-sv-add-btn" onclick="_invAddSVRow()" style="font-size:0.82em;padding:6px 10px;background:#e2e8f0;color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Vendor</button>
+                <button type="button" class="inv-sv-add-btn" onclick="_invAddSVRow()" style="font-size:0.82em;padding:6px 10px;background:var(--bg-sunken);color:var(--text-secondary);border:none;border-radius:6px;cursor:pointer;margin-top:4px;">+ Add Vendor</button>
               </div>
             </div>
 
@@ -10444,7 +10444,7 @@
             <input class="inv-ec-name" type="text" value="${name}" placeholder="Name" />
             <input class="inv-ec-phone" type="text" value="${phone}" placeholder="Phone" />
             <input class="inv-ec-role" type="text" value="${role}" placeholder="Role" />
-            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
           </div>
         `;
       }
@@ -10458,7 +10458,7 @@
             <input class="inv-sv-name" type="text" value="${name}" placeholder="Name" />
             <input class="inv-sv-trade" type="text" value="${trade}" placeholder="Trade" />
             <input class="inv-sv-phone" type="text" value="${phone}" placeholder="Phone" />
-            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:#cbd5e1;border:1px solid #e2e8f0;border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
+            <button type="button" onclick="this.parentElement.remove()" title="Remove" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:6px;padding:0 10px;cursor:pointer;">&times;</button>
           </div>
         `;
       }
@@ -10726,14 +10726,14 @@
 
       function _txStatusColor(status) {
         switch (status) {
-          case 'paid': return '#86efac';
-          case 'partially_paid': return '#d4af37';
-          case 'pending': return '#d4af37';
-          case 'draft': return '#94a3b8';
-          case 'unpaid': return '#fca5a5';
-          case 'refunded': return '#94a3b8';
-          case 'voided': return '#94a3b8';
-          default: return '#e2e8f0';
+          case 'paid': return 'var(--success)';
+          case 'partially_paid': return 'var(--warning)';
+          case 'pending': return 'var(--warning)';
+          case 'draft': return 'var(--text-muted)';
+          case 'unpaid': return 'var(--danger)';
+          case 'refunded': return 'var(--text-muted)';
+          case 'voided': return 'var(--text-muted)';
+          default: return 'var(--text-muted)';
         }
       }
 
@@ -10833,8 +10833,8 @@
         const items = Array.isArray(tx.line_items) ? tx.line_items : [];
         const itemsHtml = items.map(it => `
           <tr>
-            <td style="padding:6px 0;color:#e2e8f0;">${escapeHtmlForChip(it.description || 'Item')}${it.quantity > 1 ? ' &times; ' + it.quantity : ''}</td>
-            <td style="padding:6px 0;text-align:right;color:#e2e8f0;">${_txFormatCents(it.total_cents)}</td>
+            <td style="padding:6px 0;color:var(--text-secondary);">${escapeHtmlForChip(it.description || 'Item')}${it.quantity > 1 ? ' &times; ' + it.quantity : ''}</td>
+            <td style="padding:6px 0;text-align:right;color:var(--text-secondary);">${_txFormatCents(it.total_cents)}</td>
           </tr>`).join('');
 
         // E14: Payments section. One row per ledger entry (every cash/card/
@@ -10855,14 +10855,14 @@
               const pendingTag = p.status === 'pending'
                 ? ' <span style="color:#94a3b8;font-size:0.82em;">(pending)</span>'
                 : '';
-              return `<div style="font-size:0.86em;color:#e2e8f0;margin-bottom:4px;">${escapeHtmlForChip(typeLabel)} — ${_txFormatCents(p.amount_cents)} · ${escapeHtmlForChip(methodLabel)} · ${dateLabel}${pendingTag}</div>`;
+              return `<div style="font-size:0.86em;color:var(--text-secondary);margin-bottom:4px;">${escapeHtmlForChip(typeLabel)} — ${_txFormatCents(p.amount_cents)} · ${escapeHtmlForChip(methodLabel)} · ${dateLabel}${pendingTag}</div>`;
             }).join('')}
           </div>` : '';
 
         const refundsHtml = refunds.length ? `
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(148,163,184,0.2);">
             <div style="color:#94a3b8;font-size:0.78em;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Refunds</div>
-            ${refunds.map(r => `<div style="font-size:0.86em;color:#e2e8f0;margin-bottom:4px;">#${r.id} — ${_txFormatCents(Math.abs(r.total_cents))} on ${(r.created_at || '').slice(0, 10)}: ${escapeHtmlForChip(r.refund_reason || '')}</div>`).join('')}
+            ${refunds.map(r => `<div style="font-size:0.86em;color:var(--text-secondary);margin-bottom:4px;">#${r.id} — ${_txFormatCents(Math.abs(r.total_cents))} on ${(r.created_at || '').slice(0, 10)}: ${escapeHtmlForChip(r.refund_reason || '')}</div>`).join('')}
           </div>` : '';
 
         const receiptHtml = tx.receipt_sent_via === 'email'
@@ -10878,16 +10878,16 @@
             <tbody>${itemsHtml || '<tr><td colspan="2" style="color:#94a3b8;padding:6px 0;">No itemized details</td></tr>'}</tbody>
           </table>
           <table style="width:100%;border-collapse:collapse;border-top:1px solid rgba(148,163,184,0.2);padding-top:6px;">
-            <tr><td style="color:#94a3b8;padding:3px 0;">Subtotal</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.subtotal_cents)}</td></tr>
-            ${tx.tax_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tax</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
-            ${tx.discount_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Discount</td><td style="text-align:right;color:#e2e8f0;">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
-            ${tx.tip_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tip</td><td style="text-align:right;color:#e2e8f0;">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
+            <tr><td style="color:#94a3b8;padding:3px 0;">Subtotal</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.subtotal_cents)}</td></tr>
+            ${tx.tax_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tax</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tax_cents)}</td></tr>` : ''}
+            ${tx.discount_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Discount</td><td style="text-align:right;color:var(--text-secondary);">-${_txFormatCents(tx.discount_cents)}</td></tr>` : ''}
+            ${tx.tip_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;">Tip</td><td style="text-align:right;color:var(--text-secondary);">${_txFormatCents(tx.tip_cents)}</td></tr>` : ''}
             <tr><td style="color:var(--text-primary);font-weight:700;padding:6px 0;border-top:1px solid rgba(148,163,184,0.2);">Total</td><td style="text-align:right;color:#d4af37;font-weight:700;border-top:1px solid rgba(148,163,184,0.2);">${_txFormatCents(tx.total_cents)}</td></tr>
             ${tx.amount_refunded_cents ? `<tr><td style="color:#94a3b8;padding:3px 0;font-size:0.86em;">Refunded</td><td style="text-align:right;color:#94a3b8;font-size:0.86em;">${_txFormatCents(tx.amount_refunded_cents)}</td></tr>` : ''}
           </table>
           ${paymentsHtml}
-          ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#d4af37;">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
-          ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:#e2e8f0;font-size:0.86em;"><strong style="color:#94a3b8;">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
+          ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:rgba(212,175,55,0.06);border-left:2px solid #d4af37;border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:#d4af37;">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
+          ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:#94a3b8;">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
           ${receiptHtml}
           ${tx.appointment_id ? `<div style="margin-top:12px;color:#94a3b8;font-size:0.82em;">Linked appointment: #${tx.appointment_id}</div>` : ''}
           ${tx.parent_transaction_id ? `<div style="margin-top:6px;color:#94a3b8;font-size:0.82em;">This is a refund of <a href="#" onclick="event.preventDefault();openTxDetail(${tx.parent_transaction_id});" style="color:#d4af37;">transaction #${tx.parent_transaction_id}</a>.</div>` : ''}
@@ -11815,7 +11815,7 @@
                 <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}</div>
                 <div style="color:#94a3b8;font-size:0.82em;">${cat}${vendor}${restockLabel}</div>
               </div>
-              <div style="color:#e2e8f0;text-align:right;font-size:0.88em;">${qty}</div>
+              <div style="color:var(--text-secondary);text-align:right;font-size:0.88em;">${qty}</div>
               <div style="text-align:right;">${_invStatusBadge(it.status)}</div>
             </div>`;
           }).join('');
@@ -12830,7 +12830,7 @@
         By enabling auto-reply, you accept responsibility for messages sent on your behalf.
       </p>
 
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:14px 0 4px;">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 14px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;margin:14px 0 4px;">
         <input type="checkbox" id="autoReplyConsentCheckbox" onchange="updateAutoReplyConsentBtn()" style="cursor:pointer;width:16px;height:16px;flex-shrink:0;">
         <span style="color:#1e293b;font-size:0.9em;font-weight:500;">I understand and accept these terms</span>
       </label>
@@ -13024,7 +13024,7 @@
           &#9993; Email
         </button>
         <button id="bc-ch-sms" onclick="setBroadcastChannel('sms')"
-          style="flex:1;padding:10px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;color:var(--text-muted);font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
+          style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--border-strong);background:#f8fafc;color:var(--text-muted);font-weight:700;font-size:0.88em;cursor:pointer;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:7px;">
           &#128172; SMS
         </button>
       </div>
