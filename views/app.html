@@ -1498,7 +1498,7 @@
         left: 0;
         right: 0;
         z-index: 9999;
-        background: rgba(13,17,23,0.98);
+        background: var(--bg-surface);
         border-top: 1px solid rgba(148,163,184,0.25);
         box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
         backdrop-filter: blur(10px);
@@ -1630,9 +1630,9 @@
 
       .cc-input {
         flex: 1;
-        background: rgba(255,255,255,0.05);
+        background: var(--bg-surface);
         color:var(--text-primary);
-        border: 1px solid rgba(148,163,184,0.3);
+        border: 1px solid var(--border-strong);
         border-radius: 22px;
         padding: 11px 18px;
         font-size: 0.95em;
@@ -1707,8 +1707,8 @@
         flex: 1 1 calc(50% - 5px);  /* 2x2 grid at 375px baseline */
         min-height: 80px;
         min-width: 0;
-        background: rgba(255,255,255,0.035);
-        border: 1px solid rgba(148,163,184,0.20);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 10px;
         padding: 14px;
         display: flex;
@@ -1733,8 +1733,8 @@
 
       .ps-dashboard-card {
         margin: 12px 16px 16px;
-        background: rgba(255,255,255,0.035);
-        border: 1px solid rgba(148,163,184,0.20);
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
         border-radius: 10px;
         overflow: hidden;
       }
@@ -1938,9 +1938,9 @@
                sibling #page-home-ps below). PM behavior unchanged. -->
           <div class="page-content pm-home" id="page-home-pm">
           <!-- Hero Banner -->
-          <div id="homeBanner" class="home-fade" style="position:relative;width:100%;height:280px;border-radius:20px;overflow:hidden;margin-bottom:48px;background:linear-gradient(135deg,#0a1828 0%,#14253a 50%,#0a1422 100%);display:flex;align-items:flex-end;border:1px solid var(--border);box-shadow:var(--shadow-card);">
+          <div id="homeBanner" class="home-fade" style="position:relative;width:100%;height:280px;border-radius:20px;overflow:hidden;margin-bottom:48px;background:var(--bg-sunken);display:flex;align-items:flex-end;border:1px solid var(--border);box-shadow:var(--shadow-card);">
             <img id="bannerImg" src="" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;" />
-            <div style="position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(45,134,89,0.10) 50%, rgba(0,0,0,0.15) 100%);"></div>
+            <div style="position:absolute;inset:0;"></div>
             <div style="position:absolute;top:-80px;right:-60px;width:340px;height:340px;pointer-events:none;"></div>
             <div style="position:relative;padding:32px 36px;flex:1;">
               <div id="homePropertyName" class="display-banner-title">Welcome to Modern Management</div>
@@ -2034,7 +2034,7 @@
           <div class="card card-hero home-fade" style="margin-bottom:24px;">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;position:relative;">
               <div style="display:flex;align-items:center;gap:14px;">
-                <div class="hero-avatar" style="width:46px;height:46px;background:linear-gradient(135deg,#0f3a26 0%,var(--accent) 50%,#2d8659 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;box-shadow:0 6px 20px rgba(45,134,89,0.50),inset 0 1px 0 rgba(255,255,255,0.20);">&#128196;</div>
+                <div class="hero-avatar" style="width:46px;height:46px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;">&#128196;</div>
                 <div>
                   <div class="hero-title">Quick Snapshot Report</div>
                   <div class="hero-subtitle">A fast AI-generated overview of your property. For detailed reports — budget, tenant, inventory, activity — use the Reports page.</div>
@@ -3165,7 +3165,7 @@
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
                 <input type="search" id="txSearch" placeholder="Search by customer, notes, or description&hellip;"
-                  style="flex:1;min-width:240px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
+                  style="flex:1;min-width:240px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadTransactions()" />
                 <button onclick="loadTransactions()" style="padding:9px 14px;background:var(--bg-surface);color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Refresh</button>
                 <button onclick="exportTransactionsCsv()" style="padding:9px 14px;background:transparent;color:var(--text-secondary);border:1px solid rgba(148,163,184,0.4);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.88em;">Export CSV</button>
@@ -3174,22 +3174,22 @@
 
               <details style="margin-bottom:14px;">
                 <summary style="color:var(--accent);cursor:pointer;font-size:0.85em;font-weight:600;padding:6px 0;">More filters</summary>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid rgba(148,163,184,0.15);border-radius:8px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:10px;padding:14px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;">
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Customer</label>
-                    <input type="text" id="txFilterCustomer" oninput="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
+                    <input type="text" id="txFilterCustomer" oninput="loadTransactions()" style="width:100%;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">From</label>
-                    <input type="date" id="txFilterStart" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
+                    <input type="date" id="txFilterStart" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">To</label>
-                    <input type="date" id="txFilterEnd" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
+                    <input type="date" id="txFilterEnd" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Payment</label>
-                    <select id="txFilterMethod" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
+                    <select id="txFilterMethod" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                       <option value="">Any</option>
                       <option value="cash">Cash</option>
                       <option value="card">Card</option>
@@ -3202,7 +3202,7 @@
                   </div>
                   <div>
                     <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Status</label>
-                    <select id="txFilterStatus" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
+                    <select id="txFilterStatus" onchange="loadTransactions()" style="width:100%;padding:7px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.88em;">
                       <option value="">Any</option>
                       <option value="draft">Draft</option>
                       <option value="pending">Pending</option>
@@ -3297,7 +3297,7 @@
                   <label for="mbDescription" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Business Description</label>
                   <textarea id="mbDescription" rows="4"
                     placeholder="e.g. We're a men's barbershop specializing in classic cuts, beard trims, and hot towel shaves. Walk-ins welcome, but appointments preferred."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                   <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Tip: Be specific and detailed &mdash; describe what you offer, what makes you different, and anything you do NOT do (e.g. no perms, no kids under 3). The more nuance you include, the smarter your assistant becomes.</div>
                 </div>
 
@@ -3305,14 +3305,14 @@
                   <label for="mbHours" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Hours of Operation</label>
                   <textarea id="mbHours" rows="3"
                     placeholder="e.g. Mon-Fri 9am-7pm, Sat 10am-5pm, Closed Sunday"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                 </div>
 
                 <div>
                   <label for="mbPolicies" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Policies</label>
                   <textarea id="mbPolicies" rows="4"
                     placeholder="e.g. 24-hour cancellation notice required. Late arrivals over 15 minutes may need to reschedule."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
                 </div>
 
                 <div style="display:flex;align-items:center;gap:14px;margin-top:4px;">
@@ -3441,7 +3441,7 @@
                       <label for="mbTone" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Tone</label>
                       <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">How your assistant sounds to customers.</span>
                       <select id="mbTone"
-                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Warm &amp; friendly (default)</option>
                         <option value="warm">Warm &amp; friendly</option>
                         <option value="professional">Polished &amp; professional</option>
@@ -3453,7 +3453,7 @@
                       <label for="mbSalesPosture" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Sales approach</label>
                       <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">Whether your assistant suggests extras.</span>
                       <select id="mbSalesPosture"
-                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Helpful, not pushy (default)</option>
                         <option value="reactive">Helpful, not pushy</option>
                         <option value="proactive">Gently suggest add-ons</option>
@@ -3493,17 +3493,17 @@
                 <div>
                   <label for="mbWebsite" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Website</label>
                   <input type="url" id="mbWebsite" placeholder="https://yourbusiness.com"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
                 <div>
                   <label for="mbGoogleReview" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Google Review Link</label>
                   <input type="url" id="mbGoogleReview" placeholder="https://g.page/r/.../review"
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
                 <div>
                   <label for="mbYelpReview" style="display:block;font-size:0.88em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Yelp Review Link</label>
                   <input type="url" id="mbYelpReview" placeholder="https://www.yelp.com/writeareview/biz/..."
-                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+                    style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
                 </div>
               </div>
 
@@ -3540,7 +3540,7 @@
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                 <input type="search" id="menuSearch" placeholder="Search menu items&hellip;"
-                  style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
+                  style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                   oninput="loadMenuList()" />
                 <button onclick="openMenuItemModal(null)" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add new</button>
               </div>
@@ -3576,9 +3576,9 @@
               <div id="invInventoryBody">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                   <input type="search" id="invSearch" placeholder="Search inventory&hellip;"
-                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                     oninput="loadInventoryList()" />
-                  <select id="invStatusFilter" onchange="loadInventoryList()" style="padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
+                  <select id="invStatusFilter" onchange="loadInventoryList()" style="padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
                     <option value="">All</option>
                     <option value="in_stock">In stock</option>
                     <option value="low">Low</option>
@@ -3595,7 +3595,7 @@
               <div id="invVendorsBody" style="display:none;">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
                   <input type="search" id="vendorSearch" placeholder="Search vendors&hellip;"
-                    style="flex:1;min-width:200px;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
+                    style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;"
                     oninput="loadVendorList()" />
                   <button onclick="openVendorModal(null)" style="padding:9px 14px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Add vendor</button>
                 </div>
@@ -4455,7 +4455,7 @@
         const isAuto = document.getElementById('autoReply').checked;
         const onColor = 'var(--accent)';
         const offColor = 'var(--border-strong)';
-        const onBg = 'rgba(45,134,89,0.18)';
+        const onBg = 'var(--accent-soft)';
         document.getElementById('label-auto').style.borderColor = isAuto ? onColor : offColor;
         document.getElementById('label-auto').style.background = isAuto ? onBg : '';
         document.getElementById('label-review').style.borderColor = isAuto ? offColor : onColor;
@@ -5391,7 +5391,7 @@
           ? (appt.quoted_price_cents / 100).toFixed(2)
           : '';
 
-        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;';
+        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;';
         const labelStyle = 'display:block;font-size:0.82em;font-weight:600;color:var(--text-muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;';
         const rowStyle = 'margin-bottom:14px;';
 
@@ -7934,7 +7934,7 @@
                   <div style="color:var(--text-primary);font-size:0.9em;line-height:1.4;">${summary}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
-                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
+                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:var(--accent);color:var(--text-on-accent);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
                   <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
                 </div>
               </div>
@@ -7989,7 +7989,7 @@
                   <div style="color:var(--text-muted);font-size:0.78em;margin-top:6px;">Queued ${formatPendingTime(p.created_at)}</div>
                 </div>
                 <div style="display:flex;gap:8px;flex-shrink:0;">
-                  <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:linear-gradient(135deg,var(--accent) 0%,#2d8659 100%);color:var(--text-primary);border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
+                  <button onclick="approvePendingAction(${p.id})" class="btn-approve" style="background:var(--accent);color:var(--text-on-accent);border:none;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Approve</button>
                   <button onclick="rejectPendingAction(${p.id})" class="btn-reject" style="background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.4);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Reject</button>
                 </div>
               </div>
@@ -8087,8 +8087,8 @@
           }
           if (chip) {
             chip.style.opacity = '';
-            chip.style.background = 'rgba(45,134,89,0.15)';
-            chip.style.borderColor = 'rgba(45,134,89,0.4)';
+            chip.style.background = 'var(--success-soft)';
+            chip.style.borderColor = 'var(--success)';
             chip.innerHTML = `<div style="color:#86efac;font-weight:600;font-size:0.9em;">&#10003; Approved and executed</div>`;
           }
           if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
@@ -10755,7 +10755,7 @@
             const refundTag = t.parent_transaction_id ? ' <span style="color:var(--text-muted);font-size:0.78em;">(refund)</span>' : '';
             const struck = t.status === 'voided' ? 'text-decoration:line-through;color:var(--text-muted);' : '';
             return `
-              <div onclick="openTxDetail(${t.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:90px 1fr 100px 100px 90px;gap:12px;align-items:center;${struck}">
+              <div onclick="openTxDetail(${t.id})" style="cursor:pointer;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:90px 1fr 100px 100px 90px;gap:12px;align-items:center;${struck}">
                 <div style="color:var(--text-muted);font-size:0.82em;">${date}</div>
                 <div>
                   <div style="color:var(--text-primary);font-weight:600;font-size:0.92em;">${escapeHtmlForChip(t.customer_display_name)}${refundTag}</div>
@@ -10866,7 +10866,7 @@
           </table>
           ${paymentsHtml}
           ${tx.notes_internal ? `<div style="margin-top:14px;padding:10px 12px;background:var(--bg-sunken);border-left:2px solid var(--accent);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:var(--text-primary);">Internal notes:</strong> ${escapeHtmlForChip(tx.notes_internal)}</div>` : ''}
-          ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:var(--text-muted);">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
+          ${tx.notes_customer ? `<div style="margin-top:8px;padding:10px 12px;background:var(--bg-sunken);border-radius:4px;color:var(--text-secondary);font-size:0.86em;"><strong style="color:var(--text-muted);">Customer-visible notes:</strong> ${escapeHtmlForChip(tx.notes_customer)}</div>` : ''}
           ${receiptHtml}
           ${tx.appointment_id ? `<div style="margin-top:12px;color:var(--text-muted);font-size:0.82em;">Linked appointment: #${tx.appointment_id}</div>` : ''}
           ${tx.parent_transaction_id ? `<div style="margin-top:6px;color:var(--text-muted);font-size:0.82em;">This is a refund of <a href="#" onclick="event.preventDefault();openTxDetail(${tx.parent_transaction_id});" style="color:var(--accent);">transaction #${tx.parent_transaction_id}</a>.</div>` : ''}
@@ -11168,7 +11168,7 @@
       // their menu_items.id in a data-id attribute so the save loop can
       // distinguish PATCH (has id) from POST (no id / new blank row).
 
-      const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(148,163,184,0.25);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9em;';
+      const _MB_INPUT_STYLE  = 'width:100%;box-sizing:border-box;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-family:inherit;font-size:0.9em;';
       const _MB_CELL_STYLE   = 'padding:6px 6px;border-top:1px solid rgba(148,163,184,0.12);vertical-align:middle;';
       const _MB_REMOVE_STYLE = 'background:transparent;color:var(--danger);border:none;font-size:1.3em;line-height:1;cursor:pointer;padding:4px 8px;';
 
@@ -11601,7 +11601,7 @@
             const cat = it.category ? ` · ${escapeHtmlForChip(it.category)}` : '';
             const inactive = !it.active || it.archived_at ? ' <span style="color:var(--text-muted);font-size:0.78em;">(inactive)</span>' : '';
             const parent = it.parent_name ? ` · parent: ${escapeHtmlForChip(it.parent_name)}` : '';
-            return `<div onclick="openMenuItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+            return `<div onclick="openMenuItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
               <div style="flex:1;min-width:0;">
                 <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}${inactive}</div>
                 <div style="color:var(--text-muted);font-size:0.82em;">${cat}${dur}${parent}</div>
@@ -11789,7 +11789,7 @@
             const vendor = it.vendor_name ? ` · vendor: ${escapeHtmlForChip(it.vendor_name)}` : '';
             const restockLabel = it.last_restocked_at ? ` · restocked ${(it.last_restocked_at + '').slice(0, 10)}` : '';
             const struck = it.status === 'out' ? 'opacity:0.7;' : '';
-            return `<div onclick="openInventoryItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;display:grid;grid-template-columns:1fr 100px 100px;gap:12px;align-items:center;${struck}">
+            return `<div onclick="openInventoryItemModal(${it.id})" style="cursor:pointer;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;display:grid;grid-template-columns:1fr 100px 100px;gap:12px;align-items:center;${struck}">
               <div>
                 <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(it.name)}</div>
                 <div style="color:var(--text-muted);font-size:0.82em;">${cat}${vendor}${restockLabel}</div>
@@ -11938,7 +11938,7 @@
           el.innerHTML = vendors.map(v => {
             const contactBits = [v.contact_phone, v.contact_email, v.contact_url].filter(Boolean).map(escapeHtmlForChip).join(' · ');
             const note = v.notes ? `<div style="color:var(--text-muted);font-size:0.82em;margin-top:4px;">${escapeHtmlForChip(v.notes.slice(0, 120))}${v.notes.length > 120 ? '…' : ''}</div>` : '';
-            return `<div onclick="openVendorModal(${v.id})" style="cursor:pointer;padding:12px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(148,163,184,0.18);border-radius:8px;">
+            return `<div onclick="openVendorModal(${v.id})" style="cursor:pointer;padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;">
               <div style="color:var(--text-primary);font-weight:600;font-size:0.94em;">${escapeHtmlForChip(v.name)}</div>
               <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${contactBits || '<em style="color:var(--danger);">no contact info</em>'}</div>
               ${note}
