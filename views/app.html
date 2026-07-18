@@ -172,24 +172,6 @@
           0 18px 44px rgba(212,175,55,0.16),
           0 48px 96px -20px rgba(0,0,0,0.60);
       }
-      /* Card-level title — sits INSIDE the card, sized below section-label tier */
-      .card-title {
-        font-family: 'Fraunces', serif;
-        font-weight: 600;
-        font-size: 1.4em;
-        color: #f5e6d3;
-        letter-spacing: -0.4px;
-        line-height: 1.2;
-        margin-bottom: 4px;
-      }
-      .card-subtitle {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.88em;
-        color: #94a3b8;
-        font-weight: 400;
-        margin-bottom: 16px;
-      }
-
       /* ============================================================
          Card-internal header system
          Used in place of <h2> inside any .card. Mirrors the
@@ -500,16 +482,6 @@
       .cal-day.empty { background: #fafafa; border-color: #f0f0f0; cursor: default; pointer-events: none; }
       .cal-day-num { font-weight: 700; margin-bottom: 4px; color: #2d3748; font-size: 0.92em; }
       .cal-day.today .cal-day-num { color: #ff6b6b; }
-      .cal-event {
-        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-        color: white;
-        border-radius: 4px;
-        padding: 3px 6px;
-        font-size: 0.78em;
-        margin-top: 3px;
-        cursor: default;
-        user-select: none;
-      }
       .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
       .cal-nav h3 { flex: 1; }
       .cal-nav select {
@@ -1369,33 +1341,6 @@
       /* Page width */
       .page { width: 100%; }
 
-      /* Page-hero action buttons (used by Home banner and any future banner-with-actions) */
-      .page-hero-actions {
-        position: relative;
-        padding: 24px 28px;
-        display: flex;
-        gap: 10px;
-        flex-shrink: 0;
-      }
-      .page-hero-btn {
-        background: rgba(10,20,32,0.60);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(212,175,55,0.35);
-        color: #f5e6d3;
-        padding: 9px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.84em;
-        font-family: inherit;
-        font-weight: 500;
-        transition: all 0.2s ease;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
-      }
-      .page-hero-btn:hover {
-        border-color: rgba(212,175,55,0.65);
-        background: rgba(10,20,32,0.8);
-      }
       /* Hero card variant: thin gradient strip across top, more padding */
       @keyframes heroShimmer {
         0% { background-position: 0% 50%; }
@@ -1603,38 +1548,6 @@
       .task-toggle span { font-size: 0.88em; font-weight: 500; color: #334155; }
       pre { white-space: pre-wrap; font-family: Arial, sans-serif; font-size: 0.9em; }
 
-      /* Command Center */
-      .chat-msg { display:flex; gap:10px; align-items:flex-start; animation: fadeIn 0.2s ease; }
-      .chat-msg.user { flex-direction:row-reverse; }
-      .chat-bubble {
-        max-width: 75%;
-        padding: 11px 15px;
-        border-radius: 14px;
-        font-size: 0.88em;
-        line-height: 1.55;
-      }
-      .chat-msg.user .chat-bubble { background: linear-gradient(135deg,#ff6b6b,#ff8e53); color:white; border-bottom-right-radius:4px; }
-      .chat-msg.ai .chat-bubble { background: #f1f5f9; color:#2d3748; border-bottom-left-radius:4px; }
-      .chat-msg.ai .chat-bubble.thinking { color:#94a3b8; font-style:italic; }
-      .chat-avatar {
-        width:30px;height:30px;border-radius:50%;
-        display:flex;align-items:center;justify-content:center;
-        font-size:0.8em;font-weight:700;flex-shrink:0;margin-top:2px;
-      }
-      .chat-avatar.ai { background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white; }
-      .chat-avatar.user { background:#2d3748;color:white; }
-      .action-chip {
-        background:#fff5f5;border:1px solid #ffcdd2;color:#c0392b;
-        border-radius:8px;padding:7px 10px;font-size:0.8em;
-        display:flex;align-items:center;gap:6px;
-      }
-      .quick-prompt {
-        background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
-        padding:9px 12px;font-size:0.82em;color:#4a5568;cursor:pointer;
-        transition:all 0.15s;text-align:left;width:100%;
-      }
-      .quick-prompt:hover { background:#fff5f5;border-color:#ff6b6b;color:#ff6b6b; }
-
       /* Contacts */
       .contact-card {
         background: white;
@@ -1826,7 +1739,6 @@
 
         /* Calendar: reduce cell sizes */
         .cal-day { min-height: 50px; font-size: 0.78em; padding: 4px; }
-        .cal-event { font-size: 0.7em; padding: 2px 4px; }
         .cal-nav button { padding: 7px 10px; font-size: 0.82em; }
 
         /* Tables: horizontal scroll */
@@ -1859,9 +1771,7 @@
       /* ─────────────────────────────────────────────────────────────
          E9 — Command Center. Always-visible AI chat bar at the bottom
          of every page, expandable chat panel above. Mobile-first.
-         Namespaced .cc-* so it doesn't collide with the dormant
-         .chat-* classes above (which are leftover from an earlier
-         design and remain unused).
+         Namespaced .cc-*.
          Palette: #0d1117 bg, #f5e6d3 ivory, #d4af37 gold,
          #e2e8f0 light gray, #94a3b8 muted.
          ───────────────────────────────────────────────────────────── */
