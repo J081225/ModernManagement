@@ -8508,6 +8508,9 @@ wss.on('connection', (ws) => {
   // FD3-CP1: per-call transcript row + the engine thread this call used.
   let transcriptId = null;
   let lastThreadId = null;
+  // FD3-CP2: once-per-call guards for the voice safety fallbacks.
+  let emergencyAlerted = false;
+  let callbackTaskCreated = false;
 
   // Strip Markdown/formatting characters so Twilio's TTS doesn't read them
   // aloud (e.g. ** would otherwise be spoken as "asterisk asterisk"). Only
@@ -8588,6 +8591,24 @@ wss.on('connection', (ws) => {
         // FD3-CP1: persist the caller's turn before the model runs.
         try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'Customer', utterance); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
 
+        // FD3-CP2 (delta sweep): the emergency keyword gate now covers
+        // live voice — SMS and voicemail had it, voice did not. Flags
+        // the call transcript and alerts the owner once per call; the
+        // caller-facing flow is unchanged.
+        if (!emergencyAlerted && workspace) {
+          try {
+            const matched = detectEmergency(utterance);
+            if (matched.length && transcriptId) {
+              emergencyAlerted = true;
+              await pool.query('UPDATE messages SET emergency_flagged = TRUE WHERE id = $1', [transcriptId]);
+              const rowR = await pool.query('SELECT * FROM messages WHERE id = $1', [transcriptId]);
+              if (rowR.rows[0]) sendOwnerEmergencyAlert(workspace.owner_user_id, rowR.rows[0], matched);
+            }
+          } catch (err) {
+            console.error('[twilio-relay] emergency gate failed (call continues):', err.message);
+          }
+        }
+
         const result = await appointmentEngine.processInboundMessage({
           workspace,
           contact: null,
@@ -8612,6 +8633,25 @@ wss.on('connection', (ws) => {
         } else {
           console.log('[twilio-relay] engine did not handle: reason=' + ((result && result.reason) || 'unknown') + ' callSid=' + (callSid || 'unknown'));
           spoken = "Thanks for calling. Let me take a message and have someone get back to you.";
+          // FD3-CP2 (delta sweep): the canned line used to be a lie —
+          // no message was taken. Now a suggested callback task is
+          // created once per call, so the promise is kept.
+          if (!callbackTaskCreated && workspace) {
+            callbackTaskCreated = true;
+            try {
+              await pool.query(
+                'INSERT INTO tasks (user_id, title, category, "dueDate", notes, suggested, "aiReason") VALUES ($1, $2, $3, $4, $5, true, $6)',
+                [workspace.owner_user_id,
+                  'Return call from ' + (callerPhone || 'unknown number'),
+                  'other',
+                  new Date().toISOString().slice(0, 10),
+                  'The AI answered a live call but could not handle it (auto-respond off or an error). The caller was told someone would get back to them.',
+                  'Voice call fell through to the take-a-message line.']
+              );
+            } catch (err) {
+              console.error('[twilio-relay] callback task failed:', err.message);
+            }
+          }
         }
         sendText(spoken);
         // FD3-CP1: persist what was actually said back.
