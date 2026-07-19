@@ -3420,61 +3420,7 @@
           </div>
 
           <!-- Budget -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Budget tracker</div>
-                <div class="card-head-subtitle">Income, expenses and running balance for the month.</div>
-              </div>
-            </div>
-            <div class="card-head-rule"></div>
-
-            <!-- Summary cards -->
-            <div id="budgetSummary" style="display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap;"></div>
-
-            <!-- Controls row -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-              <select id="budgetMonthSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
-                <option value="01">January</option><option value="02">February</option><option value="03">March</option>
-                <option value="04">April</option><option value="05">May</option><option value="06">June</option>
-                <option value="07">July</option><option value="08">August</option><option value="09">September</option>
-                <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-              </select>
-              <select id="budgetYearSel" onchange="loadBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
-                <option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
-              </select>
-              <select id="budgetTypeSel" onchange="renderBudget()" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.88em;background:var(--bg-surface);">
-                <option value="all">All Transactions</option>
-                <option value="income">Income Only</option>
-                <option value="expense">Expenses Only</option>
-              </select>
-              <div style="flex:1;"></div>
-              <button class="btn-primary" onclick="openAddTransaction()" style="white-space:nowrap;">+ Add Transaction</button>
-            </div>
-
-            <!-- Ledger table -->
-            <div style="overflow-x:auto;">
-              <table style="width:100%;border-collapse:collapse;font-size:0.9em;min-width:680px;">
-                <thead>
-                  <tr style="background:var(--bg-sunken);text-align:left;">
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);white-space:nowrap;">Date</th>
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);">Type</th>
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);">Category</th>
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);">Description</th>
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);text-align:right;">Amount</th>
-                    <th style="padding:9px 10px;font-weight:600;color:var(--text-secondary);text-align:right;white-space:nowrap;">Running Balance</th>
-                    <th style="padding:9px 10px;"></th>
-                  </tr>
-                </thead>
-                <tbody id="budgetTable"></tbody>
-              </table>
-            </div>
-
-            <!-- Category breakdown -->
-            <div id="budgetBreakdown" style="margin-top:20px;"></div>
+          
           </div>
 
           </div>
@@ -7210,145 +7156,6 @@
       }
 
       // --- Budget Tracker ---
-      async function loadBudget() {
-        const month = document.getElementById('budgetMonthSel').value;
-        const year = document.getElementById('budgetYearSel').value;
-        budgetTransactions = await api(`budget?month=${month}&year=${year}`) || [];
-        renderBudget();
-      }
-
-      function renderBudget() {
-        const typeFilter = document.getElementById('budgetTypeSel').value;
-        const filtered = typeFilter === 'all' ? budgetTransactions : budgetTransactions.filter(t => t.type === typeFilter);
-
-        const totalIncome = budgetTransactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-        const totalExpense = budgetTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-        const netBalance = totalIncome - totalExpense;
-        const netColor = netBalance >= 0 ? 'var(--success)' : 'var(--danger)';
-
-        document.getElementById('budgetSummary').innerHTML = `
-          <div style="flex:1;min-width:140px;background:var(--success-soft);border:1px solid var(--success-soft);border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:var(--success);letter-spacing:1px;margin-bottom:5px;">TOTAL INCOME</div>
-            <div style="font-size:1.55em;font-weight:800;color:var(--success);">+$${totalIncome.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-          </div>
-          <div style="flex:1;min-width:140px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:var(--danger);letter-spacing:1px;margin-bottom:5px;">TOTAL EXPENSES</div>
-            <div style="font-size:1.55em;font-weight:800;color:var(--danger);">-$${totalExpense.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-          </div>
-          <div style="flex:1;min-width:140px;background:var(--info-soft);border:1px solid var(--info-soft);border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">NET BALANCE</div>
-            <div style="font-size:1.55em;font-weight:800;color:${netColor};">${netBalance >= 0 ? '+' : ''}$${netBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-          </div>
-          <div style="flex:1;min-width:140px;background:var(--bg-sunken);border:1px solid var(--border-strong);border-radius:10px;padding:16px;text-align:center;">
-            <div style="font-size:0.75em;font-weight:600;color:var(--text-muted);letter-spacing:1px;margin-bottom:5px;">TRANSACTIONS</div>
-            <div style="font-size:1.55em;font-weight:800;color:var(--text-primary);">${budgetTransactions.length}</div>
-          </div>
-        `;
-
-        // Running balance through filtered rows
-        let balance = 0;
-        // Pre-compute balances for all (not filtered) to show meaningful running total
-        const allSorted = [...budgetTransactions];
-        const balanceMap = {};
-        let runningAll = 0;
-        allSorted.forEach(t => {
-          runningAll += t.type === 'income' ? Number(t.amount) : -Number(t.amount);
-          balanceMap[t.id] = runningAll;
-        });
-
-        const tbody = document.getElementById('budgetTable');
-        if (!filtered.length) {
-          tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text-muted);font-size:0.9em;">No transactions for this period.</td></tr>`;
-        } else {
-          tbody.innerHTML = filtered.map(t => {
-            const isIncome = t.type === 'income';
-            const amtStr = (isIncome ? '+' : '-') + '$' + Number(t.amount).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-            const amtColor = isIncome ? 'var(--success)' : 'var(--danger)';
-            const bal = balanceMap[t.id];
-            const balColor = bal >= 0 ? 'var(--success)' : 'var(--danger)';
-            const typeBadge = isIncome
-              ? `<span style="background:var(--success-soft);color:var(--success);border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Income</span>`
-              : `<span style="background:var(--danger-soft);color:var(--danger);border-radius:5px;padding:2px 8px;font-size:0.8em;font-weight:600;">Expense</span>`;
-            return `<tr style="border-bottom:1px solid var(--border);">
-              <td style="padding:9px 10px;white-space:nowrap;color:var(--text-muted);font-size:0.88em;">${t.date || ''}</td>
-              <td style="padding:9px 10px;">${typeBadge}</td>
-              <td style="padding:9px 10px;color:var(--text-secondary);font-size:0.9em;">${t.category || ''}</td>
-              <td style="padding:9px 10px;color:var(--text-primary);">${t.description || ''}${t.notes ? `<div style="font-size:0.78em;color:var(--text-muted);margin-top:1px;">${t.notes}</div>` : ''}</td>
-              <td style="padding:9px 10px;text-align:right;font-weight:700;color:${amtColor};">${amtStr}</td>
-              <td style="padding:9px 10px;text-align:right;font-weight:600;color:${balColor};">$${bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
-              <td style="padding:9px 6px;text-align:right;">
-                <button onclick="deleteTransaction(${t.id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1em;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#128465;</button>
-              </td>
-            </tr>`;
-          }).join('');
-        }
-
-        // Category breakdown
-        const catTotals = {};
-        budgetTransactions.forEach(t => {
-          const key = `${t.type}::${t.category}`;
-          catTotals[key] = (catTotals[key] || 0) + Number(t.amount);
-        });
-        const incomeRows = Object.entries(catTotals).filter(([k]) => k.startsWith('income::'))
-          .sort((a, b) => b[1] - a[1])
-          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:var(--success);">+$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
-        const expenseRows = Object.entries(catTotals).filter(([k]) => k.startsWith('expense::'))
-          .sort((a, b) => b[1] - a[1])
-          .map(([k, v]) => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:0.88em;"><span style="color:var(--text-secondary);">${k.split('::')[1]}</span><span style="font-weight:600;color:var(--danger);">-$${v.toLocaleString('en-US',{minimumFractionDigits:2})}</span></div>`).join('');
-
-        document.getElementById('budgetBreakdown').innerHTML = (incomeRows || expenseRows) ? `
-          <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            ${incomeRows ? `<div style="flex:1;min-width:200px;background:var(--bg-sunken);border:1px solid var(--success-soft);border-radius:8px;padding:14px;">
-              <div style="font-size:0.78em;font-weight:700;color:var(--success);letter-spacing:1px;margin-bottom:10px;">INCOME BY CATEGORY</div>
-              ${incomeRows}
-            </div>` : ''}
-            ${expenseRows ? `<div style="flex:1;min-width:200px;background:var(--danger-soft);border:1px solid var(--danger-soft);border-radius:8px;padding:14px;">
-              <div style="font-size:0.78em;font-weight:700;color:var(--danger);letter-spacing:1px;margin-bottom:10px;">EXPENSES BY CATEGORY</div>
-              ${expenseRows}
-            </div>` : ''}
-          </div>` : '';
-      }
-
-      async function deleteTransaction(id) {
-        if (!confirm('Delete this transaction?')) return;
-        await api(`budget/${id}`, 'DELETE');
-        await loadBudget();
-      }
-
-      function openAddTransaction() {
-        // Set today's date as default
-        document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
-        updateTxCategories();
-        document.getElementById('txModal').style.display = 'flex';
-      }
-
-      function closeTxModal() {
-        document.getElementById('txModal').style.display = 'none';
-        document.getElementById('txForm').reset();
-      }
-
-      function updateTxCategories() {
-        const type = document.getElementById('txType').value;
-        const sel = document.getElementById('txCategory');
-        const incomeCategories = ['Rent Received','Late Fee','Application Fee','Parking Fee','Pet Fee','Security Deposit','Other Income'];
-        const expenseCategories = ['Maintenance','Utilities','Landscaping','Insurance','Property Tax','Management Fee','Repairs','Supplies','Advertising','Professional Services','Other Expense'];
-        const cats = type === 'income' ? incomeCategories : expenseCategories;
-        sel.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
-      }
-
-      async function submitAddTransaction() {
-        const type = document.getElementById('txType').value;
-        const category = document.getElementById('txCategory').value;
-        const description = document.getElementById('txDescription').value.trim();
-        const amount = document.getElementById('txAmount').value;
-        const date = document.getElementById('txDate').value;
-        const notes = document.getElementById('txNotes').value.trim();
-        if (!description || !amount || !date) return alert('Please fill in description, amount, and date.');
-        await api('budget', 'POST', { type, category, description, amount: Number(amount), date, notes });
-        closeTxModal();
-        await loadBudget();
-      }
-
       function updateTaskBadge() {
         const today = new Date(); today.setHours(0,0,0,0);
         const twoDaysOut = new Date(today); twoDaysOut.setDate(twoDaysOut.getDate() + 2);
@@ -9729,7 +9536,6 @@
             case 'admin':
               if (typeof loadRentTable === 'function') await loadRentTable();
               if (typeof loadInvoiceTable === 'function') await loadInvoiceTable();
-              if (typeof loadBudget === 'function') await loadBudget();
               break;
             case 'maintenance':
               if (typeof loadMaintenance === 'function') await loadMaintenance();
@@ -10135,9 +9941,6 @@
         document.getElementById('rentMonthSel').value = curMonth;
         document.getElementById('rentYearSel').value  = curYear;
         loadRentTable();
-        document.getElementById('budgetMonthSel').value = curMonth.padStart(2,'0');
-        document.getElementById('budgetYearSel').value = curYear;
-        loadBudget();
         loadTasks(); loadContacts(); loadMaintenance(); loadBroadcastHistory();
         loadLeases();
         api('leases/check-renewals', 'POST', {}).catch(() => {});
@@ -14106,9 +13909,10 @@
           } else if (c.page === 'tasks') {
             if (typeof taskFilter !== 'undefined' && taskFilter && taskFilter !== 'all') c.task_filter = taskFilter;
           } else if (c.page === 'finances' || c.page === 'admin') {
-            const m = document.getElementById(c.page === 'admin' ? 'rentMonthSel' : 'budgetMonthSel');
-            const y = document.getElementById(c.page === 'admin' ? 'rentYearSel' : 'budgetYearSel');
-            if (m && m.value && y && y.value) c.period = y.value + '-' + String(m.value).padStart(2, '0');
+            // AD1: the finances period now comes from the BG3 dashboard
+            // control (the old read pointed at the retired budget card's
+            // selectors); admin no longer has a period concept.
+            if (c.page === 'finances' && typeof _finPeriod !== 'undefined' && _finPeriod) c.period = _finPeriod;
           }
         } catch (_) { /* context is best-effort — never block a send */ }
         return c;
@@ -14608,50 +14412,6 @@
         <button class="btn-secondary" onclick="closeMaintModal()">Cancel</button>
         <button class="btn-primary" onclick="submitMaintTicket()">Save Ticket</button>
       </div>
-    </div>
-  </div>
-
-  <!-- Add Transaction Modal -->
-  <div class="modal-overlay" id="txModal" onclick="if(event.target===this)closeTxModal()" style="display:none;">
-    <div class="modal" style="max-width:460px;">
-      <h3>&#128200; Add Transaction</h3>
-      <form id="txForm" onsubmit="event.preventDefault();submitAddTransaction();">
-        <div style="display:flex;gap:12px;margin-bottom:14px;">
-          <label style="flex:1;cursor:pointer;">
-            <div style="font-size:0.83em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Transaction Type</div>
-            <select id="txType" onchange="updateTxCategories()" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;">
-              <option value="income">&#43; Income</option>
-              <option value="expense">&#8722; Expense</option>
-            </select>
-          </label>
-          <label style="flex:1;cursor:pointer;">
-            <div style="font-size:0.83em;font-weight:600;color:var(--text-secondary);margin-bottom:4px;">Category</div>
-            <select id="txCategory" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;"></select>
-          </label>
-        </div>
-
-        <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Description *</label>
-        <input id="txDescription" placeholder="e.g. Unit 101 April rent" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;margin-bottom:14px;" />
-
-        <div style="display:flex;gap:12px;margin-bottom:14px;">
-          <div style="flex:1;">
-            <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Amount ($) *</label>
-            <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;" />
-          </div>
-          <div style="flex:1;">
-            <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Date *</label>
-            <input type="date" id="txDate" required style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;" />
-          </div>
-        </div>
-
-        <label style="font-size:0.83em;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px;">Notes (optional)</label>
-        <input id="txNotes" placeholder="Vendor name, unit, etc." style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:7px;font-size:0.9em;margin-bottom:18px;" />
-
-        <div class="modal-footer" style="margin-top:0;">
-          <button type="button" class="btn-secondary" onclick="closeTxModal()">Cancel</button>
-          <button type="submit" class="btn-primary">Add Transaction</button>
-        </div>
-      </form>
     </div>
   </div>
 
