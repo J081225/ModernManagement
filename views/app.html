@@ -3773,6 +3773,70 @@
               </div>
             </div>
 
+            <!-- FD3-CP3: the autonomy matrix. One row per category the
+                 engine's choke point actually enforces (lib/autonomy.js
+                 TOOL_CATEGORY), a three-position control per row, and a
+                 plain-language line describing the CURRENT selection.
+                 Payments deliberately has no "Act on its own" position:
+                 payment tools are approval-gated at the tool layer, so
+                 offering "act" would be a toggle that does nothing. -->
+            <div class="mm-card" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">What your assistant may do on its own</div>
+              </div>
+              <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.55;">&ldquo;Act on its own&rdquo; happens right away. &ldquo;Ask me first&rdquo; sends it to you to approve before anything changes. &ldquo;Off&rdquo; means your assistant takes a message instead.</div>
+              <div style="display:flex;flex-direction:column;gap:20px;">
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span style="font-size:0.94em;font-weight:600;color:var(--text-primary);">Appointments</span>
+                    <div class="mm-tabs" role="group" aria-label="Appointments autonomy">
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('bookings','act')" data-autonomy="bookings:act">Act on its own</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('bookings','approve')" data-autonomy="bookings:approve">Ask me first</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('bookings','off')" data-autonomy="bookings:off">Off</button>
+                    </div>
+                  </div>
+                  <div id="mbAutonomyLine-bookings" style="font-size:0.82em;color:var(--text-muted);margin-top:6px;line-height:1.55;"></div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span style="font-size:0.94em;font-weight:600;color:var(--text-primary);">Contacts</span>
+                    <div class="mm-tabs" role="group" aria-label="Contacts autonomy">
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('contacts','act')" data-autonomy="contacts:act">Act on its own</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('contacts','approve')" data-autonomy="contacts:approve">Ask me first</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('contacts','off')" data-autonomy="contacts:off">Off</button>
+                    </div>
+                  </div>
+                  <div id="mbAutonomyLine-contacts" style="font-size:0.82em;color:var(--text-muted);margin-top:6px;line-height:1.55;"></div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span style="font-size:0.94em;font-weight:600;color:var(--text-primary);">Tasks</span>
+                    <div class="mm-tabs" role="group" aria-label="Tasks autonomy">
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('tasks','act')" data-autonomy="tasks:act">Act on its own</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('tasks','approve')" data-autonomy="tasks:approve">Ask me first</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('tasks','off')" data-autonomy="tasks:off">Off</button>
+                    </div>
+                  </div>
+                  <div id="mbAutonomyLine-tasks" style="font-size:0.82em;color:var(--text-muted);margin-top:6px;line-height:1.55;"></div>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <span style="font-size:0.94em;font-weight:600;color:var(--text-primary);">Payments &amp; refunds</span>
+                    <div class="mm-tabs" role="group" aria-label="Payments and refunds autonomy">
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('payments','approve')" data-autonomy="payments:approve">Ask me first</button>
+                      <button type="button" class="mm-tab" onclick="mbSetAutonomy('payments','off')" data-autonomy="payments:off">Off</button>
+                    </div>
+                  </div>
+                  <div id="mbAutonomyLine-payments" style="font-size:0.82em;color:var(--text-muted);margin-top:6px;line-height:1.55;"></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;">
+                  <button onclick="mbSaveAutonomy()"
+                    style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save</button>
+                  <div id="mbAutonomyStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
+                </div>
+              </div>
+            </div>
+
             <!-- Grow your business — links stored in the knowledge base
                  via existing /api/knowledge, plus educational copy on
                  reviews (do NOT incentivize) and the referrals feature
@@ -12252,6 +12316,7 @@
           const salesEl = document.getElementById('mbSalesPosture');
           if (toneEl)  toneEl.value  = (data && data.ai_tone) ? data.ai_tone : '';
           if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
+          _mbHydrateAutonomy(data);
         } catch (err) {
           console.error('[my-business ai-settings] load failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), 'var(--danger)');
@@ -12296,6 +12361,92 @@
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
+        }
+      }
+
+      // ---------- My Business: autonomy matrix (FD3-CP3) ----------
+      // Per-category act/approve/off, backed by the same
+      // /api/workspace/ai-settings endpoints. The server returns the
+      // EFFECTIVE mode (stored value or code default), so the controls
+      // always show what the engine will actually do. The line under
+      // each row is copy for the CURRENT selection, updated on tap.
+      const MB_AUTONOMY_COPY = {
+        bookings: {
+          act: 'Your assistant books, reschedules, and cancels appointments on its own and lets you know.',
+          approve: 'Every booking change waits for your OK before anything happens.',
+          off: 'Your assistant takes a message and leaves the scheduling to you.',
+        },
+        contacts: {
+          act: 'Your assistant saves new customers and updates contact details on its own.',
+          approve: 'Contact changes wait for your OK first.',
+          off: 'Your assistant passes contact requests along to you instead.',
+        },
+        tasks: {
+          act: 'Your assistant adds to your task list when a customer needs something.',
+          approve: 'New tasks wait for your OK before they land on your list.',
+          off: 'Your assistant takes a message for you instead of adding tasks.',
+        },
+        payments: {
+          approve: 'Refunds and payment requests always wait for your OK \u2014 money never moves on its own.',
+          off: 'Your assistant passes payment questions straight to you.',
+        },
+      };
+      let _mbAutonomy = { bookings: 'act', contacts: 'act', tasks: 'act', payments: 'approve' };
+
+      function _mbRenderAutonomy() {
+        for (const cat of Object.keys(_mbAutonomy)) {
+          // Payments has no "act" position (payment tools are
+          // approval-gated at the tool layer, so act behaves exactly
+          // as approve) -- render a stored 'act' honestly as approve.
+          let mode = _mbAutonomy[cat];
+          if (cat === 'payments' && mode === 'act') mode = 'approve';
+          document.querySelectorAll('[data-autonomy^="' + cat + ':"]').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.autonomy === cat + ':' + mode);
+          });
+          const line = document.getElementById('mbAutonomyLine-' + cat);
+          if (line) line.textContent = (MB_AUTONOMY_COPY[cat] && MB_AUTONOMY_COPY[cat][mode]) || '';
+        }
+      }
+
+      function _mbHydrateAutonomy(data) {
+        if (!data || !document.getElementById('mbAutonomyLine-bookings')) return;
+        for (const cat of Object.keys(_mbAutonomy)) {
+          const v = data['autonomy_' + cat];
+          if (v === 'act' || v === 'approve' || v === 'off') _mbAutonomy[cat] = v;
+        }
+        _mbRenderAutonomy();
+      }
+
+      function mbSetAutonomy(cat, mode) {
+        _mbAutonomy[cat] = mode;
+        _mbRenderAutonomy();
+        _mbSetStatus('mbAutonomyStatus', 'Not saved yet');
+      }
+
+      async function mbSaveAutonomy() {
+        _mbSetStatus('mbAutonomyStatus', 'Saving...');
+        try {
+          const r = await fetch('/api/workspace/ai-settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              autonomy_bookings: _mbAutonomy.bookings,
+              autonomy_contacts: _mbAutonomy.contacts,
+              autonomy_tasks: _mbAutonomy.tasks,
+              autonomy_payments: _mbAutonomy.payments,
+            }),
+          });
+          if (!r.ok) {
+            const t = await r.text().catch(function () { return ''; });
+            throw new Error('HTTP ' + r.status + (t ? ': ' + t : ''));
+          }
+          const data = await r.json();
+          _mbHydrateAutonomy(data);
+          _mbSetStatus('mbAutonomyStatus', 'Saved!', 'var(--success)');
+        } catch (err) {
+          console.error('[my-business autonomy] save failed:', err);
+          _mbSetStatus('mbAutonomyStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 

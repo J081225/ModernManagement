@@ -8170,13 +8170,19 @@ app.post('/api/workspace/inventory-tracking', requireAuth, async (req, res) => {
 const AI_TONE_VALUES = ['warm', 'professional', 'brief'];
 const AI_SALES_POSTURE_VALUES = ['reactive', 'proactive'];
 
+// FD3-CP3: the autonomy matrix store. MODES/DEFAULTS come from the same
+// module the engine's choke point consults, so the UI and enforcement
+// can never drift apart.
+const { CATEGORIES: AUTONOMY_CATEGORIES, MODES: AUTONOMY_MODES, DEFAULTS: AUTONOMY_DEFAULTS } = require('./lib/autonomy');
+
 app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
     if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
     const r = await pool.query(
       `SELECT appointment_auto_respond, appointment_auto_confirm,
-              ai_tone, ai_sales_posture
+              ai_tone, ai_sales_posture,
+              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -8186,6 +8192,13 @@ app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
       appointment_auto_confirm: !!row.appointment_auto_confirm,
       ai_tone: row.ai_tone == null ? null : row.ai_tone,
       ai_sales_posture: row.ai_sales_posture == null ? null : row.ai_sales_posture,
+      // Effective autonomy per category: NULL/invalid → the code default,
+      // so the UI always shows what the engine will actually do.
+      ...AUTONOMY_CATEGORIES.reduce((acc, cat) => {
+        const v = row['autonomy_' + cat];
+        acc['autonomy_' + cat] = AUTONOMY_MODES.includes(v) ? v : AUTONOMY_DEFAULTS[cat];
+        return acc;
+      }, {}),
     });
   } catch (err) {
     console.error('[GET /api/workspace/ai-settings]', err.message);
@@ -8231,6 +8244,20 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
       setClauses.push(`ai_sales_posture = $${i++}`);
       params.push(normalized);
     }
+    // FD3-CP3: per-category autonomy. '' / null clears the column back to
+    // NULL, which means "use the code default" — a workspace can always
+    // return to byte-identical stock behavior.
+    for (const cat of AUTONOMY_CATEGORIES) {
+      const field = 'autonomy_' + cat;
+      if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+      const raw = body[field];
+      const normalized = (raw == null || raw === '') ? null : String(raw);
+      if (normalized !== null && !AUTONOMY_MODES.includes(normalized)) {
+        return res.status(400).json({ error: `${field} must be one of ${AUTONOMY_MODES.join(', ')} or empty` });
+      }
+      setClauses.push(`${field} = $${i++}`);
+      params.push(normalized);
+    }
     if (setClauses.length === 0) {
       return res.status(400).json({ error: 'No settings to update' });
     }
@@ -8243,7 +8270,8 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
     // Return the current state so the frontend refreshes from source of truth.
     const r = await pool.query(
       `SELECT appointment_auto_respond, appointment_auto_confirm,
-              ai_tone, ai_sales_posture
+              ai_tone, ai_sales_posture,
+              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -8253,6 +8281,13 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
       appointment_auto_confirm: !!row.appointment_auto_confirm,
       ai_tone: row.ai_tone == null ? null : row.ai_tone,
       ai_sales_posture: row.ai_sales_posture == null ? null : row.ai_sales_posture,
+      // Effective autonomy per category: NULL/invalid → the code default,
+      // so the UI always shows what the engine will actually do.
+      ...AUTONOMY_CATEGORIES.reduce((acc, cat) => {
+        const v = row['autonomy_' + cat];
+        acc['autonomy_' + cat] = AUTONOMY_MODES.includes(v) ? v : AUTONOMY_DEFAULTS[cat];
+        return acc;
+      }, {}),
     });
   } catch (err) {
     console.error('[PATCH /api/workspace/ai-settings]', err.message);
