@@ -773,7 +773,6 @@
       }
       @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(10px); } to { opacity:1; transform: scale(1) translateY(0); } }
       @keyframes badgePop { from { transform: scale(0); } to { transform: scale(1); } }
-      @keyframes micPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(1.4); } }
       @keyframes spin { to { transform: rotate(360deg); } }
       /* AI response flair (typewriter, thinking dots, markdown, action chips) */
       @keyframes aiThinkDot {
@@ -789,30 +788,6 @@
         0%, 50% { opacity: 1; }
         51%, 100% { opacity: 0; }
       }
-      .ai-thinking {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .ai-thinking-bubble {
-        background:var(--bg-sunken);
-        border-radius: 14px;
-        border-bottom-left-radius: 4px;
-        padding: 12px 16px;
-        display: flex;
-        gap: 5px;
-        align-items: center;
-      }
-      .ai-thinking-bubble span {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--accent);
-        display: inline-block;
-        animation: aiThinkDot 1.2s infinite;
-      }
-      .ai-thinking-bubble span:nth-child(2) { animation-delay: 0.15s; }
-      .ai-thinking-bubble span:nth-child(3) { animation-delay: 0.3s; }
       .ai-response-body { line-height: 1.65; color:var(--text-primary); }
       .ai-response-body p { margin: 0 0 10px; }
       .ai-response-body p:last-child { margin-bottom: 0; }
@@ -997,41 +972,6 @@
         z-index: -1;
         pointer-events: none;
         filter: blur(4px);
-      }
-      /* Ask AI input on dark glass card (navy + gold border) */
-      #homeCommandInput {
-        background: var(--bg-surface) !important;
-        border: 1.5px solid var(--border-strong) !important;
-        color:var(--text-primary) !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: all 0.25s ease !important;
-      }
-      #homeCommandInput:focus {
-        background: var(--bg-surface) !important;
-        border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px var(--accent-soft) !important;
-      }
-      #homeCommandInput::placeholder {
-        color: var(--text-muted) !important;
-        font-style: italic;
-      }
-      /* Mic button recolored */
-      #micBtn {
-        background: var(--bg-surface) !important;
-        border-color: var(--border-strong) !important;
-        color:var(--text-primary) !important;
-      }
-      #micBtn:hover {
-        border-color: var(--accent) !important;
-      }
-      /* Response area: dark glass with gold accent */
-      #homeCommandResponse {
-        background: var(--bg-sunken) !important;
-        border: 1px solid var(--border) !important;
-        border-left: 3px solid var(--accent) !important;
-        box-shadow: var(--shadow-card) !important;
-        color:var(--text-secondary) !important;
-        font-family: 'Inter', sans-serif !important;
       }
       /* AI response markdown text adapts to dark bg */
       .ai-response-body { color:var(--text-secondary) !important; }
@@ -1243,13 +1183,6 @@
         display: flex;
         gap: 12px;
         justify-content: flex-end;
-      }
-      .ai-thinking-bubble {
-        background: var(--bg-sunken) !important;
-        border: 1px solid var(--border);
-      }
-      .ai-thinking-bubble span {
-        background: var(--accent) !important;
       }
       .ai-cursor { background: var(--accent) !important; }
       .ai-action-chip {
@@ -1478,7 +1411,6 @@
       #homeBanner {
         box-shadow: var(--shadow-card) !important;
       }
-      #micBtn.listening { background:var(--danger) !important; border-color:transparent !important; color:white !important; box-shadow:0 0 0 4px var(--danger-soft); animation:micPulse 1.2s infinite; }
       .modal h3 { font-size: 1.1em; font-weight: 700; color:var(--text-primary); margin-bottom: 20px; }
       .modal label { font-size: 0.83em; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 2px; }
       .modal .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
@@ -1686,7 +1618,6 @@
         #homePropertyName { font-size: 1.2em !important; }
 
         /* AI bar: stack input/buttons */
-        #homeCommandInput { font-size: 0.88em !important; }
 
         /* Stats grid: 2 columns */
         #page-home > div:nth-child(2) { grid-template-columns: repeat(2, 1fr) !important; }
@@ -2353,31 +2284,21 @@
           <!-- Section: AI Tools -->
           <div class="section-label home-fade"><span class="dot"></span>AI Tools<span class="accent">your assistant</span></div>
 
-          <!-- AI Command Bar -->
-          <div class="card card-hero home-fade" style="margin-bottom:20px;">
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;position:relative;">
+          <!-- AP3: the panel is the front door. The old command bar is
+               retired; this card opens the assistant, focused. -->
+          <div class="mm-card home-fade" style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:14px;">
               <div class="hero-avatar" style="width:46px;height:46px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;">&#129302;</div>
-              <div>
-                <div class="hero-title">Ask AI</div>
-                <div class="hero-subtitle">Type or speak — add events, create tasks, compose messages</div>
+              <div style="flex:1;min-width:0;">
+                <div class="hero-title">Ask your assistant</div>
+                <div class="mm-input" role="button" tabindex="0" onclick="openAssistant()" onkeydown="if(event.key==='Enter')openAssistant()" style="margin-top:8px;cursor:text;color:var(--text-muted);user-select:none;">Ask your assistant anything&hellip;</div>
               </div>
             </div>
-            <div style="display:flex;gap:10px;align-items:center;position:relative;">
-              <input id="homeCommandInput" type="text" placeholder='e.g. "Add a board meeting on May 5th" or tap the mic and speak...'
-                style="flex:1;margin:0;padding:13px 16px;border-radius:10px;font-size:0.93em;"
-                onkeydown="if(event.key==='Enter')submitHomeCommand()" />
-              <button id="micBtn" onclick="toggleDictation()" title="Click to speak"
-                style="width:48px;height:48px;border-radius:10px;border:1.5px solid var(--border-strong);background:var(--bg-surface);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3em;flex-shrink:0;transition:all 0.2s;"
-                onmouseover="if(!window.micActive)this.style.borderColor='var(--accent)'" onmouseout="if(!window.micActive)this.style.borderColor='var(--border-strong)'">
-                &#127908;
-              </button>
-              <button class="btn-primary" onclick="submitHomeCommand()" style="padding:13px 22px;white-space:nowrap;border-radius:10px;background:var(--accent);border:none;color:var(--text-on-accent);font-weight:600;">Send &#9654;</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+              <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="panelPrompt(this)">What's on my calendar today?</button>
+              <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="panelPrompt(this)">Add a task for tomorrow</button>
+              <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="panelPrompt(this)">Block off time</button>
             </div>
-            <div id="micStatus" style="display:none;margin-top:10px;font-size:0.82em;color:var(--danger);align-items:center;gap:7px;position:relative;">
-              <span style="width:8px;height:8px;background:var(--danger);border-radius:50%;display:inline-block;animation:micPulse 1s infinite;"></span>
-              <span id="micStatusText">Listening... speak now</span>
-            </div>
-            <div id="homeCommandResponse" style="display:none;margin-top:18px;padding:16px 18px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:12px;font-size:0.92em;color:var(--text-primary);line-height:1.65;position:relative;"></div>
           </div>
 
           <!-- Approval Queue (Session C1) -->
@@ -4421,7 +4342,7 @@
       }
 
       // --- Post-action navigation ---
-      // Called from submitHomeCommand AFTER applyActions completes (so
+      // AP3: fed by the assistant panel after tool runs (so
       // refreshPageData has already run and the target list is fresh).
       function handlePostActionNavigation(navigation) {
         if (!navigation || !navigation.page) return;
@@ -8959,73 +8880,6 @@
         });
       });
 
-      // --- Dictation ---
-      window.micActive = false;
-      let recognition = null;
-
-      function toggleDictation() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          alert('Voice dictation is not supported in this browser. Please use Chrome or Edge.');
-          return;
-        }
-
-        if (window.micActive) {
-          recognition && recognition.stop();
-          return;
-        }
-
-        recognition = new SpeechRecognition();
-        recognition.lang = 'en-US';
-        recognition.interimResults = true;
-        recognition.continuous = false;
-
-        const btn = document.getElementById('micBtn');
-        const status = document.getElementById('micStatus');
-        const statusText = document.getElementById('micStatusText');
-        const input = document.getElementById('homeCommandInput');
-
-        recognition.onstart = () => {
-          window.micActive = true;
-          btn.classList.add('listening');
-          status.style.display = 'flex';
-          input.placeholder = 'Listening...';
-        };
-
-        recognition.onresult = (e) => {
-          const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-          input.value = transcript;
-          if (e.results[e.results.length - 1].isFinal) {
-            statusText.textContent = 'Got it! Sending...';
-          } else {
-            statusText.textContent = 'Listening...';
-          }
-        };
-
-        recognition.onend = () => {
-          window.micActive = false;
-          btn.classList.remove('listening');
-          status.style.display = 'none';
-          input.placeholder = 'e.g. "Add a board meeting on May 5th" or tap the mic and speak...';
-          if (input.value.trim()) submitHomeCommand();
-        };
-
-        recognition.onerror = (e) => {
-          window.micActive = false;
-          btn.classList.remove('listening');
-          status.style.display = 'none';
-          input.placeholder = 'e.g. "Add a board meeting on May 5th" or tap the mic and speak...';
-          if (e.error !== 'no-speech') alert('Mic error: ' + e.error + '. Make sure microphone access is allowed.');
-        };
-
-        recognition.start();
-      }
-
-      // --- AI response rendering helpers (markdown-lite + typewriter) ---
-      // Lightweight markdown parser for AI responses. Handles: **bold**,
-      // *italic*, `inline code`, line breaks, blank-line paragraph breaks,
-      // - bulleted lists, and 1. numbered lists. Escapes HTML first to
-      // prevent injection from AI output.
       function renderMarkdownLite(rawText) {
         if (!rawText) return '';
         // 1. HTML-escape everything first
@@ -9142,45 +8996,6 @@
       // Render an action chip with a checkmark icon and pop animation.
       // Detects warning chips by leading "⚠" symbol (HTML entity &#9888;)
       // in the original action text and styles them differently.
-      function renderActionChip(entry, indexForDelay) {
-        const delay = (indexForDelay || 0) * 80;
-        // Session C1: queued entries are objects with approve/reject UI.
-        if (entry && typeof entry === 'object' && entry.queued && entry.pendingId) {
-          const summary = escapeHtmlForChip(entry.summary || entry.message || entry.type || '');
-          return `
-            <div class="ai-action-chip ai-action-chip-queued" data-pending-id="${entry.pendingId}" style="display:block;background:var(--warning-soft);border:1px solid var(--border);padding:10px 14px;border-radius:10px;margin-top:6px;animation-delay:${delay}ms;">
-              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                <div style="flex:1;min-width:180px;">
-                  <div style="font-size:0.72em;color:var(--warning);font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:3px;">Awaiting approval</div>
-                  <div style="color:var(--text-primary);font-size:0.9em;line-height:1.4;">${summary}</div>
-                </div>
-                <div style="display:flex;gap:6px;flex-shrink:0;">
-                  <button onclick="approvePendingActionFromChip(this, ${entry.pendingId})" style="background:var(--accent);color:var(--text-on-accent);border:none;padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Approve</button>
-                  <button onclick="rejectPendingActionFromChip(this, ${entry.pendingId})" style="background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-soft);padding:6px 12px;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.78em;">Reject</button>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-        // Existing string-based chip path (success / warn).
-        const actionHtml = String(entry || '');
-        const isWarn = /&#9888;|⚠/.test(actionHtml);
-        // Strip the leading icon entity (first HTML entity / emoji) since
-        // we're replacing it with our own circle-checkmark.
-        const cleaned = actionHtml.replace(/^(\s*&#\d+;\s*)+/, '').trim();
-        const cls = isWarn ? 'ai-action-chip ai-action-chip-warn' : 'ai-action-chip';
-        const icon = isWarn ? '!' : '\u2713';
-        return `<span class="${cls}" style="animation-delay:${delay}ms;"><span class="chip-check">${icon}</span>${cleaned}</span>`;
-      }
-
-      // ============================================================
-      // APPROVAL QUEUE (Session C1)
-      //
-      // Workspace-scoped queue of AI tool calls awaiting human approval.
-      // Surfaces both as a Home-page card and inline approve/reject
-      // buttons in the AI response. Auto-hides when empty.
-      // ============================================================
-
       async function loadApprovalQueue() {
         const card = document.getElementById('approvalQueueCard');
         const list = document.getElementById('approvalQueueList');
@@ -9291,86 +9106,6 @@
       // Inline-chip variants: same network calls, but they update the
       // chip in the AI response so the user gets visual confirmation
       // without the chip vanishing.
-      async function approvePendingActionFromChip(buttonEl, id) {
-        const chip = buttonEl.closest('.ai-action-chip-queued');
-        if (chip) {
-          chip.style.opacity = '0.5';
-          chip.querySelectorAll('button').forEach(b => b.disabled = true);
-        }
-        try {
-          const res = await fetch(`/api/pending-actions/${id}/approve`, {
-            method: 'POST',
-            credentials: 'include'
-          });
-          const data = await res.json();
-          if (!res.ok || data.success === false) {
-            throw new Error(data.error || (data.result && data.result.message) || 'Approval failed');
-          }
-          if (chip) {
-            chip.style.opacity = '';
-            chip.style.background = 'var(--success-soft)';
-            chip.style.borderColor = 'var(--success)';
-            chip.innerHTML = `<div style="color:var(--success);font-weight:600;font-size:0.9em;">&#10003; Approved and executed</div>`;
-          }
-          if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
-          if (typeof refreshPageData === 'function') {
-            refreshPageData('inbox');
-            refreshPageData('admin');
-          }
-        } catch (err) {
-          console.error('[approvePendingActionFromChip]', err);
-          if (chip) {
-            chip.style.opacity = '';
-            chip.querySelectorAll('button').forEach(b => b.disabled = false);
-          }
-          alert('Failed to approve: ' + err.message);
-        }
-      }
-
-      async function rejectPendingActionFromChip(buttonEl, id) {
-        if (!confirm('Reject this action?')) return;
-        const chip = buttonEl.closest('.ai-action-chip-queued');
-        if (chip) {
-          chip.style.opacity = '0.5';
-          chip.querySelectorAll('button').forEach(b => b.disabled = true);
-        }
-        try {
-          const res = await fetch(`/api/pending-actions/${id}/reject`, {
-            method: 'POST',
-            credentials: 'include'
-          });
-          if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            throw new Error(data.error || 'Reject failed');
-          }
-          if (chip) {
-            chip.style.opacity = '';
-            chip.style.background = 'var(--danger-soft)';
-            chip.style.borderColor = 'var(--danger)';
-            chip.innerHTML = `<div style="color:var(--danger);font-weight:600;font-size:0.9em;">&times; Rejected</div>`;
-          }
-          if (typeof loadApprovalQueue === 'function') loadApprovalQueue();
-        } catch (err) {
-          console.error('[rejectPendingActionFromChip]', err);
-          if (chip) {
-            chip.style.opacity = '';
-            chip.querySelectorAll('button').forEach(b => b.disabled = false);
-          }
-          alert('Failed to reject: ' + err.message);
-        }
-      }
-
-      // --- AI Command Bar (Home page) ---
-      function homePrompt(btn) {
-        document.getElementById('homeCommandInput').value = btn.textContent.replace(/^[^\w]+/, '').trim();
-        submitHomeCommand();
-      }
-
-      // --- AI inventory tool helpers (name → record resolution) ---
-      // These resolve property / unit / contact references to concrete
-      // records using the cached inventory data. They never auto-pick on
-      // ambiguity — multiple matches return an error string the AI will
-      // relay as a clarifying question to the user.
       function _aiFindProperty(nameOrId) {
         if (typeof nameOrId === 'number') {
           const e = inventoryEntities.find(x => x.id === nameOrId && !x.archived_at);
@@ -9536,178 +9271,6 @@
       // Session B3.5: every tool executes server-side via lib/tools/*.
       // applyActions renders chips from the structured results and
       // refreshes any pages whose data the actions changed.
-      async function applyActions(actions, actionLog) {
-        if (!actions || !actions.length) return;
-        const pagesToRefresh = new Set();
-        for (const a of actions) {
-          // Session C1: queued chips carry an object so renderActionChip
-          // can render approve/reject buttons. Also refresh home so the
-          // approval queue card picks up the new pending row.
-          if (a.queued && a.pendingId) {
-            actionLog.push({
-              queued: true,
-              pendingId: a.pendingId,
-              summary: a.summary || a.message,
-              type: a.type,
-            });
-            pagesToRefresh.add('home');
-            continue;
-          }
-          if (a.success) {
-            actionLog.push(`&#9989; ${escapeHtmlForChip(a.message || a.type)}`);
-            const pages = TOOL_PAGE_MAP[a.type] || [];
-            for (const p of pages) pagesToRefresh.add(p);
-          } else {
-            actionLog.push(`&#9888; ${escapeHtmlForChip(a.message || a.type)}`);
-          }
-        }
-        // After all chips are rendered, refresh affected pages. We await
-        // each refresh so any subsequent submitHomeCommand call reads
-        // fresh state into the AI snapshot.
-        for (const page of pagesToRefresh) {
-          await refreshPageData(page);
-        }
-      }
-
-      async function submitHomeCommand() {
-        const input = document.getElementById('homeCommandInput');
-        const prompt = input.value.trim();
-        if (!prompt) return;
-        input.value = '';
-        input.disabled = true;
-
-        const responseBox = document.getElementById('homeCommandResponse');
-        responseBox.style.display = 'block';
-        responseBox.innerHTML = `
-          <div class="ai-thinking">
-              <div style="width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
-            <div class="ai-thinking-bubble">
-              <span></span><span></span><span></span>
-            </div>
-          </div>`;
-
-        try {
-          // Fetch fresh rent + maintenance for context, and ensure
-          // inventory caches are populated so the snapshot can include
-          // properties/units (lets the AI answer "what's vacant?" etc.
-          // from context without needing read tools).
-          const [freshRent, freshMaint] = await Promise.all([
-            fetch('/api/rent').then(r => r.json()).catch(() => []),
-            fetch('/api/maintenance').then(r => r.json()).catch(() => [])
-          ]);
-          await _invEnsureLoaded();
-
-          // Build the inventory snapshot: pre-resolve property name +
-          // tenant name so the AI doesn't have to join three lists itself.
-          // FUTURE: cap at ~200 units for workspaces with hundreds of
-          // units (server-side renders the same list — same cap target).
-          const propertyById = {};
-          for (const e of inventoryEntities) propertyById[e.id] = e;
-          const activeEngByOfferingId = {};
-          for (const eng of inventoryActiveEngagements) activeEngByOfferingId[eng.offering_id] = eng;
-          const contactByIdLocal = {};
-          for (const c of inventoryContacts) contactByIdLocal[c.id] = c;
-
-          const propertiesSnap = inventoryEntities
-            .filter(e => !e.archived_at)
-            .map(e => ({
-              id: e.id,
-              name: e.name,
-              address: e.address || '',
-              building_type: e.building_type || '',
-              year_built: e.year_built,
-              number_of_floors: e.number_of_floors,
-              total_unit_count: e.total_unit_count,
-            }));
-
-          const unitsSnap = inventoryOfferings
-            .filter(o => o.status !== 'retired')
-            .map(o => {
-              const md = o.metadata || {};
-              const eng = activeEngByOfferingId[o.id];
-              const tenant = eng ? contactByIdLocal[eng.contact_id] : null;
-              const parent = propertyById[o.entity_id];
-              return {
-                id: o.id,
-                name: o.name,
-                property_id: o.entity_id,
-                property_name: parent ? parent.name : '',
-                bedrooms: md.bedrooms,
-                bathrooms: md.bathrooms,
-                sqft: md.sqft,
-                rent: o.price_amount != null ? Number(o.price_amount) : null,
-                frequency: o.price_frequency || '',
-                off_market: o.status === 'unavailable',
-                occupied_by: tenant ? tenant.name : null,
-              };
-            });
-
-          // Session B2: include currentPage so the server can apply
-          // per-tool navigationPolicy (e.g. home_only) in B5.
-          const currentPage = document.querySelector('.page.active')?.id?.replace('page-', '') || 'home';
-          const res = await fetch('/api/command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt,
-              currentPage,
-              contacts,
-              calEvents,
-              tasks: tasks.map(t => ({ title: t.title, dueDate: t.dueDate, done: t.done })),
-              messages: messages.map(m => ({ id: m.id, resident: m.resident, subject: m.subject, status: m.status })),
-              rentRecords: freshRent.map(r => ({ id: r.id, resident: r.resident, unit: r.unit, amount: r.amount, due_date: r.due_date, status: r.status })),
-              maintenanceTickets: freshMaint.map(t => ({ id: t.id, title: t.title, unit: t.unit, priority: t.priority, status: t.status })),
-              properties: propertiesSnap,
-              units: unitsSnap,
-            })
-          });
-          // Session D5: surface D4 plan-gate failures (canceled / quota exceeded)
-          // as the upgrade prompt modal instead of a silent failure.
-          const _planErr = await handlePlanError(res);
-          if (_planErr) {
-            responseBox.style.display = 'none';
-            input.disabled = false;
-            input.focus();
-            return;
-          }
-          const data = await res.json();
-          const actionLog = [];
-          if (res.ok) await applyActions(data.actions, actionLog);
-
-          // B5: cache the response and trigger auto-navigation. Order
-          // matters — recordAIResponse first so maybeShowAIResponseOnPage
-          // (called inside handlePostActionNavigation → showPage) can
-          // read the fresh payload.
-          if (res.ok) {
-            recordAIResponse(data.reply, data.actions, data.navigation);
-            handlePostActionNavigation(data.navigation);
-          }
-
-          const replyText = res.ok ? data.reply : `Sorry, something went wrong: ${data.error || 'Unknown error'}`;
-          // Build the response shell — avatar on left, body on right.
-          // The body gets typewriter-revealed, then chips animate in after.
-          responseBox.innerHTML = `
-            <div style="display:flex;gap:10px;align-items:flex-start;">
-              <div style="width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.85em;flex-shrink:0;">&#129302;</div>
-              <div style="flex:1;min-width:0;" id="aiResponseBodyHost"></div>
-            </div>`;
-          const bodyHost = document.getElementById('aiResponseBodyHost');
-          typewriterReveal(bodyHost, replyText, () => {
-            // After typing finishes, render action chips with staggered pop-in
-            if (actionLog.length) {
-              const chips = actionLog.map((a, i) => renderActionChip(a, i)).join('');
-              bodyHost.insertAdjacentHTML('beforeend', `<div class="ai-actions-row">${chips}</div>`);
-            }
-          });
-        } catch (err) {
-          responseBox.innerHTML = `<span style="color:var(--danger);">Error: ${err.message}</span>`;
-        }
-        input.disabled = false;
-        input.focus();
-        loadHomeStats();
-      }
-
-      // --- Property Report ---
       async function generateReport() {
         const btn = document.getElementById('generateReportBtn');
         const output = document.getElementById('reportOutput');
@@ -13320,6 +12883,13 @@
         try { sessionStorage.setItem('assistantOpen', '1'); } catch (_) {}
         const input = _ccEl('cc-input');
         if (input) setTimeout(() => input.focus(), 150);
+      }
+      // AP3: quick-prompt chips route into the panel.
+      function panelPrompt(btn) {
+        openAssistant();
+        const input = _ccEl('cc-input');
+        if (input) input.value = btn.textContent.trim();
+        if (typeof sendCCMessage === 'function') sendCCMessage();
       }
       function collapseAssistant() {
         const cc = document.getElementById('command-center');
