@@ -2269,9 +2269,12 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     let connectStatus = 'not_started';
     let connectChargesEnabled = false;
     let connectDetailsSubmitted = false;
+    // CP1: the browser needs the workspace timezone to render calendar
+    // times correctly (nullable — frontend falls back to browser tz).
+    let workspaceTimezone = null;
     try {
       const wR = await pool.query(
-        `SELECT vertical, inventory_tracking_enabled,
+        `SELECT vertical, inventory_tracking_enabled, timezone,
                 connect_status, connect_charges_enabled, connect_details_submitted
            FROM workspaces WHERE id = $1`,
         [workspaceId]
@@ -2282,6 +2285,11 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
         if (wR.rows[0].connect_status) connectStatus = wR.rows[0].connect_status;
         connectChargesEnabled = !!wR.rows[0].connect_charges_enabled;
         connectDetailsSubmitted = !!wR.rows[0].connect_details_submitted;
+        // Send the EFFECTIVE timezone: wsTz maps a NULL column to the
+        // same America/New_York default the server itself books with,
+        // so browser rendering can never disagree with server writes.
+        const { wsTz } = require('./lib/time-helpers');
+        workspaceTimezone = wsTz(wR.rows[0]);
       }
     } catch (e) { /* fall through with defaults */ }
 
@@ -2297,6 +2305,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       connect_status: connectStatus,
       connect_charges_enabled: connectChargesEnabled,
       connect_details_submitted: connectDetailsSubmitted,
+      workspace_timezone: workspaceTimezone,
       limits: planConfig.limits,
       features: planConfig.features,
       usage: {

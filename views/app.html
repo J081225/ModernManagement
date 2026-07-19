@@ -5935,8 +5935,59 @@
         renderCalendar();
       }
 
+      // CP1: workspace-timezone formatting. Every calendar time and
+      // day-key is computed in the WORKSPACE timezone (delivered by
+      // /api/plan-summary as workspace_timezone), never the browser's.
+      // If the payload hasn't arrived yet, fall back to the browser tz
+      // with a one-time warning.
+      let _workspaceTz = null;
+      let _calTzWarned = false;
+      function calTz() {
+        if (_workspaceTz) return _workspaceTz;
+        if (!_calTzWarned) {
+          console.warn('[calendar] workspace timezone unknown — falling back to browser timezone');
+          _calTzWarned = true;
+        }
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      }
+      // "2:00 PM" in the workspace timezone.
+      function fmtEventTime(ts) {
+        try {
+          return new Date(ts).toLocaleTimeString('en-US', { timeZone: calTz(), hour: 'numeric', minute: '2-digit', hour12: true });
+        } catch (err) { return ''; }
+      }
+      // The workspace-local 'YYYY-MM-DD' a timestamp belongs to
+      // (en-CA locale renders exactly that shape).
+      function eventDateKey(ts) {
+        try {
+          return new Intl.DateTimeFormat('en-CA', { timeZone: calTz(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ts));
+        } catch (err) { return ''; }
+      }
+      // Format a plain 'YYYY-MM-DD' key for display. Parsed as UTC and
+      // formatted as UTC so the shown date can never shift a day,
+      // regardless of browser or workspace timezone.
+      function fmtDateKey(dateStr, opts) {
+        try {
+          const [y, m, d] = String(dateStr).split('-').map(Number);
+          return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, opts));
+        } catch (err) { return String(dateStr || ''); }
+      }
+      // Which workspace-local day an event belongs to: starts_at when
+      // present, else the legacy date TEXT column (pre-E2 rows).
+      function calEventDayKey(e) {
+        if (e && e.starts_at) {
+          const k = eventDateKey(e.starts_at);
+          if (k) return k;
+        }
+        return (e && e.date) || '';
+      }
+
       async function loadCalEvents() {
         calEvents = await api('calevents') || [];
+        // CP1: legacy rows without starts_at fall back to the date TEXT
+        // column for placement — count them once per load.
+        const legacyOnly = calEvents.filter(e => e && !e.starts_at).length;
+        if (legacyOnly) console.info('[calendar] ' + legacyOnly + ' event(s) have no starts_at; placed via legacy date column');
         renderCalendar();
       }
 
@@ -6974,6 +7025,17 @@
           if (!res.ok) return;
           const data = await res.json();
           window._planSummary = data;
+
+          // CP1: adopt the workspace timezone for all calendar rendering.
+          // If the calendar is already on screen (rendered during the
+          // browser-tz fallback window), re-render with the correct zone.
+          if (data.workspace_timezone) {
+            _workspaceTz = data.workspace_timezone;
+            const pageCal = document.getElementById('page-calendar');
+            if (pageCal && pageCal.classList.contains('active') && typeof renderCalendar === 'function') {
+              renderCalendar();
+            }
+          }
 
           const badge = document.getElementById('planBadge');
           if (badge) {
