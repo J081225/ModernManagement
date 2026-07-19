@@ -2223,6 +2223,13 @@
         <span id="topbar-icon">&#9993;</span>
         <span id="topbar-title">Inbox</span>
         <span class="topbar-chip" id="topbar-time"></span>
+        <!-- FD3-CP4: pending-approvals badge. The .folder-count danger
+             pill (sidebar-counter pattern); margin-left:0 neutralizes
+             that class's auto margin inside the topbar row. Visible on
+             every screen; click lands on Home's approval queue card. -->
+        <span id="approvalsBadge" class="folder-count" role="status" title="Customers are waiting on your approval"
+              style="display:none;margin-left:0;cursor:pointer;padding:3px 9px;"
+              onclick="showPage('home')"></span>
         <span id="planBadge" class="plan-badge" style="display:none;"><span class="plan-badge-label">—</span></span>
         <a href="/api/logout" class="mm-btn mm-btn-ghost mm-btn-sm">Sign Out</a>
       </div>
@@ -4262,6 +4269,7 @@
       };
 
       function showPage(name, icon, link) {
+        if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         const pageEl = document.getElementById('page-' + name);
@@ -9063,6 +9071,29 @@
       // Render an action chip with a checkmark icon and pop animation.
       // Detects warning chips by leading "⚠" symbol (HTML entity &#9888;)
       // in the original action text and styles them differently.
+      // FD3-CP4: topbar badge — the count of status='pending' rows,
+      // shown on every screen and cleared as approvals resolve. Kept
+      // live by showPage (every navigation), the approve/reject
+      // handlers, and refreshPageData (the TOOL_PAGE_MAP flow).
+      async function updateApprovalsBadge() {
+        const badge = document.getElementById('approvalsBadge');
+        if (!badge) return;
+        try {
+          const res = await fetch('/api/pending-actions/count', { credentials: 'include' });
+          if (!res.ok) return;
+          const data = await res.json();
+          const n = (data && data.pending) || 0;
+          if (n > 0) {
+            badge.textContent = n;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        } catch (err) {
+          // Leave the badge as-is — a failed poll must not flash it off.
+        }
+      }
+
       async function loadApprovalQueue() {
         const card = document.getElementById('approvalQueueCard');
         const list = document.getElementById('approvalQueueList');
@@ -9135,6 +9166,7 @@
           }
           if (row) row.remove();
           await loadApprovalQueue();
+          if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
           if (typeof refreshPageData === 'function') {
             refreshPageData('inbox');
             refreshPageData('admin');
@@ -9163,6 +9195,7 @@
           }
           if (row) row.remove();
           await loadApprovalQueue();
+          if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
         } catch (err) {
           console.error('[rejectPendingAction]', err);
           if (row) row.style.opacity = '';
@@ -9301,6 +9334,7 @@
       // name only causes stale data, not a thrown error.
       async function refreshPageData(pageName) {
         try {
+          if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
           switch (pageName) {
             case 'home':
               if (typeof loadHomeStats === 'function') await loadHomeStats();

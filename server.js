@@ -5450,69 +5450,40 @@ function detectEmergency(text) {
   return out;
 }
 
+const { sendOwnerAlert } = require('./lib/owner-alert');
+
 // sendOwnerEmergencyAlert: SMS to users.alert_phone first, fall back to
 // email via SendGrid (notification_email or email), log + return if
 // both are missing. Soft errors only — the message is already flagged
 // in the DB; failure here means the owner finds out next time they
 // open the inbox rather than instantly.
 async function sendOwnerEmergencyAlert(userId, message, matchedKeywords) {
-  try {
-    const { rows } = await pool.query(
-      'SELECT id, alert_phone, notification_email, email FROM users WHERE id = $1',
-      [userId]
-    );
-    if (!rows.length) {
-      console.error('[emergency-alert] No user row for userId=', userId);
-      return;
+  const sender = (message.resident && String(message.resident).trim())
+    || message.phone
+    || message.email
+    || '(no sender label)';
+  const keywords = matchedKeywords.join(', ');
+  const smsBody = `Modern Management URGENT: Message from ${sender} flagged for review (keywords: ${keywords}). Reply in app.`;
+  // FD3-CP4: routing (alert_phone SMS → notification_email → email)
+  // extracted to lib/owner-alert so the approval ping shares it.
+  // respectEnabled:false — emergencies always send.
+  const sent = await sendOwnerAlert(
+    { db: pool, twilio: twilioClient, sendgrid: sgMail, env: process.env, logger: console },
+    userId,
+    {
+      smsBody,
+      emailSubject: 'URGENT: Tenant message flagged for review',
+      emailText: smsBody + '\n\nMessage preview:\n' + String(message.text || '').slice(0, 500),
+      respectEnabled: false,
     }
-    const user = rows[0];
-    const sender = (message.resident && String(message.resident).trim())
-      || message.phone
-      || message.email
-      || '(no sender label)';
-    const keywords = matchedKeywords.join(', ');
-    const smsBody = `Modern Management URGENT: Message from ${sender} flagged for review (keywords: ${keywords}). Reply in app.`;
-
-    const phone = (user.alert_phone || '').trim();
-    if (phone) {
-      try {
-        await twilioClient.messages.create({
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: phone,
-          body: smsBody,
-        });
-        console.log('[emergency-alert] SMS sent to', phone, 'for message', message.id);
-        return;
-      } catch (err) {
-        console.error('[emergency-alert] SMS send failed:', err.message, '— falling back to email');
-        // fall through
-      }
-    }
-
-    const toEmail = (user.notification_email && user.notification_email.trim())
-      || (user.email && user.email.trim())
-      || '';
-    if (toEmail) {
-      try {
-        await sgMail.send({
-          to: toEmail,
-          from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-          subject: 'URGENT: Tenant message flagged for review',
-          text: smsBody + '\n\nMessage preview:\n' + String(message.text || '').slice(0, 500),
-        });
-        console.log('[emergency-alert] Email sent to', toEmail, 'for message', message.id);
-        return;
-      } catch (err) {
-        console.error('[emergency-alert] Email send also failed:', err.message);
-      }
-    }
-
+  );
+  if (sent) {
+    console.log('[emergency-alert]', sent, 'sent for message', message.id);
+  } else {
     console.error(
-      '[emergency-alert] No alert_phone or email on file for userId=', userId,
-      '— message', message.id, 'is flagged in the DB but owner not actively notified'
+      '[emergency-alert] not delivered — message', message.id,
+      'is flagged in the DB but owner not actively notified'
     );
-  } catch (err) {
-    console.error('[emergency-alert] Outer error:', err.message);
   }
 }
 
@@ -7108,6 +7079,23 @@ async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
     console.error('[pending-notify] customer notify failed (approval unaffected):', err.message);
   }
 }
+
+// FD3-CP4: pending count for the topbar badge — cheap enough to call
+// on every navigation.
+app.get('/api/pending-actions/count', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS pending FROM pending_actions WHERE workspace_id = $1 AND status = 'pending'`,
+      [workspaceId]
+    );
+    res.json({ pending: r.rows[0].pending });
+  } catch (err) {
+    console.error('[GET /api/pending-actions/count]', err);
+    res.status(500).json({ error: 'Failed to count pending actions' });
+  }
+});
 
 app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
   try {
