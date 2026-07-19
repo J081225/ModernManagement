@@ -3272,19 +3272,7 @@
             <div class="plan-usage-grid" id="planUsageGrid"></div>
             <div class="plan-usage-features" id="planUsageFeatures"></div>
             <!-- E4: Workspace settings — only the inventory tracking toggle for now. Hidden for non-PS workspaces. -->
-            <div id="workspaceSettingsRow" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;margin-bottom:14px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
-                <div>
-                  <div style="color:var(--text-primary);font-size:0.95em;font-weight:600;">Track inventory</div>
-                  <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">Surfaces the Inventory page in the sidebar. Off by default for new workspaces — turn on to track stock and vendors.</div>
-                </div>
-                <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
-                  <input type="checkbox" id="invTrackToggle" onchange="toggleInventoryTracking(this.checked)" style="opacity:0;width:0;height:0;position:absolute;">
-                  <span id="invTrackTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
-                  <span id="invTrackThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--bg-surface);border-radius:50%;transition:transform 0.2s;"></span>
-                </label>
-              </div>
-            </div>
+            
             <div class="plan-usage-actions">
               <button class="btn-secondary" onclick="openBillingPortal()">Manage Billing</button>
               <button class="btn-primary" onclick="openBillingPortal()">Upgrade Plan</button>
@@ -3292,36 +3280,7 @@
           </div>
 
           <!-- Payment Auto-Match -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Invoices &amp; vendor payments</div>
-                <div class="card-head-subtitle">Review and approve vendor invoices.</div>
-              </div>
-            </div>
-            <div class="card-head-rule"></div>
-            <div style="margin-bottom:16px;display:flex;justify-content:flex-end;">
-              <button class="btn-primary" onclick="openAddInvoice()">+ Add Invoice</button>
-            </div>
-            <div class="table-scroll-wrap">
-            <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
-              <thead>
-                <tr style="background:var(--bg-sunken);text-align:left;">
-                  <th style="padding:8px 10px;">Vendor</th>
-                  <th style="padding:8px 10px;">Description</th>
-                  <th style="padding:8px 10px;">Amount</th>
-                  <th style="padding:8px 10px;">Date</th>
-                  <th style="padding:8px 10px;">Status</th>
-                  <th style="padding:8px 10px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="invoiceTable"></tbody>
-            </table>
-            </div>
-          </div>
+          
 
           <!-- Budget -->
           
@@ -3531,17 +3490,40 @@
               <div id="expensesList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
             </div>
 
-            <div class="card" id="financesInvoicesCard" style="margin-top:20px;">
-              <div class="card-head">
-                <div class="card-head-tile">&#128196;</div>
-                <div class="card-head-titles">
-                  <div class="card-head-title">Invoices</div>
-                  <div class="card-head-subtitle">Vendor invoices and bills.</div>
-                </div>
+            <!-- AD1: the full invoices card, moved from Admin — bills are
+                 money-out; Finances is their home post-BG2 (the mark-paid
+                 bridge posts to the ledger here). Replaces the old one-line
+                 summary card. -->
+            <div class="card" style="margin-top:20px;">
+            <div class="card-head">
+              <div class="card-head-tile">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
               </div>
-              <div id="financesInvoicesSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Manage invoices in Admin &rarr;</a>
+              <div class="card-head-titles">
+                <div class="card-head-title">Invoices &amp; vendor payments</div>
+                <div class="card-head-subtitle">Review and approve vendor invoices.</div>
+              </div>
             </div>
+            <div class="card-head-rule"></div>
+            <div style="margin-bottom:16px;display:flex;justify-content:flex-end;">
+              <button class="btn-primary" onclick="openAddInvoice()">+ Add Invoice</button>
+            </div>
+            <div class="table-scroll-wrap">
+            <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
+              <thead>
+                <tr style="background:var(--bg-sunken);text-align:left;">
+                  <th style="padding:8px 10px;">Vendor</th>
+                  <th style="padding:8px 10px;">Description</th>
+                  <th style="padding:8px 10px;">Amount</th>
+                  <th style="padding:8px 10px;">Date</th>
+                  <th style="padding:8px 10px;">Status</th>
+                  <th style="padding:8px 10px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceTable"></tbody>
+            </table>
+            </div>
+          </div>
 
             <!-- PM-only: Rent Payments summary -->
             <div class="card" id="financesRentCard" style="display:none;margin-top:20px;">
@@ -3872,6 +3854,31 @@
                   <div id="mbDepositStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
                 </div>
               </div>
+
+
+            </div>
+
+            <!-- AD1: moved from the Admin plan card — inventory
+                 tracking is business behavior; My Business is its home.
+                 Same wiring: the plan-summary loader shows/hides by
+                 vertical and seeds the toggle, page-independent. -->
+            <div class="mm-card" style="margin-top:20px;" id="mbInventoryCard">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Inventory tracking</div>
+              </div>
+              <div id="workspaceSettingsRow" style="display:none;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+                <div>
+                  <div style="color:var(--text-primary);font-size:0.95em;font-weight:600;">Track inventory</div>
+                  <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">Surfaces the Inventory page in the sidebar. Off by default for new workspaces — turn on to track stock and vendors.</div>
+                </div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+                  <input type="checkbox" id="invTrackToggle" onchange="toggleInventoryTracking(this.checked)" style="opacity:0;width:0;height:0;position:absolute;">
+                  <span id="invTrackTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
+                  <span id="invTrackThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--bg-surface);border-radius:50%;transition:transform 0.2s;"></span>
+                </label>
+              </div>
+            </div>
             </div>
 
             <!-- Grow your business — links stored in the knowledge base
@@ -6874,7 +6881,7 @@
           }
         } catch (err) { alert('Could not mark paid: ' + (err.message || err)); return; }
         if (typeof loadInvoiceTable === 'function') loadInvoiceTable();
-        if (typeof loadFinancesInvoicesSummary === 'function') loadFinancesInvoicesSummary();
+        if (typeof loadFinancesSummary === 'function') loadFinancesSummary();
         if (typeof loadExpenses === 'function') loadExpenses();
       }
 
@@ -6905,7 +6912,6 @@
         loadInvoiceTable();
       }
 
-      // --- Budget Tracker ---
       function updateTaskBadge() {
         const today = new Date(); today.setHours(0,0,0,0);
         const twoDaysOut = new Date(today); twoDaysOut.setDate(twoDaysOut.getDate() + 2);
@@ -9284,7 +9290,6 @@
               else if (typeof renderCalendar === 'function') renderCalendar();
               break;
             case 'admin':
-              if (typeof loadInvoiceTable === 'function') await loadInvoiceTable();
               break;
             case 'maintenance':
               if (typeof loadMaintenance === 'function') await loadMaintenance();
@@ -11301,7 +11306,8 @@
         // deleted budget one-liner's client-side math is superseded.
         loadFinancesSummary();
         loadFinInsights();
-        loadFinancesInvoicesSummary();
+        // AD1: the full invoices card lives here now.
+        if (typeof loadInvoiceTable === 'function') loadInvoiceTable();
         // BG2: expenses serve BOTH verticals (§7 — a plumber's parts and
         // a salon's polish are the same row shape).
         loadExpenses();
@@ -11387,30 +11393,6 @@
           console.error('[connect] startConnectOnboarding failed:', err);
         }
       }
-
-      async function loadFinancesInvoicesSummary() {
-        const el = document.getElementById('financesInvoicesSummary');
-        if (!el) return;
-        try {
-          const r = await fetch('/api/invoices', { credentials: 'include' });
-          if (!r.ok) { el.textContent = 'Could not load invoices.'; return; }
-          const list = await r.json();
-          if (!Array.isArray(list) || list.length === 0) {
-            el.textContent = 'No invoices on file.';
-            return;
-          }
-          const total = list.reduce((s, i) => s + (Number(i.amount) || 0), 0);
-          const pending = list.filter(i => i.status === 'pending').length;
-          el.textContent = `${list.length} invoice${list.length === 1 ? '' : 's'} on file · $${total.toLocaleString('en-US', { minimumFractionDigits: 2 })} total · ${pending} pending.`;
-        } catch (e) { el.textContent = 'Could not load invoices.'; }
-      }
-
-      // ---------- BG3: the dashboard (presentation only) ----------
-      // Every number below arrives computed from /api/finances/summary.
-      // The ONLY client-side arithmetic is display shaping: /100 cents
-      // formatting, bar-width proportions, and an exclusive-end date
-      // label — never money math.
-      let _finPeriod = 'month';
 
       function setFinPeriod(kind) {
         _finPeriod = kind;
