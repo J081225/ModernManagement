@@ -5784,6 +5784,7 @@ function detectEmergency(text) {
 const { sendOwnerAlert } = require('./lib/owner-alert');
 const { persistOutboundMessage } = require('./lib/outbound-persist');
 const readState = require('./lib/read-state');
+const expensesLib = require('./lib/expenses');
 
 // IB1: record an owner/system/ai outbound AFTER its send succeeded.
 // Cannot throw; a persistence failure logs and the send stands.
@@ -7944,6 +7945,134 @@ function _buildTxFilters(workspaceId, q) {
   }
   return { where: where.join(' AND '), params };
 }
+
+// ============================================================
+// BG2 — expenses. Modeled on the transactions routes above (the
+// _buildTxFilters shape: workspace-scoped WHERE builder, parameterized
+// throughout), CENTS ONLY in and out — dollars are rejected by
+// validateExpenseInput, never rounded. requireAuth + getWorkspaceId,
+// same as every finances endpoint.
+// ============================================================
+function _buildExpenseFilters(workspaceId, q) {
+  const where = ['e.workspace_id = $1'];
+  const params = [workspaceId];
+  let i = 2;
+  if (q.category) {
+    where.push(`e.category = ${i++}`);
+    params.push(String(q.category));
+  }
+  if (q.vendor) {
+    where.push(`LOWER(COALESCE(e.vendor, '')) LIKE ${i++}`);
+    params.push('%' + String(q.vendor).toLowerCase() + '%');
+  }
+  if (q.source) {
+    where.push(`e.source = ${i++}`);
+    params.push(String(q.source));
+  }
+  if (q.start_date) {
+    where.push(`e.spent_on >= ${i++}::date`);
+    params.push(q.start_date);
+  }
+  if (q.end_date) {
+    where.push(`e.spent_on <= ${i++}::date`);
+    params.push(q.end_date);
+  }
+  return { where: where.join(' AND '), params };
+}
+
+app.get('/api/expenses', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const { where, params } = _buildExpenseFilters(workspaceId, req.query);
+    const r = await pool.query(
+      `SELECT e.*, COUNT(*) OVER ()::int AS _total_rows,
+              COALESCE(SUM(e.amount_cents) OVER (), 0)::int AS _total_cents
+         FROM expenses e
+        WHERE ${where}
+        ORDER BY e.spent_on DESC, e.id DESC
+        LIMIT 500`,
+      params
+    );
+    // The window totals cover the FILTERED set (the transactions card
+    // lacks aggregates; expenses ship with them from day one).
+    const total_cents = r.rows[0] ? r.rows[0]._total_cents : 0;
+    const total_rows = r.rows[0] ? r.rows[0]._total_rows : 0;
+    const expenses = r.rows.map(({ _total_rows, _total_cents, ...e }) => e);
+    res.json({ unit: 'integer cents (USD)', expenses, total_cents, total_rows, capped: total_rows > expenses.length });
+  } catch (err) {
+    console.error('[GET /api/expenses]', err.message);
+    res.status(500).json({ error: 'Failed to load expenses' });
+  }
+});
+
+app.post('/api/expenses', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const v = expensesLib.validateExpenseInput(req.body);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    // Manual entry only here — the AI-confirmed path is BG5, the
+    // invoice bridge has its own route. source is never client-set.
+    const e = v.value;
+    const r = await pool.query(
+      `INSERT INTO expenses
+         (workspace_id, amount_cents, category, description, vendor, contact_id, spent_on, source, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8)
+       RETURNING *`,
+      [workspaceId, e.amount_cents, e.category, e.description || null, e.vendor || null,
+        e.contact_id || null, e.spent_on, req.session.userId]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) {
+    console.error('[POST /api/expenses]', err.message);
+    res.status(500).json({ error: 'Failed to save the expense' });
+  }
+});
+
+app.patch('/api/expenses/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid expense id' });
+    const v = expensesLib.validateExpenseInput(req.body, { partial: true });
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const sets = [];
+    const params = [];
+    let i = 1;
+    for (const [k, val] of Object.entries(v.value)) {
+      sets.push(`${k} = ${i++}`);
+      params.push(val);
+    }
+    params.push(id, workspaceId);
+    const r = await pool.query(
+      `UPDATE expenses SET ${sets.join(', ')} WHERE id = ${i++} AND workspace_id = ${i} RETURNING *`,
+      params
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Expense not found' });
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[PATCH /api/expenses/:id]', err.message);
+    res.status(500).json({ error: 'Failed to update the expense' });
+  }
+});
+
+app.delete('/api/expenses/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query(
+      'DELETE FROM expenses WHERE id = $1 AND workspace_id = $2',
+      [parseInt(req.params.id, 10), workspaceId]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Expense not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[DELETE /api/expenses/:id]', err.message);
+    res.status(500).json({ error: 'Failed to delete the expense' });
+  }
+});
 
 // BG1: the live-budget spine — a DERIVED summary computed on read
 // (nothing materialized; lib/finances-summary.js). Same auth shape as
