@@ -686,9 +686,24 @@ runPasswordResetTokenCleanup();
 // 'closed'/'complete' threads, so a customer texting back next week is
 // the same relationship starting a fresh conversation.
 function onConversationEnd(threadId, channel) {
-  // The reflection pass's future attachment point — socket only,
-  // logging for now.
+  // FD3-CP7: the reflection pass. Fire-and-forget BY DESIGN — the
+  // conversation is already over, so no failure in here may affect
+  // anything: runReflectionPass catches internally, and this catch
+  // is the belt for a synchronous throw. Callers (thread close, the
+  // idle sweep, the voice socket teardown) never await it.
   console.log('[conversation-end] thread=' + threadId + ' channel=' + channel);
+  try {
+    const { runReflectionPass } = require('./lib/reflection');
+    const { wsToday } = require('./lib/time-helpers');
+    runReflectionPass({
+      db: pool, anthropic, model: config.ANTHROPIC_MODEL,
+      threadId, channel, logger: console, wsToday,
+    }).catch((err) => {
+      console.error('[reflection] pass rejected (conversation unaffected):', err.message);
+    });
+  } catch (err) {
+    console.error('[reflection] launch failed (conversation unaffected):', err.message);
+  }
 }
 async function closeConversationThread(threadId, channel) {
   if (!threadId) return;
@@ -2631,7 +2646,7 @@ app.post('/api/daily-nudge/ensure', requireAuth, async (req, res) => {
     let workspace;
     try {
       const wr = await pool.query(
-        'SELECT id, vertical, owner_user_id, business_name, name FROM workspaces WHERE id = $1',
+        'SELECT id, vertical, owner_user_id, business_name, name, timezone FROM workspaces WHERE id = $1',
         [workspaceId]
       );
       workspace = wr.rows[0];
@@ -2640,7 +2655,10 @@ app.post('/api/daily-nudge/ensure', requireAuth, async (req, res) => {
     }
     if (!workspace) return res.status(404).json({ error: 'workspace_not_found' });
 
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    // FD3-CP7 (look-first b): the nudge's one-per-day idempotency key is
+    // now the WORKSPACE's calendar day, not UTC's — an owner opening the
+    // app at 9 PM Eastern no longer gets tomorrow's nudge early.
+    const today = require('./lib/time-helpers').wsToday(workspace);
 
     // Idempotency: at most one daily_focus event per workspace per day.
     // The partial index idx_cal_events_daily_focus (migration 040) keeps
@@ -5414,7 +5432,15 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
 
 // --- AI Task Suggestion ---
 async function suggestTasksFromConversation(message, replyText, userId) {
-  const today = new Date().toISOString().split('T')[0];
+  // FD3-CP7 (look-first b): workspace-local date via the shared helper
+  // — the bare UTC date was tomorrow's from ~7-8 PM Eastern onward.
+  let today;
+  try {
+    const wR = await pool.query('SELECT timezone FROM workspaces WHERE owner_user_id = $1 LIMIT 1', [userId]);
+    today = require('./lib/time-helpers').wsToday(wR.rows[0] || {});
+  } catch (err) {
+    today = require('./lib/time-helpers').wsToday({});
+  }
   try {
     const response = await anthropic.messages.create({
       model: config.ANTHROPIC_MODEL,
