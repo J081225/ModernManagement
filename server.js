@@ -3866,7 +3866,23 @@ app.delete('/api/maintenance/:id', requireAuth, async (req, res) => {
 
 // --- Calendar Events ---
 app.get('/api/calevents', requireAuth, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM cal_events WHERE user_id=$1 ORDER BY date ASC', [req.session.userId]);
+  // CP5: additive join — appointment status and the linked contact ride
+  // along so the calendar can gray canceled bookings and show who is
+  // booked. Existing fields unchanged; fetch-everything scoping stays
+  // parked as flagged in CP3.
+  const { rows } = await pool.query(
+    `SELECT ce.*,
+            a.status  AS appointment_status,
+            a.contact_id,
+            c.name    AS contact_name,
+            c.phone   AS contact_phone
+       FROM cal_events ce
+       LEFT JOIN appointments a ON a.id = ce.appointment_id
+       LEFT JOIN contacts c ON c.id = a.contact_id AND c.user_id = ce.user_id
+      WHERE ce.user_id = $1
+      ORDER BY ce.date ASC`,
+    [req.session.userId]
+  );
   res.json(rows);
 });
 
