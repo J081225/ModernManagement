@@ -578,6 +578,114 @@
         border-radius: 50%;
         background: var(--accent);
       }
+      /* CP4 timeline (shared by day + week views). Hour rows are 60px
+         tall — 1px per minute — so block top/height map directly. */
+      .cal-view-tabs { border-bottom: none; gap: var(--space-2); }
+      .cal-timeline-wrap {
+        margin-top: var(--space-3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+      }
+      .cal-tl-scroll { overflow-x: auto; }
+      .cal-tl-header {
+        display: grid;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 3;
+      }
+      .cal-tl-hcell {
+        padding: var(--space-1) var(--space-2) var(--space-2);
+        text-align: center;
+        border-left: 1px solid var(--border);
+        cursor: pointer;
+        min-width: 0;
+      }
+      .cal-tl-hcell:hover { background: var(--bg-hover); }
+      .cal-tl-hday { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+      .cal-tl-hnum {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+      }
+      .cal-tl-hcell.today .cal-tl-hnum { background: var(--accent); color: var(--text-on-accent); }
+      .cal-allday-row {
+        display: grid;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg-surface);
+      }
+      .cal-allday-gutter { font-size: 10px; color: var(--text-muted); text-align: right; padding: var(--space-1); }
+      .cal-allday-cell {
+        border-left: 1px solid var(--border);
+        padding: 2px var(--space-1);
+        min-height: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .cal-tl-body { display: grid; background: var(--bg-surface); }
+      .cal-tl-gutter { position: relative; }
+      .cal-tl-gutter-cell { height: 60px; position: relative; }
+      .cal-tl-gutter-label {
+        position: absolute;
+        top: 1px;
+        right: var(--space-1);
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1;
+      }
+      .cal-tl-col { position: relative; border-left: 1px solid var(--border); min-width: 0; }
+      .cal-tl-hourcell { height: 60px; border-bottom: 1px solid var(--border); cursor: pointer; }
+      .cal-tl-hourcell:hover { background: var(--bg-hover); }
+      .cal-tl-block {
+        position: absolute;
+        border-radius: var(--radius-sm);
+        background: var(--accent-soft);
+        border-left: 3px solid var(--accent);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 2px var(--space-1);
+        overflow: hidden;
+        cursor: pointer;
+        box-sizing: border-box;
+        z-index: 1;
+      }
+      .cal-tl-block.timeoff {
+        background: var(--bg-sunken);
+        border-left-color: var(--border-strong);
+        color: var(--text-muted);
+      }
+      .cal-tl-block-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .cal-now-line {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: var(--danger);
+        z-index: 2;
+        pointer-events: none;
+      }
+      .cal-now-dot {
+        position: absolute;
+        right: 2px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--danger);
+        transform: translateY(-50%);
+        z-index: 2;
+        pointer-events: none;
+      }
       .modal-overlay {
         display: none;
         position: fixed; inset: 0;
@@ -2500,7 +2608,12 @@
                   <select id="calYearSel" class="mm-select" onchange="onCalYearChange(this.value)" aria-label="Year"></select>
                   <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(1)" title="Next">&#8594;</button>
                   <button class="mm-btn mm-btn-secondary mm-btn-sm" id="calTodayBtn" onclick="jumpToToday()">Today</button>
-                  <button class="mm-btn mm-btn-secondary mm-btn-sm" id="calViewToggleBtn" onclick="toggleCalView()">Year</button>
+                  <div class="mm-tabs cal-view-tabs">
+                    <button class="mm-tab" data-calview="day" onclick="setCalView('day')">Day</button>
+                    <button class="mm-tab" data-calview="week" onclick="setCalView('week')">Week</button>
+                    <button class="mm-tab active" data-calview="month" onclick="setCalView('month')">Month</button>
+                    <button class="mm-tab" data-calview="year" onclick="setCalView('year')">Year</button>
+                  </div>
                   <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddEvent()">+ Add Event</button>
                 </div>
                 <div class="calendar-grid" id="calDayHeaders"></div>
@@ -4206,6 +4319,8 @@
       function updateClock() {
         const now = new Date();
         document.getElementById('topbar-time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // CP4: the timeline now-line rides the existing clock tick.
+        if (typeof updateNowLine === 'function') updateNowLine();
       }
       setInterval(updateClock, 1000);
       updateClock();
@@ -4951,42 +5066,86 @@
 
       // Prev/Next arrows: step months in month view, step years in year
       // view (natural expectation at each zoom level).
+      // CP4: focus date (workspace-local Y-M-D) anchoring day and week
+      // views. Null until first needed; defaults to today.
+      let calFocusDate = null;
+
+      // Pure Y-M-D arithmetic via UTC so no timezone can shift a day.
+      function addDaysToKey(key, n) {
+        const [y, m, d] = String(key).split('-').map(Number);
+        const t = new Date(Date.UTC(y, m - 1, d) + n * 86400000);
+        return t.getUTCFullYear() + '-' + String(t.getUTCMonth() + 1).padStart(2, '0') + '-' + String(t.getUTCDate()).padStart(2, '0');
+      }
+      // The Sunday starting the week that contains the key.
+      function weekStartKey(key) {
+        const [y, m, d] = String(key).split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d));
+        return addDaysToKey(key, -dt.getUTCDay());
+      }
+      function calFocus() {
+        if (!calFocusDate) calFocusDate = eventDateKey(new Date());
+        return calFocusDate;
+      }
+      // Keep month/year state following the focus date so switching back
+      // to month view lands where the user was browsing.
+      function syncMonthToFocus() {
+        const [y, m] = calFocus().split('-').map(Number);
+        calYear = y;
+        calMonth = m - 1;
+      }
+
       function changeCalNav(dir) {
         if (calView === 'year') {
           calYear += dir;
-          renderCalendar();
+        } else if (calView === 'week') {
+          calFocusDate = addDaysToKey(calFocus(), dir * 7);
+          syncMonthToFocus();
+        } else if (calView === 'day') {
+          calFocusDate = addDaysToKey(calFocus(), dir);
+          syncMonthToFocus();
         } else {
           changeMonth(dir);
+          return;
         }
+        renderCalendar();
       }
 
       function onCalMonthChange(v) {
         calMonth = Number(v);
         // Picking a specific month while zoomed out zooms in.
         if (calView === 'year') calView = 'month';
+        // In day/week views the focus jumps to the 1st of that month.
+        if (calView === 'day' || calView === 'week') {
+          calFocusDate = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+        }
         renderCalendar();
       }
 
       function onCalYearChange(v) {
         calYear = Number(v);
+        if (calView === 'day' || calView === 'week') {
+          calFocusDate = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
+        }
         renderCalendar();
       }
 
       function jumpToToday() {
-        // CP3: "today" in the WORKSPACE timezone, so the jump lands on
-        // the same day the grid highlights.
+        // "Today" in the WORKSPACE timezone. Day/week keep their view and
+        // move to today; year zooms back into month (CP3 rule).
         const todayStr = eventDateKey(new Date());
         const [ty, tm] = todayStr.split('-').map(Number);
         calYear = ty;
         calMonth = tm - 1;
-        calView = 'month';
+        calFocusDate = todayStr;
+        if (calView === 'year') calView = 'month';
         selectedDate = todayStr;
         renderCalendar();
-        renderDayDetail(todayStr);
+        if (calView === 'month') renderDayDetail(todayStr);
       }
 
-      function toggleCalView() {
-        calView = calView === 'year' ? 'month' : 'year';
+      function setCalView(v) {
+        calView = v;
+        if (v === 'day' || v === 'week') syncMonthToFocus();
         renderCalendar();
       }
 
@@ -5018,18 +5177,45 @@
           yrSel.innerHTML = opts.join('');
           yrSel.value = String(calYear);
         }
-        const toggleBtn = document.getElementById('calViewToggleBtn');
-        if (toggleBtn) toggleBtn.textContent = calView === 'year' ? 'Month' : 'Year';
-        // CP2: the page title mirrors the selects (single source of truth).
+        // CP4: view tabs reflect the active view.
+        document.querySelectorAll('.cal-view-tabs .mm-tab').forEach(t => {
+          t.classList.toggle('active', t.dataset.calview === calView);
+        });
+        // The page title mirrors the active view (single source of truth).
         const titleEl = document.getElementById('calTitle');
-        if (titleEl) titleEl.textContent = calView === 'year' ? String(calYear) : monthsFull[calMonth] + ' ' + calYear;
+        if (titleEl) {
+          if (calView === 'year') {
+            titleEl.textContent = String(calYear);
+          } else if (calView === 'day') {
+            titleEl.textContent = fmtDateKey(calFocus(), { weekday: 'long', month: 'long', day: 'numeric' });
+          } else if (calView === 'week') {
+            const ws = weekStartKey(calFocus());
+            const we = addDaysToKey(ws, 6);
+            const sameMonth = ws.slice(0, 7) === we.slice(0, 7);
+            const startLbl = fmtDateKey(ws, { month: 'short', day: 'numeric' });
+            const endLbl = sameMonth ? fmtDateKey(we, { day: 'numeric' }) : fmtDateKey(we, { month: 'short', day: 'numeric' });
+            titleEl.textContent = startLbl + ' – ' + endLbl + ', ' + we.slice(0, 4);
+          } else {
+            titleEl.textContent = monthsFull[calMonth] + ' ' + calYear;
+          }
+        }
       }
 
       function renderCalendar() {
         syncCalHeader();
+        // CP4 view dispatch. Month remains the landing view for now
+        // (owner habit) — flip the initCalendar default after real use.
         if (calView === 'year') renderYearView();
+        else if (calView === 'week') renderTimelineView(7);
+        else if (calView === 'day') renderTimelineView(1);
         else renderMonthView();
-        if (selectedDate && calView === 'month') renderDayDetail(selectedDate);
+        if (calView === 'day') {
+          // The side panel mirrors the viewed day.
+          selectedDate = calFocus();
+          renderDayDetail(selectedDate);
+        } else if (selectedDate && calView === 'month') {
+          renderDayDetail(selectedDate);
+        }
       }
 
       // CP2: canceled styling hook. The list payload carries no
@@ -5158,6 +5344,213 @@
         grid.innerHTML = html;
       }
 
+      // ---------- CP4: day + week timeline ----------
+
+      // Minutes since local midnight, in the WORKSPACE timezone.
+      function eventMinutesOfDay(ts) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-US', { timeZone: calTz(), hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(ts));
+          const get = (t) => Number((parts.find((p) => p.type === t) || {}).value);
+          const v = get('hour') * 60 + get('minute');
+          return isNaN(v) ? null : v;
+        } catch (err) { return null; }
+      }
+      // "7 AM" style gutter label without any locale/date call.
+      function _calHourLabel(h) {
+        if (h === 0) return '12 AM';
+        if (h < 12) return h + ' AM';
+        if (h === 12) return '12 PM';
+        return (h - 12) + ' PM';
+      }
+
+      // Overlap layout — simplified Google approach: sweep events sorted
+      // by start; transitively overlapping events form a cluster; within
+      // a cluster each event takes the lowest free column, and every
+      // block's width is (100 / cluster column count)%.
+      function _calLayoutDay(events) {
+        const sorted = events.slice().sort((a, b) => (a._startMin - b._startMin) || (b._endMin - a._endMin));
+        let cluster = [];
+        let clusterEnd = -1;
+        let colEnds = [];
+        const close = () => {
+          const nCols = colEnds.length || 1;
+          cluster.forEach(ev => { ev._cols = nCols; });
+          cluster = [];
+          colEnds = [];
+        };
+        for (const ev of sorted) {
+          if (cluster.length && ev._startMin >= clusterEnd) close();
+          let col = colEnds.findIndex(end => end <= ev._startMin);
+          if (col === -1) { col = colEnds.length; colEnds.push(0); }
+          colEnds[col] = ev._endMin;
+          ev._col = col;
+          cluster.push(ev);
+          clusterEnd = Math.max(clusterEnd, ev._endMin);
+        }
+        close();
+        return sorted;
+      }
+
+      // Slot click: open Add Event prefilled with the day + the clicked
+      // half-hour (round down by half of the 60px hour cell).
+      function calTimelineSlotClick(dateStr, hour, ev) {
+        const half = ev && ev.offsetY >= 30 ? 30 : 0;
+        openAddEventOnDate(dateStr, String(hour).padStart(2, '0') + ':' + (half ? '30' : '00'));
+      }
+
+      // Renders the day (numDays=1) or week (numDays=7) timeline into
+      // #calGrid. 60px per hour = 1px per minute.
+      function renderTimelineView(numDays) {
+        const headers = document.getElementById('calDayHeaders');
+        headers.style.display = 'none';
+        headers.innerHTML = '';
+        const grid = document.getElementById('calGrid');
+        grid.className = 'cal-timeline-wrap';
+
+        if (_calLoading && !calEvents.length) {
+          grid.innerHTML = '<div class="cal-loading">Loading calendar…</div>';
+          return;
+        }
+
+        const todayStr = eventDateKey(new Date());
+        const start = numDays === 1 ? calFocus() : weekStartKey(calFocus());
+        const days = [];
+        for (let i = 0; i < numDays; i++) days.push(addDaysToKey(start, i));
+
+        // Bucket events per day; compute start/end minutes for timed ones.
+        const timedByDay = {};
+        const alldayByDay = {};
+        let axisStartH = 7, axisEndH = 20;
+        let hasAllday = false;
+        for (const ds of days) { timedByDay[ds] = []; alldayByDay[ds] = []; }
+        for (const e of calEvents) {
+          const dk = calEventDayKey(e);
+          if (!days.includes(dk)) continue;
+          if (e.is_all_day || !e.starts_at) {
+            alldayByDay[dk].push(e);
+            hasAllday = true;
+            continue;
+          }
+          const s = eventMinutesOfDay(e.starts_at);
+          if (s === null) { alldayByDay[dk].push(e); hasAllday = true; continue; }
+          // End: real ends_at when present (same day), else 30-minute
+          // default render. Events running past midnight clamp to 24:00.
+          let en = null;
+          if (e.ends_at) {
+            en = eventDateKey(e.ends_at) === dk ? eventMinutesOfDay(e.ends_at) : 1440;
+          }
+          if (en === null || en <= s) en = Math.min(s + 30, 1440);
+          e._startMin = s;
+          e._endMin = en;
+          timedByDay[dk].push(e);
+          axisStartH = Math.min(axisStartH, Math.floor(s / 60));
+          axisEndH = Math.max(axisEndH, Math.ceil(en / 60));
+        }
+        const axisStartMin = axisStartH * 60;
+        const axisEndMin = axisEndH * 60;
+        const cols = numDays === 1 ? '56px 1fr' : '56px repeat(7, minmax(120px, 1fr))';
+
+        // Sticky-left gutter styles keep the hour labels visible while a
+        // narrow week view scrolls horizontally.
+        const gutterSticky = 'position:sticky;left:0;background:var(--bg-surface);z-index:2;';
+
+        let html = '<div class="cal-tl-scroll">';
+
+        // Week view: sticky day-header row (day view's date lives in the
+        // page title instead).
+        if (numDays > 1) {
+          html += `<div class="cal-tl-header" style="grid-template-columns:${cols};">`;
+          html += `<div style="${gutterSticky}"></div>`;
+          for (const ds of days) {
+            const dayLbl = fmtDateKey(ds, { weekday: 'short' });
+            const dayNum = Number(ds.slice(8));
+            html += `<div class="cal-tl-hcell${ds === todayStr ? ' today' : ''}" onclick="calFocusDate='${ds}';setCalView('day')">
+              <div class="cal-tl-hday">${dayLbl}</div>
+              <span class="cal-tl-hnum">${dayNum}</span>
+            </div>`;
+          }
+          html += '</div>';
+        }
+
+        // All-day strip (full-day time_off and legacy date-only rows)
+        // rather than 13-hour blocks.
+        if (hasAllday) {
+          html += `<div class="cal-allday-row" style="grid-template-columns:${cols};">`;
+          html += `<div class="cal-allday-gutter" style="${gutterSticky}">all-day</div>`;
+          for (const ds of days) {
+            const chips = alldayByDay[ds].map(e => {
+              const cls = 'cal-chip' + (e.event_type === 'time_off' ? ' timeoff' : '');
+              return `<div class="${cls}" onclick="openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">${_calEscape(e.title || '')}</div>`;
+            }).join('');
+            html += `<div class="cal-allday-cell">${chips}</div>`;
+          }
+          html += '</div>';
+        }
+
+        // Body: hour gutter + day columns.
+        html += `<div class="cal-tl-body" style="grid-template-columns:${cols};">`;
+        html += `<div class="cal-tl-gutter" style="${gutterSticky}">`;
+        for (let h = axisStartH; h < axisEndH; h++) {
+          html += `<div class="cal-tl-gutter-cell"><span class="cal-tl-gutter-label">${_calHourLabel(h)}</span></div>`;
+        }
+        html += '</div>';
+
+        for (const ds of days) {
+          html += `<div class="cal-tl-col" data-day="${ds}">`;
+          for (let h = axisStartH; h < axisEndH; h++) {
+            html += `<div class="cal-tl-hourcell" onclick="calTimelineSlotClick('${ds}', ${h}, event)"></div>`;
+          }
+          const laid = _calLayoutDay(timedByDay[ds]);
+          for (const e of laid) {
+            const top = e._startMin - axisStartMin;
+            const height = Math.max(e._endMin - e._startMin, 22);
+            const widthPct = 100 / e._cols;
+            const leftPct = e._col * widthPct;
+            const cls = 'cal-tl-block' + (e.event_type === 'time_off' ? ' timeoff' : '');
+            const t = fmtEventTime(e.starts_at);
+            html += `<div class="${cls}" style="top:${top}px;height:${height}px;left:${leftPct}%;width:${widthPct}%;" onclick="event.stopPropagation();openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">
+              <div class="cal-tl-block-line">${t} ${_calEscape(e.title || '')}</div>
+            </div>`;
+          }
+          // Now line lives in today's column only.
+          if (ds === todayStr) {
+            html += `<div class="cal-now-line" id="calNowLine" data-axis-start="${axisStartMin}" data-axis-end="${axisEndMin}" style="display:none;"></div>`;
+          }
+          html += '</div>';
+        }
+        html += '</div></div>';
+        grid.innerHTML = html;
+
+        // Gutter dot pairs with the line; position both now.
+        const gutterEl = grid.querySelector('.cal-tl-gutter');
+        if (gutterEl && grid.querySelector('#calNowLine')) {
+          gutterEl.insertAdjacentHTML('beforeend', '<div class="cal-now-dot" id="calNowDot" style="display:none;"></div>');
+        }
+        updateNowLine();
+      }
+
+      // Repositions the now line/dot; called by the existing 1-second
+      // topbar clock — no new timers.
+      function updateNowLine() {
+        const line = document.getElementById('calNowLine');
+        if (!line) return;
+        const mins = eventMinutesOfDay(Date.now());
+        const startMin = Number(line.dataset.axisStart || 0);
+        const endMin = Number(line.dataset.axisEnd || 1440);
+        const dot = document.getElementById('calNowDot');
+        if (mins === null || mins < startMin || mins > endMin) {
+          line.style.display = 'none';
+          if (dot) dot.style.display = 'none';
+          return;
+        }
+        line.style.display = '';
+        line.style.top = (mins - startMin) + 'px';
+        if (dot) {
+          dot.style.display = '';
+          dot.style.top = (mins - startMin) + 'px';
+        }
+      }
+
       // Called from the mini-month header (dateStr null → just open month)
       // or a mini-month day (dateStr set → open month AND select that day).
       function openMonthFromYear(monthIdx, dateStr) {
@@ -5242,10 +5635,23 @@
         `;
       }
 
-      function openAddEventOnDate(dateStr) {
+      // CP4: optional startTime ("HH:mm") — used by timeline slot clicks.
+      // Prefills a one-hour window; both time fields stay editable.
+      function openAddEventOnDate(dateStr, startTime) {
         document.getElementById('eventModal').style.display = 'flex';
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventDate').value = dateStr;
+        const st = document.getElementById('eventStartTime');
+        const et = document.getElementById('eventEndTime');
+        if (startTime) {
+          st.value = startTime;
+          const [h, mi] = startTime.split(':').map(Number);
+          const endH = Math.min(h + 1, 23);
+          et.value = String(endH).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+        } else {
+          st.value = '';
+          et.value = '';
+        }
         document.getElementById('eventAlsoTask').checked = false;
         document.getElementById('eventCategory').value = 'other';
         setTimeout(() => document.getElementById('eventTitle').focus(), 50);
@@ -5651,6 +6057,8 @@
         document.getElementById('eventModal').style.display = 'flex';
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventDate').value = '';
+        document.getElementById('eventStartTime').value = '';
+        document.getElementById('eventEndTime').value = '';
         document.getElementById('eventAlsoTask').checked = false;
         document.getElementById('eventCategory').value = 'other';
         setTimeout(() => document.getElementById('eventTitle').focus(), 50);
@@ -5664,7 +6072,21 @@
         const title = document.getElementById('eventTitle').value.trim();
         const date = document.getElementById('eventDate').value;
         if (!title || !date) { alert('Please fill in both title and date.'); return; }
-        await api('calevents', 'POST', { date, title });
+        // CP4: optional partial-day times. POST /api/calevents requires
+        // both-or-neither; both empty keeps the all-day behavior.
+        const startTime = document.getElementById('eventStartTime').value;
+        const endTime = document.getElementById('eventEndTime').value;
+        if ((startTime && !endTime) || (!startTime && endTime)) {
+          alert('Enter both a start and end time, or leave both empty for an all-day event.');
+          return;
+        }
+        if (startTime && endTime && startTime >= endTime) {
+          alert('End time must be after start time.');
+          return;
+        }
+        const body = { date, title };
+        if (startTime && endTime) { body.start_time = startTime; body.end_time = endTime; }
+        await api('calevents', 'POST', body);
         if (document.getElementById('eventAlsoTask').checked) {
           const category = document.getElementById('eventCategory').value;
           await api('tasks', 'POST', { title, category, dueDate: date, notes: 'Added from calendar.' });
@@ -13074,6 +13496,19 @@
 
       <label>Date</label>
       <input type="date" id="eventDate" />
+
+      <!-- CP4: optional times — filled by timeline slot clicks; both
+           empty means an all-day event, exactly as before. -->
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label>Start time (optional)</label>
+          <input type="time" id="eventStartTime" />
+        </div>
+        <div style="flex:1;">
+          <label>End time</label>
+          <input type="time" id="eventEndTime" />
+        </div>
+      </div>
 
       <label class="task-toggle" style="cursor:pointer;">
         <input type="checkbox" id="eventAlsoTask" />
