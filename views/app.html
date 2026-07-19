@@ -4969,7 +4969,7 @@
           const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
-          const dayEvents = calEvents.filter(e => e.date === dateStr);
+          const dayEvents = calEvents.filter(e => calEventDayKey(e) === dateStr);
           const dayTasks = tasks.filter(t => !t.done && t.dueDate === dateStr);
           const dotHtml = (dayEvents.length || dayTasks.length)
             ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
@@ -5011,9 +5011,10 @@
         const eventDayKind = new Map();
         const yrPrefix = String(calYear) + '-';
         for (const e of calEvents) {
-          if (e && e.date && String(e.date).startsWith(yrPrefix)) {
+          const dk = calEventDayKey(e);
+          if (dk && dk.startsWith(yrPrefix)) {
             const kind = e.event_type === 'time_off' ? 'gray' : 'coral';
-            if (eventDayKind.get(e.date) !== 'coral') eventDayKind.set(e.date, kind);
+            if (eventDayKind.get(dk) !== 'coral') eventDayKind.set(dk, kind);
           }
         }
 
@@ -5057,9 +5058,8 @@
       }
 
       function renderDayDetail(dateStr) {
-        const date = new Date(dateStr + 'T00:00:00');
-        const label = date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        const dayEvents = calEvents.filter(e => e.date === dateStr);
+        const label = fmtDateKey(dateStr, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        const dayEvents = calEvents.filter(e => calEventDayKey(e) === dateStr);
         const dayTasks = tasks.filter(t => t.dueDate === dateStr);
 
         const eventsHtml = dayEvents.length
@@ -5074,10 +5074,8 @@
               if (e.is_all_day) {
                 timePrefix = 'All day · ';
               } else if (e.starts_at) {
-                try {
-                  const t = new Date(e.starts_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                  timePrefix = t + ' · ';
-                } catch (err) { /* leave prefix empty */ }
+                const t = fmtEventTime(e.starts_at);
+                if (t) timePrefix = t + ' · ';
               }
               // time_off events render muted (gray) with a 🚫 prefix so
               // they're visually distinct from bookings and reminders.
@@ -5240,15 +5238,13 @@
         if (!iso) return '—';
         try {
           const d = new Date(iso);
-          return d.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+          return d.toLocaleDateString('en-US', { timeZone: calTz(), weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
         } catch (e) { return '—'; }
       }
       function _calFormatTime(iso) {
         if (!iso) return '—';
-        try {
-          const d = new Date(iso);
-          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        } catch (e) { return '—'; }
+        const t = fmtEventTime(iso);
+        return t || '—';
       }
       function _calDurationMinutes(startIso, endIso) {
         if (!startIso || !endIso) return null;
@@ -5376,10 +5372,18 @@
         try {
           const d = new Date(iso);
           if (isNaN(d.getTime())) return { date: '', time: '' };
-          const pad = (n) => String(n).padStart(2, '0');
+          // CP1: split in the WORKSPACE timezone. The edit form's naive
+          // date+time is interpreted in the workspace tz on save
+          // (PATCH /api/appointments/:id → toZonedISO), so the prefill
+          // must come from the same zone or edits would drift.
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: calTz(), year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+          }).formatToParts(d);
+          const get = (t) => (parts.find((x) => x.type === t) || {}).value || '';
           return {
-            date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
-            time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+            date: get('year') + '-' + get('month') + '-' + get('day'),
+            time: get('hour') + ':' + get('minute'),
           };
         } catch (err) { return { date: '', time: '' }; }
       }
