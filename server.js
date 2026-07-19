@@ -6039,6 +6039,52 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
       sendNotificationEmail(userId, rows[0]);
       sendPushNotification(userId, rows[0]);
 
+      // IB5: email reaches the brain — the same engine handoff SMS has
+      // had since E2, channel 'email'. The engine's own gates (PS
+      // vertical, auto_respond, IB4's per-thread pause) apply at the
+      // shared choke point; the subject rides ahead of the body so the
+      // model reads the sender's own framing. Engine-handled turns
+      // short-circuit the legacy paths below exactly like SMS —
+      // including the same parity note that route-level emergency
+      // flagging is skipped on engine-handled turns (the playbook's
+      // EMERGENCY row governs there).
+      let _e2Handled = false;
+      try {
+        const { rows: wsRows } = await pool.query(
+          'SELECT * FROM workspaces WHERE owner_user_id = $1 LIMIT 1',
+          [userId]
+        );
+        const workspace = wsRows[0] || null;
+        if (workspace && workspace.vertical === 'professional-services' && workspace.appointment_auto_respond) {
+          const engineResult = await appointmentEngine.processInboundMessage({
+            workspace,
+            contact: null,
+            customer_phone: null,
+            customer_email: email,
+            channel: 'email',
+            body: (subject && subject !== '(No subject)' ? subject + '\n\n' : '') + (text || ''),
+            db: pool,
+            twilio: twilioClient,
+            sendgrid: sgMail,
+            env: process.env,
+            logger: console,
+          });
+          _e2Handled = !!(engineResult && engineResult.handled);
+          // IB1 linkage backstamp, email edition.
+          if (engineResult && engineResult.thread_id) {
+            pool.query(
+              `UPDATE messages SET thread_id = $1,
+                      contact_id = (SELECT contact_id FROM appointment_threads WHERE id = $1)
+                WHERE id = $2`,
+              [engineResult.thread_id, rows[0].id]
+            ).catch((err) => console.error('[email/incoming] linkage stamp failed:', err.message));
+          }
+        }
+      } catch (err) {
+        console.error('[email/incoming] appointment engine error (falling through):', err.message);
+      }
+
+      if (!_e2Handled) {
       // Layer 1: emergency keyword gate. If matched, flag the row,
       // alert the owner, and skip auto-reply / task suggestion. The
       // notification email above still fires — it's the standard
@@ -6059,6 +6105,7 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
         const autoData = await getAutomation(userId);
         if (autoData.autoReplyEnabled) autoReplyToMessage(rows[0], userId);
         else suggestTasksFromConversation(rows[0], null, userId);
+      }
       }
     }
   } catch (err) {
