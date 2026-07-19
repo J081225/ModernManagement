@@ -5087,7 +5087,7 @@ ${contextSummary}
 
 ${(() => { const a = require('./lib/time-helpers').promptTimeAnchor(_workspaceRow); return `Business timezone: ${a.tz}. Right now it is ${a.nowInTz}.`; })()}
 ${screenContext}
-When the owner uses relative references, resolve them from the screen context above: "this Friday" means the Friday of the visible or selected week; "this customer" or "them" means the open contact; "this appointment" means the open event. If the screen context cannot resolve a reference, ask ONE short clarifying question — never guess a date or a person.
+When the owner uses relative references, resolve them from the screen context above: "this Friday" means the Friday of the visible or selected week; "this customer" or "them" means the open contact; "this appointment" means the open event. If the screen context cannot resolve a reference, ask ONE short clarifying question — never guess a date or which existing record was meant. That caution is about resolving TARGETS, not about creating records: when you have complete information for a new record (for a new contact, a name plus a phone or email), create it directly — do not ask permission first.
 
 You have access to the following tools. Use them proactively when the user's intent is clear:
 - add_calendar_event: schedule events and appointments
@@ -5095,7 +5095,7 @@ You have access to the following tools. Use them proactively when the user's int
 - add_task: create tasks with categories and due dates
 - update_task: change a task's status (mark done / pending), title, due date, category, or notes
 - compose_message: draft and save messages to residents or contacts
-- add_contact: add residents, vendors, or important contacts (including lease dates and monthly rent)
+- add_contact: add ${vertical === 'professional-services' ? 'customers' : 'residents'}, vendors, or important contacts${vertical === 'professional-services' ? '' : ' (including lease dates and monthly rent)'}
 - update_contact: change phone, email, unit, lease dates, monthly rent, notes, or type on an existing contact
 - mark_rent_paid: mark a resident's rent as paid — match by name from the rent records
 - send_late_notice: send a payment reminder to an unpaid resident
