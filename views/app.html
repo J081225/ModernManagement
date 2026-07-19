@@ -7416,6 +7416,37 @@
         renderTasks();
       }
 
+      // BG5: accepting a suggested expense. Complete -> posts once and
+      // resolves; incomplete (the suggestion asked rather than
+      // guessed) -> the add-expense modal opens prefilled and the
+      // suggestion STAYS until the owner saves or dismisses it.
+      async function acceptExpenseSuggestion(id) {
+        try {
+          const r = await fetch('/api/expenses/from-suggestion', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ task_id: id }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (r.status === 422 && data.needs_input) {
+            showPage('finances', '&#128181;', document.getElementById('nav-finances'));
+            setTimeout(() => {
+              openAddExpense();
+              const p = data.prefill || {};
+              if (p.amount_cents) document.getElementById('expAmount').value = (p.amount_cents / 100).toFixed(2);
+              if (p.category) document.getElementById('expCategory').value = p.category;
+              if (p.vendor) document.getElementById('expVendor').value = p.vendor;
+              if (p.description) document.getElementById('expDescription').value = p.description;
+            }, 250);
+            return;
+          }
+          if (!r.ok) { alert('Could not post: ' + (data.error || 'HTTP ' + r.status)); return; }
+        } catch (err) { alert('Could not post: ' + (err.message || err)); return; }
+        loadTasks();
+        if (typeof loadExpenses === 'function') loadExpenses();
+      }
+
       async function approveTask(id) {
         await fetch('/api/tasks/' + id + '/approve', { method: 'PUT' });
         loadTasks();
@@ -7457,11 +7488,13 @@
                     <span style="background:var(--warning-soft);color:var(--warning);border-radius:4px;padding:2px 8px;font-size:0.75em;font-weight:600;">${t.category}</span>
                     <span style="color:var(--text-muted);font-size:0.8em;">&#128197; ${dueFmt}</span>
                   </div>
-                  ${t.notes ? `<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:6px;">${t.notes}</div>` : ''}
+                  ${t.notes ? `<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:6px;">${String(t.notes).replace(/^EXPENSE \{.*\}$/m, '').trim()}</div>` : ''}
                   ${t.aiReason ? `<div style="font-size:0.78em;color:var(--warning);background:var(--warning-soft);border-radius:5px;padding:4px 8px;display:inline-block;">&#129302; ${t.aiReason}</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-                  <button onclick="approveTask(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Add to my tasks</button>
+                  ${/^EXPENSE \{/m.test(t.notes || '')
+                    ? `<button onclick="acceptExpenseSuggestion(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#128181; Post expense</button>`
+                    : `<button onclick="approveTask(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Add to my tasks</button>`}
                   <button onclick="rejectTask(${t.id})" style="background:none;color:var(--danger);border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">Dismiss</button>
                 </div>
               </div>`;

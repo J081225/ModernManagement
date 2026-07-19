@@ -8028,6 +8028,77 @@ function _buildExpenseFilters(workspaceId, q) {
   return { where: where.join(' AND '), params };
 }
 
+// BG5 commit 2: accepting a suggested expense. Parses the validated
+// EXPENSE marker reflection stored on the task; a complete suggestion
+// posts ONE expense (source 'ai_confirmed' — the same authorship as a
+// post_expense approval: the AI proposed, the owner explicitly said
+// yes) and resolves the task. An incomplete one (amount/category
+// unknown — the suggestion ASKED rather than guessed) returns 422
+// with a prefill so the UI opens the add-expense modal; the
+// suggestion stays until the owner saves or dismisses.
+app.post('/api/expenses/from-suggestion', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const taskId = parseInt(req.body && req.body.task_id, 10);
+    if (!taskId) return res.status(400).json({ error: 'task_id required' });
+    const tR = await pool.query(
+      `SELECT * FROM tasks WHERE id = $1 AND user_id = $2
+          AND suggested = true AND done = false AND dismissed_at IS NULL`,
+      [taskId, req.session.userId]
+    );
+    if (!tR.rows.length) return res.status(404).json({ error: 'Suggestion not found (already resolved?)' });
+    const task = tR.rows[0];
+    const m = String(task.notes || '').match(/^EXPENSE (\{.*\})$/m);
+    if (!m) return res.status(400).json({ error: 'Not an expense suggestion' });
+    let ex;
+    try { ex = JSON.parse(m[1]); } catch (err) { return res.status(400).json({ error: 'Malformed expense payload' }); }
+
+    if (!Number.isInteger(ex.amount_cents) || ex.amount_cents <= 0 || !ex.category) {
+      return res.status(422).json({
+        needs_input: true,
+        prefill: { amount_cents: ex.amount_cents || null, category: ex.category || null, vendor: ex.vendor || null, description: task.title },
+      });
+    }
+    const v = expensesLib.validateExpenseInput({
+      amount_cents: ex.amount_cents,
+      category: ex.category,
+      spent_on: require('./lib/time-helpers').wsToday((await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId])).rows[0] || {}),
+      vendor: ex.vendor || '',
+      description: task.title,
+    });
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    const e = v.value;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const ins = await client.query(
+        `INSERT INTO expenses
+           (workspace_id, amount_cents, category, description, vendor, spent_on, source, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, 'ai_confirmed', $7)
+         RETURNING *`,
+        [workspaceId, e.amount_cents, e.category, e.description || null, e.vendor || null, e.spent_on, req.session.userId]
+      );
+      // Resolve the suggestion — the guard above (suggested AND not
+      // done) makes a second accept a 404, never a second expense.
+      await client.query(
+        'UPDATE tasks SET suggested = false, done = true WHERE id = $1 AND user_id = $2',
+        [taskId, req.session.userId]
+      );
+      await client.query('COMMIT');
+      res.json({ posted: true, expense: ins.rows[0] });
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (rbErr) { /* best-effort */ }
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[POST /api/expenses/from-suggestion]', err.message);
+    res.status(500).json({ error: 'Failed to post the suggested expense' });
+  }
+});
+
 app.get('/api/expenses', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
