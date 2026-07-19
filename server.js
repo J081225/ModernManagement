@@ -4503,6 +4503,169 @@ app.get('/api/messages', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
+// ============================================================
+// IB3 — conversations. The grouping key (look-first b):
+//   't' + thread_id   where the row is threaded (the conversation)
+//   'c' + contact_id  for threadless-but-linked rows (voice/email
+//                     notices, PM mail) — one bucket per customer
+//   'm' + id          for fully unlinked rows (each its own)
+// One fetch per folder, grouped here (message volume is per-owner
+// small; the rows are already indexed by user). The legacy
+// /api/messages endpoints stay untouched for their other readers.
+// ============================================================
+function conversationKeyOf(m) {
+  if (m.thread_id) return 't' + m.thread_id;
+  if (m.contact_id) return 'c' + m.contact_id;
+  return 'm' + m.id;
+}
+const CONVO_KEY_RE = /^[tcm]\d+$/;
+
+app.get('/api/conversations', requireAuth, async (req, res) => {
+  try {
+    const folder = req.query.folder || 'inbox';
+    const { rows } = await pool.query(
+      `SELECT m.id, m.thread_id, m.contact_id, m.direction, m.sent_by, m.category,
+              m.subject, m.text, m.phone, m.email, m.resident, m.read_at,
+              m.emergency_flagged, m."createdAt",
+              c.name AS contact_name
+         FROM messages m
+         LEFT JOIN contacts c ON c.id = m.contact_id AND c.user_id = m.user_id
+        WHERE m.user_id = $1 AND m.folder = $2
+        ORDER BY m."createdAt" DESC
+        LIMIT 500`,
+      [req.session.userId, folder]
+    );
+    const groups = new Map();
+    for (const m of rows) {
+      const key = conversationKeyOf(m);
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          key,
+          name: m.contact_name || m.resident || m.phone || m.email || 'Unknown',
+          identity: m.phone || m.email || null,
+          last_at: m.createdAt,
+          last_preview: (m.text || m.subject || '').slice(0, 120),
+          last_channel: m.category,
+          last_sent_by: m.sent_by,
+          unread: 0,
+          flagged: false,
+          count: 0,
+        };
+        groups.set(key, g);
+      }
+      g.count++;
+      if (m.direction === 'inbound' && !m.read_at) g.unread++;
+      if (m.emergency_flagged) g.flagged = true;
+      // rows arrive newest-first; a later row is OLDER — but identity
+      // fields may only exist on older rows, so fill blanks as we go.
+      if (!g.identity) g.identity = m.phone || m.email || null;
+      if (g.name === 'Unknown') g.name = m.contact_name || m.resident || m.phone || m.email || 'Unknown';
+    }
+    const conversations = [...groups.values()].sort((a, b) => {
+      if (a.flagged !== b.flagged) return a.flagged ? -1 : 1;
+      return new Date(b.last_at) - new Date(a.last_at);
+    });
+    res.json({ conversations });
+  } catch (err) {
+    console.error('[GET /api/conversations]', err.message);
+    res.status(500).json({ error: 'Failed to load conversations' });
+  }
+});
+
+app.get('/api/conversations/:key/messages', requireAuth, async (req, res) => {
+  try {
+    const key = String(req.params.key || '');
+    if (!CONVO_KEY_RE.test(key)) return res.status(400).json({ error: 'Bad conversation key' });
+    const kind = key[0];
+    const id = parseInt(key.slice(1), 10);
+    const where = kind === 't' ? 'm.thread_id = $2'
+      : kind === 'c' ? 'm.contact_id = $2 AND m.thread_id IS NULL'
+      : 'm.id = $2';
+    const { rows } = await pool.query(
+      `SELECT m.id, m.thread_id, m.contact_id, m.direction, m.sent_by, m.category,
+              m.subject, m.text, m.phone, m.email, m.resident, m.read_at,
+              m.emergency_flagged, m."createdAt",
+              c.name AS contact_name
+         FROM messages m
+         LEFT JOIN contacts c ON c.id = m.contact_id AND c.user_id = m.user_id
+        WHERE m.user_id = $1 AND ${where} AND m.folder <> 'deleted'
+        ORDER BY m."createdAt" ASC
+        LIMIT 300`,
+      [req.session.userId, id]
+    );
+    // IB2 path, group-shaped: seeing the conversation marks it.
+    await readState.markGroupRead({ db: pool, userId: req.session.userId, key });
+    // Conversation meta: identity + whether the AI is responding
+    // (workspace-global truth today; per-thread driver is IB4).
+    let meta = { name: null, phone: null, email: null, thread_id: null, ai_responding: false };
+    for (const m of rows) {
+      if (!meta.name) meta.name = m.contact_name || m.resident || null;
+      if (!meta.phone) meta.phone = m.phone || null;
+      if (!meta.email) meta.email = m.email || null;
+      if (!meta.thread_id) meta.thread_id = m.thread_id || null;
+    }
+    try {
+      const wR = await pool.query(
+        'SELECT vertical, appointment_auto_respond FROM workspaces WHERE owner_user_id = $1 LIMIT 1',
+        [req.session.userId]
+      );
+      const ws = wR.rows[0];
+      meta.ai_responding = !!(ws && ws.vertical === 'professional-services' && ws.appointment_auto_respond);
+    } catch (err) { /* meta stays false */ }
+    res.json({ messages: rows, meta });
+  } catch (err) {
+    console.error('[GET /api/conversations/:key/messages]', err.message);
+    res.status(500).json({ error: 'Failed to load conversation' });
+  }
+});
+
+// Folder moves + permanent delete operate on the whole group —
+// "folders preserved in meaning, now filtering conversations".
+app.put('/api/conversations/:key/folder', requireAuth, async (req, res) => {
+  try {
+    const key = String(req.params.key || '');
+    const folder = req.body && req.body.folder;
+    if (!CONVO_KEY_RE.test(key)) return res.status(400).json({ error: 'Bad conversation key' });
+    if (!['inbox', 'archive', 'deleted'].includes(folder)) return res.status(400).json({ error: 'Bad folder' });
+    const kind = key[0];
+    const id = parseInt(key.slice(1), 10);
+    const where = kind === 't' ? 'thread_id = $3'
+      : kind === 'c' ? 'contact_id = $3 AND thread_id IS NULL'
+      : 'id = $3';
+    const r = await pool.query(
+      `UPDATE messages SET folder = $1 WHERE user_id = $2 AND ${where}`,
+      [folder, req.session.userId, id]
+    );
+    res.json({ success: true, moved: r.rowCount });
+  } catch (err) {
+    console.error('[PUT /api/conversations/:key/folder]', err.message);
+    res.status(500).json({ error: 'Failed to move conversation' });
+  }
+});
+
+app.delete('/api/conversations/:key', requireAuth, async (req, res) => {
+  try {
+    const key = String(req.params.key || '');
+    if (!CONVO_KEY_RE.test(key)) return res.status(400).json({ error: 'Bad conversation key' });
+    const kind = key[0];
+    const id = parseInt(key.slice(1), 10);
+    const where = kind === 't' ? 'thread_id = $2'
+      : kind === 'c' ? 'contact_id = $2 AND thread_id IS NULL'
+      : 'id = $2';
+    // Permanent delete only ever offered from the Deleted folder in the
+    // UI; the guard here makes the endpoint honest regardless.
+    const r = await pool.query(
+      `DELETE FROM messages WHERE user_id = $1 AND ${where} AND folder = 'deleted'`,
+      [req.session.userId, id]
+    );
+    res.json({ success: true, deleted: r.rowCount });
+  } catch (err) {
+    console.error('[DELETE /api/conversations/:key]', err.message);
+    res.status(500).json({ error: 'Failed to delete conversation' });
+  }
+});
+
 // IB2: the truth the badges render — conversations containing unread
 // (Gmail's arithmetic), one indexed query.
 app.get('/api/messages/unread-count', requireAuth, async (req, res) => {

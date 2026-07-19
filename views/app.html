@@ -355,6 +355,20 @@
       .folder-btn:hover { background: var(--bg-hover); }
       .folder-btn.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
       .folder-count { margin-left: auto; background:var(--danger); color: white; font-size: 0.7em; font-weight: 700; border-radius: 20px; padding: 1px 6px; }
+      /* IB3: conversation-grouped list */
+      .conv-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px 10px; border-bottom: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: background 0.15s; }
+      .conv-row:hover { background: var(--bg-hover); }
+      .conv-row.active { background: var(--accent-soft); }
+      .conv-row.flagged { border-left: 3px solid var(--danger); padding-left: 8px; }
+      .conv-main { flex: 1; min-width: 0; }
+      .conv-name { font-size: 0.95em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .conv-name.unread { font-weight: 600; color: var(--text-primary); }
+      .conv-name.read { font-weight: 400; color: var(--text-secondary); }
+      .conv-preview { font-size: 0.82em; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .conv-side { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+      .conv-time { font-size: 0.72em; color: var(--text-muted); }
+      .conv-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: middle; }
+      .conv-glyph { font-size: 0.95em; }
       .inbox-list { flex: 1; min-width: 260px; overflow-y: auto; }
       .inbox-detail { flex: 2; overflow-y: auto; }
       .list-item {
@@ -4599,9 +4613,34 @@
         await switchFolder(currentFolder, null);
       }
 
+      // IB3: the list is CONVERSATIONS, not messages — one row per thread
+      // (or per threadless contact), most-recent-activity first, flagged
+      // pinned. Folders keep their meaning; they now filter conversations.
+      let conversations = [];
+      let selectedConversationKey = null;
+
+      function _convGlyph(ch, sentBy) {
+        if (sentBy === 'ai') return '&#129302;';
+        if (ch === 'email') return '&#9993;';
+        if (ch === 'voicemail') return '&#128222;';
+        if (ch === 'voice') return '&#128222;';
+        if (ch === 'sms') return '&#128241;';
+        return '&#128172;';
+      }
+      function _convRelTime(iso) {
+        const d = new Date(iso), now = Date.now(), diff = now - d.getTime();
+        if (diff < 60000) return 'now';
+        if (diff < 3600000) return Math.floor(diff / 60000) + 'm';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + 'h';
+        if (diff < 604800000) return Math.floor(diff / 86400000) + 'd';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      function _convEsc(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
       async function switchFolder(folder, btn) {
         currentFolder = folder;
-        // Update active folder button
         document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
         else {
@@ -4609,73 +4648,75 @@
             if (b.textContent.toLowerCase().includes(folder)) b.classList.add('active');
           });
         }
-        // Update title
         const titles = { inbox: 'Inbox', archive: 'Archive', deleted: 'Deleted' };
         document.getElementById('folderTitle').textContent = titles[folder] || folder;
-        // Show/hide empty trash button
         document.getElementById('emptyTrashBtn').style.display = folder === 'deleted' ? 'block' : 'none';
 
-        const res = await fetch('/api/messages?folder=' + folder);
-        messages = await res.json();
-
         const list = document.getElementById('messageList');
-        list.innerHTML = '';
-        if (!messages.length) {
-          list.innerHTML = '<p style="color:var(--text-muted);padding:16px;font-size:0.9em;">No messages here.</p>';
+        if (!conversations.length) list.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">Loading&hellip;</div>';
+        try {
+          const res = await fetch('/api/conversations?folder=' + folder, { credentials: 'include' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          conversations = (data && data.conversations) || [];
+        } catch (err) {
+          console.error('[inbox] conversations load failed:', err);
+          list.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">Could not load conversations.</div>';
+          return;
         }
-        messages.forEach(msg => {
-          const line = document.createElement('div');
-          line.className = 'list-item';
-          // Subtle red left border on emergency-flagged rows; no
-          // background or text-color change (sub-step C styling
-          // constraint — visible but not "broken-looking").
-          const flagBorder = msg.emergency_flagged
-            ? 'border-left:3px solid var(--danger);padding-left:8px;'
-            : '';
-          line.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;' + flagBorder;
-          const badgeClass = msg.status === 'sent' ? 'sent' : msg.status === 'in-progress' ? 'in-progress' : '';
-          const catIcon = msg.category === 'email' ? '&#9993;' : msg.category === 'sms' ? '&#128241;' : msg.category === 'voicemail' ? '&#128222;' : '&#128172;';
-          // EMERGENCY badge (red, inline) — only for flagged rows.
-          const emergencyBadge = msg.emergency_flagged
-            ? '<span style="display:inline-block;background:var(--danger-soft);color:var(--danger);font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>'
-            : '';
-          line.innerHTML = `
-            <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <div style="font-weight:${_msgUnread(msg)?'600':'400'};color:${_msgUnread(msg)?'var(--text-primary)':'var(--text-secondary)'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_msgUnread(msg)?'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:middle;"></span>':''}${emergencyBadge}${catIcon} ${msg.subject}</div>
-              <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
-            </div>
-            <div style="display:flex;gap:2px;flex-shrink:0;">
-              ${folder !== 'archive' ? `<button onclick="moveMessage(${msg.id},'archive')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Archive" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-muted)'">&#128451;</button>` : ''}
-              ${folder === 'deleted' ? `<button onclick="moveMessage(${msg.id},'inbox')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Restore" onmouseover="this.style.color='var(--success)'" onmouseout="this.style.color='var(--text-muted)'">&#8617;</button>` : ''}
-              ${folder === 'deleted' ? `<button onclick="permanentDelete(${msg.id})" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete Forever" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#10006;</button>` : `<button onclick="moveMessage(${msg.id},'deleted')" style="background:none;border:none;color:var(--text-muted);font-size:1em;cursor:pointer;padding:3px 5px;border-radius:4px;" title="Delete" onmouseover="this.style.color='var(--danger)'" onmouseout="this.style.color='var(--text-muted)'">&#128465;</button>`}
-            </div>
-          `;
-          list.appendChild(line);
-        });
+
+        if (!conversations.length) {
+          list.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">No conversations here.</div>';
+          return;
+        }
+        list.innerHTML = conversations.map((c) => {
+          const unread = c.unread > 0;
+          const flagBadge = c.flagged ? '<span style="display:inline-block;background:var(--danger-soft);color:var(--danger);font-size:0.7em;font-weight:700;padding:2px 7px;border-radius:10px;margin-right:6px;letter-spacing:0.4px;">&#128680; EMERGENCY</span>' : '';
+          return `
+            <div class="conv-row${c.flagged ? ' flagged' : ''}${c.key === selectedConversationKey ? ' active' : ''}" onclick="openConversation('${c.key}')">
+              <div class="conv-main">
+                <div class="conv-name ${unread ? 'unread' : 'read'}">${unread ? '<span class="conv-dot"></span>' : ''}${flagBadge}${_convEsc(c.name)}${c.identity && c.name !== c.identity ? ' <span style="color:var(--text-muted);font-weight:400;font-size:0.85em;">' + _convEsc(c.identity) + '</span>' : ''}</div>
+                <div class="conv-preview">${c.last_sent_by === 'owner' ? 'You: ' : c.last_sent_by === 'ai' ? 'AI: ' : ''}${_convEsc(c.last_preview)}</div>
+              </div>
+              <div class="conv-side">
+                <span class="conv-time">${_convRelTime(c.last_at)}</span>
+                <span class="conv-glyph" title="${_convEsc(c.last_channel || '')}">${_convGlyph(c.last_channel, c.last_sent_by)}</span>
+                ${folder !== 'deleted'
+                  ? `<button onclick="event.stopPropagation();moveConversation('${c.key}','${folder === 'archive' ? 'inbox' : 'archive'}')" title="${folder === 'archive' ? 'Move to inbox' : 'Archive'}" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9em;padding:2px;">${folder === 'archive' ? '&#8617;' : '&#128451;'}</button>`
+                  : `<button onclick="event.stopPropagation();moveConversation('${c.key}','inbox')" title="Restore" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9em;padding:2px;">&#8617;</button>`}
+                ${folder === 'deleted'
+                  ? `<button onclick="event.stopPropagation();deleteConversationForever('${c.key}')" title="Delete forever" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9em;padding:2px;">&#10006;</button>`
+                  : `<button onclick="event.stopPropagation();moveConversation('${c.key}','deleted')" title="Delete" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:0.9em;padding:2px;">&#128465;</button>`}
+              </div>
+            </div>`;
+        }).join('');
         updateInboxBadge();
         updateFolderCounts();
       }
 
-      async function moveMessage(id, folder) {
-        await fetch('/api/messages/' + id + '/folder', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder })
-        });
-        if (selectedMessage && selectedMessage.id === id) {
-          selectedMessage = null;
-          document.getElementById('messageDetail').innerHTML = '<p style="color:var(--text-muted);padding:20px;">Select a message to view details.</p>';
-        }
+      // Commit-2 replaces this stub with the threaded pane.
+      async function openConversation(key) {
+        selectedConversationKey = key;
+        document.getElementById('messageDetail').innerHTML = '<div class="mm-empty" style="padding:24px 12px;">The threaded conversation pane lands in the next commit.</div>';
+      }
+
+      async function moveConversation(key, folder) {
+        try {
+          await fetch('/api/conversations/' + key + '/folder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ folder }),
+          });
+        } catch (err) { console.error('[inbox] move failed:', err); }
         switchFolder(currentFolder, null);
       }
 
-      async function permanentDelete(id) {
-        if (!confirm('Permanently delete this message? This cannot be undone.')) return;
-        await fetch('/api/messages/' + id, { method: 'DELETE' });
-        if (selectedMessage && selectedMessage.id === id) {
-          selectedMessage = null;
-          document.getElementById('messageDetail').innerHTML = '<p style="color:var(--text-muted);padding:20px;">Select a message to view details.</p>';
-        }
+      async function deleteConversationForever(key) {
+        if (!confirm('Permanently delete this conversation? This cannot be undone.')) return;
+        try {
+          await fetch('/api/conversations/' + key, { method: 'DELETE', credentials: 'include' });
+        } catch (err) { console.error('[inbox] delete failed:', err); }
         switchFolder(currentFolder, null);
       }
 
@@ -4685,16 +4726,10 @@
         switchFolder('deleted', null);
       }
 
-      // IB2: unread = inbound AND not yet seen (read_at) — never
-      // owner/ai/system rows, never unlinked legacy rows.
-      function _msgUnread(m) {
-        return m && m.direction === 'inbound' && !m.read_at;
-      }
-
       async function updateFolderCounts() {
         // IB2: the inbox badge counts CONVERSATIONS containing unread —
-        // one indexed server query, not a client-side row scan. The
-        // deleted-folder count keeps its row semantics.
+        // one indexed server query. The deleted-folder count keeps its
+        // row semantics.
         const [unread, deleted] = await Promise.all([
           fetch('/api/messages/unread-count').then(r => r.json()),
           fetch('/api/messages?folder=deleted').then(r => r.json())
@@ -4708,9 +4743,7 @@
       }
 
       async function updateInboxBadge() {
-        // IB2: same truth as the folder badge — unread conversations,
-        // fetched from the indexed endpoint (was: a client-side filter
-        // over whatever folder happened to be loaded).
+        // IB2: same truth as the folder badge — unread conversations.
         try {
           const r = await fetch('/api/messages/unread-count');
           if (!r.ok) return;
