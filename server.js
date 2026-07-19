@@ -675,6 +675,57 @@ async function runPasswordResetTokenCleanup() {
 setInterval(runPasswordResetTokenCleanup, 6 * 60 * 60 * 1000); // every 6 hours
 runPasswordResetTokenCleanup();
 
+// FD3-CP1: conversation lifecycle. A conversation ends when the
+// channel says so — voice: socket close; voicemail: right after
+// processing; SMS: the inactivity sweep below. Ending a conversation
+// closes its thread and fires onConversationEnd exactly once (the
+// state <> 'closed' guard makes double-fires — e.g. messy socket
+// close+error pairs — a no-op).
+//
+// Closed threads REOPEN naturally: findOrCreateThread skips
+// 'closed'/'complete' threads, so a customer texting back next week is
+// the same relationship starting a fresh conversation.
+function onConversationEnd(threadId, channel) {
+  // The reflection pass's future attachment point — socket only,
+  // logging for now.
+  console.log('[conversation-end] thread=' + threadId + ' channel=' + channel);
+}
+async function closeConversationThread(threadId, channel) {
+  if (!threadId) return;
+  try {
+    const r = await pool.query(
+      "UPDATE appointment_threads SET state = 'closed', updated_at = NOW() WHERE id = $1 AND state <> 'closed' RETURNING id",
+      [threadId]
+    );
+    if (r.rows.length) onConversationEnd(threadId, channel);
+  } catch (err) {
+    console.error('[conversation-end] close failed:', err.message);
+  }
+}
+// SMS (and any lingering) threads idle past this window are considered
+// over. Chosen from the data: conversations complete in minute-scale
+// bursts, same-day follow-ups should continue the same thread, and the
+// live table held a thread stuck "active" for 14 days — 6 hours closes
+// yesterday's conversation by evening without splitting an afternoon
+// reply. One instance per process (module top-level, same pattern as
+// the cleanup runners above); the UPDATE is state-scoped so it is
+// workspace-safe by construction.
+const CONVERSATION_IDLE_HOURS = 6;
+async function runConversationInactivitySweep() {
+  try {
+    const r = await pool.query(
+      "UPDATE appointment_threads SET state = 'closed', updated_at = NOW() " +
+      "WHERE state NOT IN ('closed', 'complete') AND updated_at < NOW() - INTERVAL '" + CONVERSATION_IDLE_HOURS + " hours' " +
+      "RETURNING id, inbound_channel"
+    );
+    for (const row of r.rows) onConversationEnd(row.id, row.inbound_channel || 'sms');
+  } catch (err) {
+    console.error('[conversation-sweep] error:', err.message);
+  }
+}
+setInterval(runConversationInactivitySweep, 30 * 60 * 1000); // every 30 minutes
+runConversationInactivitySweep();
+
 async function initDB() {
   // Verify DB connection is alive before doing anything
   await pool.query('SELECT 1');
@@ -5980,6 +6031,12 @@ app.post('/api/voice/transcription', validateTwilioSignature, async (req, res) =
               logger: console,
             });
             _e2Handled = !!(engineResult && engineResult.handled);
+            // FD3-CP1: a voicemail conversation ends as soon as it is
+            // processed — the reply (if any) already went out by SMS,
+            // and any customer response starts a fresh thread.
+            if (engineResult && engineResult.thread_id) {
+              closeConversationThread(engineResult.thread_id, 'voicemail');
+            }
           }
         }
       } catch (err) {
@@ -8578,11 +8635,14 @@ wss.on('connection', (ws) => {
 
   ws.on('close', (code, reason) => {
     console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
-    // FD3-CP1: hangup — stamp the transcript (already persisted per turn).
+    // FD3-CP1: hangup — stamp the transcript (already persisted per
+    // turn) and end the conversation. closeConversationThread is
+    // idempotent, so close+error double-fires end it exactly once.
     if (transcriptId) {
       voiceTranscript.endCallTranscript(pool, transcriptId).catch((err) =>
         console.error('[twilio-relay] transcript end failed:', err.message));
     }
+    if (lastThreadId) closeConversationThread(lastThreadId, 'voice');
     transcriptId = null;
     lastThreadId = null;
     workspace = null;
