@@ -7022,7 +7022,8 @@
             <td style="padding:10px 10px;display:flex;gap:6px;flex-wrap:wrap;">
               ${inv.status === 'pending' ? `<button class="btn-success" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'approved')">&#10003; Approve</button>` : ''}
               ${inv.status === 'pending' ? `<button class="btn-danger" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'rejected')">&#10005; Reject</button>` : ''}
-              ${inv.status !== 'pending' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'pending')">Reset</button>` : ''}
+              ${inv.status !== 'pending' && inv.status !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;" onclick="updateInvoiceStatus(${inv.id},'pending')">Reset</button>` : ''}
+              ${inv.status !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:4px 10px;background:var(--success-soft);color:var(--success);border-color:var(--success);" onclick="markInvoicePaid(${inv.id})" title="Mark paid — posts an expense to the budget ledger">&#128181; Mark paid</button>` : ''}
               <button onclick="deleteInvoice(${inv.id})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
             </td>
           </tr>`;
@@ -7032,6 +7033,23 @@
       async function updateInvoiceStatus(id, status) {
         await api(`invoices/${id}`, 'PUT', { status });
         loadInvoiceTable();
+      }
+
+      // BG2: paying a bill makes it real money-out — the bridge posts
+      // an expense row (source 'invoice') and the ledger sees it.
+      async function markInvoicePaid(id) {
+        if (!confirm('Mark this invoice paid? This posts it as an expense in the budget ledger.')) return;
+        try {
+          const r = await fetch('/api/invoices/' + id + '/mark-paid', { method: 'POST', credentials: 'include' });
+          if (!r.ok) {
+            const data = await r.json().catch(() => ({}));
+            alert('Could not mark paid: ' + (data.error || 'HTTP ' + r.status));
+            return;
+          }
+        } catch (err) { alert('Could not mark paid: ' + (err.message || err)); return; }
+        if (typeof loadInvoiceTable === 'function') loadInvoiceTable();
+        if (typeof loadFinancesInvoicesSummary === 'function') loadFinancesInvoicesSummary();
+        if (typeof loadExpenses === 'function') loadExpenses();
       }
 
       async function deleteInvoice(id) {

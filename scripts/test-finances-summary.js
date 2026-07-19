@@ -203,6 +203,39 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   check('B12: expense dated exactly at the anchor date never double-counts (cash excludes it)',
     s.cash_current_cents === 100000 + 6000 - 0);
 
+  // ---- BG2: expense validation + the invoice bridge ----
+  const { validateExpenseInput, bridgeInvoiceToExpense } = require('../lib/expenses');
+  check('B13: cents-only — dollars-as-float (84.5) REJECTED, never rounded',
+    validateExpenseInput({ amount_cents: 84.5, category: 'Supplies', spent_on: '2026-07-19' }).ok === false
+    && validateExpenseInput({ amount_cents: 8450, category: 'Supplies', spent_on: '2026-07-19' }).ok === true);
+  check('B13b: bad category and fake date rejected',
+    validateExpenseInput({ amount_cents: 100, category: 'Bribes', spent_on: '2026-07-19' }).ok === false
+    && validateExpenseInput({ amount_cents: 100, category: 'Fees', spent_on: 'not-a-date' }).ok === false);
+
+  const bridged = [];
+  const bridgeClient = {
+    query: async (sql, params) => {
+      if (sql.includes('SELECT id FROM expenses')) {
+        return { rows: bridged.filter((b) => b.invoice_id === params[1]).map((b) => ({ id: b.id })) };
+      }
+      if (sql.includes('INSERT INTO expenses')) {
+        const row = { id: bridged.length + 1, invoice_id: params[5], amount_cents: params[1] };
+        bridged.push(row);
+        return { rows: [{ id: row.id }] };
+      }
+      throw new Error('unexpected: ' + sql.slice(0, 40));
+    },
+  };
+  const inv = { id: 44, amount: '320.00', vendor: 'AcePlumbing Co.', description: 'Plumbing repair' };
+  let b = await bridgeInvoiceToExpense(bridgeClient, { workspaceId: 7, invoice: inv, userId: 3, spentOn: '2026-07-19' });
+  check('B14: the bridge converts legacy dollars ×100 exactly once (32000 cents)',
+    b.bridged === true && b.amount_cents === 32000);
+  b = await bridgeInvoiceToExpense(bridgeClient, { workspaceId: 7, invoice: inv, userId: 3, spentOn: '2026-07-19' });
+  check('B14b: re-marking is idempotent — the second bridge never doubles the money-out',
+    b.bridged === false && b.reason === 'already_bridged' && bridged.length === 1);
+  b = await bridgeInvoiceToExpense(bridgeClient, { workspaceId: 7, invoice: { id: 45, amount: '0.00', vendor: 'X' }, userId: 3, spentOn: '2026-07-19' });
+  check('B14c: a zero/invalid invoice amount refuses to bridge', b.bridged === false && b.reason === 'invoice_amount_invalid');
+
   console.log(pass + '/' + total + (pass === total ? ' — budget summary gate PASSED' : ' — GATE FAILED'));
   process.exit(pass === total ? 0 : 1);
 })();

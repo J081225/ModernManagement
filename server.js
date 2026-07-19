@@ -7892,6 +7892,48 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
   res.json(rows[0]);
 });
 
+// BG2 commit 5 — the invoice paid-state bridge (§7, look-first d):
+// invoices could never be paid; approving changed a word. Marking one
+// paid now (1) sets status='paid' and (2) creates the expense row
+// (source 'invoice', invoice_id set, legacy dollars ×100 exactly once
+// at bridge time) so a paid bill becomes real money-out in the
+// ledger. Idempotent by invoice_id — re-marking can never double the
+// money-out. The invoice table itself is NOT rewritten (no schema
+// change; 'paid' is just a status value the legacy PUT could always
+// have written); deleting the bridged expense row is the undo.
+app.post('/api/invoices/:id/mark-paid', requireAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const invR = await pool.query(
+      'SELECT * FROM invoices WHERE id = $1 AND user_id = $2',
+      [Number(req.params.id), req.session.userId]
+    );
+    if (!invR.rows.length) return res.status(404).json({ error: 'Invoice not found' });
+    const invoice = invR.rows[0];
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    const spentOn = require('./lib/time-helpers').wsToday(wR.rows[0] || {});
+
+    await client.query('BEGIN');
+    await client.query(
+      "UPDATE invoices SET status = 'paid' WHERE id = $1 AND user_id = $2",
+      [invoice.id, req.session.userId]
+    );
+    const bridge = await expensesLib.bridgeInvoiceToExpense(client, {
+      workspaceId, invoice, userId: req.session.userId, spentOn,
+    });
+    await client.query('COMMIT');
+    res.json({ success: true, status: 'paid', ...bridge });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (rbErr) { /* best-effort */ }
+    console.error('[POST /api/invoices/:id/mark-paid]', err.message);
+    res.status(500).json({ error: 'Failed to mark the invoice paid' });
+  } finally {
+    client.release();
+  }
+});
+
 app.delete('/api/invoices/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM invoices WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   res.json({ success: true });
