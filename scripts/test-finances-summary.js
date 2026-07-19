@@ -43,6 +43,18 @@ function makeDb(fx) {
         }
         return { rows: [{ s: rows.reduce((a, r) => a + Number(r.amount), 0) }] };
       }
+      if (sql.includes('FROM expenses')) {
+        const wsId = params[0];
+        let rows = (fx.expenses || []).filter((r) => r.workspace_id === wsId);
+        if (sql.includes('spent_on >= $2')) rows = rows.filter((r) => r.spent_on >= params[1] && r.spent_on < params[2]);
+        else if (sql.includes('spent_on > $2')) rows = rows.filter((r) => r.spent_on > params[1]); // STRICT — half-open
+        if (sql.includes('GROUP BY')) {
+          const by = {};
+          for (const r of rows) by[r.category] = (by[r.category] || 0) + r.amount_cents;
+          return { rows: Object.entries(by).map(([category, s]) => ({ category, s })) };
+        }
+        return { rows: [{ s: rows.reduce((a, r) => a + r.amount_cents, 0) }] };
+      }
       if (sql.includes('FROM budget_anchors')) {
         const rows = fx.anchors.filter((a) => a.workspace_id === params[0]).sort((a, b) => b.as_of.localeCompare(a.as_of));
         return { rows: rows.slice(0, 1) };
@@ -78,6 +90,13 @@ const FX = {
   ],
   anchors: [],
   goals: [],
+  // BG2: real expenses — workspace-scoped cents
+  expenses: [
+    { workspace_id: 7, amount_cents: 4200, category: 'Supplies', spent_on: '2026-07-09' },
+    { workspace_id: 7, amount_cents: 15000, category: 'Payroll', spent_on: '2026-07-15' },
+    { workspace_id: 7, amount_cents: 7700, category: 'Supplies', spent_on: '2026-06-15' }, // outside July
+    { workspace_id: 8, amount_cents: 50000, category: 'Rent', spent_on: '2026-07-10' },    // other workspace
+  ],
 };
 const clone = () => JSON.parse(JSON.stringify(FX));
 const TEST_ENV = { STRIPE_TEST_SECRET_KEY: 'sk_test_x' };
@@ -102,11 +121,14 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
     s.money_in.ps_cents === 6000 && s.money_in_demo_cents === 0 && s.live_mode === true);
 
   // B4: legacy ×100 conversion + by_category + money_out shape
-  check('B4: legacy expenses ×100 (8450 + 21000 = 29450), BG2 feed wired at 0',
-    s.money_out.legacy_budget_expense_cents === 29450 && s.money_out.expenses_cents === 0 && s.money_out.combined_cents === 29450);
-  check('B4b: by_category labeled legacy with correct cents',
-    s.by_category.length === 2 && s.by_category.every((c) => c.source === 'legacy')
-    && s.by_category.find((c) => c.category === 'Utilities').cents === 21000);
+  check('B4: BG2 feed LIVE (19200 real) + legacy read-through (29450) coexist without double-count',
+    s.money_out.expenses_cents === 19200 && s.money_out.legacy_budget_expense_cents === 29450
+    && s.money_out.combined_cents === 48650);
+  check('B4b: by_category carries BOTH sources — real rows labeled expenses, legacy labeled legacy',
+    s.by_category.filter((c) => c.source === 'expenses').length === 2
+    && s.by_category.filter((c) => c.source === 'legacy').length === 2
+    && s.by_category.find((c) => c.source === 'expenses' && c.category === 'Payroll').cents === 15000
+    && s.by_category.find((c) => c.source === 'legacy' && c.category === 'Utilities').cents === 21000);
   check('B4c: net = in − out', s.net_cents === (s.money_in.combined_cents - s.money_out.combined_cents));
 
   // B5: no anchor -> cash_current is NULL, not zero
@@ -117,24 +139,26 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-10T15:00:00.000Z' });
   // the 5000-cent cash payment is stamped exactly 2026-07-10T15:00:00.000Z — inside the drawer
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
-  // after as_of: stripe 1000 (live) + rent 120000 (paid 07-05?? no — strictly after 2026-07-10 local date '2026-07-10': paid 07-05 is BEFORE) − expenses after 07-10: none (07-08, 07-02 before)
-  check('B6: event at exactly as_of stays inside the anchor (cash = 100000 + 1000 + 0 − 0)',
-    s.cash_current_cents === 101000);
+  // after as_of: stripe 1000 (live); rent 07-05 before; legacy expenses
+  // 07-08/07-02 before; REAL expenses strictly after local date
+  // 2026-07-10: only Payroll 07-15 (15000) — Supplies 07-09 is before.
+  check('B6: event at exactly as_of stays inside the anchor (cash = 100000 + 1000 − 15000)',
+    s.cash_current_cents === 100000 + 1000 - 15000);
 
   // B6b: move the anchor earlier — the same event now counts once, after
   fx = clone();
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
-  // after 07-01: PS 5000+1000, rent 120000 (07-05), expenses 8450+21000 (07-08, 07-02)
-  check('B6b: earlier anchor counts each event exactly once (100000+6000+120000−29450)',
-    s.cash_current_cents === 100000 + 6000 + 120000 - 29450);
+  // after 07-01: PS 6000, rent 120000, legacy out 29450, real out 19200
+  check('B6b: earlier anchor counts each event exactly once (100000+6000+120000−29450−19200)',
+    s.cash_current_cents === 100000 + 6000 + 120000 - 29450 - 19200);
 
   // B6c: test-mode cash excludes the demo money entirely
   fx = clone();
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
   check('B6c: test-mode drawer never holds test dollars (stripe 1000 excluded from cash)',
-    s.cash_current_cents === 100000 + 5000 + 120000 - 29450);
+    s.cash_current_cents === 100000 + 5000 + 120000 - 29450 - 19200);
 
   // B7: goal progress
   fx = clone();
@@ -146,9 +170,9 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   // B8: workspace isolation — workspace 8's summary sees only its own money
   const WS_B = { id: 8, owner_user_id: 9, timezone: 'America/New_York' };
   s = await computeFinancesSummary({ db: makeDb(clone()), workspace: WS_B, period: 'month', env: LIVE_ENV, now: NOW });
-  check('B8: workspace B sees its 99900 and owner-9 rent only — nothing of A',
+  check('B8: workspace B sees its 99900, owner-9 rent, and ONLY its own 50000 expense',
     s.money_in.ps_cents === 99900 && s.money_in.pm_rent_legacy_cents === 500000
-    && s.money_out.legacy_budget_expense_cents === 0);
+    && s.money_out.legacy_budget_expense_cents === 0 && s.money_out.expenses_cents === 50000);
 
   // B9: period boundaries in workspace tz + quarter kind
   const p = resolvePeriod({ workspace: WS_A, period: 'quarter', now: NOW });
@@ -167,6 +191,17 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
     !/balance_cents|running_balance|current_cash_cents/i.test(migs) && !/balance_cents|running_balance/i.test(srv));
 
   check('B11: legacy conversion helper rounds correctly', legacyDollarsToCents('84.50') === 8450 && legacyDollarsToCents('0.015') === 2);
+
+  // B12: an expense dated EXACTLY on the anchor's local date stays inside
+  // the drawer (spent_on is a DATE — strict > excludes the boundary day).
+  fx = clone();
+  fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-09T23:00:00.000Z' }); // local date 2026-07-09
+  fx.expenses = [{ workspace_id: 7, amount_cents: 4200, category: 'Supplies', spent_on: '2026-07-09' }];
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  // after local date 2026-07-09: PS 6000 (07-10, 07-12); rent 07-05
+  // before; the 07-09 expense is AT the boundary — inside the drawer.
+  check('B12: expense dated exactly at the anchor date never double-counts (cash excludes it)',
+    s.cash_current_cents === 100000 + 6000 - 0);
 
   console.log(pass + '/' + total + (pass === total ? ' — budget summary gate PASSED' : ' — GATE FAILED'));
   process.exit(pass === total ? 0 : 1);
