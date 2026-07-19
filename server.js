@@ -8434,6 +8434,67 @@ app.get('/api/transactions', requireAuth, async (req, res) => {
   }
 });
 
+// BG8: the CSV primitives, extracted verbatim from the transactions
+// export below so the full-ledger export reuses them — same escaping,
+// same cents→dollars formatting, one implementation.
+const _csvEscape = (v) => {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+};
+const _csvDollars = (cents) => cents == null ? '0.00' : (cents / 100).toFixed(2);
+
+// BG8: export the FULL ledger — both sides in one file, honoring the
+// same filters as the view (direction included: filter to one side
+// when wanted; both by default). One export, not two, because the
+// roadmap asked for THE transaction-history report — a single
+// time-ordered record of the money. The original transactions-only
+// export below STAYS as-is: it carries per-transaction detail
+// (status, method, tax, tips, notes) the ledger rows deliberately
+// don't model; folding it in would lose columns.
+app.get('/api/finances/ledger/export.csv', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
+    const data = await require('./lib/finances-summary').composeLedgerRows({
+      db: pool, workspace: wR.rows[0],
+      period: req.query.period || 'month', start: req.query.start, end: req.query.end,
+      env: process.env,
+      direction: req.query.direction, category: req.query.category, source: req.query.source,
+    });
+    const header = ['Date', 'Direction', 'Description', 'Category', 'Source', 'Money', 'Amount'];
+    const lines = [header.join(',')];
+    for (const r of data.rows) {
+      lines.push([
+        r.date,
+        r.direction === 'in' ? 'In' : 'Out',
+        _csvEscape(r.description),
+        _csvEscape(r.category),
+        r.source === 'legacy_rent' ? 'Rent (legacy)' : r.source === 'legacy_budget' ? 'Budget (legacy)' : r.source === 'ledger' ? 'Payments' : 'Expenses',
+        r.demo ? 'Test' : 'Real',
+        _csvDollars(r.amount_cents),
+      ].join(','));
+    }
+    lines.push('');
+    lines.push(['Totals', '', '', '', '', 'In', _csvDollars(data.totals.in_cents)].join(','));
+    lines.push(['', '', '', '', '', 'Out', _csvDollars(data.totals.out_cents)].join(','));
+    lines.push(['', '', '', '', '', 'Net', _csvDollars(data.totals.net_cents)].join(','));
+    if (data.totals.demo_cents > 0) {
+      lines.push(['', '', '', '', '', 'Test payments', _csvDollars(data.totals.demo_cents)].join(','));
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="ledger-' + stamp + '.csv"');
+    res.send(lines.join('\r\n'));
+  } catch (err) {
+    console.error('[GET /api/finances/ledger/export.csv]', err.message);
+    res.status(500).json({ error: 'Failed to export the ledger' });
+  }
+});
+
 app.get('/api/transactions/export.csv', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
@@ -8447,13 +8508,8 @@ app.get('/api/transactions/export.csv', requireAuth, async (req, res) => {
       params
     );
 
-    const escapeCsv = (v) => {
-      if (v == null) return '';
-      const s = String(v);
-      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-      return s;
-    };
-    const fmt = (cents) => cents == null ? '0.00' : (cents / 100).toFixed(2);
+    const escapeCsv = _csvEscape;
+    const fmt = _csvDollars;
     const header = ['Date', 'Customer Name', 'Service/Product Description', 'Subtotal', 'Tax', 'Tip', 'Total', 'Payment Method', 'Status', 'Notes', 'Transaction ID'];
     const lines = [header.join(',')];
     for (const t of r.rows) {
