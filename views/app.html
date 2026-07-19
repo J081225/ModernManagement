@@ -3145,30 +3145,30 @@
           </div>
         </div>
 
-        <!-- ADMIN PAGE -->
+        <!-- ADMIN — the account home: the owner's relationship to
+             Modern Management. Contact, credentials, subscription,
+             payment rails. Business behavior lives on My Business
+             (AD1). Section order below anticipates AD2-AD4; a section
+             with no card yet doesn't render — the page grows as those
+             checkpoints land. -->
         <div class="page" id="page-admin">
           <div class="page-content">
             <div class="page-hero">
               <div class="page-hero-overlay-dark"></div>
               <div class="page-hero-glow"></div>
               <div class="page-hero-content">
-                <div class="page-hero-title">Admin</div>
-                <div class="page-hero-sub">Rent, invoices, budget and financial management</div>
+                <div class="page-hero-title">Your account</div>
+                <div class="page-hero-sub">Contact, credentials, subscription, and payment rails</div>
               </div>
             </div>
 
-          <!-- Notification Settings -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Notification settings</div>
-                <div class="card-head-subtitle">Choose how Modern Management reaches you when something needs attention.</div>
-              </div>
+          <!-- Contact — how Modern Management reaches you. AD2 adds
+               editable account contact details alongside these. -->
+          <div class="mm-card">
+            <div class="mm-card-header">
+              <div class="mm-card-title">Notification settings</div>
             </div>
-            <div class="card-head-rule"></div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Choose how Modern Management reaches you when something needs attention.</div>
 
             <div class="asymmetric-2col" style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start;">
 
@@ -3222,24 +3222,18 @@
             </div>
           </div>
 
-          <!-- Phone & Email Routing -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Phone &amp; email routing</div>
-                <div class="card-head-subtitle">Where inbound messages land in your workspace. SMS and voicemails arrive through your Twilio number; emails arrive at your inbound alias.</div>
-              </div>
+          <!-- Routing pills — untouched for AD2 (contact editing). -->
+          <div class="mm-card" style="margin-top:20px;">
+            <div class="mm-card-header">
+              <div class="mm-card-title">Phone &amp; email routing</div>
             </div>
-            <div class="card-head-rule"></div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Where inbound messages land in your workspace. SMS and voicemails arrive through your Twilio number; emails arrive at your inbound alias.</div>
 
             <div class="asymmetric-1-1" id="routingInfo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="routing-pill">
                 <span class="routing-pill-kicker">Twilio number</span>
                 <span class="routing-pill-value" id="routingPhone">Not assigned</span>
-                <span class="routing-pill-hint">Tenant SMS &amp; voicemails arrive here. Assigned by your administrator.</span>
+                <span class="routing-pill-hint">SMS &amp; voicemails arrive here. Assigned by your administrator.</span>
               </div>
               <div class="routing-pill">
                 <span class="routing-pill-kicker">Inbound email alias</span>
@@ -3249,19 +3243,15 @@
             </div>
           </div>
 
-          <!-- Billing -->
-          <!-- Session D5: Plan & Usage card (replaces legacy Pro/Free billing card) -->
-          <div class="card" style="margin-bottom:22px;" id="planUsageCard">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Plan &amp; usage</div>
-                <div class="card-head-subtitle">Current plan, status, and how much of your monthly capacity you've used.</div>
-              </div>
+          <!-- Credentials — username & password management lands here
+               (AD3). No card yet; nothing renders until it exists. -->
+
+          <!-- Subscription (Session D5 card; Stripe portal actions) -->
+          <div class="mm-card" style="margin-top:20px;" id="planUsageCard">
+            <div class="mm-card-header">
+              <div class="mm-card-title">Plan &amp; usage</div>
             </div>
-            <div class="card-head-rule"></div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Current plan, status, and how much of your monthly capacity you've used.</div>
             <div class="plan-usage-header">
               <div class="plan-usage-title">
                 <span id="planUsageCardBadge" class="plan-badge"><span class="plan-badge-label">—</span></span>
@@ -3271,19 +3261,16 @@
             </div>
             <div class="plan-usage-grid" id="planUsageGrid"></div>
             <div class="plan-usage-features" id="planUsageFeatures"></div>
-            <!-- E4: Workspace settings — only the inventory tracking toggle for now. Hidden for non-PS workspaces. -->
-            
             <div class="plan-usage-actions">
               <button class="btn-secondary" onclick="openBillingPortal()">Manage Billing</button>
               <button class="btn-primary" onclick="openBillingPortal()">Upgrade Plan</button>
             </div>
           </div>
 
-          <!-- Payment Auto-Match -->
-          
+          <!-- Payment rails — how the owner gets paid. Stripe
+               today (portal above); Venmo/Zelle receiving lands in AD5.
+               No card yet; nothing renders until it exists. -->
 
-          <!-- Budget -->
-          
           </div>
 
           </div>
@@ -3291,10 +3278,11 @@
 
         <!-- =======================================================
              FINANCES PAGE (E3) — vertical-aware
-             - PS: Transactions (NEW) + Invoices summary + Budget summary
-             - PM: Rent Payments summary + Invoices summary + Budget summary
-             Existing admin page sections (rent/invoices/budget) stay
-             intact. Finances is additive.
+             - PS: Transactions + Invoices + expenses/ledger (BG arc)
+             - PM: Rent Payments summary + Invoices + legacy budget
+               read-through
+             AD1: the admin duplicates are gone — the full invoices
+             card lives here now; Admin is the account home.
              ======================================================= -->
         <div class="page" id="page-finances">
           <div class="page-content">
@@ -3535,7 +3523,6 @@
                 </div>
               </div>
               <div id="financesRentSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Open rent ledger in Admin &rarr;</a>
             </div>
 
           </div>
@@ -4415,7 +4402,7 @@
         // (E6 had this swap to "Customers" for PS; per design review,
         // "Contacts" is the right word for both verticals because the page
         // holds customers, vendors, and important relationships.)
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Admin', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
+        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Your account', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
         if (name === 'home') {
           loadHomeStats();
           loadLeases();
