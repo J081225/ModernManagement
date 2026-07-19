@@ -4835,6 +4835,50 @@ app.post('/api/command', requireAuth, async (req, res) => {
     });
   }
 
+  // AP2: conversation memory. The last ~10 exchanges become prior turns
+  // in the model call. Fetched BEFORE the current prompt is persisted so
+  // this turn is never duplicated. Budgets (hard bounds): 20 rows max,
+  // 600 chars per message (+120 for a tool summary), 6000 chars total —
+  // oldest dropped first when the total budget is exceeded. Anthropic
+  // requires user-first strict alternation, so consecutive same-role
+  // rows are merged and leading assistant rows dropped.
+  const historyMessages = [];
+  if (workspaceId) {
+    try {
+      const hist = await pool.query(
+        `SELECT role, content, tool_calls_summary FROM command_history
+          WHERE workspace_id = $1 AND user_id = $2
+          ORDER BY created_at DESC, id DESC
+          LIMIT 20`,
+        [workspaceId, req.session.userId]
+      );
+      const rows = hist.rows.reverse(); // chronological
+      const MAX_MSG = 600;
+      const MAX_TOTAL = 6000;
+      const built = [];
+      let total = 0;
+      for (let i = rows.length - 1; i >= 0; i--) { // newest → oldest
+        const r = rows[i];
+        let text = String(r.content || '').slice(0, MAX_MSG);
+        if (r.role === 'assistant' && r.tool_calls_summary) {
+          text += `\n[tools used: ${String(r.tool_calls_summary).slice(0, 120)}]`;
+        }
+        if (total + text.length > MAX_TOTAL) break; // truncate oldest first
+        total += text.length;
+        built.unshift({ role: r.role === 'assistant' ? 'assistant' : 'user', content: text });
+      }
+      // Merge consecutive same-role messages; drop leading assistants.
+      for (const m of built) {
+        const last = historyMessages[historyMessages.length - 1];
+        if (last && last.role === m.role) last.content += '\n' + m.content;
+        else historyMessages.push(m);
+      }
+      while (historyMessages.length && historyMessages[0].role !== 'user') historyMessages.shift();
+    } catch (err) {
+      console.error('[command] history load failed (continuing without memory):', err.message);
+    }
+  }
+
   // Session E9: persist the user's prompt to command_history so the
   // Command Center can render the chat timeline across sessions. Best-
   // effort — a write failure here logs and continues so a transient DB
@@ -5020,7 +5064,8 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
     // messages are dropped per design. All side effects (DB writes, approval
     // queues, command_history writes downstream) still happen.
     const MAX_ITERATIONS = 5;
-    const conversationMessages = [{ role: 'user', content: prompt }];
+    // AP2: prior turns ride ahead of the current prompt.
+    const conversationMessages = [...historyMessages, { role: 'user', content: prompt }];
 
     let reply = '';
     const allActions = [];           // accumulator across every turn
