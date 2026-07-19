@@ -13346,6 +13346,51 @@
         const pg = document.querySelector('.page.active');
         return pg && pg.id ? pg.id.replace('page-', '') : null;
       }
+      // AP2: compact "where the owner is standing" context. Only these
+      // named keys are ever sent; empty fields are omitted.
+      function buildAssistantContext() {
+        const c = { page: _activePageId() };
+        try {
+          if (c.page === 'calendar') {
+            if (typeof calView !== 'undefined') c.calendar_view = calView;
+            if (calView === 'day') c.calendar_range = calFocus();
+            else if (calView === 'week') {
+              const ws = weekStartKey(calFocus());
+              c.calendar_range = ws + '..' + addDaysToKey(ws, 6);
+            } else if (calView === 'year') {
+              c.calendar_range = String(calYear);
+            } else {
+              c.calendar_range = calYear + '-' + String(calMonth + 1).padStart(2, '0');
+            }
+            if (typeof selectedDate !== 'undefined' && selectedDate) c.selected_day = selectedDate;
+            const modal = document.getElementById('calEventDetailModal');
+            const od = window._openCalEventData;
+            if (modal && modal.style.display === 'flex' && od && od.event) {
+              c.open_event = {
+                id: od.event.id,
+                title: od.event.title || '',
+                starts_at: od.event.starts_at || null,
+                contact: (od.contact && od.contact.name) || null,
+              };
+            }
+          } else if (c.page === 'contacts') {
+            if (typeof selectedContact !== 'undefined' && selectedContact) {
+              c.open_contact = { id: selectedContact.id, name: selectedContact.name || '' };
+            }
+          } else if (c.page === 'inbox') {
+            if (typeof selectedMessage !== 'undefined' && selectedMessage) {
+              c.open_thread = (selectedMessage.subject || selectedMessage.resident || ('message #' + selectedMessage.id));
+            }
+          } else if (c.page === 'tasks') {
+            if (typeof taskFilter !== 'undefined' && taskFilter && taskFilter !== 'all') c.task_filter = taskFilter;
+          } else if (c.page === 'finances' || c.page === 'admin') {
+            const m = document.getElementById(c.page === 'admin' ? 'rentMonthSel' : 'budgetMonthSel');
+            const y = document.getElementById(c.page === 'admin' ? 'rentYearSel' : 'budgetYearSel');
+            if (m && m.value && y && y.value) c.period = y.value + '-' + String(m.value).padStart(2, '0');
+          }
+        } catch (_) { /* context is best-effort — never block a send */ }
+        return c;
+      }
       // AP1: quiet per-action ledger lines in the thread.
       function appendCCActionLine(a) {
         const wrap = _ccEl('cc-messages');
@@ -13524,7 +13569,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ prompt: msg, currentPage: _activePageId() }),
+            body: JSON.stringify({ prompt: msg, currentPage: _activePageId(), context: buildAssistantContext() }),
           });
           if (thinkingEl) thinkingEl.remove();
 

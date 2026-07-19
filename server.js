@@ -4998,12 +4998,37 @@ You help property managers get things done by taking action within the app.`;
   // Pulled out of the anthropic.messages.create() call so each iteration
   // sends the same instructions — Claude stays capable of calling tools
   // on follow-up turns, not just on the first one.
+  // AP2: render the client's compact context object as a short readable
+  // block (bounded — only named keys, each field sliced, whole block
+  // capped at 600 chars). Replaces AP1's one-liner.
+  const screenContext = (() => {
+    const c = req.body.context;
+    const cap = (v, n) => String(v == null ? '' : v).slice(0, n);
+    if (!c || typeof c !== 'object') {
+      return currentPage ? `The owner is currently looking at the "${cap(currentPage, 40)}" screen of the app.` : '';
+    }
+    const bits = [`Owner is on the "${cap(c.page || currentPage || 'unknown', 40)}" screen.`];
+    if (c.calendar_view) bits.push(`Calendar ${cap(c.calendar_view, 10)} view, showing ${cap(c.calendar_range, 24)}.`);
+    if (c.selected_day) bits.push(`Selected day: ${cap(c.selected_day, 12)}.`);
+    if (c.open_event && typeof c.open_event === 'object') {
+      bits.push(`Open event: #${cap(c.open_event.id, 12)} "${cap(c.open_event.title, 60)}"${c.open_event.starts_at ? ` at ${cap(c.open_event.starts_at, 30)}` : ''}${c.open_event.contact ? `, customer ${cap(c.open_event.contact, 40)}` : ''}.`);
+    }
+    if (c.open_contact && typeof c.open_contact === 'object') {
+      bits.push(`Open contact: #${cap(c.open_contact.id, 12)} "${cap(c.open_contact.name, 40)}".`);
+    }
+    if (c.open_thread) bits.push(`Open inbox message: "${cap(c.open_thread, 60)}".`);
+    if (c.task_filter) bits.push(`Task filter: ${cap(c.task_filter, 16)}.`);
+    if (c.period) bits.push(`Visible finance period: ${cap(c.period, 10)}.`);
+    return bits.join(' ').slice(0, 600);
+  })();
+
   const systemPrompt = `${businessFraming}
 
 ${contextSummary}
 
 Today's date is ${new Date().toISOString().split('T')[0]}.
-${currentPage ? `The owner is currently looking at the "${currentPage}" screen of the app.` : ''}
+${screenContext}
+When the owner uses relative references, resolve them from the screen context above: "this Friday" means the Friday of the visible or selected week; "this customer" or "them" means the open contact; "this appointment" means the open event. If the screen context cannot resolve a reference, ask ONE short clarifying question — never guess a date or a person.
 
 You have access to the following tools. Use them proactively when the user's intent is clear:
 - add_calendar_event: schedule events and appointments
