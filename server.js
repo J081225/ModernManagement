@@ -5085,7 +5085,7 @@ You help property managers get things done by taking action within the app.`;
 
 ${contextSummary}
 
-Today's date is ${new Date().toISOString().split('T')[0]}.
+${(() => { const a = require('./lib/time-helpers').promptTimeAnchor(_workspaceRow); return `Business timezone: ${a.tz}. Right now it is ${a.nowInTz}.`; })()}
 ${screenContext}
 When the owner uses relative references, resolve them from the screen context above: "this Friday" means the Friday of the visible or selected week; "this customer" or "them" means the open contact; "this appointment" means the open event. If the screen context cannot resolve a reference, ask ONE short clarifying question — never guess a date or a person.
 
