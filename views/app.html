@@ -516,36 +516,59 @@
       .cal-nav .mm-select { display: inline-block; width: auto; }
       .cal-layout { display: flex; gap: var(--space-5); }
       .cal-side { width: 300px; flex-shrink: 0; }
+      /* CP3 year view: 12 mini-month tiles — 4x3 desktop, 2 cols on
+         tablet, 1 col on very narrow screens. */
       .cal-year-wrap {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 14px;
-        margin-top: 10px;
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--space-3);
+        margin-top: var(--space-3);
       }
       .cal-mini {
-        background: white;
+        background: var(--bg-surface);
         border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px 12px 12px;
-        cursor: pointer;
-        transition: all 0.15s;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        padding: var(--space-3);
       }
-      .cal-mini:hover { border-color: var(--accent); background: var(--bg-hover); }
-      .cal-mini-head { font-weight: 700; color:var(--text-primary); font-size: 0.92em; margin-bottom: 6px; text-align: center; }
-      .cal-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-      .cal-mini-dow { font-size: 0.62em; color:var(--text-muted); text-align: center; font-weight: 700; padding-bottom: 2px; }
-      .cal-mini-day {
-        font-size: 0.72em;
+      .cal-mini-head {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: var(--space-2);
         text-align: center;
-        padding: 4px 0 6px;
-        color:var(--text-primary);
-        border-radius: 4px;
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        padding: var(--space-1) 0;
+      }
+      .cal-mini-head:hover { color: var(--accent); background: var(--bg-hover); }
+      .cal-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+      .cal-mini-dow { font-size: 10px; color: var(--text-muted); text-align: center; font-weight: 500; padding-bottom: 2px; }
+      .cal-mini-day {
+        font-size: 11px;
+        text-align: center;
+        padding: 2px 0 6px;
+        color: var(--text-secondary);
+        border-radius: var(--radius-sm);
         position: relative;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
-      .cal-mini-day.empty { color: transparent; cursor: default; }
-      .cal-mini-day.today { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+      .cal-mini-day.empty { visibility: hidden; cursor: default; }
       .cal-mini-day:hover:not(.empty) { background: var(--bg-hover); }
+      .cal-mini-num { line-height: 16px; }
+      .cal-mini-day.today .cal-mini-num {
+        background: var(--accent);
+        color: var(--text-on-accent);
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
       .cal-mini-dot {
         position: absolute;
         bottom: 1px;
@@ -1501,6 +1524,7 @@
         .cal-dotrow { display: flex; }
         .cal-layout { flex-direction: column; }
         .cal-side { width: 100%; }
+        .cal-year-wrap { grid-template-columns: repeat(2, 1fr); }
 
         /* Tables: horizontal scroll */
         .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -1527,6 +1551,8 @@
         #page-home > div:nth-child(2) { grid-template-columns: 1fr 1fr !important; }
         .card h2 { font-size: 0.7em; }
         #topbar { font-size: 0.9em; }
+        /* CP3: year view single column at phone width */
+        .cal-year-wrap { grid-template-columns: 1fr; }
       }
 
       /* ─────────────────────────────────────────────────────────────
@@ -4947,11 +4973,13 @@
       }
 
       function jumpToToday() {
-        const now = new Date();
-        calYear = now.getFullYear();
-        calMonth = now.getMonth();
+        // CP3: "today" in the WORKSPACE timezone, so the jump lands on
+        // the same day the grid highlights.
+        const todayStr = eventDateKey(new Date());
+        const [ty, tm] = todayStr.split('-').map(Number);
+        calYear = ty;
+        calMonth = tm - 1;
         calView = 'month';
-        const todayStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         selectedDate = todayStr;
         renderCalendar();
         renderDayDetail(todayStr);
@@ -5087,11 +5115,14 @@
       // when the user picks a different year, so dots only reflect what is
       // currently in memory. Fine for this checkpoint; a future pass can
       // add year-scoped loading if needed.
+      // CP3 year view: 12 mini-months. Month-name header click opens that
+      // month; day click opens the month with that day's panel selected.
+      // Days with any event get a 4px accent dot — no counts at this
+      // scale. Today is computed in the workspace timezone.
       function renderYearView() {
         const monthsFull = ['January','February','March','April','May','June','July','August','September','October','November','December'];
         const dow = ['S','M','T','W','T','F','S'];
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const todayStr = eventDateKey(new Date());
 
         const headers = document.getElementById('calDayHeaders');
         headers.style.display = 'none';
@@ -5099,22 +5130,15 @@
 
         const grid = document.getElementById('calGrid');
         grid.className = 'cal-year-wrap';
-        grid.innerHTML = '';
 
-        // Precompute a Map dateStr → dot kind ('coral' for any general/
-        // personal event, 'gray' if the day only has time_off). Any real
-        // event dominates a pure block so we don't hide bookings behind
-        // the muted block dot.
-        const eventDayKind = new Map();
+        const eventDays = new Set();
         const yrPrefix = String(calYear) + '-';
         for (const e of calEvents) {
           const dk = calEventDayKey(e);
-          if (dk && dk.startsWith(yrPrefix)) {
-            const kind = e.event_type === 'time_off' ? 'gray' : 'coral';
-            if (eventDayKind.get(dk) !== 'coral') eventDayKind.set(dk, kind);
-          }
+          if (dk && dk.startsWith(yrPrefix)) eventDays.add(dk);
         }
 
+        let html = '';
         for (let m = 0; m < 12; m++) {
           const firstDow = new Date(calYear, m, 1).getDay();
           const daysInMon = new Date(calYear, m + 1, 0).getDate();
@@ -5122,20 +5146,16 @@
           for (let i = 0; i < firstDow; i++) cellsHtml += `<div class="cal-mini-day empty"></div>`;
           for (let d = 1; d <= daysInMon; d++) {
             const ds = `${calYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const isToday = ds === todayStr;
-            const dotKind = eventDayKind.get(ds);
-            const dot = dotKind
-              ? `<span class="cal-mini-dot"${dotKind === 'gray' ? ' style="background:var(--text-muted);"' : ''}></span>`
-              : '';
-            // stopPropagation so the day click doesn't also trigger the
-            // outer .cal-mini header handler.
-            cellsHtml += `<div class="cal-mini-day ${isToday ? 'today' : ''}" onclick="event.stopPropagation();openMonthFromYear(${m}, '${ds}')">${d}${dot}</div>`;
+            const cls = 'cal-mini-day' + (ds === todayStr ? ' today' : '');
+            const dot = eventDays.has(ds) ? '<span class="cal-mini-dot"></span>' : '';
+            cellsHtml += `<div class="${cls}" onclick="openMonthFromYear(${m}, '${ds}')"><span class="cal-mini-num">${d}</span>${dot}</div>`;
           }
-          grid.innerHTML += `<div class="cal-mini" onclick="openMonthFromYear(${m}, null)">
-            <div class="cal-mini-head">${monthsFull[m]}</div>
+          html += `<div class="cal-mini">
+            <div class="cal-mini-head" onclick="openMonthFromYear(${m}, null)">${monthsFull[m]}</div>
             <div class="cal-mini-grid">${cellsHtml}</div>
           </div>`;
         }
+        grid.innerHTML = html;
       }
 
       // Called from the mini-month header (dateStr null → just open month)
@@ -6118,6 +6138,29 @@
           _calPollInterval = null;
         }
       }
+
+      // CP3: keyboard navigation. One listener, attached once; gated by
+      // the active page like the CP0 poll. Left/Right step the active
+      // view (month or year), "t" jumps to today. Never fires while
+      // typing in a field or while any modal is open.
+      document.addEventListener('keydown', (ev) => {
+        const pageCal = document.getElementById('page-calendar');
+        if (!pageCal || !pageCal.classList.contains('active')) return;
+        const el = document.activeElement;
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return;
+        const modalOpen = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
+        if (modalOpen) return;
+        if (ev.key === 'ArrowLeft') {
+          ev.preventDefault();
+          changeCalNav(-1);
+        } else if (ev.key === 'ArrowRight') {
+          ev.preventDefault();
+          changeCalNav(1);
+        } else if (ev.key === 't' || ev.key === 'T') {
+          ev.preventDefault();
+          jumpToToday();
+        }
+      });
 
       // E12: Daily Focus. On app open, ask the server to ensure today's
       // AI-generated "grow your business" calendar event exists. The
