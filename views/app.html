@@ -733,6 +733,25 @@
         font-family: inherit;
       }
       .cal-slot-pop button:hover { background: var(--bg-hover); }
+      /* CP8: visible keyboard focus on interactive calendar elements,
+         matching the design system's focus-visible pattern. */
+      .cal-day:focus-visible,
+      .cal-chip:focus-visible,
+      .cal-task-line:focus-visible,
+      .cal-tl-block:focus-visible,
+      .cal-mini-day:focus-visible,
+      .cal-more:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+      /* CP8: bottom-sheet drag handle — hidden on desktop. */
+      .cal-sheet-handle { display: none; }
+      #calSheetBackdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(16,24,40,0.4);
+        z-index: 1040;
+      }
       .modal-overlay {
         display: none;
         position: fixed; inset: 0;
@@ -1672,14 +1691,65 @@
         /* Stats grid: 2 columns */
         #page-home > div:nth-child(2) { grid-template-columns: repeat(2, 1fr) !important; }
 
-        /* Calendar: compact cells — chips collapse to a dot + count,
-           and the day panel stacks below the grid. */
+        /* Calendar: compact cells — chips collapse to a dot + count. */
         .cal-day { min-height: 56px; padding: 2px 4px 4px; }
         .cal-chips { display: none; }
         .cal-dotrow { display: flex; }
         .cal-layout { flex-direction: column; }
-        .cal-side { width: 100%; }
         .cal-year-wrap { grid-template-columns: repeat(2, 1fr); }
+        /* CP8: the day panel becomes a bottom sheet — offscreen until a
+           day is tapped, slides up over the grid. */
+        .cal-side {
+          position: fixed;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100%;
+          z-index: 1050;
+          transform: translateY(105%);
+          transition: transform 0.25s ease;
+          max-height: 72vh;
+          overflow-y: auto;
+        }
+        .cal-side.sheet-open { transform: translateY(0); }
+        .cal-side .mm-card {
+          border-radius: var(--radius-md) var(--radius-md) 0 0;
+          margin-bottom: 0;
+        }
+        .cal-sheet-handle {
+          display: flex;
+          justify-content: center;
+          padding: var(--space-1) 0 var(--space-3);
+          cursor: grab;
+          touch-action: none;
+        }
+        .cal-sheet-handle span {
+          width: 36px;
+          height: 4px;
+          border-radius: 999px;
+          background: var(--border-strong);
+        }
+        /* CP8: ≥44px effective touch targets. Buttons/tabs grow their
+           box; chips and task lines grow their HIT AREA via a
+           pseudo-element, not their visual. */
+        .cal-nav .mm-btn-sm { min-height: 44px; min-width: 44px; }
+        .cal-view-tabs .mm-tab { min-height: 44px; }
+        .cal-slot-pop button { min-height: 44px; }
+        .cal-chip, .cal-task-line, .cal-more { position: relative; }
+        .cal-chip::after, .cal-task-line::after, .cal-more::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: -8px;
+          bottom: -8px;
+        }
+        .cal-tl-block { min-height: 32px; }
+        #dayDetailPanel input[type="checkbox"] { width: 22px; height: 22px; }
+        /* CP8: week view snaps to day columns; the sticky gutter is set
+           inline where the columns render. */
+        .cal-tl-scroll { scroll-snap-type: x mandatory; }
+        .cal-tl-col { scroll-snap-align: start; }
 
         /* Tables: horizontal scroll */
         .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -2650,10 +2720,10 @@
                 <div class="cal-nav">
                   <div class="cal-title" id="calTitle"></div>
                   <span style="flex:1;"></span>
-                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(-1)" title="Previous">&#8592;</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(-1)" title="Previous" aria-label="Previous">&#8592;</button>
                   <select id="calMonthSel" class="mm-select" onchange="onCalMonthChange(this.value)" aria-label="Month"></select>
                   <select id="calYearSel" class="mm-select" onchange="onCalYearChange(this.value)" aria-label="Year"></select>
-                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(1)" title="Next">&#8594;</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(1)" title="Next" aria-label="Next">&#8594;</button>
                   <button class="mm-btn mm-btn-secondary mm-btn-sm" id="calTodayBtn" onclick="jumpToToday()">Today</button>
                   <div class="mm-tabs cal-view-tabs">
                     <button class="mm-tab" data-calview="day" onclick="setCalView('day')">Day</button>
@@ -2669,7 +2739,8 @@
               </div>
             </div>
 
-            <!-- Day detail panel -->
+            <!-- Day detail panel (bottom sheet on mobile) -->
+            <div id="calSheetBackdrop" onclick="closeCalSheet()" style="display:none;"></div>
             <div class="cal-side">
               <div class="mm-card" id="dayDetailPanel">
                 <div class="mm-empty">
@@ -4024,7 +4095,7 @@
             <span id="taskDetailTitle">Task</span>
             <span id="taskDetailBadge"></span>
           </div>
-          <button onclick="closeTaskDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close">&times;</button>
+          <button onclick="closeTaskDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close" aria-label="Close">&times;</button>
         </div>
         <div id="taskDetailBanner"></div>
         <div id="taskDetailBody" style="font-size:13px;line-height:1.55;padding:var(--space-2) 0 var(--space-3);"></div>
@@ -4042,7 +4113,7 @@
             <span id="calEventDetailTitle">Event</span>
             <span id="calEventDetailStatusBadge"></span>
           </div>
-          <button onclick="closeCalEventDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close">&times;</button>
+          <button onclick="closeCalEventDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close" aria-label="Close">&times;</button>
         </div>
         <div id="calEventDetailMeta" style="font-size:12px;color:var(--text-muted);margin-bottom:var(--space-2);"></div>
         <div id="calEventDetailBanner"></div>
@@ -5120,7 +5191,10 @@
         const now = new Date();
         calYear = now.getFullYear();
         calMonth = now.getMonth();
-        calView = 'month';
+        // CP8: DEFAULT VIEW — phones open on today (day view), desktop
+        // opens on the month grid. Flip either side of this ternary to
+        // change the landing view.
+        calView = window.matchMedia('(max-width: 768px)').matches ? 'day' : 'month';
         renderCalendar();
       }
 
@@ -5285,6 +5359,25 @@
         }
       }
 
+      // CP8: first-run empty state — only when the workspace has zero
+      // calendar rows ever (the fetch returns everything, so an empty
+      // array after load means truly empty). Never shows once a row exists.
+      function _calEmptyStateHtml() {
+        return '<div class="cal-loading"><div class="mm-empty">'
+          + '<div class="mm-empty-title">Your calendar is empty</div>'
+          + '<div class="mm-empty-text">Add an appointment or let the AI book one for you.</div>'
+          + '<div class="mm-empty-action"><button class="mm-btn mm-btn-primary" onclick="openAddEvent()">+ New event</button></div>'
+          + '</div></div>';
+      }
+      function _calShowEmptyState(grid) {
+        if (_calLoading || calEvents.length !== 0) return false;
+        // Tasks render on the grid too — don't hide them behind the
+        // empty state when the owner has due tasks but no events yet.
+        if (tasks.some(t => t && t.dueDate)) return false;
+        grid.innerHTML = _calEmptyStateHtml();
+        return true;
+      }
+
       // CP2: canceled styling hook. The list payload carries no
       // appointment status today, so this returns false for every current
       // row — it exists so canceled rows render struck-through the moment
@@ -5309,6 +5402,7 @@
           grid.innerHTML = '<div class="cal-loading">Loading calendar…</div>';
           return;
         }
+        if (_calShowEmptyState(grid)) return;
 
         const firstDay = new Date(calYear, calMonth, 1).getDay();
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
@@ -5343,13 +5437,13 @@
             const cls = 'cal-chip'
               + (_calEventCanceled(ev) ? ' canceled' : (ev.event_type === 'time_off' ? ' timeoff' : ''));
             const t = (!ev.is_all_day && ev.starts_at) ? fmtEventTime(ev.starts_at) + ' ' : '';
-            return `<div class="${cls}" onclick="event.stopPropagation();openCalEventDetail(${ev.id})" title="${_calEscape(ev.title || '')}">${t}${_calEscape(ev.title || '')}</div>`;
+            return `<div class="${cls}" onclick="event.stopPropagation();openCalEventDetail(${ev.id})" title="${_calEscape(ev.title || '')}" tabindex="0">${t}${_calEscape(ev.title || '')}</div>`;
           }).join('');
           const taskLines = taskShown.map(t =>
-            `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="event.stopPropagation();openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
+            `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="event.stopPropagation();openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}" tabindex="0">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
           ).join('');
           const more = extra > 0
-            ? `<div class="cal-more" onclick="event.stopPropagation();selectDay('${dateStr}')">+${extra} more</div>`
+            ? `<div class="cal-more" onclick="event.stopPropagation();selectDay('${dateStr}')" tabindex="0">+${extra} more</div>`
             : '';
           // Mobile swaps the chip stack for this dot + count row.
           const totalItems = dayEvents.length + dayTasks.length;
@@ -5361,7 +5455,7 @@
           if (outside) classes.push('outside');
           if (dateStr === todayStr) classes.push('today');
           if (dateStr === selectedDate) classes.push('selected');
-          html += `<div class="${classes.join(' ')}" onclick="selectDay('${dateStr}')">
+          html += `<div class="${classes.join(' ')}" onclick="selectDay('${dateStr}')" tabindex="0">
             <div class="cal-day-num">${d}</div>
             <div class="cal-chips">${chips}${taskLines}${more}</div>
             ${dots}
@@ -5391,6 +5485,7 @@
 
         const grid = document.getElementById('calGrid');
         grid.className = 'cal-year-wrap';
+        if (_calShowEmptyState(grid)) return;
 
         const eventDays = new Set();
         const yrPrefix = String(calYear) + '-';
@@ -5409,7 +5504,7 @@
             const ds = `${calYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
             const cls = 'cal-mini-day' + (ds === todayStr ? ' today' : '');
             const dot = eventDays.has(ds) ? '<span class="cal-mini-dot"></span>' : '';
-            cellsHtml += `<div class="${cls}" onclick="openMonthFromYear(${m}, '${ds}')"><span class="cal-mini-num">${d}</span>${dot}</div>`;
+            cellsHtml += `<div class="${cls}" onclick="openMonthFromYear(${m}, '${ds}')" tabindex="0"><span class="cal-mini-num">${d}</span>${dot}</div>`;
           }
           html += `<div class="cal-mini">
             <div class="cal-mini-head" onclick="openMonthFromYear(${m}, null)">${monthsFull[m]}</div>
@@ -5523,6 +5618,7 @@
           grid.innerHTML = '<div class="cal-loading">Loading calendar…</div>';
           return;
         }
+        if (_calShowEmptyState(grid)) return;
 
         const todayStr = eventDateKey(new Date());
         const start = numDays === 1 ? calFocus() : weekStartKey(calFocus());
@@ -5601,10 +5697,10 @@
             const chips = alldayByDay[ds].map(e => {
               const cls = 'cal-chip'
                 + (_calEventCanceled(e) ? ' canceled' : (e.event_type === 'time_off' ? ' timeoff' : ''));
-              return `<div class="${cls}" onclick="openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">${_calEscape(e.title || '')}</div>`;
+              return `<div class="${cls}" onclick="openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}" tabindex="0">${_calEscape(e.title || '')}</div>`;
             }).join('');
             const taskLines = tasksByDay[ds].map(t =>
-              `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
+              `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}" tabindex="0">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
             ).join('');
             html += `<div class="cal-allday-cell">${chips}${taskLines}</div>`;
           }
@@ -5633,7 +5729,7 @@
             const cls = 'cal-tl-block'
               + (_calEventCanceled(e) ? ' canceled' : (e.event_type === 'time_off' ? ' timeoff' : ''));
             const t = fmtEventTime(e.starts_at);
-            html += `<div class="${cls}" style="top:${top}px;height:${height}px;left:${leftPct}%;width:${widthPct}%;" onclick="event.stopPropagation();openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">
+            html += `<div class="${cls}" style="top:${top}px;height:${height}px;left:${leftPct}%;width:${widthPct}%;" onclick="event.stopPropagation();openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}" tabindex="0">
               <div class="cal-tl-block-line">${t} ${_calEscape(e.title || '')}</div>
             </div>`;
           }
@@ -5652,6 +5748,13 @@
           gutterEl.insertAdjacentHTML('beforeend', '<div class="cal-now-dot" id="calNowDot" style="display:none;"></div>');
         }
         updateNowLine();
+
+        // CP8: mobile week view opens scrolled to today's column.
+        if (numDays > 1 && window.matchMedia('(max-width: 768px)').matches) {
+          const todayCol = grid.querySelector('.cal-tl-col[data-day="' + todayStr + '"]');
+          const scroller = grid.querySelector('.cal-tl-scroll');
+          if (todayCol && scroller) scroller.scrollLeft = Math.max(0, todayCol.offsetLeft - 56);
+        }
       }
 
       // Repositions the now line/dot; called by the existing 1-second
@@ -5690,6 +5793,48 @@
         selectedDate = dateStr;
         renderCalendar();
         renderDayDetail(dateStr);
+        // CP8: on phones the day panel presents as a bottom sheet.
+        if (window.matchMedia('(max-width: 768px)').matches) openCalSheet();
+      }
+
+      // CP8: bottom-sheet behavior for the day panel on mobile. The
+      // panel element itself is the sheet (CSS repositions it ≤768px);
+      // desktop never gets the class so nothing changes there.
+      function openCalSheet() {
+        const side = document.querySelector('.cal-side');
+        const backdrop = document.getElementById('calSheetBackdrop');
+        if (side) side.classList.add('sheet-open');
+        if (backdrop) backdrop.style.display = 'block';
+      }
+      function closeCalSheet() {
+        const side = document.querySelector('.cal-side');
+        const backdrop = document.getElementById('calSheetBackdrop');
+        if (side) { side.classList.remove('sheet-open'); side.style.transform = ''; }
+        if (backdrop) backdrop.style.display = 'none';
+      }
+      // Drag-to-dismiss: track a downward drag on the handle; past 80px
+      // release closes, otherwise the sheet snaps back.
+      let _sheetDragY = null;
+      function calSheetDragStart(ev) {
+        _sheetDragY = (ev.touches && ev.touches[0]) ? ev.touches[0].clientY : ev.clientY;
+      }
+      function calSheetDragMove(ev) {
+        if (_sheetDragY === null) return;
+        const y = (ev.touches && ev.touches[0]) ? ev.touches[0].clientY : ev.clientY;
+        const dy = Math.max(0, y - _sheetDragY);
+        const side = document.querySelector('.cal-side');
+        if (side) side.style.transform = 'translateY(' + dy + 'px)';
+      }
+      function calSheetDragEnd(ev) {
+        if (_sheetDragY === null) return;
+        const y = (ev.changedTouches && ev.changedTouches[0]) ? ev.changedTouches[0].clientY : ev.clientY;
+        const dy = y - _sheetDragY;
+        _sheetDragY = null;
+        if (dy > 80) closeCalSheet();
+        else {
+          const side = document.querySelector('.cal-side');
+          if (side) side.style.transform = '';
+        }
       }
 
       // CP2: status badge for a day-panel row. The list payload has no
@@ -5748,13 +5893,14 @@
                   <input type="checkbox" ${t.done ? 'checked' : ''} onchange="calToggleTask(${t.id})" style="cursor:pointer;flex-shrink:0;" title="${t.done ? 'Reopen' : 'Complete'}">
                   <span onclick="openTaskDetail(${t.id})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--text-primary);${t.done ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${_calEscape(t.title || '')}</span>
                   ${due}
-                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--text-muted);padding:0 var(--space-1);" title="Delete">&#10005;</span>
+                  <span onclick="calDeleteTask(${t.id})" style="cursor:pointer;color:var(--text-muted);padding:0 var(--space-1);" title="Delete">&#10005;</span>
                 </div>`;
               }).join('')}
             </div>`
           : '';
 
         document.getElementById('dayDetailPanel').innerHTML = `
+          <div class="cal-sheet-handle" ontouchstart="calSheetDragStart(event)" ontouchmove="calSheetDragMove(event)" ontouchend="calSheetDragEnd(event)" onclick="closeCalSheet()" role="button" aria-label="Dismiss panel"><span></span></div>
           <div style="margin-bottom:var(--space-3);">
             <div style="font-size:16px;font-weight:600;color:var(--text-primary);">${label}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${count} event${count === 1 ? '' : 's'}</div>
@@ -5774,6 +5920,7 @@
       // Prefills a one-hour window; both time fields stay editable.
       function openAddEventOnDate(dateStr, startTime) {
         document.getElementById('eventModal').style.display = 'flex';
+        _eventModalBanner('');
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventDate').value = dateStr;
         const st = document.getElementById('eventStartTime');
@@ -5906,10 +6053,34 @@
         }
       }
 
+      // CP8: no silent failures — the day-panel ✕ paths surface errors
+      // in the panel banner instead of swallowing them.
       async function deleteCalEvent(id) {
-        await fetch('/api/calevents/' + id, { method: 'DELETE' });
-        loadCalEvents();
-        if (selectedDate) renderDayDetail(selectedDate);
+        try {
+          const r = await fetch('/api/calevents/' + id, { method: 'DELETE', credentials: 'include' });
+          if (!r.ok) {
+            const t = await r.json().catch(() => ({}));
+            throw new Error((t && t.error) || ('HTTP ' + r.status));
+          }
+          await loadCalEvents();
+          if (selectedDate) renderDayDetail(selectedDate);
+        } catch (err) {
+          console.error('[deleteCalEvent]', err);
+          if (selectedDate) renderDayDetail(selectedDate);
+          _calPanelBanner('Could not delete event: ' + (err.message || err));
+        }
+      }
+      async function calDeleteTask(id) {
+        try {
+          const r = await fetch('/api/tasks/' + id, { method: 'DELETE', credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (typeof loadTasks === 'function') await loadTasks();
+          renderCalendar();
+        } catch (err) {
+          console.error('[calDeleteTask]', err);
+          renderCalendar();
+          _calPanelBanner('Could not delete task: ' + (err.message || err));
+        }
       }
 
       // CP7: day-panel danger banner (survives the re-render because it
@@ -6366,6 +6537,7 @@
 
       function openAddEvent() {
         document.getElementById('eventModal').style.display = 'flex';
+        _eventModalBanner('');
         document.getElementById('eventTitle').value = '';
         document.getElementById('eventDate').value = '';
         document.getElementById('eventStartTime').value = '';
@@ -6379,25 +6551,35 @@
         document.getElementById('eventModal').style.display = 'none';
       }
 
+      // CP8: modal-local danger banner replaces the old alert()s, and
+      // the create call is checked instead of fire-and-forget.
+      function _eventModalBanner(msg) {
+        const el = document.getElementById('eventModalBanner');
+        if (el) el.innerHTML = msg
+          ? '<div class="mm-banner mm-banner-danger" style="margin-bottom:var(--space-3);">' + _calEscape(msg) + '</div>'
+          : '';
+      }
       async function submitAddEvent() {
         const title = document.getElementById('eventTitle').value.trim();
         const date = document.getElementById('eventDate').value;
-        if (!title || !date) { alert('Please fill in both title and date.'); return; }
+        _eventModalBanner('');
+        if (!title || !date) { _eventModalBanner('Please fill in both title and date.'); return; }
         // CP4: optional partial-day times. POST /api/calevents requires
         // both-or-neither; both empty keeps the all-day behavior.
         const startTime = document.getElementById('eventStartTime').value;
         const endTime = document.getElementById('eventEndTime').value;
         if ((startTime && !endTime) || (!startTime && endTime)) {
-          alert('Enter both a start and end time, or leave both empty for an all-day event.');
+          _eventModalBanner('Enter both a start and end time, or leave both empty for an all-day event.');
           return;
         }
         if (startTime && endTime && startTime >= endTime) {
-          alert('End time must be after start time.');
+          _eventModalBanner('End time must be after start time.');
           return;
         }
         const body = { date, title };
         if (startTime && endTime) { body.start_time = startTime; body.end_time = endTime; }
-        await api('calevents', 'POST', body);
+        const created = await api('calevents', 'POST', body);
+        if (!created) { _eventModalBanner('Could not save the event — please try again.'); return; }
         if (document.getElementById('eventAlsoTask').checked) {
           const category = document.getElementById('eventCategory').value;
           await api('tasks', 'POST', { title, category, dueDate: date, notes: 'Added from calendar.' });
@@ -13804,6 +13986,7 @@
   <div class="modal-overlay" id="eventModal" onclick="if(event.target===this)closeEventModal()">
     <div class="modal">
       <h3>&#128197; Add Calendar Event</h3>
+      <div id="eventModalBanner"></div>
 
       <label>Event Title</label>
       <input id="eventTitle" placeholder="e.g. Insurance renewal reminder" />
