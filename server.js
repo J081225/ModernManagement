@@ -6027,7 +6027,17 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
       if (userId) break;
     }
     if (!userId) {
-      console.warn(`Inbound email to unrecognized address(es) [${toAddresses.join(', ')}] from ${email} — dropped`);
+      // IB5: fail LOUD, not silent. Policy, stated plainly: unroutable
+      // mail has no owner BY DEFINITION — the recipient address is the
+      // routing key and it matched nothing — and guessing an owner from
+      // the SENDER's identity risks delivering business A's mail to
+      // business B. So: no DB write, no notification, but a structured
+      // ERROR (not a warn) with the full addressing detail, greppable
+      // and alertable ([email/incoming] UNROUTABLE).
+      console.error(
+        '[email/incoming] UNROUTABLE inbound email — no workspace owns any recipient address.',
+        JSON.stringify({ to: toAddresses, from: email, subject: String(subject).slice(0, 120) })
+      );
       return;
     }
 
