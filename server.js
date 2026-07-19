@@ -6155,11 +6155,53 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
-  const proto = req.headers['x-forwarded-proto'] || 'https';
+  // FD3-CP4: no workspace, no socket. An unknown number used to get an
+  // anonymous relay connection that could never do anything useful; now
+  // it gets a polite goodbye and the socket stays closed to it.
+  if (!workspace) {
+    res.type('text/xml').send(
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<Response>\n' +
+      '  <Say>Sorry, this number is not set up yet. Please try again later.</Say>\n' +
+      '  <Hangup/>\n' +
+      '</Response>'
+    );
+    return;
+  }
+
+  // FD3-CP4: per-workspace socket token, minted lazily on first use and
+  // reused thereafter. 24 random bytes (48 hex chars) — unguessable; the
+  // upgrade handler below validates it before any WebSocket exists.
+  let relayToken = workspace.voice_relay_token;
+  if (!relayToken) {
+    relayToken = crypto.randomBytes(24).toString('hex');
+    try {
+      await pool.query(
+        'UPDATE workspaces SET voice_relay_token = $1 WHERE id = $2 AND voice_relay_token IS NULL',
+        [relayToken, workspace.id]
+      );
+      // Concurrent first calls: whoever's UPDATE landed wins — re-read.
+      const { rows } = await pool.query('SELECT voice_relay_token FROM workspaces WHERE id = $1', [workspace.id]);
+      relayToken = (rows[0] && rows[0].voice_relay_token) || relayToken;
+    } catch (err) {
+      console.error('[voice/relay-incoming] token mint failed:', err.message);
+      res.type('text/xml').send(
+        '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<Response>\n' +
+        '  <Say>Sorry, we are having trouble connecting your call. Please try again shortly.</Say>\n' +
+        '  <Hangup/>\n' +
+        '</Response>'
+      );
+      return;
+    }
+  }
+
   // ConversationRelay requires wss:// for the media stream regardless of the
   // request's own protocol. On Render this is served on the same port as
   // HTTP; local dev over http:// would still need a tunneled wss:// URL.
-  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay';
+  // /v2/<token> is the versioned authenticated path (FD3-CP4); the bare
+  // legacy path survives only inside the post-boot grace window below.
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/v2/' + relayToken;
   const greeting = escapeXmlAttr('Hi, thanks for calling ' + bizName + '. How can I help you today?');
 
   res.type('text/xml').send(
@@ -8636,9 +8678,57 @@ const server = http.createServer(app);
 // auto-SMS send when channel==='voice' — the reply is spoken live via the
 // WS instead.
 const { WebSocketServer } = require('ws');
-const wss = new WebSocketServer({ server, path: '/twilio-relay' });
+// FD3-CP4: noServer — upgrades reach the WebSocket only after
+// handleRelayUpgrade validates the per-workspace token in the path.
+// Previously ANY upgrade on /twilio-relay was accepted with zero auth.
+const wss = new WebSocketServer({ noServer: true });
 
-wss.on('connection', (ws) => {
+// In-flight deploy grace: TwiML issued by the PREVIOUS deploy carries
+// the bare legacy path. A call answered seconds before a deploy must
+// still connect (and ConversationRelay reconnects after the restart),
+// so the bare path is honored for a short window after each boot, then
+// rejected forever. Tokened paths are validated against the workspace
+// row; every rejection is a silent socket.destroy() — no status line,
+// no reason, nothing to probe.
+const RELAY_BOOT_TIME = Date.now();
+const LEGACY_RELAY_GRACE_MS = 15 * 60 * 1000;
+async function handleRelayUpgrade(req, socket, head) {
+  let pathname = '';
+  try {
+    pathname = new URL(req.url, 'http://localhost').pathname;
+  } catch (err) {
+    socket.destroy();
+    return;
+  }
+  const tokenMatch = pathname.match(/^\/twilio-relay\/v2\/([a-f0-9]{48})$/);
+  if (tokenMatch) {
+    try {
+      const { rows } = await pool.query(
+        'SELECT id FROM workspaces WHERE voice_relay_token = $1 LIMIT 1',
+        [tokenMatch[1]]
+      );
+      if (rows.length) {
+        // Remember which workspace this token belongs to so the setup
+        // handler can refuse a cross-workspace 'to' number.
+        req._relayWorkspaceId = rows[0].id;
+        wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+        return;
+      }
+    } catch (err) {
+      console.error('[twilio-relay] token validation error:', err.message);
+    }
+    socket.destroy();
+    return;
+  }
+  if (pathname === '/twilio-relay' && Date.now() - RELAY_BOOT_TIME < LEGACY_RELAY_GRACE_MS) {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+    return;
+  }
+  socket.destroy();
+}
+server.on('upgrade', handleRelayUpgrade);
+
+wss.on('connection', (ws, req) => {
   // Per-call closure state — replaced on every new connection.
   let workspace = null;
   let callSid = null;
@@ -8696,6 +8786,15 @@ wss.on('connection', (ws) => {
           }
         } catch (lookupErr) {
           console.error('[twilio-relay] workspace lookup failed for setup:', lookupErr.message);
+        }
+        // FD3-CP4: a tokened connection is bound to ONE workspace. A
+        // setup whose 'to' number resolves elsewhere (someone with a
+        // valid token for workspace A probing workspace B) is closed,
+        // not served.
+        if (req && req._relayWorkspaceId && workspace && workspace.id !== req._relayWorkspaceId) {
+          console.error('[twilio-relay] setup workspace mismatch: token=' + req._relayWorkspaceId + ' to-number=' + workspace.id + ' — closing');
+          try { ws.close(); } catch (closeErr) { /* already gone */ }
+          return;
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
