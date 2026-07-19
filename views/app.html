@@ -3582,6 +3582,31 @@
             </div>
 
             <!-- Both verticals: Budget summary -->
+            <!-- BG2: money-out. Manual entry (source='manual'); the
+                 AI-confirmed path is BG5. Built as a self-contained
+                 .mm-card so BG3's dashboard rebuild can absorb it
+                 whole. Tokens only. -->
+            <div class="mm-card" id="financesExpensesCard" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Expenses</div>
+                <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddExpense()">+ Add expense</button>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                <select id="expFilterCategory" onchange="loadExpenses()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">All categories</option>
+                </select>
+                <input type="search" id="expFilterVendor" placeholder="Vendor&hellip;" oninput="loadExpenses()"
+                  style="flex:1;min-width:140px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.88em;" />
+                <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="loadExpenses()">Refresh</button>
+              </div>
+              <div id="expensesTotalsRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:0.88em;">
+                <span style="color:var(--text-muted);" id="expensesTotalCount"></span>
+                <span style="font-weight:700;color:var(--text-primary);" id="expensesTotalAmount"></span>
+              </div>
+              <div id="expensesList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
+            </div>
+
             <div class="card" id="financesBudgetCard" style="margin-top:20px;">
               <div class="card-head">
                 <div class="card-head-tile">&#128202;</div>
@@ -4287,7 +4312,47 @@
     </div>
 
     <!-- ============= NEW TRANSACTION MODAL (E3) ============= -->
-    <div class="modal-overlay" id="txNewModal" onclick="if(event.target===this)closeNewTransactionModal()" style="display:none;align-items:center;justify-content:center;">
+    <!-- BG2: add-expense modal (manual entry, cents-only API — the
+       ONE dollars→cents conversion lives at this input edge). -->
+  <div class="mm-modal-overlay" id="addExpenseModal" style="display:none;" onclick="if(event.target===this)closeAddExpense()">
+    <div class="mm-modal" style="max-width:420px;">
+      <div style="font-weight:700;font-size:1.05em;color:var(--text-primary);margin-bottom:14px;">Add expense</div>
+      <div id="addExpenseError" style="display:none;background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:0.85em;margin-bottom:12px;"></div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Amount (dollars)</label>
+          <input type="number" id="expAmount" min="0.01" step="0.01" placeholder="0.00"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.95em;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Category</label>
+          <select id="expCategory"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;"></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Vendor</label>
+          <input type="text" id="expVendor" placeholder="Who was paid"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Date</label>
+          <input type="date" id="expDate"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Description</label>
+          <input type="text" id="expDescription" placeholder="What it was for"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button class="mm-btn mm-btn-secondary" onclick="closeAddExpense()">Cancel</button>
+        <button class="mm-btn mm-btn-primary" id="expSaveBtn" onclick="submitAddExpense()">Save expense</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="txNewModal" onclick="if(event.target===this)closeNewTransactionModal()" style="display:none;align-items:center;justify-content:center;">
       <div class="modal" style="max-width:560px;">
         <h3 style="margin:0 0 14px;color:var(--text-primary);">New transaction</h3>
         <div style="margin-bottom:10px;">
@@ -11595,6 +11660,9 @@
         // Load summaries — call existing endpoints
         loadFinancesInvoicesSummary();
         loadFinancesBudgetSummary();
+        // BG2: expenses serve BOTH verticals (§7 — a plumber's parts and
+        // a salon's polish are the same row shape).
+        loadExpenses();
         if (isPS) {
           loadTransactions();
         } else {
@@ -11714,6 +11782,135 @@
           const net = income - expense;
           el.textContent = `This month: $${income.toLocaleString('en-US', { minimumFractionDigits: 2 })} in · $${expense.toLocaleString('en-US', { minimumFractionDigits: 2 })} out · ${net >= 0 ? '+' : ''}$${net.toLocaleString('en-US', { minimumFractionDigits: 2 })} net.`;
         } catch (e) { el.textContent = 'Could not load budget.'; }
+      }
+
+      // ---------- BG2: expenses (manual entry; AI path is BG5) ----------
+      const EXPENSE_CATEGORIES = ['Supplies', 'Payroll', 'Rent', 'Utilities', 'Marketing', 'Fees', 'Other'];
+      let _expensesCache = [];
+
+      function _expFmtCents(c) {
+        return '$' + ((c || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 });
+      }
+
+      function _expPopulateSelects() {
+        const filter = document.getElementById('expFilterCategory');
+        const modal = document.getElementById('expCategory');
+        if (filter && filter.options.length <= 1) {
+          for (const c of EXPENSE_CATEGORIES) filter.add(new Option(c, c));
+        }
+        if (modal && modal.options.length === 0) {
+          for (const c of EXPENSE_CATEGORIES) modal.add(new Option(c, c));
+          modal.value = 'Other';
+        }
+      }
+
+      async function loadExpenses() {
+        const list = document.getElementById('expensesList');
+        if (!list) return;
+        _expPopulateSelects();
+        const params = new URLSearchParams();
+        const cat = document.getElementById('expFilterCategory');
+        const ven = document.getElementById('expFilterVendor');
+        if (cat && cat.value) params.set('category', cat.value);
+        if (ven && ven.value.trim()) params.set('vendor', ven.value.trim());
+        try {
+          const r = await fetch('/api/expenses?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const data = await r.json();
+          _expensesCache = data.expenses || [];
+          renderExpenses(data);
+        } catch (err) {
+          console.error('[expenses] load failed:', err);
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load expenses.</div>';
+        }
+      }
+
+      function renderExpenses(data) {
+        const list = document.getElementById('expensesList');
+        const totals = document.getElementById('expensesTotalsRow');
+        if (!list) return;
+        const rows = _expensesCache;
+        if (totals) {
+          totals.style.display = rows.length ? 'flex' : 'none';
+          const countEl = document.getElementById('expensesTotalCount');
+          const amtEl = document.getElementById('expensesTotalAmount');
+          if (countEl) countEl.textContent = (data.total_rows || rows.length) + ' expense' + ((data.total_rows || rows.length) === 1 ? '' : 's') + (data.capped ? ' (showing first ' + rows.length + ')' : '');
+          if (amtEl) amtEl.textContent = _expFmtCents(data.total_cents) + ' total';
+        }
+        if (!rows.length) {
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">No expenses yet. Add the first one to start the money-out ledger.</div>';
+          return;
+        }
+        list.innerHTML = rows.map((e) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid var(--border);">
+            <div style="flex-shrink:0;font-size:0.8em;color:var(--text-muted);width:74px;">${e.spent_on ? String(e.spent_on).slice(0, 10) : ''}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.92em;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_convEsc(e.vendor || e.description || '(no description)')}</div>
+              ${e.vendor && e.description ? '<div style="font-size:0.78em;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _convEsc(e.description) + '</div>' : ''}
+            </div>
+            <span class="mm-badge">${_convEsc(e.category || 'Other')}</span>
+            ${e.source !== 'manual' ? '<span style="font-size:0.72em;color:var(--text-muted);">' + _convEsc(e.source) + '</span>' : ''}
+            <div style="font-weight:700;color:var(--text-primary);font-size:0.92em;">${_expFmtCents(e.amount_cents)}</div>
+            <button onclick="deleteExpense(${e.id})" title="Delete" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px 5px;font-size:0.95em;">&#128465;</button>
+          </div>`).join('');
+      }
+
+      async function deleteExpense(id) {
+        if (!confirm('Delete this expense?')) return;
+        try {
+          await fetch('/api/expenses/' + id, { method: 'DELETE', credentials: 'include' });
+        } catch (err) { console.error('[expenses] delete failed:', err); }
+        loadExpenses();
+      }
+
+      function openAddExpense() {
+        _expPopulateSelects();
+        const err = document.getElementById('addExpenseError');
+        if (err) err.style.display = 'none';
+        const d = document.getElementById('expDate');
+        if (d && !d.value) d.value = new Date().toLocaleDateString('en-CA');
+        document.getElementById('addExpenseModal').style.display = 'flex';
+      }
+      function closeAddExpense() {
+        document.getElementById('addExpenseModal').style.display = 'none';
+      }
+
+      async function submitAddExpense() {
+        const errEl = document.getElementById('addExpenseError');
+        const btn = document.getElementById('expSaveBtn');
+        const fail = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } if (btn) btn.disabled = false; };
+        const dollars = parseFloat(document.getElementById('expAmount').value);
+        if (isNaN(dollars) || dollars <= 0) return fail('Enter a valid amount.');
+        // THE dollars→cents edge: the one conversion, here, once. The
+        // API and everything behind it is integer cents only.
+        const amount_cents = Math.round(dollars * 100);
+        const payload = {
+          amount_cents,
+          category: document.getElementById('expCategory').value || 'Other',
+          vendor: document.getElementById('expVendor').value.trim(),
+          spent_on: document.getElementById('expDate').value,
+          description: document.getElementById('expDescription').value.trim(),
+        };
+        if (btn) btn.disabled = true;
+        try {
+          const r = await fetch('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || ('HTTP ' + r.status));
+          // Optimistic add: the row the server returned, on top.
+          _expensesCache.unshift(data);
+          renderExpenses({ total_rows: _expensesCache.length, total_cents: _expensesCache.reduce((a, e) => a + e.amount_cents, 0) });
+          if (btn) btn.disabled = false;
+          ['expAmount', 'expVendor', 'expDescription'].forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+          closeAddExpense();
+          loadExpenses();
+        } catch (err) {
+          fail(err.message || 'Save failed.');
+        }
       }
 
       async function loadFinancesRentSummary() {
