@@ -8219,13 +8219,28 @@ app.post('/api/finances/anchor', requireAuth, async (req, res) => {
     const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
     if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
 
+    // Drift: expected cash under the CURRENT anchor, before the new one.
+    let expected_cents = null;
+    let drift_cents = null;
+    try {
+      const pre = await require('./lib/finances-summary').computeFinancesSummary({
+        db: pool, workspace: wR.rows[0], period: 'month', env: process.env,
+      });
+      if (pre.cash_current_cents !== null) {
+        expected_cents = pre.cash_current_cents;
+        drift_cents = amount - expected_cents;
+      }
+    } catch (err) {
+      console.error('[finances/anchor] drift compute failed (anchor still lands):', err.message);
+    }
+
     const ins = await pool.query(
       `INSERT INTO budget_anchors (workspace_id, amount_cents, as_of, set_by)
        VALUES ($1, $2, NOW(), $3)
        RETURNING id, amount_cents, as_of`,
       [workspaceId, amount, req.session.userId]
     );
-    res.status(201).json({ anchor: ins.rows[0] });
+    res.status(201).json({ anchor: ins.rows[0], expected_cents, drift_cents });
   } catch (err) {
     console.error('[POST /api/finances/anchor]', err.message);
     res.status(500).json({ error: 'Failed to set the cash anchor' });
