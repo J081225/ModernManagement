@@ -3915,6 +3915,14 @@
         if (name === 'my-business') {
           if (typeof loadMyBusinessPage === 'function') loadMyBusinessPage();
         }
+        // CP0: the calendar refetches on every visit (AI bookings arrive
+        // server-side without any browser event) and polls while open.
+        if (name === 'calendar') {
+          if (typeof loadCalEvents === 'function') loadCalEvents();
+          if (typeof startCalendarPolling === 'function') startCalendarPolling();
+        } else if (typeof stopCalendarPolling === 'function') {
+          stopCalendarPolling();
+        }
         const resolvedIcon = icon || PAGE_ICONS[name] || '';
         document.getElementById('topbar-icon').innerHTML = resolvedIcon;
         document.getElementById('topbar-title').textContent = titles[name] || name;
@@ -5930,6 +5938,26 @@
       async function loadCalEvents() {
         calEvents = await api('calevents') || [];
         renderCalendar();
+      }
+
+      // CP0: poll the calendar while its page is open so appointments the
+      // AI books over SMS appear without a reload. Exactly one interval is
+      // ever active — showPage starts it on calendar and stops it on every
+      // other page. Ticks are skipped while the tab is hidden.
+      let _calPollInterval = null;
+      function startCalendarPolling() {
+        if (_calPollInterval) return;
+        _calPollInterval = setInterval(() => {
+          if (document.hidden) return;
+          const pageCal = document.getElementById('page-calendar');
+          if (pageCal && pageCal.classList.contains('active')) loadCalEvents();
+        }, 30000);
+      }
+      function stopCalendarPolling() {
+        if (_calPollInterval) {
+          clearInterval(_calPollInterval);
+          _calPollInterval = null;
+        }
       }
 
       // E12: Daily Focus. On app open, ask the server to ensure today's
@@ -8225,6 +8253,11 @@
       const TOOL_PAGE_MAP = {
         add_calendar_event:     ['calendar'],
         delete_calendar_event:  ['calendar'],
+        // CP0: appointment-mutating tools also land on the calendar grid
+        book_appointment:       ['calendar'],
+        update_appointment:     ['calendar'],
+        cancel_appointment:     ['calendar'],
+        complete_appointment:   ['calendar'],
         add_task:               ['tasks', 'home'],
         update_task:            ['tasks', 'home'],
         add_contact:            ['contacts', 'home'],
