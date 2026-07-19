@@ -692,6 +692,35 @@
         z-index: 2;
         pointer-events: none;
       }
+      /* CP6: two-choice popover for empty timeline slots. */
+      .cal-slot-pop {
+        position: fixed;
+        z-index: 1100;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-popup);
+        display: flex;
+        flex-direction: column;
+        min-width: 170px;
+        overflow: hidden;
+      }
+      .cal-slot-pop-time {
+        font-size: 11px;
+        color: var(--text-muted);
+        padding: var(--space-2) var(--space-3) 0;
+      }
+      .cal-slot-pop button {
+        background: transparent;
+        border: none;
+        text-align: left;
+        padding: var(--space-2) var(--space-3);
+        font-size: 13px;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .cal-slot-pop button:hover { background: var(--bg-hover); }
       .modal-overlay {
         display: none;
         position: fixed; inset: 0;
@@ -2620,6 +2649,7 @@
                     <button class="mm-tab active" data-calview="month" onclick="setCalView('month')">Month</button>
                     <button class="mm-tab" data-calview="year" onclick="setCalView('year')">Year</button>
                   </div>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="openBlockOffTime(calFocus())">Block time</button>
                   <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddEvent()">+ Add Event</button>
                 </div>
                 <div class="calendar-grid" id="calDayHeaders"></div>
@@ -5398,11 +5428,48 @@
         return sorted;
       }
 
-      // Slot click: open Add Event prefilled with the day + the clicked
-      // half-hour (round down by half of the 60px hour cell).
+      // CP6: empty-slot click opens a small two-choice popover — new
+      // event or block-off — prefilled with the clicked half-hour either
+      // way. ("New event" rather than "New appointment": the choice opens
+      // the calendar-event form; owner appointment booking lives in the
+      // command bar.)
       function calTimelineSlotClick(dateStr, hour, ev) {
         const half = ev && ev.offsetY >= 30 ? 30 : 0;
-        openAddEventOnDate(dateStr, String(hour).padStart(2, '0') + ':' + (half ? '30' : '00'));
+        const timeStr = String(hour).padStart(2, '0') + ':' + (half ? '30' : '00');
+        _closeSlotPop();
+        const pop = document.createElement('div');
+        pop.className = 'cal-slot-pop';
+        pop.id = 'calSlotPop';
+        pop.innerHTML =
+          '<div class="cal-slot-pop-time">' + _calEscape(fmtDateKey(dateStr, { month: 'short', day: 'numeric' })) + ' · ' + _calEscape(_calHourLabel(hour)) + (half ? ':30' : '') + '</div>'
+          + '<button onclick="_slotPopChoose(\'event\')">New event</button>'
+          + '<button onclick="_slotPopChoose(\'block\')">Block off</button>';
+        document.body.appendChild(pop);
+        window._slotPopTarget = { date: dateStr, time: timeStr };
+        // Position near the click, clamped to the viewport.
+        const x = Math.min((ev && ev.clientX) || 0, window.innerWidth - 190);
+        const y = Math.min((ev && ev.clientY) || 0, window.innerHeight - 110);
+        pop.style.left = x + 'px';
+        pop.style.top = y + 'px';
+        // Dismiss on the next outside click.
+        setTimeout(() => {
+          document.addEventListener('click', _slotPopOutside, { once: true });
+        }, 0);
+      }
+      function _closeSlotPop() {
+        const el = document.getElementById('calSlotPop');
+        if (el) el.remove();
+      }
+      function _slotPopOutside(ev) {
+        const el = document.getElementById('calSlotPop');
+        if (el && !el.contains(ev.target)) el.remove();
+      }
+      function _slotPopChoose(kind) {
+        const t = window._slotPopTarget;
+        _closeSlotPop();
+        if (!t) return;
+        if (kind === 'block') openBlockOffTime(t.date, t.time);
+        else openAddEventOnDate(t.date, t.time);
       }
 
       // Renders the day (numDays=1) or week (numDays=7) timeline into
@@ -5679,15 +5746,32 @@
       // or partial 2-4pm style). Posts to /api/calevents which knows the
       // event_type + start_time/end_time schema and computes starts_at/
       // ends_at in the workspace timezone.
-      function openBlockOffTime(dateStr) {
-        document.getElementById('blockOffDate').value = dateStr;
-        document.getElementById('blockOffWholeDay').checked = true;
-        document.getElementById('blockOffStart').value = '';
-        document.getElementById('blockOffEnd').value = '';
+      // CP6: optional startTime ("HH:mm") — timeline slot clicks prefill
+      // a one-hour partial block instead of a whole day.
+      function openBlockOffTime(dateStr, startTime) {
+        document.getElementById('blockOffDate').value = dateStr || '';
+        document.getElementById('blockOffDateEnd').value = '';
         document.getElementById('blockOffLabel').value = '';
-        document.getElementById('blockOffError').textContent = '';
+        _blockOffBanner('');
+        if (startTime) {
+          document.getElementById('blockOffWholeDay').checked = false;
+          document.getElementById('blockOffStart').value = startTime;
+          const [h, mi] = startTime.split(':').map(Number);
+          document.getElementById('blockOffEnd').value = String(Math.min(h + 1, 23)).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+        } else {
+          document.getElementById('blockOffWholeDay').checked = true;
+          document.getElementById('blockOffStart').value = '';
+          document.getElementById('blockOffEnd').value = '';
+        }
         onBlockOffWholeDayChange();
         document.getElementById('blockOffModal').style.display = 'flex';
+      }
+
+      function _blockOffBanner(msg) {
+        const el = document.getElementById('blockOffBanner');
+        if (el) el.innerHTML = msg
+          ? '<div class="mm-banner mm-banner-danger" style="margin-bottom:var(--space-3);">' + _calEscape(msg) + '</div>'
+          : '';
       }
 
       function closeBlockOffModal() {
@@ -5704,46 +5788,59 @@
 
       async function submitBlockOff() {
         const date = document.getElementById('blockOffDate').value;
+        const dateEnd = document.getElementById('blockOffDateEnd').value;
         const whole = document.getElementById('blockOffWholeDay').checked;
         const start_time = whole ? '' : document.getElementById('blockOffStart').value;
         const end_time = whole ? '' : document.getElementById('blockOffEnd').value;
         const title = (document.getElementById('blockOffLabel').value || '').trim() || 'Time off';
-        const errEl = document.getElementById('blockOffError');
-        errEl.textContent = '';
+        _blockOffBanner('');
 
-        if (!date) { errEl.textContent = 'Pick a date.'; return; }
+        if (!date) { _blockOffBanner('Pick a date.'); return; }
         if (!whole && (!start_time || !end_time)) {
-          errEl.textContent = 'Enter both a start time and an end time (or check Whole day).';
+          _blockOffBanner('Enter both a start time and an end time (or check Whole day).');
           return;
         }
         if (!whole && start_time >= end_time) {
-          errEl.textContent = 'End time must be after start time.';
+          _blockOffBanner('End time must be after start time.');
           return;
         }
 
-        const body = { date, title, event_type: 'time_off' };
-        if (!whole) { body.start_time = start_time; body.end_time = end_time; }
+        // CP6: multi-day range = one time_off row per day (the schema has
+        // no range concept). Capped at 31 days to stop typo-sized ranges.
+        const days = [date];
+        if (dateEnd) {
+          if (dateEnd < date) { _blockOffBanner('"Through" date must be on or after the start date.'); return; }
+          let d = date;
+          while (d < dateEnd && days.length <= 31) {
+            d = addDaysToKey(d, 1);
+            days.push(d);
+          }
+          if (days.length > 31) { _blockOffBanner('That range is longer than 31 days — block it in smaller chunks.'); return; }
+        }
 
         const btn = document.getElementById('blockOffSaveBtn');
         btn.disabled = true;
         const originalLabel = btn.textContent;
-        btn.textContent = 'Saving...';
         try {
-          const res = await fetch('/api/calevents', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-          if (!res.ok) {
-            const j = await res.json().catch(() => ({}));
-            errEl.textContent = j.error || `Save failed (HTTP ${res.status}).`;
-            return;
+          for (let i = 0; i < days.length; i++) {
+            btn.textContent = days.length > 1 ? `Saving ${i + 1}/${days.length}…` : 'Saving…';
+            const body = { date: days[i], title, event_type: 'time_off' };
+            if (!whole) { body.start_time = start_time; body.end_time = end_time; }
+            const res = await fetch('/api/calevents', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+              const j = await res.json().catch(() => ({}));
+              throw new Error((j && j.error) || `HTTP ${res.status}`) ;
+            }
           }
           closeBlockOffModal();
           await loadCalEvents();
           if (selectedDate) renderDayDetail(selectedDate);
         } catch (err) {
-          errEl.textContent = 'Network error — try again.';
+          _blockOffBanner('Save failed: ' + (err.message || err) + (days.length > 1 ? ' — days already saved stay blocked.' : ''));
         } finally {
           btn.disabled = false;
           btn.textContent = originalLabel;
@@ -13544,38 +13641,50 @@
   </div>
 
   <!-- Block Off Time Modal -->
+  <!-- CP6: block-off modal on the design system. Multi-day ranges create
+       one time_off row per day (the schema is one row per day). -->
   <div class="modal-overlay" id="blockOffModal" onclick="if(event.target===this)closeBlockOffModal()">
-    <div class="modal">
-      <h3>&#128683; Block off time</h3>
-      <p style="font-size:0.85em;color:var(--text-muted);margin-bottom:14px;">Customers cannot be booked during blocked-off time.</p>
+    <div class="mm-modal">
+      <div class="mm-modal-header">Block off time</div>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 var(--space-3);">Customers cannot be booked during blocked-off time.</p>
 
-      <label>Date</label>
-      <input type="date" id="blockOffDate" />
+      <div id="blockOffBanner"></div>
 
-      <label class="task-toggle" style="cursor:pointer;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+        <div>
+          <label class="mm-label" for="blockOffDate">Date</label>
+          <input type="date" id="blockOffDate" class="mm-input" />
+        </div>
+        <div>
+          <label class="mm-label" for="blockOffDateEnd">Through (optional)</label>
+          <input type="date" id="blockOffDateEnd" class="mm-input" />
+        </div>
+      </div>
+
+      <label class="task-toggle" style="cursor:pointer;margin-bottom:var(--space-3);">
         <input type="checkbox" id="blockOffWholeDay" checked onchange="onBlockOffWholeDayChange()" />
         <span>Whole day</span>
       </label>
 
-      <div id="blockOffTimeRow" style="display:none;gap:12px;">
+      <div id="blockOffTimeRow" style="display:none;gap:var(--space-3);margin-bottom:var(--space-3);">
         <div style="flex:1;">
-          <label>Start</label>
-          <input type="time" id="blockOffStart" />
+          <label class="mm-label" for="blockOffStart">Start</label>
+          <input type="time" id="blockOffStart" class="mm-input" />
         </div>
         <div style="flex:1;">
-          <label>End</label>
-          <input type="time" id="blockOffEnd" />
+          <label class="mm-label" for="blockOffEnd">End</label>
+          <input type="time" id="blockOffEnd" class="mm-input" />
         </div>
       </div>
 
-      <label>Label (optional)</label>
-      <input id="blockOffLabel" placeholder="Time off" />
+      <div style="margin-bottom:var(--space-3);">
+        <label class="mm-label" for="blockOffLabel">Reason (optional)</label>
+        <input id="blockOffLabel" class="mm-input" placeholder="Vacation, lunch, appointment…" />
+      </div>
 
-      <div id="blockOffError" style="color:var(--danger);font-size:0.85em;min-height:16px;margin-top:8px;"></div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeBlockOffModal()">Cancel</button>
-        <button class="btn-primary" id="blockOffSaveBtn" onclick="submitBlockOff()">Block off</button>
+      <div class="mm-modal-footer">
+        <button class="mm-btn mm-btn-ghost" onclick="closeBlockOffModal()">Cancel</button>
+        <button class="mm-btn mm-btn-primary" id="blockOffSaveBtn" onclick="submitBlockOff()">Block off</button>
       </div>
     </div>
   </div>
