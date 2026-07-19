@@ -4182,6 +4182,8 @@
         } else if (typeof stopCalendarPolling === 'function') {
           stopCalendarPolling();
         }
+        // CP7: tasks refresh on every visit, same pattern as calendar.
+        if (name === 'tasks' && typeof loadTasks === 'function') loadTasks();
         const resolvedIcon = icon || PAGE_ICONS[name] || '';
         document.getElementById('topbar-icon').innerHTML = resolvedIcon;
         document.getElementById('topbar-title').textContent = titles[name] || name;
@@ -6134,6 +6136,10 @@
         // time_off gets Remove instead of Cancel; plain events Delete.
         const canceled = status === 'canceled' || status === 'cancelled';
         let footer = '';
+        // CP7: spawn a follow-up task from any non-block event.
+        if (!isTimeOff) {
+          footer += '<button onclick="calEventFollowUpForm()" class="mm-btn mm-btn-ghost">Add follow-up task</button>';
+        }
         if (isAppt && !canceled) {
           footer += '<button onclick="calEventDetailEdit()" class="mm-btn mm-btn-secondary">Edit</button>';
           footer += '<button onclick="calEventDetailConfirmCancel(' + Number(event.id) + ', true)" class="mm-btn mm-btn-danger">Cancel appointment</button>';
@@ -6142,6 +6148,58 @@
         }
         footer += '<button onclick="closeCalEventDetail()" class="mm-btn mm-btn-ghost">Close</button>';
         document.getElementById('calEventDetailActions').innerHTML = footer;
+      }
+
+      // CP7: inline follow-up-task mini-form inside the event modal.
+      // tasks has no contact_id column, so the customer rides in notes.
+      function calEventFollowUpForm() {
+        const data = window._openCalEventData;
+        if (!data) return;
+        const event = data.event || {};
+        const contact = data.contact;
+        const defaultDue = calEventDayKey(event) || eventDateKey(new Date());
+        _calModalBanner('');
+        document.getElementById('calEventDetailBody').innerHTML =
+          '<div style="margin-bottom:var(--space-3);">'
+            + '<label for="calFuTitle" class="mm-label">Task</label>'
+            + '<input type="text" id="calFuTitle" class="mm-input" value="' + _calEscape('Follow up: ' + (event.title || '')) + '">'
+          + '</div>'
+          + '<div style="margin-bottom:var(--space-3);">'
+            + '<label for="calFuDue" class="mm-label">Due date</label>'
+            + '<input type="date" id="calFuDue" class="mm-input" value="' + _calEscape(defaultDue) + '">'
+          + '</div>';
+        document.getElementById('calEventDetailActions').innerHTML =
+          '<button onclick="renderCalEventDetail(window._openCalEventData)" class="mm-btn mm-btn-ghost">Back</button>'
+          + '<button id="calFuCreateBtn" onclick="calEventFollowUpCreate()" class="mm-btn mm-btn-primary">Create task</button>';
+      }
+      async function calEventFollowUpCreate() {
+        const title = ((document.getElementById('calFuTitle') || {}).value || '').trim();
+        const dueDate = (document.getElementById('calFuDue') || {}).value || '';
+        if (!title) { _calModalBanner('Task title is required.'); return; }
+        if (!dueDate) { _calModalBanner('Due date is required.'); return; }
+        const data = window._openCalEventData || {};
+        const contact = data.contact;
+        const notes = contact && contact.name
+          ? 'Customer: ' + contact.name + (contact.phone ? ' (' + contact.phone + ')' : '')
+          : 'From calendar event.';
+        const btn = document.getElementById('calFuCreateBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+        try {
+          const r = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ title, category: 'other', dueDate, notes }),
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          closeCalEventDetail();
+          if (typeof loadTasks === 'function') await loadTasks();
+          renderCalendar();
+        } catch (err) {
+          console.error('[calEventFollowUpCreate]', err);
+          if (btn) { btn.disabled = false; btn.textContent = 'Create task'; }
+          _calModalBanner('Could not create task: ' + (err.message || err));
+        }
       }
 
       // CP5: inline confirm swap — the footer becomes the question.
@@ -9146,8 +9204,11 @@
         update_appointment:     ['calendar'],
         cancel_appointment:     ['calendar'],
         complete_appointment:   ['calendar'],
-        add_task:               ['tasks', 'home'],
-        update_task:            ['tasks', 'home'],
+        // CP7: task mutations also refresh the calendar (tasks render on
+        // the grid now); escalate creates a task (the CP0 side-flag).
+        add_task:               ['tasks', 'home', 'calendar'],
+        update_task:            ['tasks', 'home', 'calendar'],
+        escalate_appointment_to_owner: ['tasks', 'home'],
         add_contact:            ['contacts', 'home'],
         update_contact:         ['contacts'],
         compose_message:        ['inbox', 'home'],
