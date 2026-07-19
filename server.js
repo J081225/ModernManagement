@@ -8386,6 +8386,28 @@ app.get('/api/finances/summary', requireAuth, async (req, res) => {
   }
 });
 
+// BG8: the unified ledger — both sides, filterable, same feeds as the
+// summary (lib/finances-summary.composeLedgerRows), server-side
+// aggregation only.
+app.get('/api/finances/ledger', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
+    const out = await require('./lib/finances-summary').composeLedgerRows({
+      db: pool, workspace: wR.rows[0],
+      period: req.query.period || 'month', start: req.query.start, end: req.query.end,
+      env: process.env,
+      direction: req.query.direction, category: req.query.category, source: req.query.source,
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[GET /api/finances/ledger]', err.message);
+    res.status(500).json({ error: 'Failed to load the ledger' });
+  }
+});
+
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);

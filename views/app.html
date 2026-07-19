@@ -3530,6 +3530,43 @@
 
             <div class="fin-detail-eyebrow">Detail</div>
 
+            <!-- BG8: the unified ledger — both sides, one time-ordered
+                 list, filterable; totals from the same feeds the
+                 summary composes. The focused transactions/expenses
+                 cards below remain for their richer per-side detail. -->
+            <div class="mm-card" id="finLedgerCard" style="margin-top:14px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Ledger</div>
+                <button class="mm-btn mm-btn-secondary mm-btn-sm" id="ledgerExportBtn" onclick="exportLedgerCsv()">Export CSV</button>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                <select id="ledFilterDirection" onchange="loadLedger()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">In &amp; out</option>
+                  <option value="in">Money in</option>
+                  <option value="out">Money out</option>
+                </select>
+                <select id="ledFilterCategory" onchange="loadLedger()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">All categories</option>
+                  <option>Payment</option><option>Deposit</option><option>Rent</option>
+                  <option>Supplies</option><option>Payroll</option><option>Utilities</option>
+                  <option>Marketing</option><option>Fees</option><option>Other</option>
+                </select>
+                <select id="ledFilterSource" onchange="loadLedger()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">All sources</option>
+                  <option value="ledger">Payments (PS)</option>
+                  <option value="legacy_rent">Rent (legacy)</option>
+                  <option value="expenses">Expenses</option>
+                  <option value="legacy_budget">Budget (legacy)</option>
+                </select>
+                <span style="font-size:0.78em;color:var(--text-muted);">follows the period above</span>
+              </div>
+              <div id="ledgerTotalsRow" style="display:none;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:0.88em;"></div>
+              <div id="ledgerList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
+            </div>
+
             <!-- E13: PS-only Card Payments status card. Visibility driven by
                  _financesVertical === 'professional-services' (set by
                  loadFinancesPage). Inner state driven by
@@ -11965,6 +12002,8 @@
         window._finSummary = sum;
         renderFinScorecard(sum);
         renderFinBreakdown(sum);
+        // BG8: the ledger follows the dashboard's period control.
+        if (typeof loadLedger === 'function') loadLedger();
         if (label) {
           const fmtD = (iso) => { try { return new Date(iso).toLocaleDateString('en-US', { timeZone: calTz(), month: 'short', day: 'numeric' }); } catch (e) { return String(iso).slice(0, 10); } };
           // period.end is exclusive — show the last included day.
@@ -12057,6 +12096,75 @@
             + '<div class="fin-bar-amt">' + _expFmtCents(c.cents) + '</div>'
             + '</div>';
         }).join('');
+      }
+
+      // ---------- BG8: the unified ledger ----------
+      function _ledParams() {
+        const params = new URLSearchParams({ period: _finPeriod });
+        if (_finPeriod === 'custom') {
+          const s = document.getElementById('finCustomStart');
+          const e = document.getElementById('finCustomEnd');
+          if (!s || !e || !s.value || !e.value) return null;
+          params.set('start', s.value);
+          params.set('end', e.value);
+        }
+        const dir = document.getElementById('ledFilterDirection');
+        const cat = document.getElementById('ledFilterCategory');
+        const src = document.getElementById('ledFilterSource');
+        if (dir && dir.value) params.set('direction', dir.value);
+        if (cat && cat.value) params.set('category', cat.value);
+        if (src && src.value) params.set('source', src.value);
+        return params;
+      }
+
+      async function loadLedger() {
+        const list = document.getElementById('ledgerList');
+        if (!list) return;
+        const params = _ledParams();
+        if (!params) return;
+        let data;
+        try {
+          const r = await fetch('/api/finances/ledger?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          data = await r.json();
+        } catch (err) {
+          console.error('[ledger] load failed:', err);
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the ledger.</div>';
+          return;
+        }
+        const totals = document.getElementById('ledgerTotalsRow');
+        if (totals) {
+          totals.style.display = 'flex';
+          totals.innerHTML =
+            '<span style="color:var(--success);font-weight:600;">In ' + _expFmtCents(data.totals.in_cents) + '</span>'
+            + '<span style="color:var(--danger);font-weight:600;">Out ' + _expFmtCents(data.totals.out_cents) + '</span>'
+            + '<span style="font-weight:700;color:var(--text-primary);">Net ' + (data.totals.net_cents >= 0 ? '+' : '−') + _expFmtCents(Math.abs(data.totals.net_cents)) + '</span>'
+            + (data.totals.demo_cents > 0 ? '<span style="color:var(--warning);font-size:0.85em;">+ ' + _expFmtCents(data.totals.demo_cents) + ' test</span>' : '')
+            + (data.capped ? '<span style="color:var(--text-muted);font-size:0.82em;">showing first ' + data.rows.length + ' of ' + data.total_rows + '</span>' : '');
+        }
+        if (!data.rows.length) {
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Nothing in this period.</div>';
+          return;
+        }
+        list.innerHTML = data.rows.map((r) => {
+          const isIn = r.direction === 'in';
+          const legacy = r.source === 'legacy_rent' || r.source === 'legacy_budget';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border);">'
+            + '<div style="flex-shrink:0;font-size:0.8em;color:var(--text-muted);width:74px;">' + r.date + '</div>'
+            + '<div style="flex-shrink:0;width:18px;text-align:center;color:' + (isIn ? 'var(--success)' : 'var(--danger)') + ';font-weight:700;">' + (isIn ? '&#8595;' : '&#8593;') + '</div>'
+            + '<div style="flex:1;min-width:0;font-size:0.9em;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _convEsc(r.description) + '</div>'
+            + '<span class="mm-badge">' + _convEsc(r.category) + '</span>'
+            + (legacy ? '<span class="mm-badge" style="font-size:0.68em;">legacy</span>' : '')
+            + (r.demo ? '<span style="font-size:0.72em;color:var(--warning);">test</span>' : '')
+            + '<div style="font-weight:700;font-size:0.9em;color:' + (isIn ? 'var(--success)' : 'var(--text-primary)') + ';">' + (isIn ? '+' : '−') + _expFmtCents(r.amount_cents) + '</div>'
+            + '</div>';
+        }).join('');
+      }
+
+      function exportLedgerCsv() {
+        const params = _ledParams();
+        if (!params) return;
+        window.location.href = '/api/finances/ledger/export.csv?' + params.toString();
       }
 
       // ---------- BG7: budget insights on the dashboard ----------
