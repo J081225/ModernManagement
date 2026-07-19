@@ -1941,6 +1941,17 @@
       }
       .cc-send:hover { opacity: 0.92; transform: translateY(-1px); }
       .cc-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+      .cc-mic { flex-shrink: 0; }
+      .cc-mic.listening {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: var(--text-on-accent);
+        animation: ccMicPulse 1.2s infinite;
+      }
+      @keyframes ccMicPulse {
+        0%, 100% { box-shadow: 0 0 0 0 var(--danger-soft); }
+        50% { box-shadow: 0 0 0 5px var(--danger-soft); }
+      }
 
       /* Mobile — tighter padding, smaller bubbles, but keep tap targets ≥ 44px */
       @media (max-width: 767px) {
@@ -13534,6 +13545,73 @@
       // `if (sendBtn)` guards skip wiring, and the toggle never works.
       // Declared as a named function (not an IIFE) so it's reachable as
       // window._ccInit for debugging.
+      // PROMPT A: dictation returns as a panel feature. Reuses the good
+      // bones of the bcc2845 implementation the AP3 cleanup deleted —
+      // webkit-prefixed SpeechRecognition, interimResults streaming the
+      // transcript into the input, continuous:false so silence ends the
+      // take — and fixes its two sins: it AUTO-SENT on end (a misheard
+      // "delete" must die in the input box, not the database — the text
+      // now stays for review) and it alert()ed errors (now one honest
+      // in-thread banner, once, and the button keeps re-prompting).
+      let _ccRecognition = null;
+      let _ccMicActive = false;
+      let _ccMicDeniedBannerShown = false;
+      function _ccMicSupported() {
+        return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+      }
+      function toggleCCDictation() {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const btn = _ccEl('cc-mic');
+        const input = _ccEl('cc-input');
+        if (!SR || !btn || !input) return;
+        if (_ccMicActive) {
+          try { if (_ccRecognition) _ccRecognition.stop(); } catch (_) { /* already stopped */ }
+          return;
+        }
+        const rec = new SR();
+        _ccRecognition = rec;
+        rec.lang = 'en-US';
+        rec.interimResults = true;
+        rec.continuous = false; // silence ends the take
+        // Dictation APPENDS to whatever was already typed, rather than
+        // overwriting it (the old version clobbered the field).
+        const base = input.value.trim();
+        rec.onstart = () => {
+          _ccMicActive = true;
+          btn.classList.add('listening');
+          btn.setAttribute('aria-pressed', 'true');
+        };
+        rec.onresult = (e) => {
+          const transcript = Array.from(e.results).map((r) => r[0].transcript).join('');
+          input.value = base ? base + ' ' + transcript : transcript;
+        };
+        rec.onend = () => {
+          _ccMicActive = false;
+          btn.classList.remove('listening');
+          btn.setAttribute('aria-pressed', 'false');
+          // Deliberately NOT auto-sending — the owner reads before firing.
+          input.focus();
+        };
+        rec.onerror = (e) => {
+          _ccMicActive = false;
+          btn.classList.remove('listening');
+          btn.setAttribute('aria-pressed', 'false');
+          if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+            if (!_ccMicDeniedBannerShown) {
+              _ccMicDeniedBannerShown = true;
+              appendCCError('Microphone access is blocked. Allow the mic for this site in your browser settings, then tap the mic again.');
+            }
+            // The button stays — tapping again re-prompts where the
+            // browser allows it.
+          } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+            console.warn('[cc] dictation error:', e.error);
+          }
+        };
+        try { rec.start(); } catch (err) {
+          console.warn('[cc] dictation start failed:', err && err.message);
+        }
+      }
+
       function _ccInit() {
         const input = _ccEl('cc-input');
         const sendBtn = _ccEl('cc-send');
@@ -13545,6 +13623,12 @@
           return;
         }
         sendBtn.addEventListener('click', sendCCMessage);
+        // PROMPT A: mic wiring. Unsupported browser -> hidden, not broken.
+        const mic = _ccEl('cc-mic');
+        if (mic) {
+          if (_ccMicSupported()) mic.addEventListener('click', toggleCCDictation);
+          else mic.style.display = 'none';
+        }
         // AP1: restore the panel's open state for this browser session.
         try { if (sessionStorage.getItem('assistantOpen') === '1') openAssistant(); } catch (_) {}
         input.addEventListener('keydown', (e) => {
@@ -14335,6 +14419,9 @@
         autocomplete="off"
         aria-label="Ask the AI"
       />
+      <!-- PROMPT A: dictation. Hidden at init when SpeechRecognition is
+           unsupported (feature-detect) — hidden, never broken. -->
+      <button class="mm-btn mm-btn-ghost cc-mic" id="cc-mic" type="button" aria-label="Dictate your message" aria-pressed="false" title="Dictate">&#127908;</button>
       <button class="cc-send" id="cc-send" type="button" aria-label="Send">Send</button>
     </div>
   </div>
