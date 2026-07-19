@@ -5577,6 +5577,8 @@ async function persistOwnerOutbound(userId, { channel, to, body, subject, sentBy
       db: pool, workspace: wR.rows[0], channel, to, body, subject,
       sentBy: sentBy || 'owner', logger: console,
       findOrCreateThread: appointmentEngine.findOrCreateThread,
+      // IB1 commit 3: owner turns land in the engine's context too.
+      onOwnerTurn: appointmentEngine.appendOwnerTurnToContext,
     });
   } catch (err) {
     console.error('[outbound-persist] wrapper failed (send unaffected):', err.message);
