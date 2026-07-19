@@ -3844,6 +3844,50 @@
               </div>
             </div>
 
+            <!-- FD3-CP6: Deposits — built whole, shipped asleep. The
+                 amount controls save normally; the ENABLE toggle is
+                 governed by reality (deposits_activatable from the
+                 server): while Stripe is test-mode it renders disabled
+                 with the plain truth, never a switch that lies. -->
+            <div class="mm-card" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Deposits</div>
+              </div>
+              <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.55;">Ask customers to secure new bookings with an up-front deposit, paid by card link.</div>
+              <div style="display:flex;flex-direction:column;gap:18px;">
+                <div>
+                  <label style="display:flex;align-items:flex-start;gap:12px;" id="mbDepositEnableWrap">
+                    <input type="checkbox" id="mbDepositEnabled" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;" />
+                    <span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Require a deposit on new bookings</span>
+                      <span id="mbDepositEnableHint" style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;"></span>
+                    </span>
+                  </label>
+                </div>
+                <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                  <div style="flex:1;min-width:160px;">
+                    <label for="mbDepositMode" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Deposit type</label>
+                    <select id="mbDepositMode" onchange="mbDepositModeChanged()"
+                      style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
+                      <option value="percent">Percent of the service price</option>
+                      <option value="flat">Flat amount</option>
+                    </select>
+                  </div>
+                  <div style="flex:1;min-width:160px;">
+                    <label for="mbDepositValue" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);margin-bottom:6px;" id="mbDepositValueLabel">Percent</label>
+                    <input type="number" id="mbDepositValue" min="1" step="1"
+                      style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+                    <span id="mbDepositValueHint" style="display:block;font-size:0.78em;color:var(--text-muted);margin-top:4px;"></span>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;">
+                  <button onclick="mbSaveDeposits()"
+                    style="padding:10px 22px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.92em;">Save</button>
+                  <div id="mbDepositStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
+                </div>
+              </div>
+            </div>
+
             <!-- Grow your business — links stored in the knowledge base
                  via existing /api/knowledge, plus educational copy on
                  reviews (do NOT incentivize) and the referrals feature
@@ -12351,6 +12395,7 @@
           if (toneEl)  toneEl.value  = (data && data.ai_tone) ? data.ai_tone : '';
           if (salesEl) salesEl.value = (data && data.ai_sales_posture) ? data.ai_sales_posture : '';
           _mbHydrateAutonomy(data);
+          _mbHydrateDeposits(data);
         } catch (err) {
           console.error('[my-business ai-settings] load failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Could not load: ' + (err.message || err), 'var(--danger)');
@@ -12481,6 +12526,86 @@
         } catch (err) {
           console.error('[my-business autonomy] save failed:', err);
           _mbSetStatus('mbAutonomyStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
+        }
+      }
+
+      // ---------- My Business: deposits (FD3-CP6, dormant until live) ----------
+      // deposits_activatable comes computed from the server (live-mode
+      // Stripe detection) — the toggle is DISABLED with the plain truth
+      // until reality changes. Amount controls always save.
+      let _mbDepositsActivatable = false;
+
+      function _mbHydrateDeposits(data) {
+        const enableEl = document.getElementById('mbDepositEnabled');
+        if (!enableEl || !data) return;
+        _mbDepositsActivatable = data.deposits_activatable === true;
+        enableEl.checked = data.deposit_enabled === true;
+        enableEl.disabled = !_mbDepositsActivatable;
+        const wrap = document.getElementById('mbDepositEnableWrap');
+        if (wrap) wrap.style.cursor = _mbDepositsActivatable ? 'pointer' : 'default';
+        const hint = document.getElementById('mbDepositEnableHint');
+        if (hint) {
+          hint.textContent = _mbDepositsActivatable
+            ? 'When ON, every new booking asks for a deposit before it is confirmed. You approve each link before it goes out.'
+            : 'Deposits activate when live payments are connected. Your amounts below are saved and ready for that day.';
+        }
+        const modeEl = document.getElementById('mbDepositMode');
+        const valEl = document.getElementById('mbDepositValue');
+        if (modeEl) modeEl.value = data.deposit_mode === 'flat' ? 'flat' : 'percent';
+        if (valEl) valEl.value = data.deposit_value != null
+          ? (data.deposit_mode === 'flat' ? (data.deposit_value / 100) : data.deposit_value)
+          : '';
+        mbDepositModeChanged();
+      }
+
+      function mbDepositModeChanged() {
+        const modeEl = document.getElementById('mbDepositMode');
+        const label = document.getElementById('mbDepositValueLabel');
+        const hint = document.getElementById('mbDepositValueHint');
+        if (!modeEl) return;
+        const flat = modeEl.value === 'flat';
+        if (label) label.textContent = flat ? 'Amount (dollars)' : 'Percent';
+        if (hint) hint.textContent = flat
+          ? 'A fixed dollar amount per booking (e.g. 25).'
+          : 'Percent of the quoted service price (e.g. 20). Bookings without a quoted price skip the deposit.';
+      }
+
+      async function mbSaveDeposits() {
+        const modeEl = document.getElementById('mbDepositMode');
+        const valEl = document.getElementById('mbDepositValue');
+        const enableEl = document.getElementById('mbDepositEnabled');
+        if (!modeEl || !valEl) return;
+        const mode = modeEl.value === 'flat' ? 'flat' : 'percent';
+        const raw = parseFloat(valEl.value);
+        if (!raw || raw <= 0 || (mode === 'percent' && (raw > 100 || raw % 1 !== 0))) {
+          _mbSetStatus('mbDepositStatus', mode === 'percent' ? 'Enter a whole percent from 1 to 100' : 'Enter a dollar amount', 'var(--danger)');
+          return;
+        }
+        const payload = {
+          deposit_mode: mode,
+          deposit_value: mode === 'flat' ? Math.round(raw * 100) : raw,
+        };
+        // Only send the enable flag when the toggle is actually
+        // usable — a disabled toggle must not silently write.
+        if (_mbDepositsActivatable && enableEl) payload.deposit_enabled = !!enableEl.checked;
+        _mbSetStatus('mbDepositStatus', 'Saving...');
+        try {
+          const r = await fetch('/api/workspace/ai-settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+          });
+          if (!r.ok) {
+            const t = await r.text().catch(function () { return ''; });
+            throw new Error('HTTP ' + r.status + (t ? ': ' + t : ''));
+          }
+          const data = await r.json();
+          _mbHydrateDeposits(data);
+          _mbSetStatus('mbDepositStatus', 'Saved!', 'var(--success)');
+        } catch (err) {
+          console.error('[my-business deposits] save failed:', err);
+          _mbSetStatus('mbDepositStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
         }
       }
 

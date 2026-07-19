@@ -8320,6 +8320,8 @@ const AI_SALES_POSTURE_VALUES = ['reactive', 'proactive'];
 // module the engine's choke point consults, so the UI and enforcement
 // can never drift apart.
 const { CATEGORIES: AUTONOMY_CATEGORIES, MODES: AUTONOMY_MODES, DEFAULTS: AUTONOMY_DEFAULTS } = require('./lib/autonomy');
+// FD3-CP6: deposit policy + the live-mode reality gate.
+const { depositsLive, depositConfig, DEPOSIT_MODES } = require('./lib/deposits');
 
 app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
   try {
@@ -8328,7 +8330,8 @@ app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
     const r = await pool.query(
       `SELECT appointment_auto_respond, appointment_auto_confirm,
               ai_tone, ai_sales_posture,
-              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments
+              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments,
+              deposit_enabled, deposit_mode, deposit_value
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -8345,6 +8348,18 @@ app.get('/api/workspace/ai-settings', requireAuth, async (req, res) => {
         acc['autonomy_' + cat] = AUTONOMY_MODES.includes(v) ? v : AUTONOMY_DEFAULTS[cat];
         return acc;
       }, {}),
+      // FD3-CP6: deposit config + the reality flag the honest toggle
+      // renders from. deposits_activatable is COMPUTED, never stored —
+      // the UI cannot lie about it and neither can a stale row.
+      ...(() => {
+        const cfg = depositConfig(row);
+        return {
+          deposit_enabled: cfg.enabled,
+          deposit_mode: cfg.mode,
+          deposit_value: cfg.value,
+          deposits_activatable: depositsLive(process.env),
+        };
+      })(),
     });
   } catch (err) {
     console.error('[GET /api/workspace/ai-settings]', err.message);
@@ -8404,6 +8419,33 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
       setClauses.push(`${field} = $${i++}`);
       params.push(normalized);
     }
+    // FD3-CP6: deposit settings. Amount controls save normally; the
+    // ENABLE flag is governed by reality — while Stripe is test-mode,
+    // enabling is refused server-side too, not just grayed in the UI.
+    if (Object.prototype.hasOwnProperty.call(body, 'deposit_mode')) {
+      const v = body.deposit_mode;
+      if (!DEPOSIT_MODES.includes(v)) {
+        return res.status(400).json({ error: `deposit_mode must be one of ${DEPOSIT_MODES.join(', ')}` });
+      }
+      setClauses.push(`deposit_mode = $${i++}`);
+      params.push(v);
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'deposit_value')) {
+      const v = parseInt(body.deposit_value, 10);
+      if (!Number.isInteger(v) || v <= 0 || (body.deposit_mode === 'percent' && v > 100)) {
+        return res.status(400).json({ error: 'deposit_value must be a positive integer (1-100 for percent mode)' });
+      }
+      setClauses.push(`deposit_value = $${i++}`);
+      params.push(v);
+    }
+    if (Object.prototype.hasOwnProperty.call(body, 'deposit_enabled')) {
+      const want = body.deposit_enabled === true || body.deposit_enabled === 'true';
+      if (want && !depositsLive(process.env)) {
+        return res.status(400).json({ error: 'Deposits activate when live payments are connected.' });
+      }
+      setClauses.push(`deposit_enabled = $${i++}`);
+      params.push(want);
+    }
     if (setClauses.length === 0) {
       return res.status(400).json({ error: 'No settings to update' });
     }
@@ -8417,7 +8459,8 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
     const r = await pool.query(
       `SELECT appointment_auto_respond, appointment_auto_confirm,
               ai_tone, ai_sales_posture,
-              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments
+              autonomy_bookings, autonomy_contacts, autonomy_tasks, autonomy_payments,
+              deposit_enabled, deposit_mode, deposit_value
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -8434,6 +8477,18 @@ app.patch('/api/workspace/ai-settings', requireAuth, async (req, res) => {
         acc['autonomy_' + cat] = AUTONOMY_MODES.includes(v) ? v : AUTONOMY_DEFAULTS[cat];
         return acc;
       }, {}),
+      // FD3-CP6: deposit config + the reality flag the honest toggle
+      // renders from. deposits_activatable is COMPUTED, never stored —
+      // the UI cannot lie about it and neither can a stale row.
+      ...(() => {
+        const cfg = depositConfig(row);
+        return {
+          deposit_enabled: cfg.enabled,
+          deposit_mode: cfg.mode,
+          deposit_value: cfg.value,
+          deposits_activatable: depositsLive(process.env),
+        };
+      })(),
     });
   } catch (err) {
     console.error('[PATCH /api/workspace/ai-settings]', err.message);
