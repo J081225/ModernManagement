@@ -4550,8 +4550,8 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     }
   }
   const { rows } = await pool.query(
-    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-    [req.session.userId, resident, _subject || '(no subject)', category, text, 'new', 'inbox']
+    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, direction, sent_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+    [req.session.userId, resident, _subject || '(no subject)', category, text, 'new', 'inbox', 'inbound', 'customer']
   );
   res.status(201).json(rows[0]);
 });
@@ -5789,8 +5789,8 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
     }
 
     const { rows } = await pool.query(
-      'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-      [userId, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email]
+      'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, email, direction, sent_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+      [userId, resident, subject, 'email', text || '(No message body)', 'new', 'inbox', email, 'inbound', 'customer']
     );
     if (rows[0]) {
       sendNotificationEmail(userId, rows[0]);
@@ -5947,8 +5947,8 @@ app.post('/api/sms/incoming', validateTwilioSignature, async (req, res) => {
   const userId = route.owner_user_id;
 
   const { rows } = await pool.query(
-    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-    [userId, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from]
+    'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+    [userId, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from, 'inbound', 'customer']
   ).catch(err => { console.error('DB insert error:', err.message); return { rows: [] }; });
 
   if (rows[0]) {
@@ -5985,6 +5985,17 @@ app.post('/api/sms/incoming', validateTwilioSignature, async (req, res) => {
           logger: console,
         });
         _e2Handled = !!(engineResult && engineResult.handled);
+        // IB1: link the inbound row to the conversation the engine used
+        // (thread + its resolved contact). Best-effort — a failed stamp
+        // leaves an unlinked-but-intact row, exactly the pre-IB1 state.
+        if (engineResult && engineResult.thread_id && rows[0]) {
+          pool.query(
+            `UPDATE messages SET thread_id = $1,
+                    contact_id = (SELECT contact_id FROM appointment_threads WHERE id = $1)
+              WHERE id = $2`,
+            [engineResult.thread_id, rows[0].id]
+          ).catch((err) => console.error('[sms/incoming] linkage stamp failed:', err.message));
+        }
       }
     } catch (err) {
       console.error('[sms/incoming] appointment engine error (falling through):', err.message);
@@ -6049,7 +6060,7 @@ app.post('/api/voice/recording', validateTwilioSignature, async (req, res) => {
   const userId = route.owner_user_id;
   try {
     await pool.query(
-      `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone) VALUES ($1,$2,$3,$4,$5,'new','inbox',$6)`,
+      `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by) VALUES ($1,$2,$3,$4,$5,'new','inbox',$6,'inbound','customer')`,
       [userId, `Caller ${phone}`, `[CALLSID:${CallSid}] Voicemail from ${phone}`, 'voicemail', '📞 Voicemail received — transcription in progress...', phone]
     );
   } catch (err) {
@@ -6120,6 +6131,13 @@ app.post('/api/voice/transcription', validateTwilioSignature, async (req, res) =
             // processed — the reply (if any) already went out by SMS,
             // and any customer response starts a fresh thread.
             if (engineResult && engineResult.thread_id) {
+              // IB1: stamp the voicemail row with its conversation.
+              pool.query(
+                `UPDATE messages SET thread_id = $1,
+                        contact_id = (SELECT contact_id FROM appointment_threads WHERE id = $1)
+                  WHERE user_id = $2 AND subject LIKE '[CALLSID:' || $3 || ']%'`,
+                [engineResult.thread_id, userId, CallSid]
+              ).catch((err) => console.error('[voice/transcription] linkage stamp failed:', err.message));
               closeConversationThread(engineResult.thread_id, 'voicemail');
             }
           }
@@ -7220,9 +7238,10 @@ async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
         body: outcomeText,
       });
       await pool.query(
-        `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone)
-         VALUES ($1, $2, $3, 'sms', $4, 'sent', 'inbox', $5)`,
-        [ws.owner_user_id, pending.customer_phone, 'SMS to ' + pending.customer_phone, outcomeText, pending.customer_phone]
+        `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by, thread_id)
+         VALUES ($1, $2, $3, 'sms', $4, 'sent', 'inbox', $5, 'outbound', 'system', $6)`,
+        [ws.owner_user_id, pending.customer_phone, 'SMS to ' + pending.customer_phone, outcomeText, pending.customer_phone,
+          pending.appointment_thread_id || null]
       );
     } else if (pending.customer_email) {
       await sgMail.send({
@@ -9080,6 +9099,16 @@ wss.on('connection', (ws, req) => {
     if (transcriptId) {
       voiceTranscript.endCallTranscript(pool, transcriptId).catch((err) =>
         console.error('[twilio-relay] transcript end failed:', err.message));
+      // IB1: the call row learns its conversation (and the thread's
+      // contact) once the call is over — the WS closure held both ids.
+      if (lastThreadId) {
+        pool.query(
+          `UPDATE messages SET thread_id = $1,
+                  contact_id = (SELECT contact_id FROM appointment_threads WHERE id = $1)
+            WHERE id = $2`,
+          [lastThreadId, transcriptId]
+        ).catch((err) => console.error('[twilio-relay] linkage stamp failed:', err.message));
+      }
     }
     if (lastThreadId) closeConversationThread(lastThreadId, 'voice');
     transcriptId = null;
