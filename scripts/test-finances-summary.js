@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // scripts/test-finances-summary.js — BG1 commit 4: the summary suite.
 // Run: node scripts/test-finances-summary.js (no DB needed — fixture-driven).
-const { computeFinancesSummary, resolvePeriod, legacyDollarsToCents } = require('../lib/finances-summary');
+const { computeFinancesSummary, composeLedgerRows, resolvePeriod, legacyDollarsToCents } = require('../lib/finances-summary');
 
 const WS_A = { id: 7, owner_user_id: 3, timezone: 'America/New_York' };
 const NOW = '2026-07-19T18:00:00Z';
@@ -101,6 +101,41 @@ const FX = {
   ],
 };
 const clone = () => JSON.parse(JSON.stringify(FX));
+
+// BG8: row-level stub over the SAME fixtures for composeLedgerRows.
+function makeLedgerDb(fx) {
+  return {
+    query: async (sql, params) => {
+      if (sql.includes('LEFT JOIN transactions t ON')) {
+        const rows = fx.ledger
+          .filter((r) => r.workspace_id === params[0] && r.status === 'completed'
+            && r.created_at >= params[1] && r.created_at < params[2])
+          .map((r) => ({ amount_cents: r.amount_cents, payment_type: r.payment_type || 'payment', payment_method: r.payment_method, created_at: r.created_at, customer_display_name: 'Dana' }));
+        return { rows };
+      }
+      if (sql.includes('FROM rent_payments')) {
+        const dateOf = (r) => r.paid_date || r.due_date;
+        const rows = fx.rent
+          .filter((r) => r.user_id === params[0] && r.status === 'paid' && dateOf(r) >= params[1] && dateOf(r) < params[2])
+          .map((r) => ({ resident: r.resident || 'Tenant', unit: r.unit || '', amount: r.amount, d: dateOf(r) }));
+        return { rows };
+      }
+      if (sql.includes('FROM expenses')) {
+        const rows = (fx.expenses || [])
+          .filter((r) => r.workspace_id === params[0] && r.spent_on >= params[1] && r.spent_on < params[2])
+          .map((r) => ({ amount_cents: r.amount_cents, category: r.category, description: r.description || '', vendor: r.vendor || '', spent_on: r.spent_on, row_source: r.source || 'manual' }));
+        return { rows };
+      }
+      if (sql.includes('FROM budget_transactions')) {
+        const rows = fx.budget
+          .filter((r) => r.user_id === params[0] && r.type === 'expense' && r.date >= params[1] && r.date < params[2])
+          .map((r) => ({ amount: r.amount, category: r.category, description: r.description || '', date: r.date }));
+        return { rows };
+      }
+      throw new Error('unexpected ledger SQL: ' + sql.slice(0, 50));
+    },
+  };
+}
 const TEST_ENV = { STRIPE_TEST_SECRET_KEY: 'sk_test_x' };
 const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
 
@@ -353,6 +388,50 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
     b.bridged === false && b.reason === 'already_bridged' && bridged.length === 1);
   b = await bridgeInvoiceToExpense(bridgeClient, { workspaceId: 7, invoice: { id: 45, amount: '0.00', vendor: 'X' }, userId: 3, spentOn: '2026-07-19' });
   check('B14c: a zero/invalid invoice amount refuses to bridge', b.bridged === false && b.reason === 'invoice_amount_invalid');
+
+  // ---- BG8: the unified ledger — totals match the summary ----
+  // THE PROOF THAT MATTERS: same fixtures, same period — the ledger's
+  // totals and the dashboard summary must be EQUAL. Same feeds, same
+  // boundaries, same demo arithmetic; they cannot disagree.
+  fx = clone();
+  const sum8 = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
+  const led8 = await composeLedgerRows({ db: makeLedgerDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV });
+  check('B21: LEDGER TOTALS === SUMMARY (in, out, net, demo) — the report and the dashboard read one truth',
+    led8.totals.in_cents === sum8.money_in.combined_cents
+    && led8.totals.out_cents === sum8.money_out.combined_cents
+    && led8.totals.net_cents === sum8.net_cents
+    && led8.totals.demo_cents === sum8.money_in_demo_cents);
+
+  // B21b: both directions present, correctly shaped and labeled.
+  check('B21b: rows span both directions with source + demo labels',
+    led8.rows.some((r) => r.direction === 'in' && r.source === 'ledger')
+    && led8.rows.some((r) => r.direction === 'in' && r.source === 'legacy_rent')
+    && led8.rows.some((r) => r.direction === 'out' && r.source === 'expenses')
+    && led8.rows.some((r) => r.direction === 'out' && r.source === 'legacy_budget')
+    && led8.rows.some((r) => r.demo === true));
+
+  // B21c: filters — direction narrows, category narrows, source skips feeds.
+  const ledIn = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, direction: 'in' });
+  const ledSup = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, category: 'Supplies' });
+  const ledExp = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, source: 'expenses' });
+  check('B21c: direction=in has no out rows; category=Supplies only Supplies; source=expenses only that feed',
+    ledIn.rows.every((r) => r.direction === 'in') && ledIn.totals.out_cents === 0
+    && ledSup.rows.every((r) => r.category === 'Supplies')
+    && ledExp.rows.every((r) => r.source === 'expenses'));
+
+  // B21d: workspace isolation — B's ledger never contains A's money.
+  const ledB = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: { id: 8, owner_user_id: 9, timezone: 'America/New_York' }, period: 'month', env: LIVE_ENV });
+  check('B21d: workspace B ledger = only its own rows (99900 in, 50000 out, 500000 rent)',
+    ledB.totals.in_cents === 99900 + 500000 && ledB.totals.out_cents === 50000
+    && !ledB.rows.some((r) => r.amount_cents === 5000 || r.amount_cents === 120000));
+
+  // B21e: CSV escaping — the extracted helper handles commas/quotes.
+  const srvCsv = require('fs').readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
+  check('B21e: one escaping implementation — extracted _csvEscape used by BOTH exports',
+    srvCsv.includes('const _csvEscape = (v) =>')
+    && srvCsv.includes('const escapeCsv = _csvEscape;')
+    && srvCsv.split('_csvEscape(').length - 1 >= 2
+    && srvCsv.includes("app.get('/api/finances/ledger/export.csv', requireAuth"));
 
   console.log(pass + '/' + total + (pass === total ? ' — budget summary gate PASSED' : ' — GATE FAILED'));
   process.exit(pass === total ? 0 : 1);
