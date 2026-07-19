@@ -4325,6 +4325,7 @@
 
       function showPage(name, icon, link) {
         if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
+        if (typeof updateInboxBadge === 'function') updateInboxBadge();
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         const pageEl = document.getElementById('page-' + name);
@@ -4640,7 +4641,7 @@
             : '';
           line.innerHTML = `
             <div style="flex:1;min-width:0;cursor:pointer;" onclick="showMessage(${msg.id})">
-              <div style="font-weight:${msg.status==='new'?'700':'500'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${emergencyBadge}${catIcon} ${msg.subject}</div>
+              <div style="font-weight:${_msgUnread(msg)?'600':'400'};color:${_msgUnread(msg)?'var(--text-primary)':'var(--text-secondary)'};font-size:0.95em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_msgUnread(msg)?'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:middle;"></span>':''}${emergencyBadge}${catIcon} ${msg.subject}</div>
               <div style="color:var(--text-muted);font-size:0.82em;margin-top:2px;">${msg.resident} &nbsp;<span class="badge ${badgeClass}">${msg.status}</span></div>
             </div>
             <div style="display:flex;gap:2px;flex-shrink:0;">
@@ -4684,31 +4685,53 @@
         switchFolder('deleted', null);
       }
 
+      // IB2: unread = inbound AND not yet seen (read_at) — never
+      // owner/ai/system rows, never unlinked legacy rows.
+      function _msgUnread(m) {
+        return m && m.direction === 'inbound' && !m.read_at;
+      }
+
       async function updateFolderCounts() {
-        const [inbox, deleted] = await Promise.all([
-          fetch('/api/messages?folder=inbox').then(r => r.json()),
+        // IB2: the inbox badge counts CONVERSATIONS containing unread —
+        // one indexed server query, not a client-side row scan. The
+        // deleted-folder count keeps its row semantics.
+        const [unread, deleted] = await Promise.all([
+          fetch('/api/messages/unread-count').then(r => r.json()),
           fetch('/api/messages?folder=deleted').then(r => r.json())
         ]);
-        const inboxNew = inbox.filter(m => m.status === 'new').length;
+        const inboxUnread = (unread && unread.unread_conversations) || 0;
         const deletedCount = deleted.length;
         const ib = document.getElementById('folder-badge-inbox');
         const db2 = document.getElementById('folder-badge-deleted');
-        if (ib) { ib.textContent = inboxNew; ib.style.display = inboxNew > 0 ? 'inline' : 'none'; }
+        if (ib) { ib.textContent = inboxUnread; ib.style.display = inboxUnread > 0 ? 'inline' : 'none'; }
         if (db2) { db2.textContent = deletedCount; db2.style.display = deletedCount > 0 ? 'inline' : 'none'; }
       }
 
-      function updateInboxBadge() {
-        const newCount = messages.filter(m => m.status === 'new' && currentFolder === 'inbox').length;
-        const badge = document.getElementById('inbox-alert-badge');
-        if (badge) {
-          if (newCount > 0) { badge.textContent = newCount; badge.style.display = 'inline'; }
-          else { badge.style.display = 'none'; }
-        }
+      async function updateInboxBadge() {
+        // IB2: same truth as the folder badge — unread conversations,
+        // fetched from the indexed endpoint (was: a client-side filter
+        // over whatever folder happened to be loaded).
+        try {
+          const r = await fetch('/api/messages/unread-count');
+          if (!r.ok) return;
+          const data = await r.json();
+          const n = (data && data.unread_conversations) || 0;
+          const badge = document.getElementById('inbox-alert-badge');
+          if (badge) {
+            if (n > 0) { badge.textContent = n; badge.style.display = 'inline'; }
+            else { badge.style.display = 'none'; }
+          }
+        } catch (err) { /* keep the last shown value */ }
       }
 
       async function showMessage(id) {
         const msg = await api('messages/' + id);
         selectedMessage = msg;
+        // IB2: the fetch above already marked the conversation read
+        // server-side — re-render the list and badges to that truth
+        // (switchFolder refetches; the detail pane below is separate).
+        switchFolder(currentFolder, null);
+        updateInboxBadge();
         const panel = document.getElementById('messageDetail');
 
         // Sub-step C: emergency banner above the message header. Shows
@@ -9390,6 +9413,7 @@
       async function refreshPageData(pageName) {
         try {
           if (typeof updateApprovalsBadge === 'function') updateApprovalsBadge();
+          if (typeof updateInboxBadge === 'function') updateInboxBadge();
           switch (pageName) {
             case 'home':
               if (typeof loadHomeStats === 'function') await loadHomeStats();

@@ -4503,10 +4503,23 @@ app.get('/api/messages', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
+// IB2: the truth the badges render — conversations containing unread
+// (Gmail's arithmetic), one indexed query.
+app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
+  const n = await readState.unreadConversationCount({ db: pool, userId: req.session.userId });
+  res.json({ unread_conversations: n });
+});
+
 app.get('/api/messages/:id', requireAuth, async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM messages WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
   if (!rows.length) return res.status(404).json({ error: 'Message not found' });
   const msg = rows[0];
+  // IB2: the act of seeing IS the marking — server-side, on this
+  // fetch. Opening a threaded message marks the whole conversation's
+  // inbound rows; threadless rows (incl. voice transcripts) mark
+  // themselves. Best-effort; the message is served either way.
+  const marked = await readState.markReadOnFetch({ db: pool, userId: req.session.userId, message: msg });
+  if (marked > 0) msg.read_at = new Date().toISOString();
   // Sub-step C: lazily compute matched keywords for the detail-view
   // banner. Single source of truth on the server (no JS duplication of
   // the keyword list). Graceful fallback if the keyword list has
@@ -5566,6 +5579,7 @@ function detectEmergency(text) {
 
 const { sendOwnerAlert } = require('./lib/owner-alert');
 const { persistOutboundMessage } = require('./lib/outbound-persist');
+const readState = require('./lib/read-state');
 
 // IB1: record an owner/system/ai outbound AFTER its send succeeded.
 // Cannot throw; a persistence failure logs and the send stands.
