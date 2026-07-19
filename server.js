@@ -5071,6 +5071,11 @@ function buildPendingActionSummary(toolName, input) {
     }
     case 'reply_to_message':
       return `Reply to ${input.message_reference || 'message'}: "${_c1Truncate(input.body || '', 80)}"`;
+    // BG5: the owner's Approve IS "yes, it came out of the budget".
+    case 'post_expense': {
+      const amt = Number.isInteger(input.amount_cents) ? '$' + (input.amount_cents / 100).toFixed(2) : 'an amount';
+      return `Post ${amt} to ${input.category || 'Other'}?${input.vendor ? ` (${input.vendor})` : ''}`;
+    }
     // E14 Stage 2: AI-proposed batch of customer payment requests. The
     // input.requests array carries the AI's proposal verbatim; this chip
     // renders enough of it for the owner to recognize what they're
@@ -5423,6 +5428,7 @@ You have access to the following tools. Use them proactively when the user's int
 - mark_rent_paid: mark a resident's rent as paid — match by name from the rent records
 - send_late_notice: send a payment reminder to an unpaid resident
 - add_budget_transaction: log income or expenses to the budget tracker
+- post_expense: record a business expense in the budget ledger (amount in integer cents; queues for your approval)
 - add_maintenance_ticket: create maintenance/repair tickets
 - generate_rent: create pending rent records for all residents for a given month
 - create_property / update_property / archive_property: manage properties (buildings, locations)
