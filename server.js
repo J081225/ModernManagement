@@ -4959,6 +4959,7 @@ You help property managers get things done by taking action within the app.`;
 ${contextSummary}
 
 Today's date is ${new Date().toISOString().split('T')[0]}.
+${currentPage ? `The owner is currently looking at the "${currentPage}" screen of the app.` : ''}
 
 You have access to the following tools. Use them proactively when the user's intent is clear:
 - add_calendar_event: schedule events and appointments

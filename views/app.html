@@ -1792,24 +1792,73 @@
          the fixed Command Center. 88px = 60px bar + 28px breathing room. */
       .page { padding-bottom: 88px; }
 
+      /* AP1: persistent assistant panel — right edge, every page.
+         Collapsed = the .cc-tab; open = 360px column, content
+         compresses via body.assistant-open. */
       .command-center {
         position: fixed;
-        bottom: 0;
-        left: 0;
+        top: 0;
         right: 0;
-        z-index: 9999;
+        bottom: 0;
+        width: 360px;
+        z-index: 1060;
         background: var(--bg-surface);
-        border-top: 1px solid var(--border);
-        box-shadow: var(--shadow-popup);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        transform: translateX(102%);
+        transition: transform 0.25s ease;
       }
+      .command-center.open { transform: translateX(0); }
+      body.assistant-open #main { margin-right: 360px; }
+      #main { transition: margin-right 0.25s ease; }
+      .cc-tab {
+        position: fixed;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        width: 40px;
+        padding: var(--space-3) 0;
+        background: var(--accent);
+        color: var(--text-on-accent);
+        border: none;
+        border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+        cursor: pointer;
+        z-index: 1059;
+        writing-mode: vertical-rl;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+      }
+      .cc-tab:hover { background: var(--accent-hover); }
+      .cc-tab .cc-tab-icon { display: none; }
+      body.assistant-open .cc-tab { display: none; }
+      .cc-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        flex-shrink: 0;
+      }
+      /* The legacy expand/collapse chevron is retired but must stay in
+         the DOM (init guards on it) — hidden here. */
+      .command-center .cc-toggle { display: none; }
+      .cc-action-line {
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 0 var(--space-2);
+      }
+      .cc-action-line.failed { color: var(--danger); }
 
       .cc-panel {
-        max-height: 60vh;
+        flex: 1;
         overflow-y: auto;
         padding: 16px;
-        border-bottom: 1px solid var(--border);
       }
 
       .cc-messages {
@@ -1961,6 +2010,25 @@
 
       /* Mobile — tighter padding, smaller bubbles, but keep tap targets ≥ 44px */
       @media (max-width: 767px) {
+        /* AP1: the panel is a full-height sheet over content; the tab
+           becomes a floating button bottom-right. */
+        .command-center { width: 100%; }
+        body.assistant-open #main { margin-right: 0; }
+        .cc-tab {
+          top: auto;
+          bottom: var(--space-5);
+          right: var(--space-4);
+          transform: none;
+          writing-mode: horizontal-tb;
+          width: 44px;
+          height: 44px;
+          padding: 0;
+          border-radius: 50%;
+          box-shadow: var(--shadow-popup);
+          font-size: 18px;
+        }
+        .cc-tab .cc-tab-label { display: none; }
+        .cc-tab .cc-tab-icon { display: inline; }
         .cc-input-bar { padding: 10px 12px; gap: 8px; }
         .cc-input { font-size: 0.92em; padding: 11px 14px; }
         .cc-send { padding: 10px 16px; font-size: 0.85em; }
@@ -13240,6 +13308,66 @@
 
       function _ccEl(id) { return document.getElementById(id); }
 
+      // AP1: panel state. Open/collapsed survives SPA navigation by
+      // construction (the panel lives outside #content) and survives
+      // reloads within the browser session via sessionStorage.
+      function openAssistant() {
+        const cc = document.getElementById('command-center');
+        if (cc) cc.classList.add('open');
+        document.body.classList.add('assistant-open');
+        const panel = _ccEl('cc-panel');
+        if (panel) panel.style.display = '';
+        try { sessionStorage.setItem('assistantOpen', '1'); } catch (_) {}
+        const input = _ccEl('cc-input');
+        if (input) setTimeout(() => input.focus(), 150);
+      }
+      function collapseAssistant() {
+        const cc = document.getElementById('command-center');
+        if (cc) cc.classList.remove('open');
+        document.body.classList.remove('assistant-open');
+        try { sessionStorage.setItem('assistantOpen', '0'); } catch (_) {}
+      }
+      // "/" opens, Esc collapses — same guards as the calendar keys:
+      // never while typing, never with a modal open.
+      document.addEventListener('keydown', (ev) => {
+        const el = document.activeElement;
+        const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+        const modalOpen = Array.from(document.querySelectorAll('.modal-overlay')).some(m => m.style.display === 'flex');
+        if (ev.key === '/' && !typing && !modalOpen) {
+          ev.preventDefault();
+          openAssistant();
+        } else if (ev.key === 'Escape' && !modalOpen) {
+          const cc = document.getElementById('command-center');
+          if (cc && cc.classList.contains('open')) collapseAssistant();
+        }
+      });
+      // AP1: minimal context scaffolding — which screen the owner is on.
+      function _activePageId() {
+        const pg = document.querySelector('.page.active');
+        return pg && pg.id ? pg.id.replace('page-', '') : null;
+      }
+      // AP1: quiet per-action ledger lines in the thread.
+      function appendCCActionLine(a) {
+        const wrap = _ccEl('cc-messages');
+        if (!wrap || !a) return;
+        const div = document.createElement('div');
+        div.className = 'cc-action-line' + (a.success ? '' : ' failed');
+        div.textContent = (a.success ? '✓ ' : '⚠ ') + (a.message || a.type || 'action');
+        wrap.appendChild(div);
+        ccScrollToBottom();
+      }
+      // AP1: in-thread failure banner — no silent failures.
+      function appendCCError(msg) {
+        const wrap = _ccEl('cc-messages');
+        if (!wrap) return;
+        const div = document.createElement('div');
+        div.className = 'mm-banner mm-banner-danger';
+        div.style.fontSize = '12px';
+        div.textContent = msg;
+        wrap.appendChild(div);
+        ccScrollToBottom();
+      }
+
       function _ccEscape(s) {
         if (s == null) return '';
         return String(s)
@@ -13396,7 +13524,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ prompt: msg, currentPage: 'home' }),
+            body: JSON.stringify({ prompt: msg, currentPage: _activePageId() }),
           });
           if (thinkingEl) thinkingEl.remove();
 
@@ -13411,11 +13539,7 @@
             } catch (_) { /* ignore */ }
             if (!handled) {
               const err = await r.json().catch(() => ({}));
-              appendCCMessage(
-                'assistant',
-                "Sorry, I couldn't process that. " + (err.error || err.message || ('HTTP ' + r.status)),
-                null
-              );
+              appendCCError("Couldn't process that: " + (err.error || err.message || ('HTTP ' + r.status)));
             }
             return;
           }
@@ -13426,10 +13550,19 @@
             ? data.actions.map(a => a && a.type).filter(Boolean).join(', ') || null
             : null;
           appendCCMessage('assistant', reply, toolSummary);
+          if (data && Array.isArray(data.actions)) {
+            for (const a of data.actions) appendCCActionLine(a);
+          }
 
-          // Refresh any visible page-level data that may have changed.
-          if (typeof refreshPageData === 'function') {
-            try { refreshPageData(); } catch (_) { /* ignore */ }
+          // AP1: refresh exactly the pages the executed tools touched
+          // (the old no-arg refreshPageData() matched no case and
+          // refreshed nothing).
+          if (typeof refreshPageData === 'function' && data && Array.isArray(data.actions)) {
+            const pages = new Set();
+            for (const a of data.actions) (TOOL_PAGE_MAP[a.type] || []).forEach(pg => pages.add(pg));
+            for (const pg of pages) {
+              try { await refreshPageData(pg); } catch (_) { /* ignore */ }
+            }
           }
           // If the dashboard is visible and this is a PS workspace, kick
           // a refresh so freshly-completed actions show up immediately.
@@ -13439,7 +13572,7 @@
           }
         } catch (err) {
           if (thinkingEl && thinkingEl.parentNode) thinkingEl.remove();
-          appendCCMessage('assistant', "Sorry, I couldn't reach the server. Please try again.", null);
+          appendCCError("Couldn't reach the server — please try again.");
           console.error('[cc] send error:', err);
         } finally {
           _ccLoading = false;
@@ -13467,6 +13600,8 @@
           return;
         }
         sendBtn.addEventListener('click', sendCCMessage);
+        // AP1: restore the panel's open state for this browser session.
+        try { if (sessionStorage.getItem('assistantOpen') === '1') openAssistant(); } catch (_) {}
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -14234,8 +14369,15 @@
        every page. Placed outside #main so it sits on top of all pages
        regardless of which one is active. Expandable chat panel above the
        input. Both PM and PS workspaces see it. -->
-  <div id="command-center" class="command-center" aria-label="AI command center">
-    <div class="cc-panel" id="cc-panel" style="display:none;" role="log" aria-live="polite">
+  <!-- AP1: collapsed-state tab (desktop: vertical mid-right; mobile:
+       floating button bottom-right). -->
+  <button class="cc-tab" id="cc-tab" type="button" onclick="openAssistant()" aria-label="Open assistant (press /)"><span class="cc-tab-label">Assistant</span><span class="cc-tab-icon">&#10024;</span></button>
+  <div id="command-center" class="command-center" aria-label="AI assistant panel">
+    <div class="cc-head">
+      <span>Assistant</span>
+      <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="collapseAssistant()" aria-label="Close assistant" title="Close (Esc)">&times;</button>
+    </div>
+    <div class="cc-panel" id="cc-panel" role="log" aria-live="polite">
       <div class="cc-messages" id="cc-messages"></div>
     </div>
     <div class="cc-input-bar">
