@@ -4756,8 +4756,10 @@
       function _cvBubble(m, showGlyph) {
         const glyph = showGlyph ? ' &middot; ' + _convGlyph(m.category, m.sent_by) : '';
         const meta = '<div class="cv-meta">' + _cvTime(m.createdAt) + glyph + '</div>';
+        // IB5: email has subjects; SMS doesn't — a QUIET header on the
+        // bubble, not a shout.
         const subj = (m.category === 'email' && m.subject && !m.subject.startsWith('Email to'))
-          ? '<div style="font-weight:600;margin-bottom:4px;">' + _convEsc(m.subject) + '</div>' : '';
+          ? '<div style="font-size:0.78em;font-weight:600;color:var(--text-muted);margin-bottom:4px;">' + _convEsc(m.subject) + '</div>' : '';
         const body = subj + _convEsc(m.text || m.subject || '');
         if (m.category === 'voice') return _cvVoiceRow(m, showGlyph);
         if (m.sent_by === 'system') {
