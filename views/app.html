@@ -3520,6 +3520,7 @@
                 <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="loadFinancesSummary()">Apply</button>
               </div>
               <div id="finPeriodLabel" style="font-size:0.82em;color:var(--text-muted);margin-bottom:14px;"></div>
+              <div id="finInsightStrip" style="display:none;"></div>
               <div class="fin-tiles" id="finScorecard"></div>
               <div style="margin-top:20px;">
                 <div style="font-weight:600;color:var(--text-primary);font-size:0.95em;margin-bottom:10px;">Where the money went</div>
@@ -11803,6 +11804,7 @@
         // BG3: the dashboard reads the server-computed summary; the
         // deleted budget one-liner's client-side math is superseded.
         loadFinancesSummary();
+        loadFinInsights();
         loadFinancesInvoicesSummary();
         // BG2: expenses serve BOTH verticals (§7 — a plumber's parts and
         // a salon's polish are the same row shape).
@@ -12055,6 +12057,44 @@
             + '<div class="fin-bar-amt">' + _expFmtCents(c.cents) + '</div>'
             + '</div>';
         }).join('');
+      }
+
+      // ---------- BG7: budget insights on the dashboard ----------
+      // Read-only strip over the SAME suggestion rows the Tasks page
+      // renders (category 'budget_insight') — no new storage. Honest
+      // actions only: dismiss always; Post-expense ONLY when the
+      // insight carries the BG5 marker (an action it can actually
+      // perform). Informational insights offer dismiss alone.
+      async function loadFinInsights() {
+        const strip = document.getElementById('finInsightStrip');
+        if (!strip) return;
+        let insights = [];
+        try {
+          const r = await fetch('/api/tasks', { credentials: 'include' });
+          if (!r.ok) return;
+          const tasks = await r.json();
+          insights = tasks.filter((t) => t.suggested && !t.done && t.category === 'budget_insight');
+        } catch (err) { return; }
+        if (!insights.length) { strip.style.display = 'none'; strip.innerHTML = ''; return; }
+        strip.style.display = 'block';
+        strip.innerHTML = insights.slice(0, 2).map((t) => {
+          const hasExpense = /^EXPENSE \{/m.test(t.notes || '');
+          return '<div style="display:flex;align-items:center;gap:10px;background:var(--bg-sunken);border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin-bottom:10px;">'
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-size:0.9em;font-weight:600;color:var(--text-primary);">' + _convEsc(t.title) + '</div>'
+            + (t.aiReason ? '<div style="font-size:0.8em;color:var(--text-muted);margin-top:2px;">' + _convEsc(t.aiReason) + '</div>' : '')
+            + '</div>'
+            + (hasExpense ? '<button class="mm-btn mm-btn-primary mm-btn-sm" onclick="acceptExpenseSuggestion(' + t.id + ');setTimeout(loadFinInsights,400);">Post expense</button>' : '')
+            + '<button onclick="dismissFinInsight(' + t.id + ')" aria-label="Dismiss" title="Dismiss" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1em;padding:2px 6px;">&#10005;</button>'
+            + '</div>';
+        }).join('');
+      }
+
+      async function dismissFinInsight(id) {
+        try {
+          await fetch('/api/tasks/' + id + '/reject', { method: 'DELETE', credentials: 'include' });
+        } catch (err) { console.error('[insights] dismiss failed:', err); }
+        loadFinInsights();
       }
 
       // ---------- BG6: cash anchoring + goals ----------
