@@ -71,6 +71,7 @@ const verticals = require('./lib/verticals');
 // handled=false, the existing emergency-detection / auto-reply paths
 // fire as before.
 const appointmentEngine = require('./lib/appointment-engine');
+const voiceTranscript = require('./lib/voice-transcript');
 
 // Session D3: subscription lifecycle event processors. Handle
 // customer.subscription.updated, customer.subscription.deleted, and
@@ -8447,6 +8448,9 @@ wss.on('connection', (ws) => {
   let workspace = null;
   let callSid = null;
   let callerPhone = null;
+  // FD3-CP1: per-call transcript row + the engine thread this call used.
+  let transcriptId = null;
+  let lastThreadId = null;
 
   // Strip Markdown/formatting characters so Twilio's TTS doesn't read them
   // aloud (e.g. ** would otherwise be spoken as "asterisk asterisk"). Only
@@ -8497,6 +8501,19 @@ wss.on('connection', (ws) => {
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
+        // FD3-CP1: open the per-call transcript row immediately so even
+        // a call dropped mid-sentence has its turns on record.
+        if (workspace) {
+          try {
+            transcriptId = await voiceTranscript.beginCallTranscript(pool, {
+              userId: workspace.owner_user_id,
+              callSid,
+              phone: callerPhone,
+            });
+          } catch (err) {
+            console.error('[twilio-relay] transcript begin failed (call continues):', err.message);
+          }
+        }
         return;
       }
 
@@ -8511,6 +8528,9 @@ wss.on('connection', (ws) => {
           return;
         }
 
+        // FD3-CP1: persist the caller's turn before the model runs.
+        try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'Customer', utterance); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
+
         const result = await appointmentEngine.processInboundMessage({
           workspace,
           contact: null,
@@ -8524,16 +8544,21 @@ wss.on('connection', (ws) => {
           env: process.env,
           logger: console,
         });
+        if (result && result.thread_id) lastThreadId = result.thread_id;
 
+        let spoken;
         if (result && result.handled && result.outbound_text) {
-          sendText(result.outbound_text);
+          spoken = result.outbound_text;
         } else if (result && result.handled) {
           // Engine handled the turn but produced no text to speak.
-          sendText("Sorry, I didn't catch that — could you say it again?");
+          spoken = "Sorry, I didn't catch that — could you say it again?";
         } else {
           console.log('[twilio-relay] engine did not handle: reason=' + ((result && result.reason) || 'unknown') + ' callSid=' + (callSid || 'unknown'));
-          sendText("Thanks for calling. Let me take a message and have someone get back to you.");
+          spoken = "Thanks for calling. Let me take a message and have someone get back to you.";
         }
+        sendText(spoken);
+        // FD3-CP1: persist what was actually said back.
+        try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'AI', spoken); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
         return;
       }
 
@@ -8553,6 +8578,13 @@ wss.on('connection', (ws) => {
 
   ws.on('close', (code, reason) => {
     console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
+    // FD3-CP1: hangup — stamp the transcript (already persisted per turn).
+    if (transcriptId) {
+      voiceTranscript.endCallTranscript(pool, transcriptId).catch((err) =>
+        console.error('[twilio-relay] transcript end failed:', err.message));
+    }
+    transcriptId = null;
+    lastThreadId = null;
     workspace = null;
     callSid = null;
     callerPhone = null;
