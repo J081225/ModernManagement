@@ -5746,12 +5746,15 @@ const readState = require('./lib/read-state');
 
 // IB1: record an owner/system/ai outbound AFTER its send succeeded.
 // Cannot throw; a persistence failure logs and the send stands.
-async function persistOwnerOutbound(userId, { channel, to, body, subject, sentBy }) {
+async function persistOwnerOutbound(userId, { channel, to, body, subject, sentBy, threadId }) {
   try {
     const wR = await pool.query('SELECT * FROM workspaces WHERE owner_user_id = $1 LIMIT 1', [userId]);
     if (!wR.rows[0]) return;
     await persistOutboundMessage({
       db: pool, workspace: wR.rows[0], channel, to, body, subject,
+      // IB3: the pane passes the conversation's thread so the reply
+      // lands in the SAME conversation (skips findOrCreateThread).
+      threadId: threadId || undefined,
       sentBy: sentBy || 'owner', logger: console,
       findOrCreateThread: appointmentEngine.findOrCreateThread,
       // IB1 commit 3: owner turns land in the engine's context too.
@@ -6070,7 +6073,7 @@ app.post('/api/email/send', requireAuth, async (req, res) => {
     if (rows.length) {
       const result = await sendViaConnectedAccount(req.session.userId, { to, subject, text: body });
       if (result.success) {
-        await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner' });
+        await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner', threadId: parseInt(req.body.thread_id, 10) || null });
         return res.json({ success: true, via: 'connected' });
       }
       // Fall through to SendGrid if SMTP fails
@@ -6087,7 +6090,7 @@ app.post('/api/email/send', requireAuth, async (req, res) => {
       subject,
       text: body
     });
-    await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner' });
+    await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner', threadId: parseInt(req.body.thread_id, 10) || null });
     res.json({ success: true, via: 'sendgrid' });
   } catch (err) {
     console.error('SendGrid error:', err.message);
@@ -6234,8 +6237,9 @@ app.post('/api/sms/send', requireAuth, async (req, res) => {
   try {
     const msg = await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to, body });
     // IB1: the owner's reply finally exists on file (§6: the
-    // conversation was missing every owner turn).
-    await persistOwnerOutbound(req.session.userId, { channel: 'sms', to, body, sentBy: 'owner' });
+    // conversation was missing every owner turn). IB3: an optional
+    // thread_id pins it to the open conversation.
+    await persistOwnerOutbound(req.session.userId, { channel: 'sms', to, body, sentBy: 'owner', threadId: parseInt(req.body.thread_id, 10) || null });
     res.json({ success: true, sid: msg.sid });
   } catch (err) {
     console.error('Twilio send error:', err.message);

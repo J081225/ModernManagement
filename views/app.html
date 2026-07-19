@@ -4789,11 +4789,80 @@
         const banner = flagged.length
           ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--danger-soft);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;"><div style="flex:1;color:var(--danger);font-size:0.9em;">&#128680; ' + flagged.length + ' message(s) in this conversation are flagged for review.</div><button onclick="clearConversationEmergency()" style="background:var(--bg-surface);color:var(--danger);border:1.5px solid var(--danger);border-radius:8px;padding:6px 12px;font-size:0.85em;font-weight:600;cursor:pointer;">Mark Reviewed</button></div>'
           : '';
+        // IB3 commit 3: the honest read-out — truth now, control in IB4.
+        const aiLine = meta.ai_responding
+          ? '<div style="font-size:0.78em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>AI is responding to this conversation</div>'
+          : '';
+        // Reply channel: the conversation's channel; if mixed, default
+        // to the LAST INBOUND channel, selectable.
+        const lastInbound = [...msgs].reverse().find((m) => m.direction === 'inbound');
+        const lastInCh = lastInbound && lastInbound.category === 'email' ? 'email' : 'sms';
+        const canSms = !!meta.phone, canEmail = !!meta.email;
+        let replyBox = '';
+        if (canSms || canEmail) {
+          const defCh = lastInCh === 'email' && canEmail ? 'email' : (canSms ? 'sms' : 'email');
+          const selector = (canSms && canEmail)
+            ? '<select id="cvReplyChannel" style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.85em;cursor:pointer;">'
+              + '<option value="sms"' + (defCh === 'sms' ? ' selected' : '') + '>SMS</option>'
+              + '<option value="email"' + (defCh === 'email' ? ' selected' : '') + '>Email</option></select>'
+            : '<input type="hidden" id="cvReplyChannel" value="' + defCh + '" />';
+          replyBox =
+            '<div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);align-items:flex-end;">'
+            + selector
+            + '<textarea id="cvReplyText" rows="2" placeholder="Reply as yourself&hellip;" style="flex:1;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;resize:vertical;box-sizing:border-box;"></textarea>'
+            + '<button class="mm-btn mm-btn-primary mm-btn-sm" id="cvReplySend" onclick="sendConversationReply()">Send</button>'
+            + '</div>';
+        }
         detail.innerHTML =
           '<div style="margin-bottom:4px;font-weight:700;color:var(--text-primary);">' + _convEsc(name) + '</div>'
-          + (identity ? '<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:10px;">' + identity + '</div>' : '')
+          + (identity ? '<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:6px;">' + identity + '</div>' : '')
+          + aiLine
           + banner
-          + '<div class="cv-thread">' + msgs.map((m) => _cvBubble(m, mixed)).join('') + '</div>';
+          + '<div class="cv-thread">' + msgs.map((m) => _cvBubble(m, mixed)).join('') + '</div>'
+          + replyBox;
+      }
+
+      // IB3 commit 3: the owner's reply, through the IB1-persisted
+      // routes — the server writes the row (sent_by 'owner', pinned to
+      // this thread), so the bubble that appears optimistically here is
+      // the same row a refetch would render. NO driver change: the AI
+      // keeps doing whatever it does today; takeover is IB4.
+      async function sendConversationReply() {
+        if (!window._convo) return;
+        const { meta, key } = window._convo;
+        const chEl = document.getElementById('cvReplyChannel');
+        const txtEl = document.getElementById('cvReplyText');
+        const btn = document.getElementById('cvReplySend');
+        const channel = (chEl && chEl.value) || 'sms';
+        const body = (txtEl && txtEl.value || '').trim();
+        if (!body) return;
+        const to = channel === 'email' ? meta.email : meta.phone;
+        if (!to) return;
+        if (btn) btn.disabled = true;
+        try {
+          const payload = channel === 'email'
+            ? { to, subject: 'Re: your conversation with us', body, thread_id: meta.thread_id }
+            : { to, body, thread_id: meta.thread_id };
+          const r = await fetch(channel === 'email' ? '/api/email/send' : '/api/sms/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.success) throw new Error(data.error || ('HTTP ' + r.status));
+          // Optimistic bubble — the same row the server just persisted.
+          window._convo.messages.push({
+            id: 'local-' + Date.now(), direction: 'outbound', sent_by: 'owner',
+            category: channel, text: body, createdAt: new Date().toISOString(),
+            thread_id: meta.thread_id, subject: null, emergency_flagged: false,
+          });
+          renderConversationPane();
+        } catch (err) {
+          console.error('[inbox] reply failed:', err);
+          alert('Could not send the reply: ' + (err.message || err));
+          if (btn) btn.disabled = false;
+        }
       }
 
       async function clearConversationEmergency() {
