@@ -11864,6 +11864,10 @@
 
         // Money in — provenance split + the honest demo tag.
         let inSub = 'PS ledger ' + _expFmtCents(s.money_in.ps_cents) + ' · rent (legacy) ' + _expFmtCents(s.money_in.pm_rent_legacy_cents);
+        // BG4: the deposit sub-total, read if the summary provides it.
+        if (s.money_in.deposits_cents > 0) {
+          inSub += '<br>deposits collected ' + _expFmtCents(s.money_in.deposits_cents);
+        }
         if (s.money_in_demo_cents > 0) {
           inSub += '<br><span style="color:var(--warning);">includes ' + _expFmtCents(s.money_in_demo_cents) + ' test payments</span>';
         }

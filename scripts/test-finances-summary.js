@@ -21,6 +21,8 @@ function makeDb(fx) {
         return { rows: [{
           total: rows.reduce((a, r) => a + r.amount_cents, 0),
           stripe: rows.filter((r) => r.payment_method === 'stripe').reduce((a, r) => a + r.amount_cents, 0),
+          deposits: rows.filter((r) => r.payment_type === 'deposit').reduce((a, r) => a + r.amount_cents, 0),
+          deposits_stripe: rows.filter((r) => r.payment_type === 'deposit' && r.payment_method === 'stripe').reduce((a, r) => a + r.amount_cents, 0),
         }] };
       }
       if (sql.includes('FROM rent_payments')) {
@@ -231,6 +233,33 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
   check('B15b: both rent flip paths counted; empty paid_date falls back to due_date (120000+90000+80000)',
     s.money_in.pm_rent_legacy_cents === 290000);
+
+  // ---- BG4 commit 2: deposits labeled + test-money across ALL sources ----
+  // One fixture, every money-in source at once: a stripe full payment,
+  // a stripe deposit, a CASH deposit, completion cash, and PM rent.
+  fx = clone();
+  fx.ledger = [
+    { workspace_id: 7, amount_cents: 1000, payment_method: 'stripe', payment_type: 'payment', status: 'completed', created_at: '2026-07-10T15:00:00.000Z' },
+    { workspace_id: 7, amount_cents: 2000, payment_method: 'stripe', payment_type: 'deposit', status: 'completed', created_at: '2026-07-11T15:00:00.000Z' },
+    { workspace_id: 7, amount_cents: 1500, payment_method: 'cash', payment_type: 'deposit', status: 'completed', created_at: '2026-07-12T15:00:00.000Z' },
+    { workspace_id: 7, amount_cents: 4000, payment_method: 'cash', payment_type: 'payment', status: 'completed', created_at: '2026-07-13T15:00:00.000Z' },
+  ];
+  // TEST MODE: stripe rows (payment 1000 + deposit 2000) are demo.
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
+  check('B16: test mode — real PS = cash only (5500), demo = every stripe dollar (3000)',
+    s.money_in.ps_cents === 5500 && s.money_in_demo_cents === 3000);
+  check('B16b: the labeled deposit figure counts only REAL deposits (cash 1500; the stripe 2000 is demo)',
+    s.money_in.deposits_cents === 1500);
+  fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
+  check('B16c: cash_current holds only real money across all sources (100000+5500+120000−29450−19200)',
+    s.cash_current_cents === 100000 + 5500 + 120000 - 29450 - 19200);
+  // LIVE MODE: everything folds in.
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  check('B16d: live — all sources fold in (PS 8500, deposits 3500, demo 0)',
+    s.money_in.ps_cents === 8500 && s.money_in.deposits_cents === 3500 && s.money_in_demo_cents === 0);
+  check('B16e: live cash_current includes the former demo dollars',
+    s.cash_current_cents === 100000 + 8500 + 120000 - 29450 - 19200);
 
   // ---- BG2: expense validation + the invoice bridge ----
   const { validateExpenseInput, bridgeInvoiceToExpense } = require('../lib/expenses');
