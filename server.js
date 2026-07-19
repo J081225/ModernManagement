@@ -7945,6 +7945,30 @@ function _buildTxFilters(workspaceId, q) {
   return { where: where.join(' AND '), params };
 }
 
+// BG1: the live-budget spine — a DERIVED summary computed on read
+// (nothing materialized; lib/finances-summary.js). Same auth shape as
+// every finances endpoint on this page: requireAuth + getWorkspaceId.
+app.get('/api/finances/summary', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1 LIMIT 1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
+    const summary = await require('./lib/finances-summary').computeFinancesSummary({
+      db: pool,
+      workspace: wR.rows[0],
+      period: req.query.period || 'month',
+      start: req.query.start,
+      end: req.query.end,
+      env: process.env,
+    });
+    res.json(summary);
+  } catch (err) {
+    console.error('[GET /api/finances/summary]', err.message);
+    res.status(500).json({ error: 'Failed to compute the summary' });
+  }
+});
+
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
