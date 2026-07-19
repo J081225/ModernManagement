@@ -726,6 +726,68 @@ async function runConversationInactivitySweep() {
 setInterval(runConversationInactivitySweep, 30 * 60 * 1000); // every 30 minutes
 runConversationInactivitySweep();
 
+// FD3-CP4: queued requests expire honestly. Customer-originated
+// pending actions (rows carrying a customer identity from the
+// engine's queue path, CP3) expire after APPROVAL_TTL_HOURS — the
+// customer is told in their channel and the owner gets a task, so
+// the miss is visible, not silent. Owner-originated rows (no
+// customer columns) expire quietly at OWNER_PENDING_TTL_DAYS.
+// Same idempotency pattern as the conversation sweep above: one
+// instance per process, and the status='pending' guard on the UPDATE
+// means each row flips exactly ONCE — notifications iterate only the
+// RETURNING rows, so a re-run (or a second instance) can never
+// double-notify. notifyPendingActionCustomer is a hoisted function
+// declaration defined with the approval endpoints below.
+const APPROVAL_TTL_HOURS = 4;
+const OWNER_PENDING_TTL_DAYS = 7;
+async function runPendingActionExpirySweep() {
+  try {
+    const { rows: expired } = await pool.query(
+      "UPDATE pending_actions SET status = 'expired', resolved_at = NOW() " +
+      "WHERE status = 'pending' " +
+      "  AND (customer_phone IS NOT NULL OR customer_email IS NOT NULL) " +
+      "  AND created_at < NOW() - INTERVAL '" + APPROVAL_TTL_HOURS + " hours' " +
+      "RETURNING *"
+    );
+    for (const pending of expired) {
+      await notifyPendingActionCustomer(
+        pending,
+        pending.workspace_id,
+        "We couldn't confirm this in time — give us a call and we'll sort it directly."
+      );
+      try {
+        const customer = pending.customer_phone || pending.customer_email || 'unknown customer';
+        await pool.query(
+          'INSERT INTO tasks (user_id, title, category, "dueDate", notes) VALUES ($1, $2, ' + "'other'" + ', $3, $4)',
+          [pending.user_id,
+            ('Expired: ' + (pending.ai_summary || pending.tool_name) + ', ' + customer).slice(0, 200),
+            new Date().toISOString().slice(0, 10),
+            'A customer request sat ' + APPROVAL_TTL_HOURS + ' hours without a decision and expired. ' +
+            'The customer was told to call. Original request: ' + (pending.ai_summary || pending.tool_name)]
+        );
+      } catch (err) {
+        console.error('[pending-expiry] owner task insert failed for action', pending.id, ':', err.message);
+      }
+    }
+    if (expired.length) {
+      console.log('[pending-expiry] expired', expired.length, 'customer-originated action(s), customers notified');
+    }
+    const quiet = await pool.query(
+      "UPDATE pending_actions SET status = 'expired', resolved_at = NOW() " +
+      "WHERE status = 'pending' " +
+      "  AND customer_phone IS NULL AND customer_email IS NULL " +
+      "  AND created_at < NOW() - INTERVAL '" + OWNER_PENDING_TTL_DAYS + " days'"
+    );
+    if (quiet.rowCount) {
+      console.log('[pending-expiry] quietly expired', quiet.rowCount, 'owner-originated action(s)');
+    }
+  } catch (err) {
+    console.error('[pending-expiry] sweep failed:', err.message);
+  }
+}
+setInterval(runPendingActionExpirySweep, 30 * 60 * 1000); // every 30 minutes
+runPendingActionExpirySweep();
+
 async function initDB() {
   // Verify DB connection is alive before doing anything
   await pool.query('SELECT 1');
