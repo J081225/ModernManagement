@@ -7284,8 +7284,8 @@
                   ${t.aiReason ? `<div style="font-size:0.78em;color:var(--warning);background:var(--warning-soft);border-radius:5px;padding:4px 8px;display:inline-block;">&#129302; ${t.aiReason}</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-                  <button onclick="approveTask(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Approve</button>
-                  <button onclick="rejectTask(${t.id})" style="background:none;color:var(--danger);border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10005; Reject</button>
+                  <button onclick="approveTask(${t.id})" style="background:var(--success);color:white;border:none;border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">&#10003; Add to my tasks</button>
+                  <button onclick="rejectTask(${t.id})" style="background:none;color:var(--danger);border:1px solid var(--danger);border-radius:7px;padding:7px 14px;font-size:0.82em;font-weight:600;cursor:pointer;white-space:nowrap;">Dismiss</button>
                 </div>
               </div>`;
           }).join('');

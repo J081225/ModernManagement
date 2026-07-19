@@ -793,6 +793,17 @@ async function runPendingActionExpirySweep() {
       "  AND customer_phone IS NULL AND customer_email IS NULL " +
       "  AND created_at < NOW() - INTERVAL '" + OWNER_PENDING_TTL_DAYS + " days'"
     );
+    // FD3-CP7: suggestions expire quietly at 7 days — dismissed-flagged
+    // (not deleted) so they stay in reflection's dedupe memory. Same
+    // idempotency shape as above: the IS NULL guard flips each row once.
+    const staleSug = await pool.query(
+      `UPDATE tasks SET dismissed_at = NOW()
+        WHERE suggested = true AND done = false AND dismissed_at IS NULL
+          AND "createdAt" < NOW() - INTERVAL '7 days'`
+    );
+    if (staleSug.rowCount) {
+      console.log('[pending-expiry] quietly expired', staleSug.rowCount, 'stale suggestion(s)');
+    }
     if (quiet.rowCount) {
       console.log('[pending-expiry] quietly expired', quiet.rowCount, 'owner-originated action(s)');
     }
@@ -897,6 +908,10 @@ async function initDB() {
   await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'tasks.user_id');
   await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS suggested BOOLEAN DEFAULT false`, 'tasks.suggested');
   await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "aiReason" TEXT DEFAULT ''`, 'tasks.aiReason');
+  // FD3-CP7: dismissed suggestions keep their row (hidden everywhere)
+  // so reflection can dedupe against recent dismissals — a deleted row
+  // can't stop its own re-suggestion.
+  await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ`, 'tasks.dismissed_at');
 
   const { rows: taskRows } = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=1');
   if (taskRows[0].count === '0') {
@@ -3862,7 +3877,7 @@ app.patch('/api/engagements/:id', requireAuth, async (req, res) => {
 
 // --- Tasks ---
 app.get('/api/tasks', requireAuth, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM tasks WHERE user_id=$1 ORDER BY suggested DESC, "dueDate" ASC', [req.session.userId]);
+  const { rows } = await pool.query('SELECT * FROM tasks WHERE user_id=$1 AND dismissed_at IS NULL ORDER BY suggested DESC, "dueDate" ASC', [req.session.userId]);
   res.json(rows);
 });
 
@@ -3904,7 +3919,18 @@ app.put('/api/tasks/:id/approve', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/tasks/:id/reject', requireAuth, async (req, res) => {
-  await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  // FD3-CP7: dismissing a SUGGESTED task flags it instead of deleting —
+  // the row becomes invisible (every task read filters dismissed_at IS
+  // NULL) but remains reflection's dedupe memory, so a dismissed
+  // suggestion is NEVER re-suggested. Non-suggested rows keep the old
+  // delete semantics.
+  const flagged = await pool.query(
+    'UPDATE tasks SET dismissed_at = NOW() WHERE id=$1 AND user_id=$2 AND suggested=true RETURNING id',
+    [Number(req.params.id), req.session.userId]
+  );
+  if (!flagged.rows.length) {
+    await pool.query('DELETE FROM tasks WHERE id=$1 AND user_id=$2', [Number(req.params.id), req.session.userId]);
+  }
   res.json({ success: true });
 });
 
@@ -6429,7 +6455,8 @@ async function buildPMSnapshot({ workspace, type, parameters }) {
     )).rows;
     const recentTasks = ownerUserId ? (await pool.query(
       `SELECT title, done, "dueDate", category FROM tasks
-       WHERE user_id = $1 AND "dueDate" >= (NOW() - INTERVAL '30 days')::date::text
+       WHERE user_id = $1 AND dismissed_at IS NULL
+         AND "dueDate" >= (NOW() - INTERVAL '30 days')::date::text
        ORDER BY "dueDate" DESC LIMIT 50`,
       [ownerUserId]
     )).rows : [];
@@ -6600,7 +6627,7 @@ async function buildPSSnapshot({ workspace, type, parameters }) {
     const r = ownerUserId ? await pool.query(
       `SELECT id, title, "dueDate", done
          FROM tasks
-        WHERE user_id = $1 AND done = FALSE
+        WHERE user_id = $1 AND done = FALSE AND dismissed_at IS NULL
         ORDER BY "dueDate" NULLS LAST LIMIT 30`,
       [ownerUserId]
     ) : { rows: [] };
