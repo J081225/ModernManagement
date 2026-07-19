@@ -497,6 +497,18 @@
       .cal-chip.canceled { background: var(--bg-sunken); color: var(--text-muted); text-decoration: line-through; }
       .cal-chip.timeoff { background: var(--bg-sunken); color: var(--text-muted); }
       .cal-more { font-size: 12px; color: var(--text-muted); cursor: pointer; padding: 0 6px; }
+      /* CP7: tasks are the quiet citizens — glyph + text, no fill. */
+      .cal-task-line {
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        padding: 0 2px;
+      }
+      .cal-task-line:hover { color: var(--text-primary); }
+      .cal-task-line.done { color: var(--text-muted); text-decoration: line-through; }
       /* Compact mobile representation — hidden on desktop; the mobile
          media query swaps chips for this dot + count row. */
       .cal-dotrow { display: none; gap: 3px; align-items: center; }
@@ -4004,6 +4016,22 @@
       </div>
     </div>
 
+    <!-- CP7: small task detail modal. -->
+    <div class="modal-overlay" id="taskDetailModal" onclick="if(event.target===this)closeTaskDetail()" style="display:none;align-items:center;justify-content:center;">
+      <div class="mm-modal">
+        <div class="mm-modal-header" style="margin-bottom:var(--space-2);">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;">
+            <span id="taskDetailTitle">Task</span>
+            <span id="taskDetailBadge"></span>
+          </div>
+          <button onclick="closeTaskDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close">&times;</button>
+        </div>
+        <div id="taskDetailBanner"></div>
+        <div id="taskDetailBody" style="font-size:13px;line-height:1.55;padding:var(--space-2) 0 var(--space-3);"></div>
+        <div id="taskDetailActions" class="mm-modal-footer"></div>
+      </div>
+    </div>
+
     <!-- CP5: calendar event detail modal, built on the design system's
          .mm-modal. Populated by renderCalEventDetail(data) from
          GET /api/calevents/:id. -->
@@ -5302,21 +5330,29 @@
           const dayEvents = calEvents
             .filter(e => calEventDayKey(e) === dateStr)
             .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')));
+          const dayTasks = tasks.filter(t => t.dueDate === dateStr);
 
-          const shown = dayEvents.slice(0, 3);
-          const extra = dayEvents.length - shown.length;
-          const chips = shown.map(ev => {
+          // CP7: events and tasks share a combined 3-line budget — events
+          // first (the loud citizens), tasks fill what remains.
+          const evShown = dayEvents.slice(0, 3);
+          const taskShown = dayTasks.slice(0, Math.max(0, 3 - evShown.length));
+          const extra = (dayEvents.length - evShown.length) + (dayTasks.length - taskShown.length);
+          const chips = evShown.map(ev => {
             const cls = 'cal-chip'
               + (_calEventCanceled(ev) ? ' canceled' : (ev.event_type === 'time_off' ? ' timeoff' : ''));
             const t = (!ev.is_all_day && ev.starts_at) ? fmtEventTime(ev.starts_at) + ' ' : '';
             return `<div class="${cls}" onclick="event.stopPropagation();openCalEventDetail(${ev.id})" title="${_calEscape(ev.title || '')}">${t}${_calEscape(ev.title || '')}</div>`;
           }).join('');
+          const taskLines = taskShown.map(t =>
+            `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="event.stopPropagation();openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
+          ).join('');
           const more = extra > 0
             ? `<div class="cal-more" onclick="event.stopPropagation();selectDay('${dateStr}')">+${extra} more</div>`
             : '';
           // Mobile swaps the chip stack for this dot + count row.
-          const dots = dayEvents.length
-            ? `<div class="cal-dotrow"><span class="cal-dot${dayEvents.every(e => e.event_type === 'time_off') ? ' muted' : ''}"></span><span class="cal-dot-count">${dayEvents.length}</span></div>`
+          const totalItems = dayEvents.length + dayTasks.length;
+          const dots = totalItems
+            ? `<div class="cal-dotrow"><span class="cal-dot${dayEvents.length && dayEvents.every(e => e.event_type === 'time_off') ? ' muted' : ''}"></span><span class="cal-dot-count">${totalItems}</span></div>`
             : '';
 
           const classes = ['cal-day'];
@@ -5325,7 +5361,7 @@
           if (dateStr === selectedDate) classes.push('selected');
           html += `<div class="${classes.join(' ')}" onclick="selectDay('${dateStr}')">
             <div class="cal-day-num">${d}</div>
-            <div class="cal-chips">${chips}${more}</div>
+            <div class="cal-chips">${chips}${taskLines}${more}</div>
             ${dots}
           </div>`;
         }
@@ -5494,9 +5530,17 @@
         // Bucket events per day; compute start/end minutes for timed ones.
         const timedByDay = {};
         const alldayByDay = {};
+        const tasksByDay = {};
         let axisStartH = 7, axisEndH = 20;
         let hasAllday = false;
-        for (const ds of days) { timedByDay[ds] = []; alldayByDay[ds] = []; }
+        for (const ds of days) {
+          timedByDay[ds] = [];
+          alldayByDay[ds] = [];
+          // CP7: tasks are date-only (dueDate TEXT) — they live in the
+          // all-day strip, never on the timed axis.
+          tasksByDay[ds] = tasks.filter(t => t.dueDate === ds);
+          if (tasksByDay[ds].length) hasAllday = true;
+        }
         for (const e of calEvents) {
           const dk = calEventDayKey(e);
           if (!days.includes(dk)) continue;
@@ -5557,7 +5601,10 @@
                 + (_calEventCanceled(e) ? ' canceled' : (e.event_type === 'time_off' ? ' timeoff' : ''));
               return `<div class="${cls}" onclick="openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">${_calEscape(e.title || '')}</div>`;
             }).join('');
-            html += `<div class="cal-allday-cell">${chips}</div>`;
+            const taskLines = tasksByDay[ds].map(t =>
+              `<div class="cal-task-line${t.done ? ' done' : ''}" onclick="openTaskDetail(${t.id})" title="${_calEscape(t.title || '')}">${t.done ? '&#9745;' : '&#9744;'} ${_calEscape(t.title || '')}</div>`
+            ).join('');
+            html += `<div class="cal-allday-cell">${chips}${taskLines}</div>`;
           }
           html += '</div>';
         }
@@ -5682,17 +5729,26 @@
               <div class="mm-empty-text" style="font-size:12px;">No events on this day.</div>
             </div>`;
 
+        // CP7: task rows — real checkbox completing through the existing
+        // path (optimistic, reverts with a danger banner on failure),
+        // title opens the task modal, due indicator vs today.
+        const todayKey = eventDateKey(new Date());
         const tasksSection = dayTasks.length
           ? `<div style="margin-top:var(--space-4);">
               <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--space-2);">Tasks</div>
-              ${dayTasks.map(t => `
-                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--border);font-size:13px;">
-                  <span style="color:var(--text-primary);${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${_calEscape(t.title || '')}</span>
-                  <div style="display:flex;gap:var(--space-2);">
-                    <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:var(--accent);font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
-                    <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--danger);font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
-                  </div>
-                </div>`).join('')}
+              ${dayTasks.map(t => {
+                const due = t.done ? ''
+                  : (dateStr < todayKey
+                      ? '<span class="mm-badge mm-badge-danger">overdue</span>'
+                      : (dateStr === todayKey ? '<span class="mm-badge mm-badge-warning">due today</span>' : ''));
+                return `
+                <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--border);font-size:13px;">
+                  <input type="checkbox" ${t.done ? 'checked' : ''} onchange="calToggleTask(${t.id})" style="cursor:pointer;flex-shrink:0;" title="${t.done ? 'Reopen' : 'Complete'}">
+                  <span onclick="openTaskDetail(${t.id})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:var(--text-primary);${t.done ? 'text-decoration:line-through;color:var(--text-muted);' : ''}">${_calEscape(t.title || '')}</span>
+                  ${due}
+                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--text-muted);padding:0 var(--space-1);" title="Delete">&#10005;</span>
+                </div>`;
+              }).join('')}
             </div>`
           : '';
 
@@ -5701,6 +5757,7 @@
             <div style="font-size:16px;font-weight:600;color:var(--text-primary);">${label}</div>
             <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${count} event${count === 1 ? '' : 's'}</div>
           </div>
+          <div id="calPanelBanner"></div>
           ${eventsHtml}
           ${tasksSection}
           <div style="margin-top:var(--space-4);display:flex;flex-direction:column;gap:var(--space-2);">
@@ -5851,6 +5908,95 @@
         await fetch('/api/calevents/' + id, { method: 'DELETE' });
         loadCalEvents();
         if (selectedDate) renderDayDetail(selectedDate);
+      }
+
+      // CP7: day-panel danger banner (survives the re-render because it
+      // is written after renderCalendar rebuilds the panel).
+      function _calPanelBanner(msg) {
+        const el = document.getElementById('calPanelBanner');
+        if (el) el.innerHTML = msg
+          ? '<div class="mm-banner mm-banner-danger" style="margin-bottom:var(--space-2);">' + _calEscape(msg) + '</div>'
+          : '';
+      }
+
+      // CP7: optimistic task completion through the existing PUT path —
+      // flip locally, render, revert with a banner if the server says no.
+      async function calToggleTask(id) {
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        const newDone = !t.done;
+        t.done = newDone;
+        renderCalendar();
+        try {
+          const r = await fetch('/api/tasks/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ...t, done: newDone }),
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          if (typeof loadTasks === 'function') loadTasks();
+        } catch (err) {
+          console.error('[calToggleTask]', err);
+          t.done = !newDone;
+          renderCalendar();
+          _calPanelBanner('Could not update task: ' + (err.message || err));
+        }
+      }
+
+      // CP7: small task modal — title, notes, due, status, Complete/Close.
+      function openTaskDetail(id) {
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        window._openTaskId = id;
+        document.getElementById('taskDetailTitle').textContent = t.title || 'Task';
+        document.getElementById('taskDetailBadge').innerHTML = t.done
+          ? '<span class="mm-badge mm-badge-success">done</span>'
+          : '<span class="mm-badge mm-badge-neutral">open</span>';
+        document.getElementById('taskDetailBanner').innerHTML = '';
+        const rows = [];
+        function row(label, value) {
+          rows.push('<div style="padding:var(--space-2) 0;border-bottom:1px solid var(--border);">'
+            + '<div style="font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">' + _calEscape(label) + '</div>'
+            + '<div style="font-size:13px;color:var(--text-primary);">' + _calEscape(value) + '</div>'
+            + '</div>');
+        }
+        row('Due', t.dueDate ? fmtDateKey(t.dueDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'No due date');
+        if (t.category) row('Category', t.category);
+        if (t.notes) row('Notes', t.notes);
+        document.getElementById('taskDetailBody').innerHTML = rows.join('');
+        document.getElementById('taskDetailActions').innerHTML =
+          (t.done ? '' : '<button id="taskDetailCompleteBtn" onclick="taskDetailComplete()" class="mm-btn mm-btn-primary">Complete</button>')
+          + '<button onclick="closeTaskDetail()" class="mm-btn mm-btn-ghost">Close</button>';
+        document.getElementById('taskDetailModal').style.display = 'flex';
+      }
+      function closeTaskDetail() {
+        document.getElementById('taskDetailModal').style.display = 'none';
+      }
+      async function taskDetailComplete() {
+        const id = window._openTaskId;
+        const t = tasks.find(x => x.id === id);
+        if (!t) return;
+        const btn = document.getElementById('taskDetailCompleteBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Completing…'; }
+        try {
+          const r = await fetch('/api/tasks/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ...t, done: true }),
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          t.done = true;
+          closeTaskDetail();
+          renderCalendar();
+          if (typeof loadTasks === 'function') loadTasks();
+        } catch (err) {
+          console.error('[taskDetailComplete]', err);
+          if (btn) { btn.disabled = false; btn.textContent = 'Complete'; }
+          document.getElementById('taskDetailBanner').innerHTML =
+            '<div class="mm-banner mm-banner-danger" style="margin-bottom:var(--space-2);">' + _calEscape('Could not complete task: ' + (err.message || err)) + '</div>';
+        }
       }
 
       // ---------- Calendar event detail popup ----------
