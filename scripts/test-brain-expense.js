@@ -33,7 +33,7 @@ const WS = { id: 7, owner_user_id: 3, vertical: 'professional-services', appoint
     && decideAutonomyAction({ autonomy_payments: 'off' }, tool) === 'decline');
 
   // BE3: owner-only — the engine never OFFERS it (allowlist proof)…
-  const engineSrc = fs.readFileSync('../lib/appointment-engine.js', 'utf8');
+  const engineSrc = fs.readFileSync(require('path').join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
   const allow = engineSrc.match(/const APPOINTMENT_TOOL_NAMES = \[([^\]]+)\]/)[1];
   check('BE3: post_expense is NOT in the customer allowlist', !allow.includes('post_expense'));
   // …and even a FORGED tool_use block from an ai_inbound ctx can only queue.
@@ -67,7 +67,7 @@ const WS = { id: 7, owner_user_id: 3, vertical: 'professional-services', appoint
     && exec.message.includes('$200.00'));
   check('BE5b: floats die at the validator even via the tool', (await tool.execute({ amount_cents: 84.5, category: 'Fees' }, { workspace: WS, user: { id: 3 }, db: ownerDb, logger: { error: () => {} } })).success === false);
   // the row lands in the summary: same table the BG2 feed sums (static tie)
-  const sumSrc = fs.readFileSync('../lib/finances-summary.js', 'utf8');
+  const sumSrc = fs.readFileSync(require('path').join(__dirname, '..', 'lib', 'finances-summary.js'), 'utf8');
   check('BE5c: the summary sums ALL expense sources — no source filter excludes ai_confirmed',
     sumSrc.includes('FROM expenses') && !/FROM expenses[\s\S]{0,200}source\s*=/.test(sumSrc));
 
@@ -100,7 +100,7 @@ const WS = { id: 7, owner_user_id: 3, vertical: 'professional-services', appoint
     taskParams && /EXPENSE \{"amount_cents":null/.test(taskParams[3]) && taskParams[1].startsWith('Post an expense?'));
 
   // BE7: the accept endpoint's guard shape — one accept, never two (static)
-  const srv = fs.readFileSync(require('path').join(__dirname, '..') + '/server.js', 'utf8');
+  const srv = fs.readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
   check('BE7: accept requires suggested AND not done AND not dismissed (second accept = 404), resolves in the same transaction',
     srv.includes('AND suggested = true AND done = false AND dismissed_at IS NULL')
     && /INSERT INTO expenses[\s\S]{0,700}UPDATE tasks SET suggested = false, done = true/.test(srv));
