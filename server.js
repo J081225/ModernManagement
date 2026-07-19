@@ -7073,6 +7073,42 @@ app.get('/api/pending-actions', requireAuth, async (req, res) => {
   }
 });
 
+// FD3-CP3 commit 2: close the loop with the customer who asked. Look-
+// first (b) found the approve path executed the tool and told NOBODY —
+// from the customer's side, an approved booking never happened. Sends
+// on the original channel's address (phone → SMS via the workspace
+// number; email → SendGrid) and persists the outbound like the engine
+// does. Best-effort: a notify failure never fails the approval.
+async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
+  if (!pending || (!pending.customer_phone && !pending.customer_email)) return;
+  try {
+    const wsR = await pool.query('SELECT owner_user_id, twilio_phone_number FROM workspaces WHERE id = $1', [workspaceId]);
+    const ws = wsR.rows[0];
+    if (!ws) return;
+    if (pending.customer_phone) {
+      await twilioClient.messages.create({
+        from: ws.twilio_phone_number || process.env.TWILIO_PHONE_NUMBER,
+        to: pending.customer_phone,
+        body: outcomeText,
+      });
+      await pool.query(
+        `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone)
+         VALUES ($1, $2, $3, 'sms', $4, 'sent', 'inbox', $5)`,
+        [ws.owner_user_id, pending.customer_phone, 'SMS to ' + pending.customer_phone, outcomeText, pending.customer_phone]
+      );
+    } else if (pending.customer_email) {
+      await sgMail.send({
+        to: pending.customer_email,
+        from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        subject: 'About your recent request',
+        text: outcomeText,
+      });
+    }
+  } catch (err) {
+    console.error('[pending-notify] customer notify failed (approval unaffected):', err.message);
+  }
+}
+
 app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
@@ -7124,6 +7160,15 @@ app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
       [finalStatus, JSON.stringify(result), id, workspaceId]
     );
 
+    // FD3-CP3: tell the customer the outcome in their original channel.
+    await notifyPendingActionCustomer(
+      pending,
+      workspaceId,
+      result.success
+        ? `Good news — your request is confirmed: ${result.message || pending.ai_summary}`
+        : `About your recent request: we couldn't complete it automatically — give us a call and we'll take care of it directly.`
+    );
+
     res.json({ success: result.success, status: finalStatus, result });
   } catch (err) {
     console.error('[POST /api/pending-actions/:id/approve]', err);
@@ -7140,7 +7185,7 @@ app.post('/api/pending-actions/:id/reject', requireAuth, async (req, res) => {
     if (!id) return res.status(400).json({ error: 'Invalid action id' });
 
     const fetch = await pool.query(
-      `SELECT status FROM pending_actions WHERE id = $1 AND workspace_id = $2`,
+      `SELECT * FROM pending_actions WHERE id = $1 AND workspace_id = $2`,
       [id, workspaceId]
     );
     if (fetch.rows.length === 0) {
@@ -7156,6 +7201,14 @@ app.post('/api/pending-actions/:id/reject', requireAuth, async (req, res) => {
        WHERE id = $2 AND workspace_id = $3`,
       [userId, id, workspaceId]
     );
+
+    // FD3-CP3: a polite notice, no internal reasons leaked.
+    await notifyPendingActionCustomer(
+      fetch.rows[0],
+      workspaceId,
+      "About your recent request: we weren't able to take care of that automatically — give us a call and we'll help you directly."
+    );
+
     res.json({ success: true, status: 'rejected' });
   } catch (err) {
     console.error('[POST /api/pending-actions/:id/reject]', err);
