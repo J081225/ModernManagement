@@ -4613,6 +4613,17 @@ app.get('/api/conversations/:key/messages', requireAuth, async (req, res) => {
       const ws = wR.rows[0];
       meta.ai_responding = !!(ws && ws.vertical === 'professional-services' && ws.appointment_auto_respond);
     } catch (err) { /* meta stays false */ }
+    // IB4: the per-thread driver. ai_responding follows the precedence
+    // rule (global AND not paused); ai_paused rides separately so the
+    // pane can render "You're handling this" and the resume control.
+    meta.ai_paused = false;
+    if (meta.thread_id) {
+      try {
+        const tR = await pool.query('SELECT ai_paused FROM appointment_threads WHERE id = $1', [meta.thread_id]);
+        meta.ai_paused = !!(tR.rows[0] && tR.rows[0].ai_paused);
+      } catch (err) { /* stays false */ }
+    }
+    if (meta.ai_paused) meta.ai_responding = false;
     res.json({ messages: rows, meta });
   } catch (err) {
     console.error('[GET /api/conversations/:key/messages]', err.message);
@@ -4641,6 +4652,36 @@ app.put('/api/conversations/:key/folder', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[PUT /api/conversations/:key/folder]', err.message);
     res.status(500).json({ error: 'Failed to move conversation' });
+  }
+});
+
+// IB4: the takeover switch. t-keys only — a conversation without a
+// thread has no AI driver to pause (the endpoint says so honestly).
+app.patch('/api/conversations/:key/driver', requireAuth, async (req, res) => {
+  try {
+    const key = String(req.params.key || '');
+    if (!CONVO_KEY_RE.test(key) || key[0] !== 't') {
+      return res.status(400).json({ error: "This conversation isn't AI-driven." });
+    }
+    const threadId = parseInt(key.slice(1), 10);
+    const paused = req.body && req.body.ai_paused === true;
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query(
+      `UPDATE appointment_threads
+          SET ai_paused = $1,
+              paused_at = CASE WHEN $1 THEN NOW() ELSE NULL END,
+              paused_by = CASE WHEN $1 THEN $2::integer ELSE NULL END,
+              updated_at = NOW()
+        WHERE id = $3 AND workspace_id = $4
+        RETURNING id, ai_paused`,
+      [paused, req.session.userId, threadId, workspaceId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Conversation not found' });
+    res.json({ success: true, ai_paused: r.rows[0].ai_paused });
+  } catch (err) {
+    console.error('[PATCH /api/conversations/:key/driver]', err.message);
+    res.status(500).json({ error: 'Failed to update the driver' });
   }
 });
 

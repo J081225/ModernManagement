@@ -4789,10 +4789,24 @@
         const banner = flagged.length
           ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--danger-soft);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;"><div style="flex:1;color:var(--danger);font-size:0.9em;">&#128680; ' + flagged.length + ' message(s) in this conversation are flagged for review.</div><button onclick="clearConversationEmergency()" style="background:var(--bg-surface);color:var(--danger);border:1.5px solid var(--danger);border-radius:8px;padding:6px 12px;font-size:0.85em;font-weight:600;cursor:pointer;">Mark Reviewed</button></div>'
           : '';
-        // IB3 commit 3: the honest read-out — truth now, control in IB4.
-        const aiLine = meta.ai_responding
-          ? '<div style="font-size:0.78em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>AI is responding to this conversation</div>'
-          : '';
+        // IB4: the read-out becomes the control. Three truthful states:
+        // AI on -> quiet line + Take over; paused -> "You're handling
+        // this" + Let AI resume; global off -> no banner (the global
+        // switch lives in settings; pause is a scalpel within it).
+        let aiLine = '';
+        if (meta.ai_paused && meta.thread_id) {
+          aiLine = '<div style="font-size:0.78em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+            + '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--warning);"></span>'
+            + "You're handling this conversation"
+            + ' <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="toggleConversationDriver(false)">Let AI resume</button></div>';
+        } else if (meta.ai_responding && meta.thread_id) {
+          aiLine = '<div style="font-size:0.78em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+            + '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>'
+            + 'AI is responding to this conversation'
+            + ' <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="toggleConversationDriver(true)">Take over</button></div>';
+        } else if (meta.ai_responding) {
+          aiLine = '<div style="font-size:0.78em;color:var(--text-muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>AI is responding to this conversation</div>';
+        }
         // Reply channel: the conversation's channel; if mixed, default
         // to the LAST INBOUND channel, selectable.
         const lastInbound = [...msgs].reverse().find((m) => m.direction === 'inbound');
@@ -4858,11 +4872,58 @@
             thread_id: meta.thread_id, subject: null, emergency_flagged: false,
           });
           renderConversationPane();
+          _cvMaybeOfferTakeover();
         } catch (err) {
           console.error('[inbox] reply failed:', err);
           alert('Could not send the reply: ' + (err.message || err));
           if (btn) btn.disabled = false;
         }
+      }
+
+      // IB4: the takeover switch — optimistic flip, persisted, then a
+      // meta-truth re-render.
+      async function toggleConversationDriver(paused) {
+        if (!window._convo || !window._convo.meta.thread_id) return;
+        const { key, meta } = window._convo;
+        meta.ai_paused = paused;
+        meta.ai_responding = paused ? false : meta.ai_responding_global !== false;
+        renderConversationPane();
+        try {
+          const r = await fetch('/api/conversations/' + key + '/driver', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ai_paused: paused }),
+          });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          // Converge on server truth either way (the optimistic render
+          // guessed; the meta recompute knows the global switch too).
+          openConversation(key);
+        } catch (err) {
+          console.error('[inbox] driver flip failed — reloading truth:', err);
+          openConversation(key);
+        }
+      }
+
+      // IB4: after the FIRST manual reply into a non-paused AI thread,
+      // offer takeover once — a nudge, not a forced mode. Dismissable,
+      // per-thread (localStorage), never nags again.
+      function _cvMaybeOfferTakeover() {
+        if (!window._convo) return;
+        const { key, meta } = window._convo;
+        if (!meta.thread_id || meta.ai_paused || !meta.ai_responding) return;
+        let dismissed = false;
+        try { dismissed = localStorage.getItem('cvTakeoverHint-' + key) === '1'; } catch (e) { /* private mode */ }
+        if (dismissed || document.getElementById('cvTakeoverHint')) return;
+        const thread = document.querySelector('#messageDetail .cv-thread');
+        if (!thread) return;
+        const hint = document.createElement('div');
+        hint.id = 'cvTakeoverHint';
+        hint.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:0.8em;color:var(--text-muted);background:var(--bg-sunken);border-radius:8px;padding:8px 12px;margin-top:8px;';
+        hint.innerHTML = 'Handling this yourself? Take over so the AI doesn\'t reply too.'
+          + ' <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="toggleConversationDriver(true);this.parentElement.remove();">Take over</button>'
+          + ' <button onclick="try{localStorage.setItem(\'cvTakeoverHint-' + key + '\',\'1\')}catch(e){};this.parentElement.remove();" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1em;padding:2px 6px;" aria-label="Dismiss" title="Dismiss">&#10005;</button>';
+        thread.appendChild(hint);
       }
 
       async function clearConversationEmergency() {
