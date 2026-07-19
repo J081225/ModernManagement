@@ -369,6 +369,25 @@
       .conv-time { font-size: 0.72em; color: var(--text-muted); }
       .conv-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: middle; }
       .conv-glyph { font-size: 0.95em; }
+      /* BG3: finances dashboard */
+      .fin-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+      .fin-tile { background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+      .fin-tile-label { font-size: 0.72em; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+      .fin-tile-value { font-size: 1.35em; font-weight: 700; color: var(--text-primary); }
+      .fin-tile-sub { font-size: 0.75em; color: var(--text-muted); margin-top: 4px; line-height: 1.45; }
+      .fin-bar-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; }
+      .fin-bar-label { flex: 0 0 120px; font-size: 0.82em; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .fin-bar-track { flex: 1; height: 10px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+      .fin-bar-fill { height: 100%; background: var(--accent); border-radius: 6px; }
+      .fin-bar-amt { flex: 0 0 86px; text-align: right; font-size: 0.82em; font-weight: 600; color: var(--text-primary); }
+      .fin-skeleton { height: 68px; border-radius: 12px; background: var(--bg-sunken); animation: finPulse 1.2s ease-in-out infinite; }
+      @keyframes finPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+      .fin-detail-eyebrow { font-size: 0.75em; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; margin: 26px 4px 0; }
+      @media (max-width: 480px) {
+        .fin-tiles { grid-template-columns: 1fr 1fr; }
+        .fin-bar-label { flex-basis: 88px; }
+        .fin-bar-amt { flex-basis: 72px; }
+      }
       /* IB3: threaded conversation pane */
       .cv-bubble-row { display: flex; align-items: flex-end; margin: 6px 0; }
       .cv-bubble { max-width: 74%; padding: 9px 13px; border-radius: 14px; font-size: 0.92em; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
@@ -3481,6 +3500,35 @@
               </div>
             </div>
 
+            <!-- BG3: the dashboard. Every number is read from
+                 /api/finances/summary (BG1's derived view) — zero
+                 client-side money math, per investigation §4's finding
+                 that the old summary cards computed client-side. -->
+            <div class="mm-card" id="finDashboard" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Overview</div>
+                <div class="mm-tabs" role="group" aria-label="Summary period">
+                  <button class="mm-tab active" data-fin-period="month" onclick="setFinPeriod('month')">This month</button>
+                  <button class="mm-tab" data-fin-period="quarter" onclick="setFinPeriod('quarter')">This quarter</button>
+                  <button class="mm-tab" data-fin-period="custom" onclick="setFinPeriod('custom')">Custom</button>
+                </div>
+              </div>
+              <div id="finCustomRange" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+                <input type="date" id="finCustomStart" style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;" />
+                <span style="color:var(--text-muted);font-size:0.85em;">to</span>
+                <input type="date" id="finCustomEnd" style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;" />
+                <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="loadFinancesSummary()">Apply</button>
+              </div>
+              <div id="finPeriodLabel" style="font-size:0.82em;color:var(--text-muted);margin-bottom:14px;"></div>
+              <div class="fin-tiles" id="finScorecard"></div>
+              <div style="margin-top:20px;">
+                <div style="font-weight:600;color:var(--text-primary);font-size:0.95em;margin-bottom:10px;">Where the money went</div>
+                <div id="finBreakdown"></div>
+              </div>
+            </div>
+
+            <div class="fin-detail-eyebrow">Detail</div>
+
             <!-- E13: PS-only Card Payments status card. Visibility driven by
                  _financesVertical === 'professional-services' (set by
                  loadFinancesPage). Inner state driven by
@@ -3579,44 +3627,6 @@
               </div>
               <div id="financesInvoicesSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
               <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Manage invoices in Admin &rarr;</a>
-            </div>
-
-            <!-- Both verticals: Budget summary -->
-            <!-- BG2: money-out. Manual entry (source='manual'); the
-                 AI-confirmed path is BG5. Built as a self-contained
-                 .mm-card so BG3's dashboard rebuild can absorb it
-                 whole. Tokens only. -->
-            <div class="mm-card" id="financesExpensesCard" style="margin-top:20px;">
-              <div class="mm-card-header">
-                <div class="mm-card-title">Expenses</div>
-                <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddExpense()">+ Add expense</button>
-              </div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
-                <select id="expFilterCategory" onchange="loadExpenses()"
-                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
-                  <option value="">All categories</option>
-                </select>
-                <input type="search" id="expFilterVendor" placeholder="Vendor&hellip;" oninput="loadExpenses()"
-                  style="flex:1;min-width:140px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.88em;" />
-                <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="loadExpenses()">Refresh</button>
-              </div>
-              <div id="expensesTotalsRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:0.88em;">
-                <span style="color:var(--text-muted);" id="expensesTotalCount"></span>
-                <span style="font-weight:700;color:var(--text-primary);" id="expensesTotalAmount"></span>
-              </div>
-              <div id="expensesList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
-            </div>
-
-            <div class="card" id="financesBudgetCard" style="margin-top:20px;">
-              <div class="card-head">
-                <div class="card-head-tile">&#128202;</div>
-                <div class="card-head-titles">
-                  <div class="card-head-title">Budget</div>
-                  <div class="card-head-subtitle">Income and expense ledger.</div>
-                </div>
-              </div>
-              <div id="financesBudgetSummary" style="margin-bottom:12px;color:var(--text-muted);font-size:0.92em;">Loading&hellip;</div>
-              <a href="#" onclick="event.preventDefault(); showPage('admin', '&#128188;', document.getElementById('nav-admin'));" style="color:var(--accent);font-size:0.88em;font-weight:600;text-decoration:none;">Open full budget in Admin &rarr;</a>
             </div>
 
             <!-- PM-only: Rent Payments summary -->
@@ -11675,9 +11685,10 @@
         if (connectCard) connectCard.style.display = isPS ? '' : 'none';
         if (isPS && typeof renderConnectCard === 'function') renderConnectCard();
 
-        // Load summaries — call existing endpoints
+        // BG3: the dashboard reads the server-computed summary; the
+        // deleted budget one-liner's client-side math is superseded.
+        loadFinancesSummary();
         loadFinancesInvoicesSummary();
-        loadFinancesBudgetSummary();
         // BG2: expenses serve BOTH verticals (§7 — a plumber's parts and
         // a salon's polish are the same row shape).
         loadExpenses();
@@ -11781,25 +11792,142 @@
         } catch (e) { el.textContent = 'Could not load invoices.'; }
       }
 
-      async function loadFinancesBudgetSummary() {
-        const el = document.getElementById('financesBudgetSummary');
-        if (!el) return;
+      // ---------- BG3: the dashboard (presentation only) ----------
+      // Every number below arrives computed from /api/finances/summary.
+      // The ONLY client-side arithmetic is display shaping: /100 cents
+      // formatting, bar-width proportions, and an exclusive-end date
+      // label — never money math.
+      let _finPeriod = 'month';
+
+      function setFinPeriod(kind) {
+        _finPeriod = kind;
+        document.querySelectorAll('[data-fin-period]').forEach((b) => {
+          b.classList.toggle('active', b.dataset.finPeriod === kind);
+        });
+        const custom = document.getElementById('finCustomRange');
+        if (custom) custom.style.display = kind === 'custom' ? 'flex' : 'none';
+        if (kind !== 'custom') loadFinancesSummary();
+      }
+
+      function _finTile(label, valueHtml, subHtml) {
+        return '<div class="fin-tile"><div class="fin-tile-label">' + label + '</div>'
+          + '<div class="fin-tile-value">' + valueHtml + '</div>'
+          + (subHtml ? '<div class="fin-tile-sub">' + subHtml + '</div>' : '')
+          + '</div>';
+      }
+
+      async function loadFinancesSummary() {
+        const grid = document.getElementById('finScorecard');
+        const breakdown = document.getElementById('finBreakdown');
+        const label = document.getElementById('finPeriodLabel');
+        if (!grid) return;
+        // Loading skeleton — no blank flash, no stale numbers.
+        if (!grid.dataset.loaded) {
+          grid.innerHTML = Array.from({ length: 5 }, () => '<div class="fin-skeleton"></div>').join('');
+          if (breakdown) breakdown.innerHTML = '<div class="fin-skeleton" style="height:44px;"></div>';
+        }
+        const params = new URLSearchParams({ period: _finPeriod });
+        if (_finPeriod === 'custom') {
+          const s = document.getElementById('finCustomStart');
+          const e = document.getElementById('finCustomEnd');
+          if (!s || !e || !s.value || !e.value) return;
+          params.set('start', s.value);
+          params.set('end', e.value);
+        }
+        let sum;
         try {
-          const now = new Date();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const year = String(now.getFullYear());
-          const r = await fetch(`/api/budget?month=${month}&year=${year}`, { credentials: 'include' });
-          if (!r.ok) { el.textContent = 'Could not load budget.'; return; }
-          const list = await r.json();
-          if (!Array.isArray(list) || list.length === 0) {
-            el.textContent = 'No budget transactions yet this month.';
-            return;
-          }
-          const income = list.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-          const expense = list.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
-          const net = income - expense;
-          el.textContent = `This month: $${income.toLocaleString('en-US', { minimumFractionDigits: 2 })} in · $${expense.toLocaleString('en-US', { minimumFractionDigits: 2 })} out · ${net >= 0 ? '+' : ''}$${net.toLocaleString('en-US', { minimumFractionDigits: 2 })} net.`;
-        } catch (e) { el.textContent = 'Could not load budget.'; }
+          const r = await fetch('/api/finances/summary?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          sum = await r.json();
+        } catch (err) {
+          console.error('[finances] summary load failed:', err);
+          grid.innerHTML = '<div class="mm-empty" style="grid-column:1/-1;padding:16px;">Could not load the summary.</div>';
+          return;
+        }
+        grid.dataset.loaded = '1';
+        renderFinScorecard(sum);
+        renderFinBreakdown(sum);
+        if (label) {
+          const fmtD = (iso) => { try { return new Date(iso).toLocaleDateString('en-US', { timeZone: calTz(), month: 'short', day: 'numeric' }); } catch (e) { return String(iso).slice(0, 10); } };
+          // period.end is exclusive — show the last included day.
+          const lastDay = new Date(new Date(sum.period.end).getTime() - 86400000).toISOString();
+          const kindLabel = { month: 'This month', quarter: 'This quarter', custom: 'Custom range' }[sum.period.kind] || sum.period.kind;
+          label.textContent = kindLabel + ' · ' + fmtD(sum.period.start) + ' – ' + fmtD(lastDay)
+            + (sum.live_mode ? '' : ' · test mode');
+        }
+      }
+
+      function renderFinScorecard(s) {
+        const grid = document.getElementById('finScorecard');
+        if (!grid) return;
+        const tiles = [];
+
+        // Money in — provenance split + the honest demo tag.
+        let inSub = 'PS ledger ' + _expFmtCents(s.money_in.ps_cents) + ' · rent (legacy) ' + _expFmtCents(s.money_in.pm_rent_legacy_cents);
+        if (s.money_in_demo_cents > 0) {
+          inSub += '<br><span style="color:var(--warning);">includes ' + _expFmtCents(s.money_in_demo_cents) + ' test payments</span>';
+        }
+        tiles.push(_finTile('Money in', _expFmtCents(s.money_in.combined_cents), inSub));
+
+        // Money out — new vs legacy split when legacy exists.
+        let outSub = 'expenses ' + _expFmtCents(s.money_out.expenses_cents);
+        if (s.money_out.legacy_budget_expense_cents > 0) {
+          outSub += ' · legacy ' + _expFmtCents(s.money_out.legacy_budget_expense_cents);
+        }
+        tiles.push(_finTile('Money out', _expFmtCents(s.money_out.combined_cents), outSub));
+
+        // Net — sign-colored via tokens.
+        const netColor = s.net_cents >= 0 ? 'var(--success)' : 'var(--danger)';
+        const netVal = '<span style="color:' + netColor + ';">' + (s.net_cents >= 0 ? '+' : '−') + _expFmtCents(Math.abs(s.net_cents)) + '</span>';
+        tiles.push(_finTile('Net', netVal, 'money in − money out'));
+
+        // Cash on hand — the figure when anchored; an INVITATION when
+        // unknown (null is not zero). The button is INERT this
+        // checkpoint: BG6 wires anchoring and replaces the disabled
+        // state — slot marker: #bg6AnchorBtn.
+        if (s.cash_current_cents === null) {
+          tiles.push(_finTile('Cash on hand', '<span style="color:var(--text-muted);">—</span>',
+            'Set your starting cash to see a live figure.<br>'
+            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6AnchorBtn" disabled title="Cash anchoring arrives in the next budget checkpoint (BG6)" style="margin-top:6px;">Set starting cash</button>'));
+        } else {
+          const anchoredOn = s.anchor ? new Date(s.anchor.as_of).toLocaleDateString('en-US', { timeZone: calTz(), month: 'short', day: 'numeric' }) : '';
+          tiles.push(_finTile('Cash on hand', _expFmtCents(s.cash_current_cents), anchoredOn ? 'anchored ' + anchoredOn : ''));
+        }
+
+        // Goal — progress bar when one exists; invitation otherwise
+        // (inert until BG6 — slot marker: #bg6GoalBtn).
+        if (s.goal) {
+          const pct = Math.max(0, Math.min(100, s.goal.progress_pct == null ? 0 : s.goal.progress_pct));
+          tiles.push(_finTile(_convEsc(s.goal.label || 'Goal'),
+            '<div class="fin-bar-track" style="margin-top:6px;"><div class="fin-bar-fill" style="width:' + pct + '%;"></div></div>',
+            _expFmtCents(s.goal.progress_cents) + ' of ' + _expFmtCents(s.goal.target_cents) + ' · ' + pct + '%'));
+        } else {
+          tiles.push(_finTile('Goal', '<span style="color:var(--text-muted);">—</span>',
+            'Set a revenue target to track progress.<br>'
+            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6GoalBtn" disabled title="Goals arrive in the next budget checkpoint (BG6)" style="margin-top:6px;">Set a goal</button>'));
+        }
+
+        grid.innerHTML = tiles.join('');
+      }
+
+      function renderFinBreakdown(s) {
+        const el = document.getElementById('finBreakdown');
+        if (!el) return;
+        const rows = (s.by_category || []).slice().sort((a, b) => b.cents - a.cents);
+        if (!rows.length) {
+          el.innerHTML = '<div class="mm-empty" style="padding:14px 8px;">No expenses this period.</div>';
+          return;
+        }
+        const max = rows[0].cents || 1;
+        el.innerHTML = rows.map((c) => {
+          const w = Math.max(2, Math.round((c.cents / max) * 100)); // proportion only — display shaping
+          const legacyTag = c.source === 'legacy' ? ' <span class="mm-badge" style="font-size:0.68em;">legacy</span>' : '';
+          return '<div class="fin-bar-row">'
+            + '<div class="fin-bar-label">' + _convEsc(c.category) + legacyTag + '</div>'
+            + '<div class="fin-bar-track"><div class="fin-bar-fill" style="width:' + w + '%;"></div></div>'
+            + '<div class="fin-bar-amt">' + _expFmtCents(c.cents) + '</div>'
+            + '</div>';
+        }).join('');
       }
 
       // ---------- BG2: expenses (manual entry; AI path is BG5) ----------
