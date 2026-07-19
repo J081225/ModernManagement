@@ -665,6 +665,12 @@
         border-left-color: var(--border-strong);
         color: var(--text-muted);
       }
+      .cal-tl-block.canceled {
+        background: var(--bg-sunken);
+        border-left-color: var(--border-strong);
+        color: var(--text-muted);
+        text-decoration: line-through;
+      }
       .cal-tl-block-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .cal-now-line {
         position: absolute;
@@ -3968,21 +3974,22 @@
       </div>
     </div>
 
-    <!-- Calendar event detail modal — click-to-view popup for calendar
-         entries. Same structure as txDetailModal above so styling is
-         consistent. Populated by renderCalEventDetail(data) from
+    <!-- CP5: calendar event detail modal, built on the design system's
+         .mm-modal. Populated by renderCalEventDetail(data) from
          GET /api/calevents/:id. -->
     <div class="modal-overlay" id="calEventDetailModal" onclick="if(event.target===this)closeCalEventDetail()" style="display:none;align-items:center;justify-content:center;">
-      <div class="modal" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:8px;">
-          <div style="flex:1;min-width:0;">
-            <h3 id="calEventDetailTitle" style="margin:0 0 4px;color:var(--text-primary);">Event</h3>
-            <div id="calEventDetailMeta" style="font-size:0.82em;color:var(--text-muted);"></div>
+      <div class="mm-modal" style="max-height:88vh;display:flex;flex-direction:column;">
+        <div class="mm-modal-header" style="margin-bottom:var(--space-2);">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;">
+            <span id="calEventDetailTitle">Event</span>
+            <span id="calEventDetailStatusBadge"></span>
           </div>
-          <button onclick="closeCalEventDetail()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
+          <button onclick="closeCalEventDetail()" class="mm-btn mm-btn-ghost mm-btn-sm" title="Close">&times;</button>
         </div>
-        <div id="calEventDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:var(--text-secondary);font-size:0.92em;line-height:1.55;"></div>
-        <div id="calEventDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
+        <div id="calEventDetailMeta" style="font-size:12px;color:var(--text-muted);margin-bottom:var(--space-2);"></div>
+        <div id="calEventDetailBanner"></div>
+        <div id="calEventDetailBody" style="flex:1;overflow-y:auto;padding:var(--space-2) 0 var(--space-3);font-size:13px;line-height:1.55;"></div>
+        <div id="calEventDetailActions" class="mm-modal-footer" style="flex-wrap:wrap;"></div>
       </div>
     </div>
 
@@ -5479,7 +5486,8 @@
           html += `<div class="cal-allday-gutter" style="${gutterSticky}">all-day</div>`;
           for (const ds of days) {
             const chips = alldayByDay[ds].map(e => {
-              const cls = 'cal-chip' + (e.event_type === 'time_off' ? ' timeoff' : '');
+              const cls = 'cal-chip'
+                + (_calEventCanceled(e) ? ' canceled' : (e.event_type === 'time_off' ? ' timeoff' : ''));
               return `<div class="${cls}" onclick="openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">${_calEscape(e.title || '')}</div>`;
             }).join('');
             html += `<div class="cal-allday-cell">${chips}</div>`;
@@ -5506,7 +5514,8 @@
             const height = Math.max(e._endMin - e._startMin, 22);
             const widthPct = 100 / e._cols;
             const leftPct = e._col * widthPct;
-            const cls = 'cal-tl-block' + (e.event_type === 'time_off' ? ' timeoff' : '');
+            const cls = 'cal-tl-block'
+              + (_calEventCanceled(e) ? ' canceled' : (e.event_type === 'time_off' ? ' timeoff' : ''));
             const t = fmtEventTime(e.starts_at);
             html += `<div class="${cls}" style="top:${top}px;height:${height}px;left:${leftPct}%;width:${widthPct}%;" onclick="event.stopPropagation();openCalEventDetail(${e.id})" title="${_calEscape(e.title || '')}">
               <div class="cal-tl-block-line">${t} ${_calEscape(e.title || '')}</div>
@@ -5811,80 +5820,95 @@
         if (modal) modal.style.display = 'none';
       }
 
+      // CP5: status badge + danger banner helpers for the detail modal.
+      function _calStatusBadge(status, eventType) {
+        if (status === 'confirmed' || status === 'completed') return '<span class="mm-badge mm-badge-success">' + _calEscape(status) + '</span>';
+        if (status === 'requested' || status === 'pending') return '<span class="mm-badge mm-badge-warning">' + _calEscape(status) + '</span>';
+        if (status === 'canceled' || status === 'cancelled') return '<span class="mm-badge mm-badge-neutral">canceled</span>';
+        if (eventType === 'time_off') return '<span class="mm-badge mm-badge-neutral">time off</span>';
+        return '';
+      }
+      function _calModalBanner(msg) {
+        const el = document.getElementById('calEventDetailBanner');
+        if (el) el.innerHTML = msg
+          ? '<div class="mm-banner mm-banner-danger" style="margin-bottom:var(--space-2);">' + _calEscape(msg) + '</div>'
+          : '';
+      }
+
       function renderCalEventDetail(data) {
         const event       = (data && data.event) || {};
         const appointment = data && data.appointment;
         const contact     = data && data.contact;
+        const isTimeOff   = event.event_type === 'time_off';
+        const isAppt      = !!(event.appointment_id || appointment);
+        const status      = appointment ? appointment.status : null;
 
-        // Header: customer name if we have one, else the event title.
-        const headerTitle = (contact && contact.name) ? contact.name : (event.title || 'Event');
-        document.getElementById('calEventDetailTitle').textContent = headerTitle;
+        // Stash so Edit/Back/confirm swaps can restore without refetching.
+        window._openCalEventData = data;
+        _calModalBanner('');
 
-        // Meta line: date · time · duration · type-badge.
-        const dateLabel = event.is_all_day ? 'All day' : _calFormatDate(event.starts_at);
-        const timeLabel = event.is_all_day ? '' : _calFormatTime(event.starts_at);
-        let durLabel = '';
-        if (!event.is_all_day) {
-          const dur = (appointment && appointment.duration_minutes)
-            || _calDurationMinutes(event.starts_at, event.ends_at);
-          if (dur) durLabel = dur + ' min';
-        }
-        const type = event.event_type || 'general';
-        // time_off gets a muted gray badge so it reads as "unavailable"
-        // rather than "gold accent" like normal event types.
-        const isTimeOff = type === 'time_off';
-        const badgeBg = isTimeOff ? 'var(--bg-sunken)' : 'var(--bg-sunken)';
-        const badgeFg = isTimeOff ? "var(--text-muted)" : "var(--text-secondary)";
-        const badgeLabel = isTimeOff ? 'time off' : type;
-        const typeBadge = '<span style="display:inline-block;font-size:0.78em;padding:2px 8px;border-radius:10px;background:' + badgeBg + ';color:' + badgeFg + ';font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-left:8px;">' + _calEscape(badgeLabel) + '</span>';
-        const metaParts = [dateLabel, timeLabel, durLabel].filter(Boolean).map(_calEscape).join(' · ');
-        document.getElementById('calEventDetailMeta').innerHTML = metaParts + typeBadge;
+        document.getElementById('calEventDetailTitle').textContent = event.title || 'Event';
+        document.getElementById('calEventDetailStatusBadge').innerHTML = _calStatusBadge(status, event.event_type);
+        document.getElementById('calEventDetailMeta').textContent =
+          isTimeOff ? 'Blocked-off time' : (isAppt ? 'Appointment' : 'Calendar event');
 
-        // Body: for appointment-backed events, show service/status/phone/
-        // price/notes. For plain events, just show title + times.
+        // Body: 13px labels over values.
         const rows = [];
-        function row(label, value) {
-          rows.push('<div style="display:flex;gap:14px;padding:8px 0;border-bottom:1px solid var(--border);">'
-            + '<div style="width:110px;color:var(--text-muted);font-size:0.82em;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;">' + _calEscape(label) + '</div>'
-            + '<div style="flex:1;color:var(--text-secondary);">' + value + '</div>'
+        function row(label, valueHtml) {
+          rows.push('<div style="padding:var(--space-2) 0;border-bottom:1px solid var(--border);">'
+            + '<div style="font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">' + _calEscape(label) + '</div>'
+            + '<div style="font-size:13px;color:var(--text-primary);">' + valueHtml + '</div>'
             + '</div>');
         }
-        row('Service', _calEscape(event.title || '—'));
-        if (appointment) {
-          row('Status', _calEscape(appointment.status || '—'));
-          const priceCents = appointment.quoted_price_cents;
-          const price = (priceCents != null && priceCents > 0) ? ('$' + (priceCents / 100).toFixed(2)) : '—';
-          row('Price', _calEscape(price));
+        if (isAppt) {
+          if (contact && contact.name) {
+            row('Customer', _calEscape(contact.name)
+              + (contact.phone ? '<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">' + _calEscape(contact.phone) + '</div>' : ''));
+          } else {
+            row('Customer', '<span style="color:var(--text-muted);">No contact linked</span>');
+          }
         }
-        if (contact) {
-          row('Phone', _calEscape(contact.phone || '—'));
+        const whenDate = event.starts_at
+          ? _calFormatDate(event.starts_at)
+          : (event.date ? fmtDateKey(event.date, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : '—');
+        let when;
+        if (event.is_all_day || !event.starts_at) {
+          when = whenDate + ' · All day';
+        } else {
+          const dur = (appointment && appointment.duration_minutes)
+            || _calDurationMinutes(event.starts_at, event.ends_at);
+          when = whenDate + ' · ' + _calFormatTime(event.starts_at) + (dur ? ' · ' + dur + ' min' : '');
         }
-        if (appointment && appointment.notes_internal) {
-          row('Internal notes', _calEscape(appointment.notes_internal));
+        row('When', _calEscape(when));
+        if (appointment && appointment.quoted_price_cents > 0) {
+          row('Price', _calEscape('$' + (appointment.quoted_price_cents / 100).toFixed(2)));
         }
-        if (appointment && appointment.notes_customer) {
-          row('Customer notes', _calEscape(appointment.notes_customer));
-        }
+        if (appointment && appointment.notes_internal) row('Internal notes', _calEscape(appointment.notes_internal));
+        if (appointment && appointment.notes_customer) row('Customer notes', _calEscape(appointment.notes_customer));
         document.getElementById('calEventDetailBody').innerHTML = rows.join('');
 
-        // Actions: appointment-backed events get Edit + Cancel; plain
-        // events get Delete only. No Edit button for non-appointment
-        // events (they have nothing structured to edit — that would be
-        // a fake control).
-        const isAppt = !!(event.appointment_id || appointment);
-        const cancelOrDeleteLabel = isAppt ? 'Cancel appointment' : 'Delete';
-        // Stash the fetched payload so calEventDetailEdit() can build the
-        // form without re-fetching (and so the Back button can restore
-        // the same view without another round-trip).
-        window._openCalEventData = data;
-        const editBtn = isAppt
-          ? '<button onclick="calEventDetailEdit()" style="padding:9px 18px;background:transparent;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Edit</button>'
-          : '';
+        // Footer. Canceled appointments are read-only (Close only);
+        // time_off gets Remove instead of Cancel; plain events Delete.
+        const canceled = status === 'canceled' || status === 'cancelled';
+        let footer = '';
+        if (isAppt && !canceled) {
+          footer += '<button onclick="calEventDetailEdit()" class="mm-btn mm-btn-secondary">Edit</button>';
+          footer += '<button onclick="calEventDetailConfirmCancel(' + Number(event.id) + ', true)" class="mm-btn mm-btn-danger">Cancel appointment</button>';
+        } else if (!isAppt) {
+          footer += '<button onclick="calEventDetailConfirmCancel(' + Number(event.id) + ', false)" class="mm-btn mm-btn-danger">' + (isTimeOff ? 'Remove' : 'Delete') + '</button>';
+        }
+        footer += '<button onclick="closeCalEventDetail()" class="mm-btn mm-btn-ghost">Close</button>';
+        document.getElementById('calEventDetailActions').innerHTML = footer;
+      }
+
+      // CP5: inline confirm swap — the footer becomes the question.
+      function calEventDetailConfirmCancel(calEventId, isAppointment) {
+        const q = isAppointment ? 'Cancel this appointment?' : 'Remove this event?';
+        const verb = isAppointment ? 'Cancel appointment' : 'Remove';
         document.getElementById('calEventDetailActions').innerHTML =
-          editBtn
-          + '<button onclick="calEventDetailDelete(' + Number(event.id) + ',' + (isAppt ? 'true' : 'false') + ')" '
-          + 'style="padding:9px 18px;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger-soft);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">' + cancelOrDeleteLabel + '</button>'
-          + '<button onclick="closeCalEventDetail()" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Close</button>';
+          '<span style="align-self:center;margin-right:auto;font-size:13px;font-weight:500;color:var(--text-primary);">' + q + '</span>'
+          + '<button onclick="renderCalEventDetail(window._openCalEventData)" class="mm-btn mm-btn-secondary">Keep</button>'
+          + '<button id="calCancelConfirmBtn" onclick="calEventDetailDelete(' + Number(calEventId) + ', ' + (isAppointment ? 'true' : 'false') + ')" class="mm-btn mm-btn-danger">' + verb + '</button>';
       }
 
       // Split an ISO timestamp into local-time YYYY-MM-DD + HH:MM strings
@@ -5912,8 +5936,8 @@
         } catch (err) { return { date: '', time: '' }; }
       }
 
-      // Swap the modal body into an edit form. Header + close-X are left
-      // alone. Actions row becomes Save changes + Back.
+      // CP5: swap the modal body into an .mm-input edit form. Header is
+      // left alone; footer becomes Save + Back.
       function calEventDetailEdit() {
         const data = window._openCalEventData;
         if (!data || !data.appointment) return;
@@ -5923,45 +5947,42 @@
         const priceDollars = (appt.quoted_price_cents != null && appt.quoted_price_cents > 0)
           ? (appt.quoted_price_cents / 100).toFixed(2)
           : '';
+        _calModalBanner('');
 
-        const inputStyle = 'width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;';
-        const labelStyle = 'display:block;font-size:0.82em;font-weight:600;color:var(--text-muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px;';
-        const rowStyle = 'margin-bottom:14px;';
-
+        const rowStyle = 'margin-bottom:var(--space-3);';
         document.getElementById('calEventDetailBody').innerHTML =
           '<div style="' + rowStyle + '">'
-            + '<label for="calEditTitle" style="' + labelStyle + '">Service</label>'
-            + '<input type="text" id="calEditTitle" value="' + _calEscape(event.title || '') + '" style="' + inputStyle + '">'
+            + '<label for="calEditTitle" class="mm-label">Service</label>'
+            + '<input type="text" id="calEditTitle" class="mm-input" value="' + _calEscape(event.title || '') + '">'
           + '</div>'
-          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;' + rowStyle + '">'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);' + rowStyle + '">'
             + '<div>'
-              + '<label for="calEditDate" style="' + labelStyle + '">Date</label>'
-              + '<input type="date" id="calEditDate" value="' + _calEscape(date) + '" style="' + inputStyle + '">'
+              + '<label for="calEditDate" class="mm-label">Date</label>'
+              + '<input type="date" id="calEditDate" class="mm-input" value="' + _calEscape(date) + '">'
             + '</div>'
             + '<div>'
-              + '<label for="calEditTime" style="' + labelStyle + '">Time</label>'
-              + '<input type="time" id="calEditTime" value="' + _calEscape(time) + '" style="' + inputStyle + '">'
+              + '<label for="calEditTime" class="mm-label">Time</label>'
+              + '<input type="time" id="calEditTime" class="mm-input" value="' + _calEscape(time) + '">'
             + '</div>'
           + '</div>'
-          + '<div style="' + rowStyle + '">'
-            + '<label for="calEditDuration" style="' + labelStyle + '">Duration (minutes)</label>'
-            + '<input type="number" id="calEditDuration" min="5" max="720" step="1" value="' + _calEscape(appt.duration_minutes || 30) + '" style="' + inputStyle + '">'
-          + '</div>'
-          + '<div style="' + rowStyle + '">'
-            + '<label for="calEditPrice" style="' + labelStyle + '">Price ($) — leave blank to keep unchanged</label>'
-            + '<input type="number" id="calEditPrice" step="0.01" min="0" placeholder="0.00" value="' + _calEscape(priceDollars) + '" style="' + inputStyle + '">'
-          + '</div>'
-          + '<div id="calEditError" style="font-size:0.85em;color:var(--danger);margin-top:6px;min-height:1em;"></div>';
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);' + rowStyle + '">'
+            + '<div>'
+              + '<label for="calEditDuration" class="mm-label">Duration (minutes)</label>'
+              + '<input type="number" id="calEditDuration" class="mm-input" min="5" max="720" step="1" value="' + _calEscape(appt.duration_minutes || 30) + '">'
+            + '</div>'
+            + '<div>'
+              + '<label for="calEditPrice" class="mm-label">Price ($, blank = unchanged)</label>'
+              + '<input type="number" id="calEditPrice" class="mm-input" step="0.01" min="0" placeholder="0.00" value="' + _calEscape(priceDollars) + '">'
+            + '</div>'
+          + '</div>';
 
         document.getElementById('calEventDetailActions').innerHTML =
-          '<button onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" style="padding:9px 18px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9em;">Save changes</button>'
-          + '<button onclick="renderCalEventDetail(window._openCalEventData)" style="padding:9px 18px;background:transparent;color:var(--text-primary);border:1px solid var(--border-strong);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.9em;">Back</button>';
+          '<button onclick="renderCalEventDetail(window._openCalEventData)" class="mm-btn mm-btn-ghost">Back</button>'
+          + '<button id="calEditSaveBtn" onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" class="mm-btn mm-btn-primary">Save changes</button>';
       }
 
       async function calEventDetailSave(calEventId, appointmentId) {
-        const errEl = document.getElementById('calEditError');
-        const setErr = (msg) => { if (errEl) errEl.textContent = msg || ''; };
-        setErr('');
+        _calModalBanner('');
 
         const title    = (document.getElementById('calEditTitle')    || {}).value || '';
         const date     = (document.getElementById('calEditDate')     || {}).value || '';
@@ -5970,11 +5991,11 @@
         const priceStr = (document.getElementById('calEditPrice')    || {}).value || '';
 
         const trimmedTitle = title.trim();
-        if (!trimmedTitle) { setErr('Service is required.'); return; }
-        if (!date || !time) { setErr('Date and time are required.'); return; }
+        if (!trimmedTitle) { _calModalBanner('Service is required.'); return; }
+        if (!date || !time) { _calModalBanner('Date and time are required.'); return; }
         const durNum = parseInt(durStr, 10);
         if (!Number.isFinite(durNum) || durNum < 5 || durNum > 720) {
-          setErr('Duration must be between 5 and 720 minutes.'); return;
+          _calModalBanner('Duration must be between 5 and 720 minutes.'); return;
         }
 
         // Naive "YYYY-MM-DDTHH:mm" — server's toZonedISO interprets in the
@@ -5988,11 +6009,13 @@
         if (priceStr.trim() !== '') {
           const dollars = parseFloat(priceStr);
           if (!Number.isFinite(dollars) || dollars < 0) {
-            setErr('Price must be a non-negative number.'); return;
+            _calModalBanner('Price must be a non-negative number.'); return;
           }
           body.quoted_price_cents = Math.round(dollars * 100);
         }
 
+        const saveBtn = document.getElementById('calEditSaveBtn');
+        if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
         try {
           const r = await fetch('/api/appointments/' + encodeURIComponent(appointmentId), {
             method: 'PATCH',
@@ -6004,52 +6027,39 @@
             const t = await r.json().catch(() => ({}));
             throw new Error((t && t.error) || ('HTTP ' + r.status));
           }
-          // Re-fetch the event so the popup and the calendar behind it
-          // both reflect the persisted state, not the just-typed values.
-          const fresh = await fetch('/api/calevents/' + encodeURIComponent(calEventId), { credentials: 'include' });
-          if (!fresh.ok) throw new Error('Saved, but could not refresh (HTTP ' + fresh.status + ')');
-          const freshData = await fresh.json();
-          window._openCalEventData = freshData;
-          renderCalEventDetail(freshData);
-          // Brief 'Saved!' indicator in the meta line.
-          const metaEl = document.getElementById('calEventDetailMeta');
-          if (metaEl) {
-            const original = metaEl.innerHTML;
-            metaEl.innerHTML = original + ' <span id="calSavedFlash" style="color:var(--success);font-weight:700;">· Saved!</span>';
-            setTimeout(() => {
-              const flash = document.getElementById('calSavedFlash');
-              if (flash) flash.remove();
-            }, 2000);
-          }
-          // Refresh the calendar behind the modal.
+          // Success: close, refresh the grid behind (CP5 contract).
+          closeCalEventDetail();
           if (typeof loadCalEvents === 'function') await loadCalEvents();
           if (selectedDate && typeof renderDayDetail === 'function') renderDayDetail(selectedDate);
         } catch (err) {
           console.error('[calEventDetailSave]', err);
-          setErr('Save failed: ' + (err.message || err));
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save changes'; }
+          _calModalBanner('Save failed: ' + (err.message || err));
         }
       }
 
+      // Reached only via the inline confirm swap. Every failure surfaces
+      // in the modal's danger banner — nothing silent.
       async function calEventDetailDelete(id, isAppointment) {
-        const prompt = isAppointment
-          ? 'Cancel this appointment? The slot will re-open on the calendar.'
-          : 'Delete this event?';
-        if (!confirm(prompt)) return;
+        const btn = document.getElementById('calCancelConfirmBtn');
+        if (btn) { btn.disabled = true; btn.textContent = isAppointment ? 'Canceling…' : 'Removing…'; }
         try {
           const r = await fetch('/api/calevents/' + encodeURIComponent(id), {
             method: 'DELETE',
             credentials: 'include',
           });
           if (!r.ok) {
-            const t = await r.text().catch(() => '');
-            throw new Error('HTTP ' + r.status + (t ? ': ' + t : ''));
+            const t = await r.json().catch(() => ({}));
+            throw new Error((t && t.error) || ('HTTP ' + r.status));
           }
+          // Canceled chips gray out in place via the refreshed payload.
           closeCalEventDetail();
           if (typeof loadCalEvents === 'function') await loadCalEvents();
           if (selectedDate && typeof renderDayDetail === 'function') renderDayDetail(selectedDate);
         } catch (err) {
           console.error('[calEventDetailDelete]', err);
-          alert('Could not ' + (isAppointment ? 'cancel appointment' : 'delete event') + ': ' + (err.message || err));
+          renderCalEventDetail(window._openCalEventData);
+          _calModalBanner('Could not ' + (isAppointment ? 'cancel appointment' : 'remove event') + ': ' + (err.message || err));
         }
       }
 

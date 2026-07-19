@@ -4061,9 +4061,8 @@ app.delete('/api/calevents/:id', requireAuth, async (req, res) => {
         return res.json({ success: true, deleted: true });
       }
       if (appt.status === 'canceled') {
-        // Already canceled — clean up the stray cal_events row if it's
-        // still around (matches cancel tool's "slot re-opens" semantic).
-        await pool.query(`DELETE FROM cal_events WHERE id = $1 AND workspace_id = $2`, [id, workspaceId]);
+        // CP5: already canceled — the cal_events row now STAYS so the
+        // calendar renders it grayed instead of vanishing.
         return res.json({ success: true, cancelled: true, alreadyCancelled: true });
       }
       await pool.query(
@@ -4076,13 +4075,10 @@ app.delete('/api/calevents/:id', requireAuth, async (req, res) => {
           WHERE id = $3 AND workspace_id = $4`,
         ['staff', null, event.appointment_id, workspaceId]
       );
-      if (appt.cal_event_id) {
-        try {
-          await pool.query(`DELETE FROM cal_events WHERE id = $1`, [appt.cal_event_id]);
-        } catch (delErr) {
-          console.error('[DELETE /api/calevents/:id] cal_event delete failed (appointment canceled):', delErr.message);
-        }
-      }
+      // CP5: status-based cancel — the cal_events row survives so the
+      // booking renders grayed/struck-through. Availability is freed by
+      // the canceled-exclusion in propose_appointment_times and the
+      // engine's calendar loader, not by deleting the row.
       return res.json({ success: true, cancelled: true });
     }
 
