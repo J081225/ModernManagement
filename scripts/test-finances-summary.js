@@ -234,6 +234,66 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   check('B15b: both rent flip paths counted; empty paid_date falls back to due_date (120000+90000+80000)',
     s.money_in.pm_rent_legacy_cents === 290000);
 
+  // ---- BG6: anchors are history; drift derives; goals govern ----
+  // B17: TWO anchors — the summary uses the most recent; the older row
+  // still exists (history preserved, never overwritten).
+  fx = clone();
+  fx.anchors.push(
+    { workspace_id: 7, amount_cents: 50000, as_of: '2026-07-01T00:00:00.000Z' },
+    { workspace_id: 7, amount_cents: 130000, as_of: '2026-07-15T00:00:00.000Z' }
+  );
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  check('B17: re-anchoring wins by recency, history intact (anchor=130000; only post-07-15 events on top)',
+    s.anchor.amount_cents === 130000 && fx.anchors.length === 2
+    // after 07-15 local (07-14 EDT date is 2026-07-14): ledger rows after
+    // 2026-07-15T00:00Z: none of the July rows (07-10, 07-12) qualify;
+    // expenses spent_on > '2026-07-14': Payroll 07-15 counts.
+    && s.cash_current_cents === 130000 + 0 - 15000);
+
+  // B17b: drift derives from history + ledger, stored nowhere: expected
+  // under the OLD anchor vs a new count.
+  fx = clone();
+  fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
+  const pre = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  const counted = 200000;
+  const drift = counted - pre.cash_current_cents;
+  check('B17b: drift = counted − expected (expected 177350 → drift +22650), pure derivation',
+    pre.cash_current_cents === 100000 + 6000 + 120000 - 29450 - 19200 && drift === counted - 177350);
+
+  // B18: one ACTIVE goal per period governs; an inactive same-period
+  // goal is ignored; workspace isolation holds for anchors and goals.
+  fx = clone();
+  fx.goals.push(
+    { workspace_id: 7, id: 1, type: 'revenue', label: 'old', target_cents: 100000, period: 'month', active: false },
+    { workspace_id: 7, id: 2, type: 'revenue', label: 'current', target_cents: 250000, period: 'month', active: true },
+    { workspace_id: 8, id: 3, type: 'revenue', label: 'other ws', target_cents: 1, period: 'month', active: true }
+  );
+  fx.anchors.push({ workspace_id: 8, amount_cents: 999999, as_of: '2026-07-01T00:00:00.000Z' });
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  check('B18: the ACTIVE goal governs (250000, label current); workspace B goal + anchor never leak into A',
+    s.goal && s.goal.target_cents === 250000 && s.goal.label === 'current' && s.cash_current_cents === null);
+
+  // B19: endpoint discipline, static: anchors are INSERT-only (no
+  // UPDATE budget_anchors anywhere in the codebase), goal replacement
+  // DEACTIVATES (never deletes) in the POST, and all four new routes
+  // carry requireAuth.
+  const srvSrc2 = require('fs').readFileSync(require('path').join(__dirname, '..', 'server.js'), 'utf8');
+  check('B19: INSERT-only anchors; deactivate-not-delete goal replacement; owner-only routes',
+    !srvSrc2.includes('UPDATE budget_anchors')
+    && srvSrc2.includes("UPDATE budget_goals SET active = FALSE WHERE workspace_id = $1 AND period = $2 AND active = TRUE")
+    && srvSrc2.includes("app.post('/api/finances/anchor', requireAuth")
+    && srvSrc2.includes("app.post('/api/finances/goal', requireAuth")
+    && srvSrc2.includes("app.patch('/api/finances/goal/:id', requireAuth")
+    && srvSrc2.includes("app.delete('/api/finances/goal/:id', requireAuth"));
+
+  // B20: manual expense entry reachable from the dashboard (BG2's card
+  // + modal absorbed by BG3 — verified, no polish needed).
+  const appSrc = require('fs').readFileSync(require('path').join(__dirname, '..', 'views', 'app.html'), 'utf8');
+  check('B20: add-expense modal + card + wire all present exactly once',
+    appSrc.split('id="financesExpensesCard"').length - 1 === 1
+    && appSrc.split('id="addExpenseModal"').length - 1 === 1
+    && appSrc.includes('onclick="openAddExpense()"'));
+
   // ---- BG4 commit 2: deposits labeled + test-money across ALL sources ----
   // One fixture, every money-in source at once: a stripe full payment,
   // a stripe deposit, a CASH deposit, completion cash, and PM rent.

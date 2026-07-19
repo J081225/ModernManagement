@@ -3617,6 +3617,32 @@
             </div>
 
             <!-- Both verticals: Invoices summary -->
+            <!-- BG2: money-out detail. Restored in BG6 commit 4 — BG3's
+                 budget-card deletion accidentally swallowed this card
+                 too (it sat between the cut markers); caught by the
+                 B20 suite row. Manual entry (source='manual'); the AI
+                 path is BG5. Tokens only. -->
+            <div class="mm-card" id="financesExpensesCard" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Expenses</div>
+                <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddExpense()">+ Add expense</button>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                <select id="expFilterCategory" onchange="loadExpenses()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">All categories</option>
+                </select>
+                <input type="search" id="expFilterVendor" placeholder="Vendor&hellip;" oninput="loadExpenses()"
+                  style="flex:1;min-width:140px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.88em;" />
+                <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="loadExpenses()">Refresh</button>
+              </div>
+              <div id="expensesTotalsRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:0.88em;">
+                <span style="color:var(--text-muted);" id="expensesTotalCount"></span>
+                <span style="font-weight:700;color:var(--text-primary);" id="expensesTotalAmount"></span>
+              </div>
+              <div id="expensesList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
+            </div>
+
             <div class="card" id="financesInvoicesCard" style="margin-top:20px;">
               <div class="card-head">
                 <div class="card-head-tile">&#128196;</div>
