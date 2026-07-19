@@ -4322,7 +4322,27 @@
     </div>
 
     <!-- ============= NEW TRANSACTION MODAL (E3) ============= -->
-    <!-- BG2: add-expense modal (manual entry, cents-only API — the
+    <!-- BG6: cash-anchor modal. The dollars→cents conversion lives at
+       this input edge, same as add-expense; the API takes cents. -->
+  <div class="mm-modal-overlay" id="anchorModal" style="display:none;" onclick="if(event.target===this)closeAnchorModal()">
+    <div class="mm-modal" style="max-width:420px;">
+      <div style="font-weight:700;font-size:1.05em;color:var(--text-primary);margin-bottom:8px;">How much cash does the business have right now?</div>
+      <div style="font-size:0.85em;color:var(--text-muted);line-height:1.5;margin-bottom:12px;">Count what you actually have. This sets the baseline everything moves from — money in adds to it, expenses subtract, and you can recount any time.</div>
+      <div id="anchorExpectedLine" style="display:none;font-size:0.82em;color:var(--text-muted);background:var(--bg-sunken);border-radius:8px;padding:8px 12px;margin-bottom:12px;"></div>
+      <div id="anchorError" style="display:none;background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:0.85em;margin-bottom:12px;"></div>
+      <div id="anchorEntryRow">
+        <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Cash on hand (dollars)</label>
+        <input type="number" id="anchorAmount" min="0" step="0.01" placeholder="0.00"
+          style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.95em;" />
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button class="mm-btn mm-btn-secondary" id="anchorCancelBtn" onclick="closeAnchorModal()">Cancel</button>
+        <button class="mm-btn mm-btn-primary" id="anchorSaveBtn" onclick="submitAnchor()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BG2: add-expense modal (manual entry, cents-only API — the
        ONE dollars→cents conversion lives at this input edge). -->
   <div class="mm-modal-overlay" id="addExpenseModal" style="display:none;" onclick="if(event.target===this)closeAddExpense()">
     <div class="mm-modal" style="max-width:420px;">
@@ -11878,6 +11898,7 @@
           return;
         }
         grid.dataset.loaded = '1';
+        window._finSummary = sum;
         renderFinScorecard(sum);
         renderFinBreakdown(sum);
         if (label) {
@@ -11922,13 +11943,17 @@
         // unknown (null is not zero). The button is INERT this
         // checkpoint: BG6 wires anchoring and replaces the disabled
         // state — slot marker: #bg6AnchorBtn.
+        // BG6: the invitation becomes real entry; anchored tiles gain
+        // the recount affordance and the quiet as-of date.
         if (s.cash_current_cents === null) {
           tiles.push(_finTile('Cash on hand', '<span style="color:var(--text-muted);">—</span>',
             'Set your starting cash to see a live figure.<br>'
-            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6AnchorBtn" disabled title="Cash anchoring arrives in the next budget checkpoint (BG6)" style="margin-top:6px;">Set starting cash</button>'));
+            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6AnchorBtn" onclick="openAnchorModal()" style="margin-top:6px;">Set starting cash</button>'));
         } else {
           const anchoredOn = s.anchor ? new Date(s.anchor.as_of).toLocaleDateString('en-US', { timeZone: calTz(), month: 'short', day: 'numeric' }) : '';
-          tiles.push(_finTile('Cash on hand', _expFmtCents(s.cash_current_cents), anchoredOn ? 'anchored ' + anchoredOn : ''));
+          tiles.push(_finTile('Cash on hand', _expFmtCents(s.cash_current_cents),
+            (anchoredOn ? 'as of ' + anchoredOn + ' · ' : '')
+            + '<a href="#" onclick="event.preventDefault();openAnchorModal();" style="color:var(--accent);text-decoration:none;font-weight:600;">Update / recount</a>'));
         }
 
         // Goal — progress bar when one exists; invitation otherwise
@@ -11941,7 +11966,7 @@
         } else {
           tiles.push(_finTile('Goal', '<span style="color:var(--text-muted);">—</span>',
             'Set a revenue target to track progress.<br>'
-            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6GoalBtn" disabled title="Goals arrive in the next budget checkpoint (BG6)" style="margin-top:6px;">Set a goal</button>'));
+            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6GoalBtn" disabled title="Goals arrive with goal entry (BG6 commit 3)" style="margin-top:6px;">Set a goal</button>'));
         }
 
         grid.innerHTML = tiles.join('');
@@ -11965,6 +11990,57 @@
             + '<div class="fin-bar-amt">' + _expFmtCents(c.cents) + '</div>'
             + '</div>';
         }).join('');
+      }
+
+      // ---------- BG6: cash anchoring + goals ----------
+      function openAnchorModal() {
+        const err = document.getElementById('anchorError');
+        const drift = document.getElementById('anchorDriftPanel');
+        const entry = document.getElementById('anchorEntryRow');
+        const expected = document.getElementById('anchorExpectedLine');
+        if (err) err.style.display = 'none';
+        if (drift) drift.style.display = 'none';
+        if (entry) entry.style.display = 'block';
+        const save = document.getElementById('anchorSaveBtn');
+        if (save) { save.textContent = 'Save'; save.disabled = false; save.onclick = submitAnchor; }
+        const amt = document.getElementById('anchorAmount');
+        if (amt) amt.value = '';
+        // "Your ledger currently expects $X" — shown only when anchored,
+        // so the recount has its reference in view.
+        if (expected) {
+          if (window._finSummary && window._finSummary.cash_current_cents !== null && window._finSummary.cash_current_cents !== undefined) {
+            expected.textContent = 'Your ledger currently expects ' + _expFmtCents(window._finSummary.cash_current_cents) + '.';
+            expected.style.display = 'block';
+          } else {
+            expected.style.display = 'none';
+          }
+        }
+        document.getElementById('anchorModal').style.display = 'flex';
+      }
+      function closeAnchorModal() {
+        document.getElementById('anchorModal').style.display = 'none';
+      }
+
+      async function submitAnchor() {
+        const errEl = document.getElementById('anchorError');
+        const fail = (m) => { if (errEl) { errEl.textContent = m; errEl.style.display = 'block'; } };
+        const dollars = parseFloat(document.getElementById('anchorAmount').value);
+        if (isNaN(dollars) || dollars < 0) return fail('Enter the cash amount.');
+        // The dollars→cents input edge — the API takes integer cents.
+        const amount_cents = Math.round(dollars * 100);
+        let data;
+        try {
+          const r = await fetch('/api/finances/anchor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ amount_cents }),
+          });
+          data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || ('HTTP ' + r.status));
+        } catch (err) { return fail(err.message || 'Save failed.'); }
+        closeAnchorModal();
+        loadFinancesSummary();
       }
 
       // ---------- BG2: expenses (manual entry; AI path is BG5) ----------
