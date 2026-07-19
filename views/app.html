@@ -3165,7 +3165,7 @@
               </div>
               <div class="card-head-titles">
                 <div class="card-head-title">Notification settings</div>
-                <div class="card-head-subtitle">Choose how the property reaches you when something needs attention.</div>
+                <div class="card-head-subtitle">Choose how Modern Management reaches you when something needs attention.</div>
               </div>
             </div>
             <div class="card-head-rule"></div>
@@ -3215,7 +3215,7 @@
                   <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:var(--success);font-weight:500;">&#10003; Settings saved</div>
                 </div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:14px;line-height:1.5;">
-                  We'll text the emergency phone when a tenant message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
+                  We'll text the emergency phone when a message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
                 </div>
               </div>
 
@@ -3292,102 +3292,6 @@
           </div>
 
           <!-- Payment Auto-Match -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Auto-match payments</div>
-                <div class="card-head-subtitle">Forward payment confirmation emails and the AI will match each one to a resident automatically.</div>
-              </div>
-            </div>
-            <div class="card-head-rule"></div>
-
-            <div id="forwardingInfo" style="background:var(--bg-sunken);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
-              <div style="font-size:0.72em;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Your forwarding address</div>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <code id="forwardingAddress" style="flex:1;background:white;padding:9px 12px;border:1px solid var(--border);border-radius:7px;font-size:0.88em;color:var(--text-primary);word-break:break-all;">Loading...</code>
-                <button onclick="copyForwardingAddress()" class="btn-secondary" style="font-size:0.82em;">Copy</button>
-              </div>
-              <div style="font-size:0.78em;color:var(--text-muted);margin-top:10px;line-height:1.6;">
-                <strong style="color:var(--text-secondary);">Setup:</strong> In Gmail/Outlook, create a forwarding rule: when an email arrives from your payment platform (e.g. no-reply@zellepay.com), forward it to the address above. Takes about 2 minutes.
-              </div>
-            </div>
-
-            <!-- Events list -->
-            <div id="paymentEventsSection">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <div style="font-size:0.88em;font-weight:600;color:var(--text-secondary);">Recent payment events</div>
-                <button onclick="loadPaymentEvents()" class="btn-secondary" style="font-size:0.78em;padding:5px 10px;">↻ Refresh</button>
-              </div>
-              <div id="paymentEventsList" style="max-height:300px;overflow-y:auto;"></div>
-            </div>
-
-            <!-- Test area -->
-            <details style="margin-top:14px;">
-              <summary style="cursor:pointer;font-size:0.85em;color:var(--text-muted);">🧪 Test with a sample email</summary>
-              <div style="margin-top:10px;padding:12px;background:var(--bg-sunken);border-radius:8px;">
-                <textarea id="testPaymentBody" rows="5" placeholder="Paste the body of a real payment email here..." style="width:100%;font-size:0.85em;margin-bottom:8px;"></textarea>
-                <button onclick="testPaymentEmail()" class="btn-primary" style="font-size:0.85em;">Run AI Match</button>
-                <div id="testPaymentResult" style="margin-top:10px;font-size:0.85em;"></div>
-              </div>
-            </details>
-          </div>
-
-          <!-- Rent Payments -->
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Rent payments</div>
-                <div class="card-head-subtitle">Monthly rent roll for residents — collected, pending and overdue.</div>
-              </div>
-            </div>
-            <div class="card-head-rule"></div>
-
-            <!-- Controls row -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <select id="rentMonthSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.88em;color:var(--text-primary);">
-                  <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-                  <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-                  <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-                  <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-                </select>
-                <select id="rentYearSel" onchange="loadRentTable()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:0.88em;color:var(--text-primary);">
-                  <option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option><option value="2027">2027</option>
-                </select>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-secondary" onclick="openGenerateRent()" style="font-size:0.85em;">&#9889; Generate Month</button>
-                <button class="btn-primary" onclick="openAddRent()">+ Add Manually</button>
-              </div>
-            </div>
-
-            <!-- Summary chips -->
-            <div id="rentSummary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;"></div>
-
-            <div class="table-scroll-wrap">
-            <table style="width:100%;border-collapse:collapse;font-size:0.93em;min-width:520px;">
-              <thead>
-                <tr style="background:var(--bg-sunken);text-align:left;">
-                  <th style="padding:8px 10px;">Resident</th>
-                  <th style="padding:8px 10px;">Unit</th>
-                  <th style="padding:8px 10px;">Amount</th>
-                  <th style="padding:8px 10px;">Due Date</th>
-                  <th style="padding:8px 10px;">Status</th>
-                  <th style="padding:8px 10px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="rentTable"></tbody>
-            </table>
-            </div>
-          </div>
-
-          <!-- Invoices -->
           <div class="card">
             <div class="card-head">
               <div class="card-head-tile">
@@ -6925,160 +6829,6 @@
       // --- Rent Roll ---
       let budgetTransactions = [];
 
-      async function loadRentTable() {
-        const month = document.getElementById('rentMonthSel')?.value;
-        const year = document.getElementById('rentYearSel')?.value;
-        const qs = (month && year) ? `?month=${month}&year=${year}` : '';
-        const rows = await fetch('/api/rent' + qs).then(r => r.json()).catch(() => []);
-        const tbody = document.getElementById('rentTable');
-        const today = new Date().toISOString().split('T')[0];
-
-        if (!rows.length) {
-          tbody.innerHTML = `<tr><td colspan="6" style="padding:22px;text-align:center;color:var(--text-muted);font-size:0.88em;">No rent records for this month. Click "Generate Month" to create them automatically.</td></tr>`;
-          document.getElementById('rentSummary').innerHTML = '';
-          return;
-        }
-
-        // Compute effective status (auto-overdue if past due and not paid)
-        const enriched = rows.map(r => {
-          let status = r.status;
-          if (status === 'pending' && r.due_date && r.due_date < today) status = 'overdue';
-          return { ...r, effectiveStatus: status };
-        });
-
-        // Summary bar
-        const paid    = enriched.filter(r => r.effectiveStatus === 'paid');
-        const pending = enriched.filter(r => r.effectiveStatus === 'pending');
-        const overdue = enriched.filter(r => r.effectiveStatus === 'overdue' || r.effectiveStatus === 'late');
-        const totalCollected = paid.reduce((s, r) => s + Number(r.amount), 0);
-        const totalOutstanding = [...pending, ...overdue].reduce((s, r) => s + Number(r.amount), 0);
-        document.getElementById('rentSummary').innerHTML = `
-          <div style="flex:1;min-width:130px;padding:12px 16px;background:var(--success-soft);border:1px solid var(--success-soft);border-radius:10px;">
-            <div style="font-size:0.72em;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:0.5px;">Collected</div>
-            <div style="font-size:1.3em;font-weight:700;color:var(--success);margin-top:4px;">$${totalCollected.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
-            <div style="font-size:0.75em;color:var(--success);margin-top:2px;">${paid.length} of ${enriched.length} paid</div>
-          </div>
-          <div style="flex:1;min-width:130px;padding:12px 16px;background:${overdue.length ? 'var(--danger-soft)' : 'var(--warning-soft)'};border:1px solid ${overdue.length ? 'var(--danger-soft)' : 'var(--warning-soft)'};border-radius:10px;">
-            <div style="font-size:0.72em;font-weight:700;color:${overdue.length ? 'var(--danger)' : 'var(--warning)'};text-transform:uppercase;letter-spacing:0.5px;">Outstanding</div>
-            <div style="font-size:1.3em;font-weight:700;color:${overdue.length ? 'var(--danger)' : 'var(--warning)'};margin-top:4px;">$${totalOutstanding.toLocaleString('en-US',{minimumFractionDigits:0})}</div>
-            <div style="font-size:0.75em;color:var(--danger);margin-top:2px;">${overdue.length ? overdue.length + ' overdue' : pending.length + ' pending'}</div>
-          </div>`;
-
-        tbody.innerHTML = enriched.map(r => {
-          const s = r.effectiveStatus;
-          const rowBg = s === 'overdue' || s === 'late' ? 'background:var(--danger-soft);' : '';
-          const statusColor = s === 'paid' ? 'var(--success)' : (s === 'overdue' || s === 'late') ? 'var(--danger)' : 'var(--warning)';
-          const statusBg    = s === 'paid' ? 'var(--success-soft)' : (s === 'overdue' || s === 'late') ? 'var(--danger-soft)' : 'var(--warning-soft)';
-          const statusLabel = s === 'overdue' ? '⚠ Overdue' : s.charAt(0).toUpperCase() + s.slice(1);
-          const amt = Number(r.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
-          const paidOn = r.paid_date ? `<div style="font-size:0.72em;color:var(--success);margin-top:2px;">Paid ${r.paid_date}</div>` : '';
-          return `<tr style="border-bottom:1px solid var(--border);${rowBg}">
-            <td style="padding:10px 10px;font-weight:600;">${r.resident}</td>
-            <td style="padding:10px 10px;color:var(--text-muted);">${r.unit || '—'}</td>
-            <td style="padding:10px 10px;font-weight:600;">$${amt}</td>
-            <td style="padding:10px 10px;color:var(--text-muted);">${r.due_date || '—'}</td>
-            <td style="padding:10px 10px;">
-              <div style="display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.8em;font-weight:700;background:${statusBg};color:${statusColor};">${statusLabel}</div>
-              ${paidOn}
-            </td>
-            <td style="padding:10px 10px;">
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                ${s !== 'paid' ? `<button class="btn-primary" style="font-size:0.78em;padding:5px 12px;" onclick="markRentPaid(${r.id},${r.amount},'${r.due_date||''}')">&#10003; Mark Paid</button>` : ''}
-                ${s !== 'paid' ? `<button class="btn-secondary" style="font-size:0.78em;padding:5px 10px;" onclick="sendLateNotice(${r.id})">&#128232; Notice</button>` : ''}
-                <button onclick="deleteRent(${r.id})" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;padding:4px 6px;font-size:1em;" title="Delete">&#128465;</button>
-              </div>
-            </td>
-          </tr>`;
-        }).join('');
-      }
-
-      async function markRentPaid(id, amount, dueDate) {
-        await api(`rent/${id}`, 'PUT', { status: 'paid', amount, due_date: dueDate });
-        loadRentTable();
-      }
-
-      async function updateRentStatus(id, status, amount, dueDate) {
-        await api(`rent/${id}`, 'PUT', { status, amount, due_date: dueDate });
-        loadRentTable();
-      }
-
-      async function sendLateNotice(id) {
-        const btn = event.target;
-        btn.disabled = true; btn.textContent = 'Sending…';
-        const result = await api(`rent/${id}/late-notice`, 'POST', {});
-        if (result) {
-          const msg = result.sent
-            ? `✓ Late notice sent via ${result.channel} to ${result.contactFound ? 'resident contact' : 'unknown contact'}.`
-            : `Notice logged. No email or phone found in contacts — add contact info to send automatically.`;
-          alert(msg);
-          loadRentTable();
-        }
-        btn.disabled = false; btn.textContent = '📨 Notice';
-      }
-
-      async function deleteRent(id) {
-        if (!confirm('Remove this rent record?')) return;
-        await api(`rent/${id}`, 'DELETE');
-        loadRentTable();
-      }
-
-      function openAddRent() {
-        document.getElementById('rentModalTitle').textContent = 'Add Rent Record';
-        document.getElementById('rentResidentInput').value = '';
-        document.getElementById('rentUnitInput').value = '';
-        document.getElementById('rentAmountInput').value = '';
-        document.getElementById('rentDueDateInput').value = '';
-        document.getElementById('rentNotesInput').value = '';
-        document.getElementById('rentModal').style.display = 'flex';
-      }
-
-      function openGenerateRent() {
-        document.getElementById('generateRentModal').style.display = 'flex';
-        // Pre-fill to current filter month/year
-        const m = document.getElementById('rentMonthSel').value;
-        const y = document.getElementById('rentYearSel').value;
-        document.getElementById('genMonth').value = m;
-        document.getElementById('genYear').value = y;
-        document.getElementById('genDueDay').value = '1';
-        document.getElementById('genResult').textContent = '';
-      }
-
-      async function submitGenerateRent() {
-        const month = document.getElementById('genMonth').value;
-        const year = document.getElementById('genYear').value;
-        const due_day = document.getElementById('genDueDay').value;
-        const btn = document.getElementById('genRentBtn');
-        btn.disabled = true; btn.textContent = 'Generating…';
-        const result = await api('rent/generate-month', 'POST', { month: Number(month), year: Number(year), due_day: Number(due_day) });
-        btn.disabled = false; btn.textContent = 'Generate';
-        if (result) {
-          if (result.created === 0 && result.skipped > 0) {
-            document.getElementById('genResult').textContent = `All ${result.skipped} residents already have records for this month.`;
-          } else {
-            document.getElementById('genResult').textContent = `Created ${result.created} record${result.created !== 1 ? 's' : ''}${result.skipped ? ` (${result.skipped} already existed)` : ''}.`;
-            document.getElementById('rentMonthSel').value = month;
-            document.getElementById('rentYearSel').value = year;
-            setTimeout(() => {
-              document.getElementById('generateRentModal').style.display = 'none';
-              loadRentTable();
-            }, 1200);
-          }
-        }
-      }
-
-      async function submitRent() {
-        const resident = document.getElementById('rentResidentInput').value.trim();
-        const unit = document.getElementById('rentUnitInput').value.trim();
-        const amount = document.getElementById('rentAmountInput').value.trim();
-        const due_date = document.getElementById('rentDueDateInput').value.trim();
-        const notes = document.getElementById('rentNotesInput').value.trim();
-        if (!resident || !amount) { alert('Resident name and amount are required.'); return; }
-        await api('rent', 'POST', { resident, unit, amount, due_date, notes });
-        document.getElementById('rentModal').style.display = 'none';
-        loadRentTable();
-      }
-
-      // --- Invoices ---
       async function loadInvoiceTable() {
         const rows = await api('invoices') || [];
         const tbody = document.getElementById('invoiceTable');
@@ -9534,7 +9284,6 @@
               else if (typeof renderCalendar === 'function') renderCalendar();
               break;
             case 'admin':
-              if (typeof loadRentTable === 'function') await loadRentTable();
               if (typeof loadInvoiceTable === 'function') await loadInvoiceTable();
               break;
             case 'maintenance':
@@ -9838,109 +9587,16 @@
       }
 
       // --- Payment Auto-Match ---
-      async function loadForwardingInfo() {
-        const info = await api('payments/forwarding-info');
-        if (info && info.address) {
-          document.getElementById('forwardingAddress').textContent = info.address;
-        }
-      }
-
-      function copyForwardingAddress() {
-        const addr = document.getElementById('forwardingAddress').textContent;
-        navigator.clipboard.writeText(addr).then(() => {
-          const btn = event.target;
-          const orig = btn.textContent;
-          btn.textContent = '✓ Copied';
-          setTimeout(() => btn.textContent = orig, 1500);
-        });
-      }
-
-      async function loadPaymentEvents() {
-        const events = await api('payments/events') || [];
-        const list = document.getElementById('paymentEventsList');
-        if (!events.length) {
-          list.innerHTML = '<p style="color:var(--text-muted);font-size:0.85em;padding:14px 0;text-align:center;">No payment events yet. Forward a payment email to the address above to test.</p>';
-          return;
-        }
-        list.innerHTML = events.map(e => {
-          const statusStyles = {
-            auto_matched: { bg: 'var(--success-soft)', bd: 'var(--success-soft)', c: 'var(--success)', lbl: '✓ Auto-matched' },
-            needs_review: { bg: 'var(--warning-soft)', bd: 'var(--warning-soft)', c: 'var(--warning)', lbl: '⚠ Needs review' },
-            unmatched:    { bg: 'var(--danger-soft)', bd: 'var(--danger-soft)', c: 'var(--danger)', lbl: '✗ No match found' },
-            not_payment:  { bg: 'var(--bg-sunken)', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '— Not a payment' },
-            dismissed:    { bg: 'var(--bg-sunken)', bd: 'var(--border)', c: 'var(--text-muted)', lbl: '🗑 Dismissed' }
-          };
-          const s = statusStyles[e.status] || statusStyles.unmatched;
-          const amt = e.parsed_amount > 0 ? `$${Number(e.parsed_amount).toLocaleString('en-US',{minimumFractionDigits:0})}` : '';
-          const actions = e.status === 'needs_review' ? `
-            <div style="display:flex;gap:6px;margin-top:8px;">
-              <button onclick="confirmPaymentEvent(${e.id})" class="btn-primary" style="font-size:0.78em;padding:5px 10px;">✓ Confirm match</button>
-              <button onclick="dismissPaymentEvent(${e.id})" class="btn-secondary" style="font-size:0.78em;padding:5px 10px;">Dismiss</button>
-            </div>` : '';
-          const matchLine = e.rent_resident ? `
-            <div style="font-size:0.78em;color:var(--text-muted);margin-top:3px;">Matched → <strong>${e.rent_resident}</strong>${e.rent_unit ? ' · Unit ' + e.rent_unit : ''} · $${Number(e.rent_amount).toLocaleString()}</div>` : '';
-          return `<div style="padding:11px 13px;background:${s.bg};border:1px solid ${s.bd};border-radius:8px;margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-              <div style="flex:1;min-width:0;">
-                <div style="font-weight:600;font-size:0.88em;color:var(--text-primary);">
-                  ${e.parsed_tenant || '(no tenant)'} ${amt ? '· ' + amt : ''} ${e.parsed_source ? '· ' + e.parsed_source : ''}
-                </div>
-                <div style="font-size:0.77em;color:var(--text-muted);margin-top:2px;">${e.raw_subject || ''}</div>
-                ${matchLine}
-              </div>
-              <span style="font-size:0.72em;font-weight:700;color:${s.c};background:white;padding:3px 9px;border-radius:20px;flex-shrink:0;">${s.lbl}</span>
-            </div>
-            ${actions}
-          </div>`;
-        }).join('');
-      }
-
-      async function confirmPaymentEvent(id) {
-        const res = await fetch('/api/payments/events/' + id + '/confirm', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
-        });
-        if (res.ok) { loadPaymentEvents(); loadRentTable(); }
-      }
-
-      async function dismissPaymentEvent(id) {
-        await fetch('/api/payments/events/' + id + '/dismiss', { method: 'POST' });
-        loadPaymentEvents();
-      }
-
-      async function testPaymentEmail() {
-        const body = document.getElementById('testPaymentBody').value.trim();
-        if (!body) return alert('Paste a payment email body first.');
-        const out = document.getElementById('testPaymentResult');
-        out.style.color = 'var(--text-muted)';
-        out.textContent = 'Parsing with AI...';
-        const res = await fetch('/api/payments/test', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ body, subject: 'Test payment', from: 'test@example.com' })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          out.style.color = 'var(--success)';
-          out.textContent = '✓ Processed — check the events list below.';
-          loadPaymentEvents(); loadRentTable();
-        } else {
-          out.style.color = 'var(--danger)';
-          out.textContent = '⚠ ' + (data.error || 'Test failed');
-        }
-      }
-
       window.onload = () => {
         restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
         loadPlanSummary(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
         ensureDailyNudge(); // E12: create today's Daily Focus calendar event if absent
-        loadForwardingInfo(); loadPaymentEvents(); loadEmailAccount();
+        loadEmailAccount();
         // Init month/year selectors to current month
         const now = new Date();
         const curMonth = String(now.getMonth() + 1);
         const curYear  = String(now.getFullYear());
-        document.getElementById('rentMonthSel').value = curMonth;
-        document.getElementById('rentYearSel').value  = curYear;
-        loadRentTable();
         loadTasks(); loadContacts(); loadMaintenance(); loadBroadcastHistory();
         loadLeases();
         api('leases/check-renewals', 'POST', {}).catch(() => {});
@@ -14823,70 +14479,6 @@
   </div>
 
   <!-- Generate Monthly Rent Modal -->
-  <div class="modal-overlay" id="generateRentModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
-    <div class="modal" style="width:400px;max-width:96vw;">
-      <h3>&#9889; Generate Monthly Rent</h3>
-      <p style="font-size:0.85em;color:var(--text-muted);margin-bottom:18px;">Creates one unpaid rent record for each resident contact who has a monthly rent amount set. Skips residents who already have a record this month.</p>
-
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <label>Month</label>
-          <select id="genMonth" style="width:100%;">
-            <option value="1">January</option><option value="2">February</option><option value="3">March</option>
-            <option value="4">April</option><option value="5">May</option><option value="6">June</option>
-            <option value="7">July</option><option value="8">August</option><option value="9">September</option>
-            <option value="10">October</option><option value="11">November</option><option value="12">December</option>
-          </select>
-        </div>
-        <div style="width:100px;">
-          <label>Year</label>
-          <select id="genYear" style="width:100%;">
-            <option value="2024">2024</option><option value="2025">2025</option>
-            <option value="2026">2026</option><option value="2027">2027</option>
-          </select>
-        </div>
-        <div style="width:90px;">
-          <label>Due Day</label>
-          <input id="genDueDay" type="number" min="1" max="28" value="1" placeholder="1" />
-        </div>
-      </div>
-
-      <div id="genResult" style="margin-top:12px;font-size:0.85em;color:var(--success);min-height:20px;"></div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="document.getElementById('generateRentModal').style.display='none'">Cancel</button>
-        <button class="btn-primary" id="genRentBtn" onclick="submitGenerateRent()">Generate</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Rent Modal -->
-  <div class="modal-overlay" id="rentModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
-    <div class="modal" style="width:420px;max-width:96vw;">
-      <h3 id="rentModalTitle">&#128181; Add Rent Record</h3>
-      <label>Resident Name *</label>
-      <input id="rentResidentInput" type="text" placeholder="e.g. Alex Rivera" />
-      <label>Unit</label>
-      <input id="rentUnitInput" type="text" placeholder="e.g. 101" />
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <label>Monthly Rent *</label>
-          <input id="rentAmountInput" type="number" placeholder="1500.00" min="0" step="0.01" />
-        </div>
-        <div style="flex:1;">
-          <label>Due Date</label>
-          <input id="rentDueDateInput" type="date" />
-        </div>
-      </div>
-      <label>Notes</label>
-      <input id="rentNotesInput" type="text" placeholder="Optional notes" />
-      <div class="modal-footer">
-        <button class="btn-secondary" onclick="document.getElementById('rentModal').style.display='none'">Cancel</button>
-        <button class="btn-primary" onclick="submitRent()">Save Rent Record</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Add Invoice Modal -->
   <div class="modal-overlay" id="invoiceModal" onclick="if(event.target===this)this.style.display='none'" style="display:none;align-items:center;justify-content:center;">
     <div class="modal" style="width:420px;max-width:96vw;">
