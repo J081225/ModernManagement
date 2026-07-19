@@ -13511,6 +13511,14 @@
         if (data && data.is_first_time) {
           renderCCWelcome();
         } else if (data && Array.isArray(data.history)) {
+          // AP2: quiet marker when the replay is capped at the most
+          // recent 50 messages.
+          if (data.capped) {
+            const cap = document.createElement('div');
+            cap.className = 'cc-action-line';
+            cap.textContent = 'Earlier history not shown';
+            messages.appendChild(cap);
+          }
           for (const msg of data.history) {
             appendCCMessage(msg.role, msg.content, msg.tool_calls_summary);
           }

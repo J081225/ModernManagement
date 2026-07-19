@@ -4777,18 +4777,25 @@ app.get('/api/command-history', requireAuth, async (req, res) => {
     const userId = req.session.userId;
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
 
+    // AP2: replay the MOST RECENT rows (the old ASC LIMIT returned the
+    // oldest 50, so past the cap the replay showed ancient history and
+    // dropped the live conversation). One extra row is fetched purely
+    // to detect capping.
     const r = await pool.query(
       `SELECT id, role, content, tool_calls_summary, created_at
          FROM command_history
         WHERE workspace_id = $1 AND user_id = $2
-        ORDER BY created_at ASC
+        ORDER BY created_at DESC, id DESC
         LIMIT $3`,
-      [workspaceId, userId, limit]
+      [workspaceId, userId, limit + 1]
     );
+    const capped = r.rows.length > limit;
+    const rows = (capped ? r.rows.slice(0, limit) : r.rows).reverse();
 
     res.json({
-      history: r.rows,
-      is_first_time: r.rows.length === 0,
+      history: rows,
+      is_first_time: rows.length === 0,
+      capped,
     });
   } catch (err) {
     console.error('[command-history] fetch error:', err.message);
