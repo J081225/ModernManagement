@@ -5565,6 +5565,23 @@ function detectEmergency(text) {
 }
 
 const { sendOwnerAlert } = require('./lib/owner-alert');
+const { persistOutboundMessage } = require('./lib/outbound-persist');
+
+// IB1: record an owner/system/ai outbound AFTER its send succeeded.
+// Cannot throw; a persistence failure logs and the send stands.
+async function persistOwnerOutbound(userId, { channel, to, body, subject, sentBy }) {
+  try {
+    const wR = await pool.query('SELECT * FROM workspaces WHERE owner_user_id = $1 LIMIT 1', [userId]);
+    if (!wR.rows[0]) return;
+    await persistOutboundMessage({
+      db: pool, workspace: wR.rows[0], channel, to, body, subject,
+      sentBy: sentBy || 'owner', logger: console,
+      findOrCreateThread: appointmentEngine.findOrCreateThread,
+    });
+  } catch (err) {
+    console.error('[outbound-persist] wrapper failed (send unaffected):', err.message);
+  }
+}
 
 // sendOwnerEmergencyAlert: SMS to users.alert_phone first, fall back to
 // email via SendGrid (notification_email or email), log + return if
@@ -5632,8 +5649,11 @@ async function autoReplyToMessage(message, userId) {
         subject: 'Re: ' + message.subject,
         text: draft
       });
+      // IB1: the PM auto-reply was AI content that never persisted.
+      await persistOwnerOutbound(userId, { channel: 'email', to: message.email, body: draft, subject: 'Re: ' + message.subject, sentBy: 'ai' });
     } else if (message.phone) {
       await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to: message.phone, body: draft });
+      await persistOwnerOutbound(userId, { channel: 'sms', to: message.phone, body: draft, sentBy: 'ai' });
     }
 
     await pool.query('UPDATE messages SET status=$1 WHERE id=$2', ['sent', message.id]);
@@ -5870,7 +5890,10 @@ app.post('/api/email/send', requireAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT 1 FROM email_accounts WHERE user_id=$1', [req.session.userId]);
     if (rows.length) {
       const result = await sendViaConnectedAccount(req.session.userId, { to, subject, text: body });
-      if (result.success) return res.json({ success: true, via: 'connected' });
+      if (result.success) {
+        await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner' });
+        return res.json({ success: true, via: 'connected' });
+      }
       // Fall through to SendGrid if SMTP fails
       console.warn('Connected SMTP send failed, falling back to SendGrid:', result.error);
     }
@@ -5885,6 +5908,7 @@ app.post('/api/email/send', requireAuth, async (req, res) => {
       subject,
       text: body
     });
+    await persistOwnerOutbound(req.session.userId, { channel: 'email', to, body, subject, sentBy: 'owner' });
     res.json({ success: true, via: 'sendgrid' });
   } catch (err) {
     console.error('SendGrid error:', err.message);
@@ -6030,6 +6054,9 @@ app.post('/api/sms/send', requireAuth, async (req, res) => {
   if (!to || !body) return res.status(400).json({ error: 'Missing to or body' });
   try {
     const msg = await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to, body });
+    // IB1: the owner's reply finally exists on file (§6: the
+    // conversation was missing every owner turn).
+    await persistOwnerOutbound(req.session.userId, { channel: 'sms', to, body, sentBy: 'owner' });
     res.json({ success: true, sid: msg.sid });
   } catch (err) {
     console.error('Twilio send error:', err.message);
@@ -7521,8 +7548,9 @@ app.post('/api/rent/:id/late-notice', requireAuth, async (req, res) => {
   );
   const contact = contacts[0];
 
-  const noticeText = `Hi ${rent.resident},\n\nThis is a friendly reminder that your rent payment of $${Number(rent.amount).toFixed(2)} was due on ${rent.due_date} and has not been received.\n\nPlease submit your payment as soon as possible to avoid any late fees.\n\nIf you have already sent payment, please disregard this notice.\n\nThank you,\nThe Property Management Team`;
-
+  const noticeText = `Hi ${rent.resident},\n\nThis is a friendly reminder that your rent payment of ${Number(rent.amount).toFixed(2)} was due on ${rent.due_date} and has not been received.\n\nPlease submit your payment as soon as possible to avoid any late fees.\n\nIf you have already sent payment, please disregard this notice.\n\nThank you,\nThe Property Management Team`;
+  // IB1: templated notice — persisted as system-authored below once a
+  // channel succeeds.
   let sent = false;
   try {
     if (contact?.email) {
@@ -7534,10 +7562,12 @@ app.post('/api/rent/:id/late-notice', requireAuth, async (req, res) => {
         text: noticeText
       });
       sent = true;
+      await persistOwnerOutbound(req.session.userId, { channel: 'email', to: contact.email, body: noticeText, subject: `Rent Payment Reminder — Unit ${rent.unit}`, sentBy: 'system' });
     } else if (contact?.phone) {
       const smsText = `Hi ${rent.resident}, your rent of $${Number(rent.amount).toFixed(2)} due ${rent.due_date} has not been received. Please pay ASAP. — Property Management`;
       await twilioClient.messages.create({ from: process.env.TWILIO_PHONE_NUMBER, to: contact.phone, body: smsText });
       sent = true;
+      await persistOwnerOutbound(req.session.userId, { channel: 'sms', to: contact.phone, body: smsText, sentBy: 'system' });
     }
     // Mark as 'late' if not already
     if (rentRows[0].status !== 'late') {
@@ -8634,6 +8664,15 @@ app.post('/api/broadcast', requireAuth, async (req, res) => {
           body
         });
       }
+      // IB1: each broadcast recipient gets a conversation row —
+      // owner-typed content, owner authorship.
+      await persistOwnerOutbound(req.session.userId, {
+        channel,
+        to: channel === 'email' ? contact.email : contact.phone,
+        body,
+        subject: channel === 'email' ? (subject || 'Message from your property manager') : undefined,
+        sentBy: 'owner',
+      });
       sent++;
     } catch (err) {
       console.error(`Broadcast send failed for contact ${contact.id}:`, err.message);
