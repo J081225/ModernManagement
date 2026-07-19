@@ -430,44 +430,92 @@
       .btn-danger:hover { box-shadow: var(--shadow-popup); transform: translateY(-1px); }
 
       /* Calendar */
+      /* CP2 month view. Weekday header row. */
       .calendar-grid {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        gap: 4px;
-        margin-top: 10px;
+        margin-top: var(--space-3);
       }
-      .cal-header { text-align: center; font-weight: bold; font-size: 0.82em; color:var(--text-muted); padding: 6px 0; }
+      .cal-header { text-align: center; font-weight: 500; font-size: 12px; color:var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: var(--space-2) 0; }
+      /* Day grid: 7 equal columns, hairline lines via 1px gaps over a
+         var(--border) backdrop. */
+      .cal-month-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+      }
       .cal-day {
-        min-height: 80px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 6px;
-        background: white;
-        font-size: 0.85em;
-        vertical-align: top;
+        background: var(--bg-surface);
+        min-height: 96px;
+        padding: var(--space-1) var(--space-2) var(--space-2);
         cursor: pointer;
-        transition: all 0.15s;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
       }
-      .cal-day:hover { border-color: var(--accent); background: var(--bg-hover); }
-      .cal-day.today { border-color: var(--accent); background: var(--accent-soft); }
-      .cal-day.selected { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-soft); }
-      .cal-day.empty { background:var(--bg-sunken); border-color: var(--border); cursor: default; pointer-events: none; }
-      .cal-day-num { font-weight: 700; margin-bottom: 4px; color:var(--text-primary); font-size: 0.92em; }
-      .cal-day.today .cal-day-num { color: var(--accent); }
-      .cal-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-      .cal-nav h3 { flex: 1; }
-      .cal-nav select {
-        padding: 7px 10px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font-size: 0.92em;
-        color:var(--text-primary);
-        background: white;
-        font-family: inherit;
+      .cal-day:hover { background: var(--bg-hover); }
+      .cal-day.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+      .cal-day.outside { background: var(--bg-page); }
+      .cal-day.outside .cal-day-num { color: var(--text-muted); }
+      .cal-day-num {
+        align-self: flex-end;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        line-height: 1;
+        padding: var(--space-1) 0;
+      }
+      .cal-day.today .cal-day-num {
+        background: var(--accent);
+        color: var(--text-on-accent);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      .cal-chips { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .cal-chip {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        background: var(--accent-soft);
+        color: var(--accent);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         cursor: pointer;
-        font-weight: 600;
       }
-      .cal-nav select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+      .cal-chip.canceled { background: var(--bg-sunken); color: var(--text-muted); text-decoration: line-through; }
+      .cal-chip.timeoff { background: var(--bg-sunken); color: var(--text-muted); }
+      .cal-more { font-size: 12px; color: var(--text-muted); cursor: pointer; padding: 0 6px; }
+      /* Compact mobile representation — hidden on desktop; the mobile
+         media query swaps chips for this dot + count row. */
+      .cal-dotrow { display: none; gap: 3px; align-items: center; }
+      .cal-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+      .cal-dot.muted { background: var(--text-muted); }
+      .cal-dot-count { font-size: 11px; color: var(--text-muted); }
+      .cal-loading {
+        grid-column: 1 / -1;
+        text-align: center;
+        color: var(--text-muted);
+        padding: var(--space-7) 0;
+        background: var(--bg-surface);
+      }
+      .cal-title { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+      .cal-nav { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); flex-wrap: wrap; }
+      /* mm-select is block/full-width by default; inline it in the header. */
+      .cal-nav .mm-select { display: inline-block; width: auto; }
+      .cal-layout { display: flex; gap: var(--space-5); }
+      .cal-side { width: 300px; flex-shrink: 0; }
       .cal-year-wrap {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1446,9 +1494,13 @@
         /* Stats grid: 2 columns */
         #page-home > div:nth-child(2) { grid-template-columns: repeat(2, 1fr) !important; }
 
-        /* Calendar: reduce cell sizes */
-        .cal-day { min-height: 50px; font-size: 0.78em; padding: 4px; }
-        .cal-nav button { padding: 7px 10px; font-size: 0.82em; }
+        /* Calendar: compact cells — chips collapse to a dot + count,
+           and the day panel stacks below the grid. */
+        .cal-day { min-height: 56px; padding: 2px 4px 4px; }
+        .cal-chips { display: none; }
+        .cal-dotrow { display: flex; }
+        .cal-layout { flex-direction: column; }
+        .cal-side { width: 100%; }
 
         /* Tables: horizontal scroll */
         .table-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -2409,30 +2461,34 @@
                 <div class="page-hero-sub">Events, scheduling and upcoming appointments</div>
               </div>
             </div>
-          <div style="display:flex;gap:22px;">
+          <div class="cal-layout">
 
             <!-- Calendar grid -->
-            <div style="flex:1;">
-              <div class="card">
+            <div style="flex:1;min-width:0;">
+              <div class="mm-card">
                 <div class="cal-nav">
-                  <button class="btn-secondary" onclick="changeCalNav(-1)" title="Previous">&#8592;</button>
-                  <select id="calMonthSel" onchange="onCalMonthChange(this.value)" aria-label="Month"></select>
-                  <select id="calYearSel"  onchange="onCalYearChange(this.value)"  aria-label="Year"></select>
-                  <button class="btn-secondary" onclick="changeCalNav(1)" title="Next">&#8594;</button>
+                  <div class="cal-title" id="calTitle"></div>
                   <span style="flex:1;"></span>
-                  <button class="btn-secondary" id="calTodayBtn" onclick="jumpToToday()">Today</button>
-                  <button class="btn-secondary" id="calViewToggleBtn" onclick="toggleCalView()">Year</button>
-                  <button class="btn-primary" onclick="openAddEvent()">+ Add Event</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(-1)" title="Previous">&#8592;</button>
+                  <select id="calMonthSel" class="mm-select" onchange="onCalMonthChange(this.value)" aria-label="Month"></select>
+                  <select id="calYearSel" class="mm-select" onchange="onCalYearChange(this.value)" aria-label="Year"></select>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="changeCalNav(1)" title="Next">&#8594;</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" id="calTodayBtn" onclick="jumpToToday()">Today</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" id="calViewToggleBtn" onclick="toggleCalView()">Year</button>
+                  <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="openAddEvent()">+ Add Event</button>
                 </div>
                 <div class="calendar-grid" id="calDayHeaders"></div>
-                <div class="calendar-grid" id="calGrid"></div>
+                <div class="cal-month-grid" id="calGrid"></div>
               </div>
             </div>
 
             <!-- Day detail panel -->
-            <div style="width:300px;flex-shrink:0;">
-              <div class="card" id="dayDetailPanel">
-                <p style="color:var(--text-muted);font-size:0.88em;text-align:center;padding:20px 0;">Click a day to view & manage its events and tasks.</p>
+            <div class="cal-side">
+              <div class="mm-card" id="dayDetailPanel">
+                <div class="mm-empty">
+                  <div class="mm-empty-title" style="font-size:14px;">Pick a day</div>
+                  <div class="mm-empty-text" style="font-size:12px;">Click any day to see and manage its events.</div>
+                </div>
               </div>
             </div>
 
@@ -3858,10 +3914,9 @@
       let selectedMessage;
       let calYear, calMonth;
       let messages = [];
+      // CP2: starts empty so the grid shows its loading state until the
+      // first fetch lands (previously held demo seed rows).
       let calEvents = [
-        { date: '2026-04-05', title: 'Lease renewal — Alex Rivera' },
-        { date: '2026-04-10', title: 'Maintenance inspection' },
-        { date: '2026-04-15', title: 'Board meeting' }
       ];
 
       // --- Navigation ---
@@ -4937,6 +4992,9 @@
         }
         const toggleBtn = document.getElementById('calViewToggleBtn');
         if (toggleBtn) toggleBtn.textContent = calView === 'year' ? 'Month' : 'Year';
+        // CP2: the page title mirrors the selects (single source of truth).
+        const titleEl = document.getElementById('calTitle');
+        if (titleEl) titleEl.textContent = calView === 'year' ? String(calYear) : monthsFull[calMonth] + ' ' + calYear;
       }
 
       function renderCalendar() {
@@ -4946,6 +5004,15 @@
         if (selectedDate && calView === 'month') renderDayDetail(selectedDate);
       }
 
+      // CP2: canceled styling hook. The list payload carries no
+      // appointment status today, so this returns false for every current
+      // row — it exists so canceled rows render struck-through the moment
+      // the payload gains a status field.
+      function _calEventCanceled(e) {
+        const s = e && (e.status || e.appointment_status);
+        return s === 'canceled' || s === 'cancelled';
+      }
+
       function renderMonthView() {
         const headers = document.getElementById('calDayHeaders');
         headers.style.display = '';
@@ -4953,35 +5020,65 @@
 
         const grid = document.getElementById('calGrid');
         // Reset class list in case year view left cal-year-wrap on it.
-        grid.className = 'calendar-grid';
-        grid.innerHTML = '';
+        grid.className = 'cal-month-grid';
+
+        // CP2: never a blank flash — show a loading line until the first
+        // fetch lands (poll refreshes keep the old grid, no flicker).
+        if (_calLoading && !calEvents.length) {
+          grid.innerHTML = '<div class="cal-loading">Loading calendar…</div>';
+          return;
+        }
 
         const firstDay = new Date(calYear, calMonth, 1).getDay();
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
+        // Today computed in the WORKSPACE timezone, consistent with CP1.
+        const todayStr = eventDateKey(new Date());
+        const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
-        for (let i = 0; i < firstDay; i++) {
-          grid.innerHTML += `<div class="cal-day empty"></div>`;
-        }
+        let html = '';
+        for (let i = 0; i < totalCells; i++) {
+          const dayNum = i - firstDay + 1;
+          let y = calYear, m = calMonth, d = dayNum, outside = false;
+          if (dayNum < 1) {
+            outside = true; m = calMonth - 1; d = prevMonthDays + dayNum;
+            if (m < 0) { m = 11; y--; }
+          } else if (dayNum > daysInMonth) {
+            outside = true; m = calMonth + 1; d = dayNum - daysInMonth;
+            if (m > 11) { m = 0; y++; }
+          }
+          const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const dayEvents = calEvents
+            .filter(e => calEventDayKey(e) === dateStr)
+            .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')));
 
-        for (let d = 1; d <= daysInMonth; d++) {
-          const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          const isToday = dateStr === todayStr;
-          const isSelected = dateStr === selectedDate;
-          const dayEvents = calEvents.filter(e => calEventDayKey(e) === dateStr);
-          const dayTasks = tasks.filter(t => !t.done && t.dueDate === dateStr);
-          const dotHtml = (dayEvents.length || dayTasks.length)
-            ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;">
-                ${dayEvents.map((ev) => `<div style="width:6px;height:6px;border-radius:50%;background:${ev.event_type === 'time_off' ? 'var(--text-muted)' : 'var(--accent)'};"></div>`).join('')}
-                ${dayTasks.map(() => `<div style="width:6px;height:6px;border-radius:50%;background:var(--info);"></div>`).join('')}
-              </div>`
+          const shown = dayEvents.slice(0, 3);
+          const extra = dayEvents.length - shown.length;
+          const chips = shown.map(ev => {
+            const cls = 'cal-chip'
+              + (_calEventCanceled(ev) ? ' canceled' : (ev.event_type === 'time_off' ? ' timeoff' : ''));
+            const t = (!ev.is_all_day && ev.starts_at) ? fmtEventTime(ev.starts_at) + ' ' : '';
+            return `<div class="${cls}" onclick="event.stopPropagation();openCalEventDetail(${ev.id})" title="${_calEscape(ev.title || '')}">${t}${_calEscape(ev.title || '')}</div>`;
+          }).join('');
+          const more = extra > 0
+            ? `<div class="cal-more" onclick="event.stopPropagation();selectDay('${dateStr}')">+${extra} more</div>`
             : '';
-          grid.innerHTML += `<div class="cal-day ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" onclick="selectDay('${dateStr}')">
+          // Mobile swaps the chip stack for this dot + count row.
+          const dots = dayEvents.length
+            ? `<div class="cal-dotrow"><span class="cal-dot${dayEvents.every(e => e.event_type === 'time_off') ? ' muted' : ''}"></span><span class="cal-dot-count">${dayEvents.length}</span></div>`
+            : '';
+
+          const classes = ['cal-day'];
+          if (outside) classes.push('outside');
+          if (dateStr === todayStr) classes.push('today');
+          if (dateStr === selectedDate) classes.push('selected');
+          html += `<div class="${classes.join(' ')}" onclick="selectDay('${dateStr}')">
             <div class="cal-day-num">${d}</div>
-            ${dotHtml}
+            <div class="cal-chips">${chips}${more}</div>
+            ${dots}
           </div>`;
         }
+        grid.innerHTML = html;
       }
 
       // Year view — 12 mini-month grids for calYear. Reuses calEvents
@@ -5057,69 +5154,70 @@
         renderDayDetail(dateStr);
       }
 
+      // CP2: status badge for a day-panel row. The list payload has no
+      // appointment status yet, so appointment-backed rows read "booked";
+      // real statuses map to semantic badges the moment they appear.
+      function _calEventBadge(e) {
+        const s = e && (e.status || e.appointment_status);
+        if (s === 'confirmed' || s === 'completed') return '<span class="mm-badge mm-badge-success">' + _calEscape(s) + '</span>';
+        if (s === 'requested' || s === 'pending') return '<span class="mm-badge mm-badge-warning">' + _calEscape(s) + '</span>';
+        if (s === 'canceled' || s === 'cancelled') return '<span class="mm-badge mm-badge-neutral">canceled</span>';
+        if (e && e.event_type === 'time_off') return '<span class="mm-badge mm-badge-neutral">time off</span>';
+        if (e && e.event_type === 'appointment') return '<span class="mm-badge mm-badge-success">booked</span>';
+        return '<span class="mm-badge mm-badge-neutral">event</span>';
+      }
+
       function renderDayDetail(dateStr) {
         const label = fmtDateKey(dateStr, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        const dayEvents = calEvents.filter(e => calEventDayKey(e) === dateStr);
+        const dayEvents = calEvents
+          .filter(e => calEventDayKey(e) === dateStr)
+          .sort((a, b) => String(a.starts_at || '').localeCompare(String(b.starts_at || '')));
         const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+        const count = dayEvents.length;
 
-        const eventsHtml = dayEvents.length
+        // Chronological rows: fixed-width time column, title, status
+        // badge. Row click opens the detail popup (existing wiring); the
+        // ✕ keeps the existing delete path.
+        const eventsHtml = count
           ? dayEvents.map(e => {
-              // Title span is click-to-open (new detail popup); the ✕ span
-              // stops propagation so the existing delete still works from
-              // the list view without also opening the modal.
-              // Prefix with time-of-day when we have starts_at (or "All day"
-              // for is_all_day); legacy date-only rows fall through to just
-              // the title.
-              let timePrefix = '';
-              if (e.is_all_day) {
-                timePrefix = 'All day · ';
-              } else if (e.starts_at) {
-                const t = fmtEventTime(e.starts_at);
-                if (t) timePrefix = t + ' · ';
-              }
-              // time_off events render muted (gray) with a 🚫 prefix so
-              // they're visually distinct from bookings and reminders.
-              const isTimeOff = e.event_type === 'time_off';
-              const rowBg = isTimeOff ? 'var(--bg-sunken)' : 'var(--danger-soft)';
-              const xColor = isTimeOff ? 'var(--text-muted)' : 'var(--danger)';
-              const icon = isTimeOff ? '&#128683;' : '&#128197;';
-              return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${rowBg};border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span onclick="openCalEventDetail(${e.id})" style="cursor:pointer;color:var(--text-primary);flex:1;min-width:0;" title="View details">${icon} ${timePrefix}${e.title}</span>
-                <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:${xColor};font-weight:bold;padding:0 4px;" title="Delete">&#10005;</span>
+              const time = e.is_all_day ? 'All day' : (e.starts_at ? fmtEventTime(e.starts_at) : '—');
+              return `<div onclick="openCalEventDetail(${e.id})" style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-bottom:1px solid var(--border);cursor:pointer;">
+                <span style="width:64px;flex-shrink:0;font-size:12px;color:var(--text-secondary);">${time}</span>
+                <span style="flex:1;min-width:0;font-size:13px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="View details">${_calEscape(e.title || '')}</span>
+                ${_calEventBadge(e)}
+                <span onclick="event.stopPropagation();deleteCalEvent(${e.id})" style="cursor:pointer;color:var(--text-muted);padding:0 var(--space-1);" title="Delete">&#10005;</span>
               </div>`;
             }).join('')
-          : '<p style="color:var(--text-muted);font-size:0.83em;">No events.</p>';
+          : `<div class="mm-empty" style="padding:var(--space-5) var(--space-2);">
+              <div class="mm-empty-title" style="font-size:14px;">Nothing scheduled</div>
+              <div class="mm-empty-text" style="font-size:12px;">No events on this day.</div>
+            </div>`;
 
-        const tasksHtml = dayTasks.length
-          ? dayTasks.map(t => `
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg-sunken);border-radius:8px;margin-bottom:6px;font-size:0.88em;">
-                <span style="color:var(--text-primary);${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${t.title}</span>
-                <div style="display:flex;gap:6px;">
-                  <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:var(--accent);font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
-                  <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--danger);font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
-                </div>
-              </div>`).join('')
-          : '<p style="color:var(--text-muted);font-size:0.83em;">No tasks.</p>';
+        const tasksSection = dayTasks.length
+          ? `<div style="margin-top:var(--space-4);">
+              <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--space-2);">Tasks</div>
+              ${dayTasks.map(t => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-2) 0;border-bottom:1px solid var(--border);font-size:13px;">
+                  <span style="color:var(--text-primary);${t.done ? 'text-decoration:line-through;opacity:0.5;' : ''}">&#10003; ${_calEscape(t.title || '')}</span>
+                  <div style="display:flex;gap:var(--space-2);">
+                    <span onclick="toggleTask(${t.id})" style="cursor:pointer;color:var(--accent);font-size:0.85em;" title="${t.done ? 'Undo' : 'Complete'}">${t.done ? '↩' : '✓'}</span>
+                    <span onclick="deleteTask(${t.id})" style="cursor:pointer;color:var(--danger);font-weight:bold;padding:0 2px;" title="Delete">&#10005;</span>
+                  </div>
+                </div>`).join('')}
+            </div>`
+          : '';
 
         document.getElementById('dayDetailPanel').innerHTML = `
-          <div class="card-head is-compact">
-            <div class="card-head-tile">
-              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div class="card-head-titles">
-              <div class="card-head-title">${label}</div>
-              <div class="card-head-subtitle">Events and tasks for this day.</div>
-            </div>
+          <div style="margin-bottom:var(--space-3);">
+            <div style="font-size:16px;font-weight:600;color:var(--text-primary);">${label}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${count} event${count === 1 ? '' : 's'}</div>
           </div>
-          <div class="card-head-rule"></div>
-          <p style="font-size:0.75em;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Events</p>
           ${eventsHtml}
-          <p style="font-size:0.75em;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin:12px 0 8px;">Tasks</p>
-          ${tasksHtml}
-          <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px;">
-            <button class="btn-primary" style="width:100%;" onclick="openAddEventOnDate('${dateStr}')">+ Add Event</button>
-            <button class="btn-secondary" style="width:100%;" onclick="openBlockOffTime('${dateStr}')">&#128683; Block off time</button>
-            <button class="btn-secondary" style="width:100%;" onclick="openAddTaskOnDate('${dateStr}')">+ Add Task</button>
+          ${tasksSection}
+          <div style="margin-top:var(--space-4);display:flex;flex-direction:column;gap:var(--space-2);">
+            <button class="mm-btn mm-btn-primary" style="width:100%;" onclick="openAddEventOnDate('${dateStr}')">+ Add Event</button>
+            <button class="mm-btn mm-btn-secondary" style="width:100%;" onclick="openBlockOffTime('${dateStr}')">&#128683; Block off time</button>
+            <button class="mm-btn mm-btn-secondary" style="width:100%;" onclick="openAddTaskOnDate('${dateStr}')">+ Add Task</button>
           </div>
         `;
       }
@@ -5986,8 +6084,14 @@
         return (e && e.date) || '';
       }
 
+      // CP2: loading state — true only while a fetch is in flight; the
+      // grid shows "Loading calendar…" instead of a blank first paint.
+      let _calLoading = false;
       async function loadCalEvents() {
+        _calLoading = true;
+        if (!calEvents.length) renderCalendar();
         calEvents = await api('calevents') || [];
+        _calLoading = false;
         // CP1: legacy rows without starts_at fall back to the date TEXT
         // column for placement — count them once per load.
         const legacyOnly = calEvents.filter(e => e && !e.starts_at).length;
