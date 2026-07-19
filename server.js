@@ -8247,6 +8247,103 @@ app.post('/api/finances/anchor', requireAuth, async (req, res) => {
   }
 });
 
+// BG6 commit 3: goals. One ACTIVE goal per period to start — setting a
+// new one deactivates the period's previous goal (never deletes it;
+// its history stays readable).
+app.post('/api/finances/goal', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const b = req.body || {};
+    const target = b.target_cents;
+    if (typeof target !== 'number' || !Number.isInteger(target) || target <= 0) {
+      return res.status(400).json({ error: 'target_cents must be a positive integer (cents, never dollars)' });
+    }
+    const period = ['month', 'quarter', 'once'].includes(b.period) ? b.period : 'month';
+    const type = ['revenue', 'savings'].includes(b.type) ? b.type : 'revenue';
+    const label = b.label ? String(b.label).slice(0, 120) : null;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'UPDATE budget_goals SET active = FALSE WHERE workspace_id = $1 AND period = $2 AND active = TRUE',
+        [workspaceId, period]
+      );
+      const ins = await client.query(
+        `INSERT INTO budget_goals (workspace_id, type, label, target_cents, period, active)
+         VALUES ($1, $2, $3, $4, $5, TRUE)
+         RETURNING *`,
+        [workspaceId, type, label, target, period]
+      );
+      await client.query('COMMIT');
+      res.status(201).json(ins.rows[0]);
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (rbErr) { /* best-effort */ }
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[POST /api/finances/goal]', err.message);
+    res.status(500).json({ error: 'Failed to save the goal' });
+  }
+});
+
+app.patch('/api/finances/goal/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const id = parseInt(req.params.id, 10);
+    if (!id) return res.status(400).json({ error: 'Invalid goal id' });
+    const b = req.body || {};
+    const sets = [];
+    const params = [];
+    let i = 1;
+    if (Object.prototype.hasOwnProperty.call(b, 'target_cents')) {
+      if (typeof b.target_cents !== 'number' || !Number.isInteger(b.target_cents) || b.target_cents <= 0) {
+        return res.status(400).json({ error: 'target_cents must be a positive integer' });
+      }
+      sets.push(`target_cents = $${i++}`);
+      params.push(b.target_cents);
+    }
+    if (Object.prototype.hasOwnProperty.call(b, 'label')) {
+      sets.push(`label = $${i++}`);
+      params.push(b.label ? String(b.label).slice(0, 120) : null);
+    }
+    if (Object.prototype.hasOwnProperty.call(b, 'active')) {
+      sets.push(`active = $${i++}`);
+      params.push(b.active === true);
+    }
+    if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
+    params.push(id, workspaceId);
+    const r = await pool.query(
+      `UPDATE budget_goals SET ${sets.join(', ')} WHERE id = $${i++} AND workspace_id = $${i} RETURNING *`,
+      params
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Goal not found' });
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[PATCH /api/finances/goal/:id]', err.message);
+    res.status(500).json({ error: 'Failed to update the goal' });
+  }
+});
+
+app.delete('/api/finances/goal/:id', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query(
+      'DELETE FROM budget_goals WHERE id = $1 AND workspace_id = $2',
+      [parseInt(req.params.id, 10), workspaceId]
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Goal not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[DELETE /api/finances/goal/:id]', err.message);
+    res.status(500).json({ error: 'Failed to delete the goal' });
+  }
+});
+
 // BG1: the live-budget spine — a DERIVED summary computed on read
 // (nothing materialized; lib/finances-summary.js). Same auth shape as
 // every finances endpoint on this page: requireAuth + getWorkspaceId.

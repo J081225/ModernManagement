@@ -4343,6 +4343,41 @@
     </div>
   </div>
 
+  <!-- BG6: goal modal. -->
+  <div class="mm-modal-overlay" id="goalModal" style="display:none;" onclick="if(event.target===this)closeGoalModal()">
+    <div class="mm-modal" style="max-width:420px;">
+      <div style="font-weight:700;font-size:1.05em;color:var(--text-primary);margin-bottom:14px;" id="goalModalTitle">Set a goal</div>
+      <div id="goalError" style="display:none;background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:8px 12px;font-size:0.85em;margin-bottom:12px;"></div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Target (dollars)</label>
+          <input type="number" id="goalTarget" min="1" step="0.01" placeholder="5000.00"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.95em;" />
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Period</label>
+          <select id="goalPeriod"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
+            <option value="month">Monthly</option>
+            <option value="quarter">Quarterly</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:0.85em;font-weight:600;color:var(--text-primary);margin-bottom:4px;">Label (optional)</label>
+          <input type="text" id="goalLabel" placeholder="e.g. July revenue target"
+            style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;" />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:space-between;margin-top:16px;">
+        <button class="mm-btn mm-btn-ghost" id="goalRemoveBtn" style="display:none;color:var(--danger);" onclick="removeGoal()">Remove goal</button>
+        <div style="display:flex;gap:10px;margin-left:auto;">
+          <button class="mm-btn mm-btn-secondary" onclick="closeGoalModal()">Cancel</button>
+          <button class="mm-btn mm-btn-primary" onclick="submitGoal()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- BG2: add-expense modal (manual entry, cents-only API — the
        ONE dollars→cents conversion lives at this input edge). -->
   <div class="mm-modal-overlay" id="addExpenseModal" style="display:none;" onclick="if(event.target===this)closeAddExpense()">
@@ -11961,13 +11996,16 @@
         // (inert until BG6 — slot marker: #bg6GoalBtn).
         if (s.goal) {
           const pct = Math.max(0, Math.min(100, s.goal.progress_pct == null ? 0 : s.goal.progress_pct));
+          window._finGoal = s.goal;
           tiles.push(_finTile(_convEsc(s.goal.label || 'Goal'),
             '<div class="fin-bar-track" style="margin-top:6px;"><div class="fin-bar-fill" style="width:' + pct + '%;"></div></div>',
-            _expFmtCents(s.goal.progress_cents) + ' of ' + _expFmtCents(s.goal.target_cents) + ' · ' + pct + '%'));
+            _expFmtCents(s.goal.progress_cents) + ' of ' + _expFmtCents(s.goal.target_cents) + ' · ' + pct + '%'
+            + ' · <a href="#" onclick="event.preventDefault();openGoalModal(true);" style="color:var(--accent);text-decoration:none;font-weight:600;">Edit</a>'));
         } else {
+          window._finGoal = null;
           tiles.push(_finTile('Goal', '<span style="color:var(--text-muted);">—</span>',
             'Set a revenue target to track progress.<br>'
-            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6GoalBtn" disabled title="Goals arrive with goal entry (BG6 commit 3)" style="margin-top:6px;">Set a goal</button>'));
+            + '<button class="mm-btn mm-btn-secondary mm-btn-sm" id="bg6GoalBtn" onclick="openGoalModal(false)" style="margin-top:6px;">Set a goal</button>'));
         }
 
         grid.innerHTML = tiles.join('');
@@ -12058,6 +12096,62 @@
           return;
         }
         closeAnchorModal();
+        loadFinancesSummary();
+      }
+
+      function openGoalModal(editing) {
+        const err = document.getElementById('goalError');
+        if (err) err.style.display = 'none';
+        const g = editing ? window._finGoal : null;
+        document.getElementById('goalModalTitle').textContent = g ? 'Edit goal' : 'Set a goal';
+        document.getElementById('goalTarget').value = g ? (g.target_cents / 100).toFixed(2) : '';
+        document.getElementById('goalPeriod').value = g ? g.period : 'month';
+        document.getElementById('goalPeriod').disabled = !!g;
+        document.getElementById('goalLabel').value = g ? (g.label || '') : '';
+        document.getElementById('goalRemoveBtn').style.display = g ? 'inline-flex' : 'none';
+        document.getElementById('goalModal').style.display = 'flex';
+      }
+      function closeGoalModal() {
+        document.getElementById('goalModal').style.display = 'none';
+      }
+
+      async function submitGoal() {
+        const errEl = document.getElementById('goalError');
+        const fail = (m) => { if (errEl) { errEl.textContent = m; errEl.style.display = 'block'; } };
+        const dollars = parseFloat(document.getElementById('goalTarget').value);
+        if (isNaN(dollars) || dollars <= 0) return fail('Enter a target amount.');
+        const target_cents = Math.round(dollars * 100);
+        const label = document.getElementById('goalLabel').value.trim();
+        const g = window._finGoal;
+        try {
+          const r = g
+            ? await fetch('/api/finances/goal/' + g.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ target_cents, label }),
+              })
+            : await fetch('/api/finances/goal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ target_cents, label, period: document.getElementById('goalPeriod').value, type: 'revenue' }),
+              });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) return fail(data.error || ('HTTP ' + r.status));
+        } catch (err) { return fail(err.message || 'Save failed.'); }
+        closeGoalModal();
+        loadFinancesSummary();
+      }
+
+      async function removeGoal() {
+        const g = window._finGoal;
+        if (!g) return;
+        if (!confirm('Remove this goal?')) return;
+        try {
+          await fetch('/api/finances/goal/' + g.id, { method: 'DELETE', credentials: 'include' });
+        } catch (err) { console.error('[goal] remove failed:', err); }
+        closeGoalModal();
         loadFinancesSummary();
       }
 
