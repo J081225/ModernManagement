@@ -203,6 +203,35 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   check('B12: expense dated exactly at the anchor date never double-counts (cash excludes it)',
     s.cash_current_cents === 100000 + 6000 - 0);
 
+  // ---- BG4 commit 1: money-in completeness PROVEN, not changed ----
+  // Every PS money-in is a transaction_payments row (webhook flips
+  // pending->completed; completion-time recordPayment inserts
+  // completed rows; the manual tools too). Summing ROWS means a
+  // transaction touched by BOTH a webhook payment and completion cash
+  // counts each dollar exactly once — different rows, different money.
+  fx = clone();
+  fx.ledger.push(
+    // one transaction (id irrelevant to the sum): $10 deposit via
+    // webhook + $40 completion cash — same purchase, two real payments
+    { workspace_id: 7, amount_cents: 1000, payment_method: 'stripe', status: 'completed', created_at: '2026-07-14T15:00:00.000Z' },
+    { workspace_id: 7, amount_cents: 4000, payment_method: 'cash', status: 'completed', created_at: '2026-07-16T15:00:00.000Z' }
+  );
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  check('B15: webhook + completion rows on one transaction each count once (6000 + 1000 + 4000)',
+    s.money_in.ps_cents === 11000);
+
+  // PM rent counts through BOTH flip paths: the PUT stamps paid_date;
+  // a paid row with EMPTY paid_date falls back to due_date and still
+  // counts — no paid rent is silently missing.
+  fx = clone();
+  fx.rent.push(
+    { user_id: 3, amount: '900.00', status: 'paid', paid_date: '2026-07-11', due_date: '2026-07-01' },  // PUT-shaped
+    { user_id: 3, amount: '800.00', status: 'paid', paid_date: '', due_date: '2026-07-03' }             // event/legacy-shaped
+  );
+  s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
+  check('B15b: both rent flip paths counted; empty paid_date falls back to due_date (120000+90000+80000)',
+    s.money_in.pm_rent_legacy_cents === 290000);
+
   // ---- BG2: expense validation + the invoice bridge ----
   const { validateExpenseInput, bridgeInvoiceToExpense } = require('../lib/expenses');
   check('B13: cents-only — dollars-as-float (84.5) REJECTED, never rounded',
