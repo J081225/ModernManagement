@@ -7238,6 +7238,24 @@ app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
     }
 
     const ctx = await buildExecutorContext(req);
+    // FD3-CP5: a customer-originated queue row executes with the
+    // CUSTOMER'S context restored — origin.channel 'ai_inbound' with
+    // the identity the engine stamped at queue time. That makes
+    // book_appointment link the thread and resolve the right contact
+    // by phone, keeps source provenance honest, and re-runs the FD2
+    // ownership guards on cancel/update at execution time. The
+    // owner's approval is what authorized the execution; the context
+    // says who asked. Owner-originated rows (no customer columns) are
+    // untouched.
+    if (pending.customer_phone || pending.customer_email || pending.appointment_thread_id) {
+      ctx.customer_phone = pending.customer_phone || null;
+      ctx.customer_email = pending.customer_email || null;
+      ctx.origin = {
+        channel: 'ai_inbound',
+        channel_detail: pending.customer_channel || 'sms',
+        appointment_thread_id: pending.appointment_thread_id || null,
+      };
+    }
     let result;
     try {
       result = await tool.execute(pending.input, ctx);
@@ -7260,6 +7278,26 @@ app.post('/api/pending-actions/:id/approve', requireAuth, async (req, res) => {
         ? `Good news — your request is confirmed: ${result.message || pending.ai_summary}`
         : `About your recent request: we couldn't complete it automatically — give us a call and we'll take care of it directly.`
     );
+
+    // FD3-CP5: the conversation the customer was waiting in comes back
+    // to life — reset the idle clock (the approval may have taken
+    // hours) and reopen a sweep-closed thread so their reply to the
+    // notification above lands in the SAME conversation. The executed
+    // tool has already advanced any booking-specific state via
+    // origin.appointment_thread_id; CASE preserves it.
+    if (pending.appointment_thread_id) {
+      try {
+        await pool.query(
+          `UPDATE appointment_threads
+              SET updated_at = NOW(),
+                  state = CASE WHEN state = 'closed' THEN 'active' ELSE state END
+            WHERE id = $1 AND workspace_id = $2`,
+          [pending.appointment_thread_id, workspaceId]
+        );
+      } catch (err) {
+        console.error('[approve] thread touch failed (approval complete):', err.message);
+      }
+    }
 
     res.json({ success: result.success, status: finalStatus, result });
   } catch (err) {
@@ -7300,6 +7338,22 @@ app.post('/api/pending-actions/:id/reject', requireAuth, async (req, res) => {
       workspaceId,
       "About your recent request: we weren't able to take care of that automatically — give us a call and we'll help you directly."
     );
+
+    // FD3-CP5: same conversation-revival touch as the approve path —
+    // the customer just got a text and may well reply to it.
+    if (fetch.rows[0].appointment_thread_id) {
+      try {
+        await pool.query(
+          `UPDATE appointment_threads
+              SET updated_at = NOW(),
+                  state = CASE WHEN state = 'closed' THEN 'active' ELSE state END
+            WHERE id = $1 AND workspace_id = $2`,
+          [fetch.rows[0].appointment_thread_id, workspaceId]
+        );
+      } catch (err) {
+        console.error('[reject] thread touch failed (rejection complete):', err.message);
+      }
+    }
 
     res.json({ success: true, status: 'rejected' });
   } catch (err) {
