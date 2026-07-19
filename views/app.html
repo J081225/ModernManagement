@@ -369,6 +369,18 @@
       .conv-time { font-size: 0.72em; color: var(--text-muted); }
       .conv-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: middle; }
       .conv-glyph { font-size: 0.95em; }
+      /* IB3: threaded conversation pane */
+      .cv-bubble-row { display: flex; align-items: flex-end; margin: 6px 0; }
+      .cv-bubble { max-width: 74%; padding: 9px 13px; border-radius: 14px; font-size: 0.92em; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+      .cv-customer { background: var(--bg-sunken); color: var(--text-primary); border-bottom-left-radius: 4px; }
+      .cv-owner { background: var(--accent-soft); color: var(--accent); margin-left: auto; border-bottom-right-radius: 4px; }
+      .cv-ai { background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-primary); border-bottom-left-radius: 4px; }
+      .cv-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--text-on-accent); font-size: 0.58em; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-right: 8px; letter-spacing: 0.5px; }
+      .cv-meta { font-size: 0.72em; color: var(--text-muted); margin-top: 3px; }
+      .cv-system { text-align: center; font-size: 12px; color: var(--text-muted); margin: 10px 0; }
+      .cv-divider { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 0.78em; margin: 14px 0 6px; }
+      .cv-divider::before, .cv-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+      .cv-thread { display: flex; flex-direction: column; }
       .inbox-list { flex: 1; min-width: 260px; overflow-y: auto; }
       .inbox-detail { flex: 2; overflow-y: auto; }
       .list-item {
@@ -4318,7 +4330,6 @@
     <!-- ====================================================== -->
 
     <script>
-      let selectedMessage;
       let calYear, calMonth;
       let messages = [];
       // CP2: starts empty so the grid shows its loading state until the
@@ -4694,10 +4705,106 @@
         updateFolderCounts();
       }
 
-      // Commit-2 replaces this stub with the threaded pane.
+      // IB3: the threaded conversation pane — full history via the
+      // grouping key, every message in time order, as chat bubbles.
+      // The GET below marks the group read server-side (IB2's path).
       async function openConversation(key) {
         selectedConversationKey = key;
-        document.getElementById('messageDetail').innerHTML = '<div class="mm-empty" style="padding:24px 12px;">The threaded conversation pane lands in the next commit.</div>';
+        const detail = document.getElementById('messageDetail');
+        detail.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">Loading conversation&hellip;</div>';
+        let data;
+        try {
+          const res = await fetch('/api/conversations/' + key + '/messages', { credentials: 'include' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          data = await res.json();
+        } catch (err) {
+          console.error('[inbox] conversation load failed:', err);
+          detail.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">Could not load this conversation.</div>';
+          return;
+        }
+        window._convo = { key, messages: data.messages || [], meta: data.meta || {} };
+        renderConversationPane();
+        // The server just marked it read — refresh list + badges.
+        switchFolder(currentFolder, null);
+      }
+
+      function _cvTime(iso) {
+        try {
+          return new Date(iso).toLocaleString('en-US', {
+            timeZone: calTz(), month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+          });
+        } catch (err) { return String(iso).slice(0, 16); }
+      }
+
+      // One voice-transcript row renders as its TURNS (the CP1 format:
+      // "Customer: …" / "AI: …" lines) under a call divider.
+      function _cvVoiceRow(m, showGlyph) {
+        const out = ['<div class="cv-divider">&#128222; Call &middot; ' + _cvTime(m.createdAt) + '</div>'];
+        for (const line of String(m.text || '').split('\n')) {
+          if (!line.trim()) continue;
+          if (line.startsWith('Customer: ')) {
+            out.push('<div class="cv-bubble-row"><div class="cv-bubble cv-customer">' + _convEsc(line.slice(10)) + '</div></div>');
+          } else if (line.startsWith('AI: ')) {
+            out.push('<div class="cv-bubble-row"><div class="cv-avatar">AI</div><div class="cv-bubble cv-ai">' + _convEsc(line.slice(4)) + '</div></div>');
+          } else {
+            out.push('<div class="cv-system">' + _convEsc(line) + '</div>');
+          }
+        }
+        return out.join('');
+      }
+
+      function _cvBubble(m, showGlyph) {
+        const glyph = showGlyph ? ' &middot; ' + _convGlyph(m.category, m.sent_by) : '';
+        const meta = '<div class="cv-meta">' + _cvTime(m.createdAt) + glyph + '</div>';
+        const subj = (m.category === 'email' && m.subject && !m.subject.startsWith('Email to'))
+          ? '<div style="font-weight:600;margin-bottom:4px;">' + _convEsc(m.subject) + '</div>' : '';
+        const body = subj + _convEsc(m.text || m.subject || '');
+        if (m.category === 'voice') return _cvVoiceRow(m, showGlyph);
+        if (m.sent_by === 'system') {
+          return '<div class="cv-system">' + _convEsc((m.text || '').slice(0, 200)) + '<div class="cv-meta" style="margin-top:2px;">' + _cvTime(m.createdAt) + '</div></div>';
+        }
+        if (m.sent_by === 'owner') {
+          return '<div class="cv-bubble-row"><div style="margin-left:auto;max-width:74%;"><div class="cv-bubble cv-owner" style="max-width:100%;">' + body + '</div>' + meta.replace('cv-meta', 'cv-meta" style="text-align:right;') + '</div></div>';
+        }
+        if (m.sent_by === 'ai') {
+          return '<div class="cv-bubble-row"><div class="cv-avatar">AI</div><div><div class="cv-bubble cv-ai">' + body + '</div>' + meta + '</div></div>';
+        }
+        // customer (and pre-IB1 legacy rows): left, sunken.
+        return '<div class="cv-bubble-row"><div><div class="cv-bubble cv-customer">' + body + '</div>' + meta + '</div></div>';
+      }
+
+      function renderConversationPane() {
+        const detail = document.getElementById('messageDetail');
+        if (!window._convo) return;
+        const { messages: msgs, meta } = window._convo;
+        if (!msgs.length) {
+          detail.innerHTML = '<div class="mm-empty" style="padding:24px 12px;">Nothing in this conversation.</div>';
+          return;
+        }
+        const channels = new Set(msgs.map((m) => m.category).filter(Boolean));
+        const mixed = channels.size > 1;
+        const name = meta.name || meta.phone || meta.email || 'Unknown';
+        const identity = [meta.phone, meta.email].filter(Boolean).join(' &middot; ');
+        const flagged = msgs.filter((m) => m.emergency_flagged);
+        const banner = flagged.length
+          ? '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--danger-soft);border:1px solid var(--danger);border-radius:8px;padding:10px 14px;margin-bottom:12px;"><div style="flex:1;color:var(--danger);font-size:0.9em;">&#128680; ' + flagged.length + ' message(s) in this conversation are flagged for review.</div><button onclick="clearConversationEmergency()" style="background:var(--bg-surface);color:var(--danger);border:1.5px solid var(--danger);border-radius:8px;padding:6px 12px;font-size:0.85em;font-weight:600;cursor:pointer;">Mark Reviewed</button></div>'
+          : '';
+        detail.innerHTML =
+          '<div style="margin-bottom:4px;font-weight:700;color:var(--text-primary);">' + _convEsc(name) + '</div>'
+          + (identity ? '<div style="font-size:0.82em;color:var(--text-muted);margin-bottom:10px;">' + identity + '</div>' : '')
+          + banner
+          + '<div class="cv-thread">' + msgs.map((m) => _cvBubble(m, mixed)).join('') + '</div>';
+      }
+
+      async function clearConversationEmergency() {
+        if (!window._convo) return;
+        const flagged = window._convo.messages.filter((m) => m.emergency_flagged);
+        for (const m of flagged) {
+          try {
+            await fetch('/api/messages/' + m.id + '/clear-emergency', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+          } catch (err) { console.error('[inbox] clear-emergency failed for', m.id, err); }
+        }
+        openConversation(window._convo.key);
       }
 
       async function moveConversation(key, folder) {
@@ -4756,228 +4863,6 @@
           }
         } catch (err) { /* keep the last shown value */ }
       }
-
-      async function showMessage(id) {
-        const msg = await api('messages/' + id);
-        selectedMessage = msg;
-        // IB2: the fetch above already marked the conversation read
-        // server-side — re-render the list and badges to that truth
-        // (switchFolder refetches; the detail pane below is separate).
-        switchFolder(currentFolder, null);
-        updateInboxBadge();
-        const panel = document.getElementById('messageDetail');
-
-        // Sub-step C: emergency banner above the message header. Shows
-        // matched keywords (lazily computed by GET /api/messages/:id)
-        // and a red-outlined "Mark Reviewed" button. Falls back to a
-        // bare message if emergency_keywords is missing or empty (can
-        // happen if the keyword list changed since flagging).
-        let emergencyBanner = '';
-        if (msg.emergency_flagged) {
-          const kws = Array.isArray(msg.emergency_keywords) ? msg.emergency_keywords : [];
-          const kwText = kws.length
-            ? ` This message was flagged: <b>${kws.map(k => k.replace(/[<>&]/g, '')).join(', ')}</b>.`
-            : ' This message was flagged.';
-          emergencyBanner = `
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--danger-soft);border:1px solid var(--danger);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
-              <div style="flex:1;color:var(--danger);font-size:0.92em;line-height:1.45;">
-                &#128680;${kwText}
-              </div>
-              <button
-                onclick="markEmergencyReviewed(${msg.id})"
-                style="background:white;color:var(--danger);border:1.5px solid var(--danger);border-radius:8px;padding:7px 14px;font-size:0.85em;font-weight:600;cursor:pointer;white-space:nowrap;"
-                onmouseover="this.style.background='var(--danger-soft)'"
-                onmouseout="this.style.background='white'"
-              >Mark Reviewed</button>
-            </div>
-          `;
-        }
-
-        panel.innerHTML = `
-          ${emergencyBanner}
-          <h3 style="margin-bottom:10px">${msg.subject}</h3>
-          <p><b>Resident:</b> ${msg.resident}</p>
-          <p><b>Category:</b> ${msg.category}</p>
-          ${msg.phone ? `<p><b>Phone:</b> ${msg.phone}</p>` : ''}
-          <p style="margin:10px 0;padding:10px;background:var(--bg-sunken);border-radius:6px;">${msg.text}</p>
-          <p><b>Status:</b> ${msg.status}</p>
-          <div style="margin:12px 0;display:flex;flex-wrap:wrap;gap:8px;">
-            <button class="btn-primary" onclick="generateDraft()">&#10024; Generate AI Draft</button>
-            ${msg.phone ? `<button class="btn-primary" style="background:var(--success);" onclick="sendSMSReply()">&#128241; Reply via SMS</button>` : ''}
-            ${msg.email && msg.category === 'email' ? `<button class="btn-primary" onclick="sendEmailReply()">&#9993; Reply via Email</button>` : ''}
-            ${msg.folder !== 'archive' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'archive')" style="background:var(--accent-soft);color:var(--accent);border-color:var(--accent);">&#128451; Archive</button>` : `<button class="btn-secondary" onclick="moveMessage(${msg.id},'inbox')" style="background:var(--success-soft);color:var(--success);border-color:var(--success);">&#8617; Move to Inbox</button>`}
-            ${msg.folder !== 'deleted' ? `<button class="btn-secondary" onclick="moveMessage(${msg.id},'deleted')" style="background:var(--danger-soft);color:var(--danger);border-color:var(--danger);">&#128465; Delete</button>` : `<button class="btn-secondary" onclick="permanentDelete(${msg.id})" style="background:var(--danger-soft);color:var(--danger);border-color:var(--danger);">&#10006; Delete Forever</button>`}
-          </div>
-          <div id='draftArea'></div>
-        `;
-        const drafts = await api('drafts');
-        const related = drafts.filter(d => d.messageId === msg.id);
-        const area = document.getElementById('draftArea');
-        if (related.length) {
-          area.innerHTML = '<h4 style="margin:12px 0 8px">AI Draft</h4>' + related.map(d =>
-            `<div style="background:var(--bg-sunken);border-radius:8px;padding:14px;margin-bottom:8px;">
-              <textarea id="draftText-${d.id}" style="width:100%;min-height:180px;font-family:inherit;font-size:0.9em;padding:10px;border:1px solid var(--border);border-radius:6px;resize:vertical;box-sizing:border-box;">${d.content}</textarea>
-              <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-primary" onclick="sendDraft(${d.id})">&#9993; Send Reply</button>
-                <button class="btn-secondary" onclick="copyDraft(${d.id})">&#128203; Copy</button>
-              </div>
-              <div style="margin-top:6px;font-size:0.8em;color:var(--text-muted);">Status: ${d.status}</div>
-            </div>`
-          ).join('');
-        }
-      }
-
-      // Sub-step C: clear the emergency flag on the currently-open
-      // message. Called from the banner's "Mark Reviewed" button.
-      // Synchronously re-renders the detail pane (banner + EMERGENCY
-      // badge gone) and refreshes the inbox list (row un-pins from
-      // top, badge gone from list view) — no animation, no lag.
-      async function markEmergencyReviewed(id) {
-        const res = await fetch('/api/messages/' + id + '/clear-emergency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          alert('Could not clear emergency flag: ' + (body.error || 'HTTP ' + res.status));
-          return;
-        }
-        // Mutate local state so the immediately-following re-render
-        // shows the cleared state without waiting for the inbox list
-        // round-trip below.
-        if (selectedMessage && selectedMessage.id === id) {
-          selectedMessage.emergency_flagged = false;
-          selectedMessage.emergency_keywords = [];
-        }
-        // Re-render detail pane (banner gone) and refresh inbox list
-        // (un-pinned + badge gone). Both happen at once.
-        await showMessage(id);
-        switchFolder(currentFolder, null);
-      }
-
-      async function sendDraft(draftId) {
-        if (!selectedMessage) return;
-        const textarea = document.getElementById('draftText-' + draftId);
-        const body = textarea ? textarea.value.trim() : '';
-        if (!body) return alert('Draft is empty.');
-
-        if (selectedMessage.email && selectedMessage.category === 'email') {
-          const subject = 'Re: ' + (selectedMessage.subject || '');
-          const res = await fetch('/api/email/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: selectedMessage.email, subject, body })
-          });
-          const data = await res.json();
-          if (data.success) { alert('Email sent!'); setStatus('sent'); }
-          else alert('Failed to send: ' + (data.error || 'Unknown error'));
-        } else if (selectedMessage.phone && (selectedMessage.category === 'sms' || selectedMessage.category === 'voicemail')) {
-          const res = await fetch('/api/sms/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to: selectedMessage.phone, body })
-          });
-          const data = await res.json();
-          if (data.success) { alert('SMS sent!'); setStatus('sent'); }
-          else alert('Failed to send: ' + (data.error || 'Unknown error'));
-        } else {
-          alert('No email or phone on this message to reply to.');
-        }
-      }
-
-      function copyDraft(draftId) {
-        const textarea = document.getElementById('draftText-' + draftId);
-        if (!textarea) return;
-        navigator.clipboard.writeText(textarea.value).then(() => alert('Draft copied to clipboard!'));
-      }
-
-      async function sendSMSReply() {
-        if (!selectedMessage || !selectedMessage.phone) return;
-        const body = prompt('Type your SMS reply:', '');
-        if (!body) return;
-        const res = await fetch('/api/sms/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: selectedMessage.phone, body })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('SMS sent successfully!');
-          setStatus('sent');
-        } else {
-          alert('Failed to send SMS: ' + (data.error || 'Unknown error'));
-        }
-      }
-
-      async function sendEmailReply() {
-        if (!selectedMessage || !selectedMessage.email) return;
-        const subject = prompt('Subject:', 'Re: ' + (selectedMessage.subject || ''));
-        if (!subject) return;
-        const body = prompt('Type your email reply:', '');
-        if (!body) return;
-        const res = await fetch('/api/email/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: selectedMessage.email, subject, body })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert('Email sent successfully!');
-          setStatus('sent');
-        } else {
-          alert('Failed to send email: ' + (data.error || 'Unknown error'));
-        }
-      }
-
-      async function generateDraft() {
-        if (!selectedMessage) return;
-        document.getElementById('draftArea').innerHTML = '<p style="color:var(--text-muted)">Generating draft...</p>';
-        try {
-          const res = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: selectedMessage.id, contacts })
-          });
-          const data = await res.json();
-          if (!res.ok) {
-            document.getElementById('draftArea').innerHTML = `<p style="color:var(--danger)">Error: ${data.error || 'Failed to generate draft'}<br><small>${data.details || ''}</small></p>`;
-            return;
-          }
-          showMessage(selectedMessage.id);
-        } catch (err) {
-          document.getElementById('draftArea').innerHTML = `<p style="color:var(--danger)">Error: ${err.message}</p>`;
-        }
-      }
-
-      async function applyDraft(draftId) {
-        const text = prompt('Edit your response draft:', '');
-        if (text === null) return;
-        await api('drafts/' + draftId, 'PUT', { content: text, status: 'ready' });
-        alert('Draft saved and ready to send.');
-        if (selectedMessage) showMessage(selectedMessage.id);
-      }
-
-      async function setStatus(status) {
-        if (!selectedMessage) return;
-        await api('messages/' + selectedMessage.id + '/status', 'PUT', { status });
-        showMessage(selectedMessage.id);
-        await loadInbox();
-      }
-
-      // --- Operations ---
-      function updateModeUI() {
-        const isAuto = document.getElementById('autoReply').checked;
-        const onColor = 'var(--accent)';
-        const offColor = 'var(--border-strong)';
-        const onBg = 'var(--accent-soft)';
-        document.getElementById('label-auto').style.borderColor = isAuto ? onColor : offColor;
-        document.getElementById('label-auto').style.background = isAuto ? onBg : '';
-        document.getElementById('label-review').style.borderColor = isAuto ? offColor : onColor;
-        document.getElementById('label-review').style.background = isAuto ? '' : onBg;
-      }
-
-      // --- Notification settings ---
-      let notifEmailDirty = false;
 
       async function loadNotifSettings() {
         const data = await api('settings');
@@ -7696,7 +7581,9 @@
         document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
         document.querySelector('#sidebar nav a').classList.add('active');
         loadInbox();
-        setTimeout(() => showMessage(newMsg.id), 200);
+        // IB3: the flat detail is gone — open the row's conversation
+        // ('m' + id is the unlinked-single key).
+        setTimeout(() => openConversation('m' + newMsg.id), 200);
       }
 
       let _editingContactId = null;
@@ -13338,8 +13225,9 @@
               c.open_contact = { id: selectedContact.id, name: selectedContact.name || '' };
             }
           } else if (c.page === 'inbox') {
-            if (typeof selectedMessage !== 'undefined' && selectedMessage) {
-              c.open_thread = (selectedMessage.subject || selectedMessage.resident || ('message #' + selectedMessage.id));
+            // IB3: context is the open CONVERSATION now.
+            if (window._convo && window._convo.meta) {
+              c.open_thread = window._convo.meta.name || window._convo.meta.phone || window._convo.meta.email || ('conversation ' + window._convo.key);
             }
           } else if (c.page === 'tasks') {
             if (typeof taskFilter !== 'undefined' && taskFilter && taskFilter !== 'all') c.task_filter = taskFilter;
