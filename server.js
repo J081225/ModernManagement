@@ -2723,6 +2723,24 @@ app.post('/api/daily-nudge/ensure', requireAuth, async (req, res) => {
       return res.status(500).json({ error: 'daily_nudge_insert_failed' });
     }
 
+    // BG7: the budget insight pass rides the SAME once-per-workspace-day
+    // gate this endpoint already enforces (the daily_focus idempotency
+    // row). First app open of the day -> one pass; dormant workspaces
+    // spend nothing; never per money event. Fire-and-forget — a failed
+    // pass can never affect the nudge response.
+    try {
+      const { runBudgetInsightPass } = require('./lib/budget-insights');
+      const wsFull = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+      if (wsFull.rows[0]) {
+        runBudgetInsightPass({
+          db: pool, anthropic, model: config.ANTHROPIC_MODEL,
+          workspace: wsFull.rows[0], env: process.env, logger: console,
+          wsToday: require('./lib/time-helpers').wsToday,
+        }).catch((err) => console.error('[budget-insights] pass rejected (nudge unaffected):', err.message));
+      }
+    } catch (err) {
+      console.error('[budget-insights] launch failed (nudge unaffected):', err.message);
+    }
     res.json({ created: true, nudge: inserted });
   } catch (err) {
     console.error('[daily-nudge] error:', err.message);
