@@ -793,6 +793,16 @@ async function runPendingActionExpirySweep() {
       "  AND customer_phone IS NULL AND customer_email IS NULL " +
       "  AND created_at < NOW() - INTERVAL '" + OWNER_PENDING_TTL_DAYS + " days'"
     );
+    // AD3 c2: expired email-change pendings clear on this same sweep —
+    // piggyback, no new timer (LAW 4 hygiene: a stale pending can't
+    // sit forever).
+    try {
+      const sweptPendings = await credentials.sweepExpiredPendingEmails(pool);
+      if (sweptPendings) console.log('[credentials] cleared', sweptPendings, 'expired email-change pending(s)');
+    } catch (err) {
+      console.error('[credentials] pending-email sweep failed:', err.message);
+    }
+
     // FD3-CP7: suggestions expire quietly at 7 days — dismissed-flagged
     // (not deleted) so they stay in reflection's dedupe memory. Same
     // idempotency shape as above: the IS NULL guard flips each row once.
@@ -1406,6 +1416,150 @@ app.post('/api/credentials/change-password', requireAuth, async (req, res) => {
   }
 
   res.json({ success: true, other_sessions_ended: endedSessions });
+});
+
+// AD3 c2: email change with verification. The raw token exists only
+// in the verification mail; the row stores SHA-256(token). Notices
+// ride the account-mail path and never consult notifications_enabled.
+const _accountMailFrom = { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' };
+function _publicBaseUrl() {
+  return (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+}
+
+app.get('/api/credentials', requireAuth, async (req, res) => {
+  const status = await credentials.credentialsStatus(pool, req.session.userId);
+  if (!status) return res.status(404).json({ error: 'User not found' });
+  res.json(status);
+});
+
+app.post('/api/credentials/request-email-change', requireAuth, async (req, res) => {
+  const result = await credentials.requestEmailChange(
+    pool, req.session.userId, req.body || {}, _credAttempts, Date.now()
+  );
+  if (!result.changed) return res.status(result.status).json(result.body);
+
+  const verifyUrl = _publicBaseUrl() + '/verify-email-change?token=' + encodeURIComponent(result.token);
+  try {
+    await sgMail.send({
+      to: result.newEmail,
+      from: _accountMailFrom,
+      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      subject: 'Verify your new Modern Management email',
+      text: 'A request was made to use this address for a Modern Management account.\n\n' +
+        'Confirm it here (link expires in 1 hour):\n' + verifyUrl + '\n\n' +
+        "If you didn't request this, ignore this email — nothing changes without this link.",
+    });
+  } catch (err) {
+    console.error('[credentials] verification mail failed:', err.message);
+  }
+  if (result.oldEmail) {
+    try {
+      await sgMail.send({
+        to: result.oldEmail,
+        from: _accountMailFrom,
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: 'Security notice: email change requested',
+        text: 'A request was made to change this account\u2019s email to ' +
+          credentials.maskEmail(result.newEmail) + '.\n\n' +
+          "If this wasn't you, your password may be compromised — change it now at " +
+          _publicBaseUrl() + '/forgot-password and contact support. ' +
+          'This address remains the account email until the new one is verified.',
+      });
+    } catch (err) {
+      console.error('[credentials] old-address notice failed:', err.message);
+    }
+  } else {
+    console.error('[credentials] email-change requested but no old email on file for user', req.session.userId, '— notice skipped');
+  }
+  res.status(result.status).json(result.body);
+});
+
+// Resend: 3 per hour per user, its OWN bucket — shares nothing with
+// the password-oracle budget. No re-auth: it only re-sends to the
+// address a re-authed request already parked.
+const _emailResendAttempts = new Map();
+app.post('/api/credentials/resend-email-verification', requireAuth, async (req, res) => {
+  const gate = credentials.windowGate(_emailResendAttempts, req.session.userId, Date.now(), 3, 60 * 60 * 1000);
+  if (!gate.allowed) {
+    return res.status(429).json({ error: 'Resend limit reached — try again in ' + Math.ceil(gate.retryAfterSeconds / 60) + ' min.' });
+  }
+  const result = await credentials.resendEmailChange(pool, req.session.userId, Date.now());
+  if (!result.changed) return res.status(result.status).json(result.body);
+  const verifyUrl = _publicBaseUrl() + '/verify-email-change?token=' + encodeURIComponent(result.token);
+  try {
+    await sgMail.send({
+      to: result.newEmail,
+      from: _accountMailFrom,
+      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      subject: 'Verify your new Modern Management email',
+      text: 'Confirm this address for your Modern Management account (link expires in 1 hour):\n' +
+        verifyUrl + '\n\n' +
+        "If you didn't request this, ignore this email.",
+    });
+  } catch (err) {
+    console.error('[credentials] verification resend failed:', err.message);
+  }
+  res.status(result.status).json(result.body);
+});
+
+// Cancel requires re-auth too — otherwise whoever holds the session
+// quietly cancels the alarm the real owner just received.
+app.post('/api/credentials/cancel-email-change', requireAuth, async (req, res) => {
+  const result = await credentials.cancelEmailChange(
+    pool, req.session.userId, req.body || {}, _credAttempts, Date.now()
+  );
+  res.status(result.status).json(result.body);
+});
+
+// PUBLIC: the verification link target. Server-rendered minimal page —
+// the palette mirrors the account-mail templates (this is a standalone
+// public page, not the app shell). Confirmation notices go to BOTH
+// addresses on success.
+app.get('/verify-email-change', async (req, res) => {
+  const page = (heading, detail) =>
+    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Modern Management</title></head>' +
+    '<body style="margin:0;padding:48px 20px;background:#f1f5f9;font-family:\'Inter\',Helvetica,Arial,sans-serif;">' +
+    '<div style="max-width:460px;margin:0 auto;background:#ffffff;border-radius:14px;padding:32px;text-align:center;">' +
+    '<div style="font-size:18px;font-weight:800;letter-spacing:-0.5px;margin-bottom:18px;">Modern Management</div>' +
+    '<h1 style="font-size:20px;margin:0 0 10px;">' + heading + '</h1>' +
+    '<p style="color:#475569;font-size:14px;line-height:1.6;margin:0;">' + detail + '</p>' +
+    '</div></body></html>';
+  try {
+    const result = await credentials.verifyEmailChange(pool, String(req.query.token || ''), Date.now());
+    if (!result.ok) {
+      // ONE uninformative message for invalid, expired, and reused —
+      // the page never confirms whether such a pending exists. (The
+      // lib's reason goes to the log only.)
+      console.error('[credentials] email verification failed:', result.reason);
+      return res.status(400).send(page(
+        'Link not valid',
+        'This verification link isn\u2019t valid anymore. If you\u2019re changing your email, sign in and send a fresh link from the Credentials card.'
+      ));
+    }
+    for (const [to, text] of [
+      [result.newEmail, 'This address is now the email on your Modern Management account. It receives password resets and security notices from here on.'],
+      [result.oldEmail, 'Your Modern Management account email was changed to ' + credentials.maskEmail(result.newEmail) + '. If this wasn\u2019t you, contact support immediately.'],
+    ]) {
+      if (!to) continue;
+      try {
+        await sgMail.send({
+          to,
+          from: _accountMailFrom,
+          replyTo: process.env.SENDGRID_FROM_EMAIL,
+          subject: 'Your Modern Management account email was changed',
+          text,
+        });
+      } catch (err) {
+        console.error('[credentials] verify confirmation mail failed:', err.message);
+      }
+    }
+    res.send(page('Email verified', 'Your account email is updated. You can close this tab.'));
+  } catch (err) {
+    console.error('[credentials] verify-email-change error:', err.message);
+    res.status(500).send(page('Something went wrong', 'Please try the link again in a moment.'));
+  }
 });
 
 const _testAlertLast = new Map();

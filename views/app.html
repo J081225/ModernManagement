@@ -3289,6 +3289,57 @@
 
             <div id="credBanner" class="mm-banner mm-banner-danger" style="display:none;margin-bottom:14px;"></div>
 
+            <!-- AD3 c2: account email — the RESET KEY (users.email),
+                 deliberately labeled to never be confused with AD2's
+                 notification email one card above (look-first c: three
+                 emails, three roles — reset key / ping target /
+                 customer-facing alias — no code path conflates them).
+                 Masked display; change is re-authed; pending state
+                 shows the masked target with resend (3/hour) and
+                 cancel (re-auth required — cancelling the alarm needs
+                 the password too). -->
+            <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+              <label class="mm-label">Account email (used for password resets)</label>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span id="credEmailCurrent" style="color:var(--text-primary);font-size:0.95em;">Loading...</span>
+                <button class="mm-btn mm-btn-ghost mm-btn-sm" id="credEmailChangeBtn" onclick="credToggleEmailForm(true)">Change</button>
+              </div>
+              <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">Receives password resets and security notices. Not the notification email above — that one is where pings go.</div>
+
+              <div id="credEmailPending" class="mm-banner mm-banner-info" style="display:none;margin-top:12px;">
+                <div>Verification sent to <span id="credPendingMasked" style="font-weight:600;"></span> — check that inbox. Your current email stays active until it's verified.</div>
+                <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+                  <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="credResendVerification(this)">Resend</button>
+                  <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="credToggleCancelForm(true)">Cancel change</button>
+                </div>
+                <div id="credCancelForm" style="display:none;margin-top:10px;max-width:320px;">
+                  <label class="mm-label" for="credCancelPw">Confirm with your password</label>
+                  <input type="password" id="credCancelPw" class="mm-input" autocomplete="current-password" />
+                  <div style="margin-top:8px;display:flex;gap:8px;">
+                    <button class="mm-btn mm-btn-sm mm-btn-danger" onclick="credCancelEmailChange()">Cancel the change</button>
+                    <button class="mm-btn mm-btn-sm mm-btn-ghost" onclick="credToggleCancelForm(false)">Keep it</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="credEmailForm" style="display:none;margin-top:12px;max-width:420px;">
+                <div>
+                  <label class="mm-label" for="credNewEmail">New email</label>
+                  <input type="email" id="credNewEmail" class="mm-input" maxlength="254" placeholder="you@example.com" />
+                  <div class="mm-field-error" id="credNewEmailError" style="display:none;"></div>
+                </div>
+                <div style="margin-top:12px;">
+                  <label class="mm-label" for="credEmailPw">Current password</label>
+                  <input type="password" id="credEmailPw" class="mm-input" autocomplete="current-password" />
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">We'll send a verification link to the new address. Nothing changes until it's clicked.</div>
+                </div>
+                <div style="margin-top:14px;display:flex;gap:10px;">
+                  <button class="mm-btn mm-btn-primary" id="credEmailSendBtn" onclick="credRequestEmailChange()">Send verification</button>
+                  <button class="mm-btn mm-btn-ghost" onclick="credToggleEmailForm(false)">Cancel</button>
+                </div>
+              </div>
+            </div>
+
             <div style="max-width:420px;">
               <div>
                 <label class="mm-label" for="credCurrent">Current password</label>
@@ -5435,7 +5486,10 @@
           }
           for (const id of ['credCurrent', 'credNew', 'credConfirm']) document.getElementById(id).value = '';
           const n = data.other_sessions_ended || 0;
-          _credSetStatus('Password changed' + (n ? ' — ' + n + ' other session' + (n === 1 ? '' : 's') + ' signed out.' : '.'), 'var(--success)');
+          let msg = 'Password changed' + (n ? ' — ' + n + ' other session' + (n === 1 ? '' : 's') + ' signed out.' : '.');
+          if (data.pending_email_cancelled) msg += ' The pending email change was cancelled.';
+          _credSetStatus(msg, 'var(--success)');
+          if (data.pending_email_cancelled && typeof loadCredentials === 'function') loadCredentials();
           setTimeout(() => _credSetStatus(''), 6000);
         } catch (err) {
           _credSetStatus('');
@@ -5444,6 +5498,130 @@
             banner.style.display = 'block';
           }
           credMarkDirty();
+        }
+      }
+
+      // AD3 c2: card status — masked email + pending state. The UI
+      // only ever sees masked addresses it didn't type.
+      async function loadCredentials() {
+        const data = await api('credentials');
+        if (!data) return;
+        const cur = document.getElementById('credEmailCurrent');
+        if (cur) cur.textContent = data.has_email ? data.email_masked : 'No email on file';
+        window._credUsername = data.username || '';
+        const pending = document.getElementById('credEmailPending');
+        if (pending) {
+          if (data.pending) {
+            document.getElementById('credPendingMasked').textContent = data.pending.email_masked;
+            pending.style.display = 'block';
+          } else {
+            pending.style.display = 'none';
+          }
+        }
+      }
+
+      function credToggleEmailForm(open) {
+        const form = document.getElementById('credEmailForm');
+        if (form) form.style.display = open ? 'block' : 'none';
+        if (open) {
+          const el = document.getElementById('credNewEmail');
+          if (el) { el.value = ''; el.classList.remove('mm-invalid'); }
+          const pw = document.getElementById('credEmailPw');
+          if (pw) pw.value = '';
+          const err = document.getElementById('credNewEmailError');
+          if (err) err.style.display = 'none';
+        }
+      }
+
+      function credToggleCancelForm(open) {
+        const form = document.getElementById('credCancelForm');
+        if (form) form.style.display = open ? 'block' : 'none';
+        const pw = document.getElementById('credCancelPw');
+        if (pw) pw.value = '';
+      }
+
+      async function credRequestEmailChange() {
+        const emailEl = document.getElementById('credNewEmail');
+        const errEl = document.getElementById('credNewEmailError');
+        const banner = document.getElementById('credBanner');
+        const btn = document.getElementById('credEmailSendBtn');
+        const newEmail = emailEl.value.trim();
+        if (errEl) errEl.style.display = 'none';
+        emailEl.classList.remove('mm-invalid');
+        if (banner) banner.style.display = 'none';
+        if (newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+          emailEl.classList.add('mm-invalid');
+          if (errEl) { errEl.textContent = "That email address doesn't look valid"; errEl.style.display = 'block'; }
+          return;
+        }
+        if (btn) btn.disabled = true;
+        _credSetStatus('Sending...');
+        try {
+          const res = await fetch('/api/credentials/request-email-change', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              new_email: newEmail,
+              current_password: document.getElementById('credEmailPw').value,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          _credSetStatus('');
+          if (!res.ok) {
+            if (data.field === 'new_email') {
+              emailEl.classList.add('mm-invalid');
+              if (errEl) { errEl.textContent = data.error; errEl.style.display = 'block'; }
+            } else if (banner) {
+              banner.textContent = data.error || 'Could not start the email change.';
+              banner.style.display = 'block';
+            }
+            return;
+          }
+          credToggleEmailForm(false);
+          await loadCredentials();
+        } catch (err) {
+          _credSetStatus('');
+          if (banner) { banner.textContent = 'Could not start the email change: ' + (err.message || err); banner.style.display = 'block'; }
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      async function credResendVerification(btn) {
+        const banner = document.getElementById('credBanner');
+        if (banner) banner.style.display = 'none';
+        const label = btn.textContent;
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/credentials/resend-email-verification', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 429) { btn.textContent = data.error || 'One per minute'; }
+          else if (!res.ok) { btn.textContent = data.error || 'Failed'; }
+          else { btn.textContent = 'Sent!'; }
+        } catch (err) {
+          btn.textContent = 'Failed';
+        }
+        setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 2500);
+      }
+
+      async function credCancelEmailChange() {
+        const banner = document.getElementById('credBanner');
+        if (banner) banner.style.display = 'none';
+        try {
+          const res = await fetch('/api/credentials/cancel-email-change', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current_password: document.getElementById('credCancelPw').value }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            if (banner) { banner.textContent = data.error || 'Could not cancel.'; banner.style.display = 'block'; }
+            return;
+          }
+          credToggleCancelForm(false);
+          await loadCredentials();
+        } catch (err) {
+          if (banner) { banner.textContent = 'Could not cancel: ' + (err.message || err); banner.style.display = 'block'; }
         }
       }
 
@@ -9945,7 +10123,7 @@
 
       // --- Payment Auto-Match ---
       window.onload = () => {
-        restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings();
+        restoreHomeSettings(); loadHomeStats(); loadInbox(); loadAutomation(); loadKnowledge(); loadNotifSettings(); loadCredentials();
         loadPlanSummary(); checkOnboarding();
         initCalendar(); loadCalEvents(); loadInvoiceTable();
         ensureDailyNudge(); // E12: create today's Daily Focus calendar event if absent
