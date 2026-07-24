@@ -3262,6 +3262,19 @@
                 </span>
                 <span class="routing-pill-hint" id="bizEmailHint">Your AI assistant's email replies send from this address.</span>
               </div>
+              <!-- AD2 c3: the inbound alias. READ-ONLY — the address is
+                   the routing key (lookupUserByEmailAlias); mail to a
+                   changed-away-from alias becomes an UNROUTABLE drop
+                   with no bounce. Minted at signup / boot backfill; no
+                   code path changes it after that, by design. -->
+              <div class="routing-pill">
+                <span class="routing-pill-kicker">Inbound email address</span>
+                <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span class="routing-pill-value" id="bizAliasValue" style="font-family:'SFMono-Regular', Consolas, monospace;font-size:13px;overflow-wrap:anywhere;">Loading...</span>
+                  <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizAliasCopy" onclick="copyBizValue('bizAliasValue', this)" aria-label="Copy inbound email address" style="display:none;">Copy</button>
+                </span>
+                <span class="routing-pill-hint">Customers can email this address — messages reach your inbox and your AI assistant. Forward your business email here.</span>
+              </div>
             </div>
           </div>
 
@@ -5164,6 +5177,22 @@
             if (data.platform_from) bizEmail.dataset.copy = data.platform_from;
           }
           if (copyBtn) copyBtn.style.display = bizEmail.dataset.copy ? '' : 'none';
+        }
+        // AD2 c3: the inbound alias — read-only (it IS the routing
+        // key). NULL is near-unreachable (boot backfill mints one for
+        // every user) but renders honestly if hit.
+        const bizAlias = document.getElementById('bizAliasValue');
+        if (bizAlias) {
+          const copyBtn = document.getElementById('bizAliasCopy');
+          if (data.inbound_email_alias) {
+            bizAlias.textContent = data.inbound_email_alias;
+            bizAlias.dataset.copy = data.inbound_email_alias;
+            if (copyBtn) copyBtn.style.display = '';
+          } else {
+            bizAlias.textContent = 'Not generated yet';
+            delete bizAlias.dataset.copy;
+            if (copyBtn) copyBtn.style.display = 'none';
+          }
         }
       }
 
