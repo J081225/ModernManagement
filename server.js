@@ -1345,61 +1345,11 @@ app.get('/api/settings', requireAuth, async (req, res) => {
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
-  // alert_phone is updated only when the key is explicitly present in
-  // the body — non-destructive for callers like the onboarding flow
-  // that only send notification_email / notifications_enabled.
-  //
-  // AD2: server-side validation (this endpoint previously saved
-  // anything, including garbage) and honest clearing — an emptied
-  // field stores NULL, not ''. Every reader treats both as absent
-  // (lib/owner-alert trims; sendNotificationEmail short-circuits on
-  // falsy), so routing behavior is unchanged; NULL is simply the
-  // truthful "not set".
-  const hasAlertPhone = Object.prototype.hasOwnProperty.call(req.body, 'alert_phone');
-
-  const rawEmail = String(req.body.notification_email || '').trim();
-  if (rawEmail.length > 254) {
-    return res.status(400).json({ error: 'Notification email is too long', field: 'notification_email' });
-  }
-  if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
-    return res.status(400).json({ error: "That email address doesn't look valid", field: 'notification_email' });
-  }
-  const notificationEmail = rawEmail || null;
-  const notificationsEnabled = req.body.notifications_enabled !== false;
-
-  if (hasAlertPhone) {
-    const rawPhone = String(req.body.alert_phone || '').trim();
-    if (rawPhone.length > 32) {
-      return res.status(400).json({ error: 'Alert phone is too long', field: 'alert_phone' });
-    }
-    let alertPhone = null;
-    if (rawPhone) {
-      alertPhone = normalizeAlertPhone(rawPhone); // stored E.164
-      if (!alertPhone) {
-        return res.status(400).json({ error: 'Alert phone needs at least 10 digits', field: 'alert_phone' });
-      }
-    }
-    const { rows } = await pool.query(
-      `UPDATE users
-         SET notification_email = $1,
-             notifications_enabled = $2,
-             alert_phone = $3
-       WHERE id = $4
-       RETURNING notification_email, notifications_enabled, alert_phone`,
-      [notificationEmail, notificationsEnabled, alertPhone, req.session.userId]
-    );
-    res.json(rows[0]);
-  } else {
-    const { rows } = await pool.query(
-      `UPDATE users
-         SET notification_email = $1,
-             notifications_enabled = $2
-       WHERE id = $3
-       RETURNING notification_email, notifications_enabled`,
-      [notificationEmail, notificationsEnabled, req.session.userId]
-    );
-    res.json(rows[0]);
-  }
+  // AD2: validation, E.164 normalization, and honest NULL clearing —
+  // all in lib/contact-settings (one save path; the onboarding
+  // caller's key-conditional alert_phone contract lives there too).
+  const result = await saveContactSettings(pool, req.session.userId, req.body || {});
+  res.status(result.status).json(result.body);
 });
 
 // AD2: "Send test alert" — proves the owner's routing end to end using
@@ -1407,22 +1357,20 @@ app.put('/api/settings', requireAuth, async (req, res) => {
 // SMS → notification_email → account-email chain). respectEnabled:false
 // mirrors the emergency path: the test tells you whether an emergency
 // would reach you, regardless of the notifications toggle.
-// In-memory rate limit: one test per minute per user. Resets on
-// restart, which is fine for a courtesy limiter on a self-serve test.
+// In-memory rate limit: one test per minute per user (decision logic in
+// lib/contact-settings.testAlertGate). Resets on restart, which is fine
+// for a courtesy limiter on a self-serve test.
 const _testAlertLast = new Map();
 app.post('/api/settings/test-alert', requireAuth, async (req, res) => {
-  const uid = req.session.userId;
-  const last = _testAlertLast.get(uid) || 0;
-  const waitMs = 60 * 1000 - (Date.now() - last);
-  if (waitMs > 0) {
+  const gate = testAlertGate(_testAlertLast, req.session.userId, Date.now());
+  if (!gate.allowed) {
     return res.status(429).json({
-      error: 'One test per minute — try again in ' + Math.ceil(waitMs / 1000) + 's',
+      error: 'One test per minute — try again in ' + gate.retryAfterSeconds + 's',
     });
   }
-  _testAlertLast.set(uid, Date.now());
   const sent = await sendOwnerAlert(
     { db: pool, twilio: twilioClient, sendgrid: sgMail, env: process.env, logger: console },
-    uid,
+    req.session.userId,
     {
       smsBody: 'Modern Management test alert — your urgent-alert routing works. Nothing needs attention.',
       emailSubject: 'Test alert — your notification routing works',
@@ -5887,9 +5835,11 @@ function detectEmergency(text) {
 }
 
 const { sendOwnerAlert } = require('./lib/owner-alert');
-// AD2: the settings save normalizes alert_phone to E.164 via the FD1
-// helper — same canonicalization the booking tools use.
-const { normalizePhone: normalizeAlertPhone } = require('./lib/phone');
+// AD2 c4: the settings save logic lives in lib/contact-settings (E.164
+// normalization via the FD1 phone helper, validation, NULL clearing,
+// the test-alert limiter) so the suite drives the real path; the
+// endpoints below are thin adapters over it — still the ONE save path.
+const { saveContactSettings, testAlertGate } = require('./lib/contact-settings');
 const { persistOutboundMessage } = require('./lib/outbound-persist');
 const readState = require('./lib/read-state');
 const expensesLib = require('./lib/expenses');
