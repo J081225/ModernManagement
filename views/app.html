@@ -3162,26 +3162,46 @@
               </div>
             </div>
 
-          <!-- Contact — how Modern Management reaches you. AD2 adds
-               editable account contact details alongside these. -->
+          <!-- Contact — how Modern Management reaches you. One card,
+               one save (AD2). The old routing pills read the STALE user
+               copy of the Twilio number; their data re-homes honestly on
+               the business-identity card below (AD2 c2–c3). -->
           <div class="mm-card">
             <div class="mm-card-header">
-              <div class="mm-card-title">Notification settings</div>
+              <div class="mm-card-title">How Modern Management reaches you</div>
+              <div id="contactSaveStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
             </div>
-            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Choose how Modern Management reaches you when something needs attention.</div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Your personal contact for approvals, alerts, and new-message notices. Customers never see these.</div>
+
+            <div id="contactSaveBanner" class="mm-banner mm-banner-danger" style="display:none;margin-bottom:14px;"></div>
 
             <div class="asymmetric-2col" style="display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start;">
 
               <div>
+                <div>
+                  <label class="mm-label" for="notifEmail">Notification email</label>
+                  <input type="email" id="notifEmail" class="mm-input" placeholder="you@example.com" maxlength="254" oninput="contactMarkDirty()" />
+                  <div class="mm-field-error" id="notifEmailError" style="display:none;"></div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Approval requests and urgent alerts go here — if blank, they fall back to your account email. New-message notices also arrive here, and only send when this is set.</div>
+                </div>
+                <div style="margin-top:16px;">
+                  <label class="mm-label" for="alertPhone">Alert phone</label>
+                  <input type="tel" id="alertPhone" class="mm-input" placeholder="(443) 555-0199" maxlength="32" oninput="contactMarkDirty()" />
+                  <div class="mm-field-error" id="alertPhoneError" style="display:none;"></div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Urgent alerts arrive by text when this is set; otherwise by email.</div>
+                </div>
+              </div>
+
+              <div>
                 <div class="settings-row">
                   <div>
-                    <div class="settings-row-label">Email notifications</div>
-                    <span class="settings-row-hint">Alert me when a new message arrives in my inbox.</span>
+                    <div class="settings-row-label">Notifications</div>
+                    <span class="settings-row-hint">Approval requests and new-message notices pause when this is off. Emergency alerts always send, even when this is off.</span>
                   </div>
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
-                    <input type="checkbox" id="notifToggle" onchange="saveNotifSettings()" style="opacity:0;width:0;height:0;position:absolute;">
+                    <input type="checkbox" id="notifToggle" style="opacity:0;width:0;height:0;position:absolute;">
                     <span id="notifToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
-                    <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
+                    <span id="notifToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--bg-surface);border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
                   </label>
                 </div>
                 <!-- PWA Stage B: per-device push toggle. Status text below shows
@@ -3195,51 +3215,18 @@
                   <label style="position:relative;display:inline-block;width:44px;height:24px;cursor:pointer;margin:0;flex-shrink:0;">
                     <input type="checkbox" id="pushToggle" style="opacity:0;width:0;height:0;position:absolute;">
                     <span id="pushToggleTrack" style="position:absolute;inset:0;background:var(--border-strong);border-radius:24px;transition:background 0.2s;"></span>
-                    <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
+                    <span id="pushToggleThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;background:var(--bg-surface);border-radius:50%;box-shadow:var(--shadow-card);transition:transform 0.2s;"></span>
                   </label>
                 </div>
                 <div id="pushStatus" style="margin-top:6px;font-size:0.8em;color:var(--text-muted);min-height:1em;"></div>
               </div>
 
-              <div>
-                <div class="form-block">
-                  <span class="form-block-label">Notification email</span>
-                  <input type="email" id="notifEmail" placeholder="you@example.com" oninput="notifEmailDirty=true" />
-                </div>
-                <div class="form-block">
-                  <span class="form-block-label">Emergency alert phone</span>
-                  <input type="tel" id="alertPhone" placeholder="+15551234567" />
-                </div>
-                <div style="margin-top:18px;display:flex;align-items:center;gap:12px;">
-                  <button class="btn-primary" onclick="saveNotifSettings()" style="white-space:nowrap;">Save settings</button>
-                  <div id="notifSaveMsg" style="display:none;font-size:0.8em;color:var(--success);font-weight:500;">&#10003; Settings saved</div>
-                </div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:14px;line-height:1.5;">
-                  We'll text the emergency phone when a message is held for manual review (emergency keywords detected). Falls back to the notification email if blank.
-                </div>
-              </div>
-
             </div>
-          </div>
 
-          <!-- Routing pills — untouched for AD2 (contact editing). -->
-          <div class="mm-card" style="margin-top:20px;">
-            <div class="mm-card-header">
-              <div class="mm-card-title">Phone &amp; email routing</div>
-            </div>
-            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Where inbound messages land in your workspace. SMS and voicemails arrive through your Twilio number; emails arrive at your inbound alias.</div>
-
-            <div class="asymmetric-1-1" id="routingInfo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-              <div class="routing-pill">
-                <span class="routing-pill-kicker">Twilio number</span>
-                <span class="routing-pill-value" id="routingPhone">Not assigned</span>
-                <span class="routing-pill-hint">SMS &amp; voicemails arrive here. Assigned by your administrator.</span>
-              </div>
-              <div class="routing-pill">
-                <span class="routing-pill-kicker">Inbound email alias</span>
-                <span class="routing-pill-value" id="routingEmail">Loading...</span>
-                <span class="routing-pill-hint">Auto-generated. Forward your business email here.</span>
-              </div>
+            <div style="margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button class="mm-btn mm-btn-primary" id="contactSaveBtn" onclick="saveNotifSettings()" disabled>Save settings</button>
+              <button class="mm-btn mm-btn-ghost mm-btn-sm" id="testAlertBtn" onclick="sendTestAlert()">Send test alert</button>
+              <div id="testAlertStatus" style="font-size:0.8em;color:var(--text-muted);min-height:1em;"></div>
             </div>
           </div>
 
@@ -5035,6 +5022,61 @@
         } catch (err) { /* keep the last shown value */ }
       }
 
+      // AD2: the contact card. One save, dirty-tracked; values shown
+      // are server-confirmed (repainted from the PUT response, never
+      // assumed). Phone is stored E.164 and displayed (443) 555-0199
+      // style; the client normalizer mirrors lib/phone.js for fast
+      // feedback, but the server's copy is authoritative.
+      let _contactSaved = null;
+
+      function _contactFormatPhone(e164) {
+        const d = String(e164 || '').replace(/\D/g, '');
+        if (d.length === 11 && d[0] === '1') {
+          return '(' + d.slice(1, 4) + ') ' + d.slice(4, 7) + '-' + d.slice(7);
+        }
+        return e164 || '';
+      }
+
+      function _contactNormalizePhone(raw) {
+        const s2 = String(raw || '').trim();
+        const digits = s2.replace(/\D/g, '');
+        if (digits.length === 10) return '+1' + digits;
+        if (digits.length === 11 && digits[0] === '1') return '+' + digits;
+        if (s2.startsWith('+') && digits.length > 11) return '+' + digits;
+        return null;
+      }
+
+      function _contactSetStatus(text, color) {
+        const el = document.getElementById('contactSaveStatus');
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.color = color || 'var(--text-muted)';
+      }
+
+      function _contactFieldError(inputId, errId, msg) {
+        const input = document.getElementById(inputId);
+        const err = document.getElementById(errId);
+        if (input) input.classList.add('mm-invalid');
+        if (err) { err.textContent = msg; err.style.display = 'block'; }
+      }
+
+      function _contactClearErrors() {
+        for (const [inputId, errId] of [['notifEmail', 'notifEmailError'], ['alertPhone', 'alertPhoneError']]) {
+          const input = document.getElementById(inputId);
+          const err = document.getElementById(errId);
+          if (input) input.classList.remove('mm-invalid');
+          if (err) err.style.display = 'none';
+        }
+        const banner = document.getElementById('contactSaveBanner');
+        if (banner) banner.style.display = 'none';
+      }
+
+      function contactMarkDirty() {
+        const btn = document.getElementById('contactSaveBtn');
+        if (btn) btn.disabled = false;
+        _contactClearErrors();
+      }
+
       async function loadNotifSettings() {
         const data = await api('settings');
         if (!data) return;
@@ -5043,14 +5085,16 @@
         const thumb = document.getElementById('notifToggleThumb');
         toggle.checked = data.notifications_enabled !== false;
         document.getElementById('notifEmail').value = data.notification_email || '';
-        // Sub-step C: alert_phone for Layer 1 emergency SMS.
         const alertEl = document.getElementById('alertPhone');
-        if (alertEl) alertEl.value = data.alert_phone || '';
+        if (alertEl) alertEl.value = data.alert_phone ? _contactFormatPhone(data.alert_phone) : '';
         updateNotifToggleUI(toggle.checked, track, thumb);
-
-        // Populate routing info
-        document.getElementById('routingPhone').textContent = data.twilio_phone_number || 'Not assigned — contact admin';
-        document.getElementById('routingEmail').textContent = data.inbound_email_alias || 'Not assigned';
+        _contactSaved = {
+          email: data.notification_email || '',
+          phone_e164: data.alert_phone || '',
+          enabled: toggle.checked,
+        };
+        const btn = document.getElementById('contactSaveBtn');
+        if (btn) btn.disabled = true;
       }
 
       function updateNotifToggleUI(on, track, thumb) {
@@ -5062,24 +5106,104 @@
         updateNotifToggleUI(this.checked,
           document.getElementById('notifToggleTrack'),
           document.getElementById('notifToggleThumb'));
+        contactMarkDirty();
       });
 
       async function saveNotifSettings() {
-        const notification_email = document.getElementById('notifEmail').value.trim();
-        const notifications_enabled = document.getElementById('notifToggle').checked;
-        // Sub-step C: include alert_phone in the same save. The PUT
-        // endpoint treats the alert_phone key as opt-in (only updates
-        // when present in the body), so other callers like onboarding
-        // that only send notification_email aren't affected.
-        const alertEl = document.getElementById('alertPhone');
-        const alert_phone = alertEl ? alertEl.value.trim() : '';
-        const result = await api('settings', 'PUT', { notification_email, notifications_enabled, alert_phone });
-        if (result) {
-          const msg = document.getElementById('notifSaveMsg');
-          msg.style.display = 'block';
-          setTimeout(() => msg.style.display = 'none', 3000);
-          notifEmailDirty = false;
+        const emailEl = document.getElementById('notifEmail');
+        const phoneEl = document.getElementById('alertPhone');
+        const btn = document.getElementById('contactSaveBtn');
+        const banner = document.getElementById('contactSaveBanner');
+        const notification_email = emailEl.value.trim();
+        const rawPhone = phoneEl ? phoneEl.value.trim() : '';
+        _contactClearErrors();
+
+        // client-side shape checks — fast feedback; the server enforces
+        // the same rules authoritatively
+        let bad = false;
+        if (notification_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notification_email)) {
+          _contactFieldError('notifEmail', 'notifEmailError', "That email address doesn't look valid");
+          bad = true;
         }
+        if (rawPhone && !_contactNormalizePhone(rawPhone)) {
+          _contactFieldError('alertPhone', 'alertPhoneError', 'Alert phone needs at least 10 digits');
+          bad = true;
+        }
+        if (bad) return;
+
+        if (btn) btn.disabled = true;
+        _contactSetStatus('Saving...');
+        try {
+          const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              notification_email,
+              notifications_enabled: document.getElementById('notifToggle').checked,
+              alert_phone: rawPhone,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            _contactSetStatus('');
+            if (btn) btn.disabled = false;
+            if (data.field === 'notification_email') {
+              _contactFieldError('notifEmail', 'notifEmailError', data.error || 'Invalid email');
+            } else if (data.field === 'alert_phone') {
+              _contactFieldError('alertPhone', 'alertPhoneError', data.error || 'Invalid phone');
+            } else if (banner) {
+              banner.textContent = 'Could not save: ' + (data.error || 'HTTP ' + res.status);
+              banner.style.display = 'block';
+            }
+            return;
+          }
+          // server truth only: repaint from the response
+          emailEl.value = data.notification_email || '';
+          if (phoneEl) phoneEl.value = data.alert_phone ? _contactFormatPhone(data.alert_phone) : '';
+          _contactSaved = {
+            email: data.notification_email || '',
+            phone_e164: data.alert_phone || '',
+            enabled: data.notifications_enabled !== false,
+          };
+          _contactSetStatus('Saved!', 'var(--success)');
+          setTimeout(() => _contactSetStatus(''), 3000);
+        } catch (err) {
+          _contactSetStatus('');
+          if (btn) btn.disabled = false;
+          if (banner) {
+            banner.textContent = 'Could not save: ' + (err.message || err);
+            banner.style.display = 'block';
+          }
+        }
+      }
+
+      // AD2: fires the REAL owner-alert routing (same lib as emergencies
+      // and approval pings) with a harmless message. Server rate-limits
+      // to one per minute.
+      async function sendTestAlert() {
+        const btn = document.getElementById('testAlertBtn');
+        const st = document.getElementById('testAlertStatus');
+        const set = (text, color) => { if (st) { st.textContent = text; st.style.color = color || 'var(--text-muted)'; } };
+        if (btn) btn.disabled = true;
+        set('Sending test...');
+        try {
+          const res = await fetch('/api/settings/test-alert', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 429) {
+            set(data.error || 'One test per minute.', 'var(--warning)');
+          } else if (!res.ok) {
+            set('Test failed: ' + (data.error || 'HTTP ' + res.status), 'var(--danger)');
+          } else if (data.sent === 'sms') {
+            set('Test sent by text — check your phone.', 'var(--success)');
+          } else if (data.sent === 'email') {
+            set('Test sent by email — check your inbox.', 'var(--success)');
+          } else {
+            set('No reachable channel — add an alert phone or notification email, then save.', 'var(--warning)');
+          }
+        } catch (err) {
+          set('Test failed: ' + (err.message || err), 'var(--danger)');
+        }
+        if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
       }
 
       // ============================================================
