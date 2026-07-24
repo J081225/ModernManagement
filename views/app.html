@@ -3289,6 +3289,34 @@
 
             <div id="credBanner" class="mm-banner mm-banner-danger" style="display:none;margin-bottom:14px;"></div>
 
+            <!-- AD3 c3: username — the login key. Re-authed change;
+                 uniqueness messages are honest (semi-public
+                 identifier). -->
+            <div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+              <label class="mm-label">Username</label>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span id="credUsernameCurrent" style="color:var(--text-primary);font-size:0.95em;font-weight:600;">Loading...</span>
+                <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="credToggleUsernameForm(true)">Change</button>
+              </div>
+              <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">You sign in with this. Changes take effect immediately.</div>
+              <div id="credUsernameForm" style="display:none;margin-top:12px;max-width:420px;">
+                <div>
+                  <label class="mm-label" for="credNewUsername">New username</label>
+                  <input type="text" id="credNewUsername" class="mm-input" maxlength="30" autocomplete="username" />
+                  <div class="mm-field-error" id="credNewUsernameError" style="display:none;"></div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">3-30 characters: lowercase letters, numbers, underscores.</div>
+                </div>
+                <div style="margin-top:12px;">
+                  <label class="mm-label" for="credUsernamePw">Current password</label>
+                  <input type="password" id="credUsernamePw" class="mm-input" autocomplete="current-password" />
+                </div>
+                <div style="margin-top:14px;display:flex;gap:10px;">
+                  <button class="mm-btn mm-btn-primary" id="credUsernameSaveBtn" onclick="credChangeUsername()">Change username</button>
+                  <button class="mm-btn mm-btn-ghost" onclick="credToggleUsernameForm(false)">Cancel</button>
+                </div>
+              </div>
+            </div>
+
             <!-- AD3 c2: account email — the RESET KEY (users.email),
                  deliberately labeled to never be confused with AD2's
                  notification email one card above (look-first c: three
@@ -5508,6 +5536,8 @@
         if (!data) return;
         const cur = document.getElementById('credEmailCurrent');
         if (cur) cur.textContent = data.has_email ? data.email_masked : 'No email on file';
+        const un = document.getElementById('credUsernameCurrent');
+        if (un) un.textContent = data.username || '';
         window._credUsername = data.username || '';
         const pending = document.getElementById('credEmailPending');
         if (pending) {
@@ -5530,6 +5560,68 @@
           if (pw) pw.value = '';
           const err = document.getElementById('credNewEmailError');
           if (err) err.style.display = 'none';
+        }
+      }
+
+      function credToggleUsernameForm(open) {
+        const form = document.getElementById('credUsernameForm');
+        if (form) form.style.display = open ? 'block' : 'none';
+        if (open) {
+          const el = document.getElementById('credNewUsername');
+          if (el) { el.value = ''; el.classList.remove('mm-invalid'); }
+          const pw = document.getElementById('credUsernamePw');
+          if (pw) pw.value = '';
+          const err = document.getElementById('credNewUsernameError');
+          if (err) err.style.display = 'none';
+        }
+      }
+
+      async function credChangeUsername() {
+        const unEl = document.getElementById('credNewUsername');
+        const errEl = document.getElementById('credNewUsernameError');
+        const banner = document.getElementById('credBanner');
+        const btn = document.getElementById('credUsernameSaveBtn');
+        const newUsername = unEl.value.trim();
+        if (errEl) errEl.style.display = 'none';
+        unEl.classList.remove('mm-invalid');
+        if (banner) banner.style.display = 'none';
+        if (!/^[a-z0-9_]{3,30}$/.test(newUsername)) {
+          unEl.classList.add('mm-invalid');
+          if (errEl) { errEl.textContent = '3-30 characters: lowercase letters, numbers, underscores.'; errEl.style.display = 'block'; }
+          return;
+        }
+        if (btn) btn.disabled = true;
+        _credSetStatus('Saving...');
+        try {
+          const res = await fetch('/api/credentials/change-username', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              new_username: newUsername,
+              current_password: document.getElementById('credUsernamePw').value,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          _credSetStatus('');
+          if (!res.ok) {
+            if (data.field === 'new_username') {
+              unEl.classList.add('mm-invalid');
+              if (errEl) { errEl.textContent = data.error; errEl.style.display = 'block'; }
+            } else if (banner) {
+              banner.textContent = data.error || 'Could not change username.';
+              banner.style.display = 'block';
+            }
+            return;
+          }
+          credToggleUsernameForm(false);
+          await loadCredentials();
+          _credSetStatus('Username changed.', 'var(--success)');
+          setTimeout(() => _credSetStatus(''), 4000);
+        } catch (err) {
+          _credSetStatus('');
+          if (banner) { banner.textContent = 'Could not change username: ' + (err.message || err); banner.style.display = 'block'; }
+        } finally {
+          if (btn) btn.disabled = false;
         }
       }
 

@@ -1511,6 +1511,36 @@ app.post('/api/credentials/cancel-email-change', requireAuth, async (req, res) =
   res.status(result.status).json(result.body);
 });
 
+// AD3 c3: username change. Re-authed; uniqueness is honest (username
+// is the login key and semi-public, unlike emails). Login keys on the
+// new name immediately — it queries by username at POST /api/login —
+// and sessions are untouched (they carry userId).
+app.post('/api/credentials/change-username', requireAuth, async (req, res) => {
+  const result = await credentials.changeUsername(
+    pool, req.session.userId, req.body || {}, _credAttempts, Date.now()
+  );
+  if (!result.changed) return res.status(result.status).json(result.body);
+  req.session.username = result.newUsername;
+  if (result.notifyEmail) {
+    try {
+      await sgMail.send({
+        to: result.notifyEmail,
+        from: _accountMailFrom,
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: 'Your Modern Management username was changed',
+        text: 'Your login username was just changed.\n\n' +
+          "If this wasn't you, reset your password now at " +
+          _publicBaseUrl() + '/forgot-password and contact support.',
+      });
+    } catch (err) {
+      console.error('[credentials] username-change notice failed:', err.message);
+    }
+  } else {
+    console.error('[credentials] username changed but no email on file for user', req.session.userId, '— notice skipped');
+  }
+  res.json(result.body);
+});
+
 // PUBLIC: the verification link target. Server-rendered minimal page —
 // the palette mirrors the account-mail templates (this is a standalone
 // public page, not the app shell). Confirmation notices go to BOTH
