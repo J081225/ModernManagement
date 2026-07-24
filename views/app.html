@@ -3230,6 +3230,41 @@
             </div>
           </div>
 
+          <!-- AD2 c2: the business's contact identity — what customers
+               use, distinct from the owner's personal contact above.
+               READ-ONLY by design: the phone is the WORKSPACE copy
+               (workspaces.twilio_phone_number), the one live routing
+               reads. Changing a provisioned number is a real operation
+               (Twilio, A2P, customers who saved it) — no edit
+               affordance, no fake UI. -->
+          <div class="mm-card" style="margin-top:20px;">
+            <div class="mm-card-header">
+              <div class="mm-card-title">Your business's contact identity</div>
+            </div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">What customers see and use — distinct from your personal contact above. Contact support to change your business number; changing a provisioned number affects Twilio, A2P registration, and customers who saved it.</div>
+
+            <div id="bizNoPhoneBanner" class="mm-banner mm-banner-warning" style="display:none;margin-bottom:14px;">Your business number isn't set up yet — customers can't text or call until provisioning completes.</div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;" id="bizIdentityGrid">
+              <div class="routing-pill">
+                <span class="routing-pill-kicker">Business phone</span>
+                <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span class="routing-pill-value" id="bizPhoneValue">Loading...</span>
+                  <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizPhoneCopy" onclick="copyBizValue('bizPhoneValue', this)" aria-label="Copy business phone number" style="display:none;">Copy</button>
+                </span>
+                <span class="routing-pill-hint">Customers text and call this number. SMS and voicemails route to your inbox.</span>
+              </div>
+              <div class="routing-pill">
+                <span class="routing-pill-kicker">Outbound email</span>
+                <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <span class="routing-pill-value" id="bizEmailValue" style="overflow-wrap:anywhere;">Loading...</span>
+                  <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizEmailCopy" onclick="copyBizValue('bizEmailValue', this)" aria-label="Copy outbound email address" style="display:none;">Copy</button>
+                </span>
+                <span class="routing-pill-hint" id="bizEmailHint">Your AI assistant's email replies send from this address.</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Credentials — username & password management lands here
                (AD3). No card yet; nothing renders until it exists. -->
 
@@ -5095,6 +5130,41 @@
         };
         const btn = document.getElementById('contactSaveBtn');
         if (btn) btn.disabled = true;
+
+        // AD2 c2: the business identity — workspace-sourced, read-only.
+        // business_phone is the copy live routing reads; NULL renders
+        // the honest not-set-up banner, never a dash pretending it's
+        // fine.
+        const bizPhone = document.getElementById('bizPhoneValue');
+        if (bizPhone) {
+          const copyBtn = document.getElementById('bizPhoneCopy');
+          const noPhone = document.getElementById('bizNoPhoneBanner');
+          if (data.business_phone) {
+            bizPhone.textContent = _contactFormatPhone(data.business_phone);
+            bizPhone.dataset.copy = data.business_phone;
+            if (copyBtn) copyBtn.style.display = '';
+            if (noPhone) noPhone.style.display = 'none';
+          } else {
+            bizPhone.textContent = 'Not set up yet';
+            delete bizPhone.dataset.copy;
+            if (copyBtn) copyBtn.style.display = 'none';
+            if (noPhone) noPhone.style.display = 'block';
+          }
+        }
+        const bizEmail = document.getElementById('bizEmailValue');
+        if (bizEmail) {
+          const copyBtn = document.getElementById('bizEmailCopy');
+          const hint = document.getElementById('bizEmailHint');
+          if (data.outbound_email) {
+            bizEmail.textContent = data.outbound_email;
+            bizEmail.dataset.copy = data.outbound_email;
+            if (hint) hint.textContent = 'Replies you write send from your connected account. Your AI assistant replies from ' + data.platform_from + '.';
+          } else {
+            bizEmail.textContent = data.platform_from || '';
+            if (data.platform_from) bizEmail.dataset.copy = data.platform_from;
+          }
+          if (copyBtn) copyBtn.style.display = bizEmail.dataset.copy ? '' : 'none';
+        }
       }
 
       function updateNotifToggleUI(on, track, thumb) {
@@ -5175,6 +5245,22 @@
             banner.style.display = 'block';
           }
         }
+      }
+
+      // AD2 c2: copy an identity value. Icon-free text button with an
+      // aria-label; transient confirmation, honest failure.
+      async function copyBizValue(valueId, btn) {
+        const el = document.getElementById(valueId);
+        const text = (el && el.dataset.copy) || '';
+        if (!text) return;
+        const label = btn.textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'Copied!';
+        } catch (err) {
+          btn.textContent = 'Copy failed';
+        }
+        setTimeout(() => { btn.textContent = label; }, 1600);
       }
 
       // AD2: fires the REAL owner-alert routing (same lib as emergencies

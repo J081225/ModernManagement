@@ -1314,10 +1314,34 @@ async function sendPushNotification(userId, message) {
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT notification_email, notifications_enabled, twilio_phone_number, inbound_email_alias, alert_phone FROM users WHERE id=$1', [req.session.userId]
+    'SELECT notification_email, notifications_enabled, inbound_email_alias, alert_phone FROM users WHERE id=$1', [req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
-  res.json(rows[0]);
+  // AD2 c2: business_phone is the WORKSPACE copy — the one live routing
+  // actually reads (inbound lookupWorkspaceByTwilioNumber, outbound
+  // sends in the engine / receipts / payment-requests). The
+  // users.twilio_phone_number copy is written by NOTHING and has
+  // already drifted (dev ws 17: user copy NULL while routing holds a
+  // number) — it is no longer returned here, and nothing reads it
+  // client-side since AD2 c1. Read-side truth only; no reconciliation,
+  // no writes.
+  const workspaceId = await getWorkspaceId(req);
+  let businessPhone = null;
+  if (workspaceId) {
+    const w = await pool.query('SELECT twilio_phone_number FROM workspaces WHERE id = $1', [workspaceId]);
+    businessPhone = (w.rows[0] && w.rows[0].twilio_phone_number) || null;
+  }
+  // Outbound email identity: replies the owner writes send from the
+  // connected account (sendViaConnectedAccount); AI replies send from
+  // the platform address (appointment-engine, env.SENDGRID_FROM_EMAIL,
+  // same fallback the sendgrid libs hardcode).
+  const acct = await pool.query('SELECT email FROM email_accounts WHERE user_id = $1 LIMIT 1', [req.session.userId]);
+  res.json({
+    ...rows[0],
+    business_phone: businessPhone,
+    outbound_email: (acct.rows[0] && acct.rows[0].email) || null,
+    platform_from: process.env.SENDGRID_FROM_EMAIL || 'noreply@modernmanagementapp.com',
+  });
 });
 
 app.put('/api/settings', requireAuth, async (req, res) => {
