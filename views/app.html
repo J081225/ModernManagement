@@ -3278,8 +3278,39 @@
             </div>
           </div>
 
-          <!-- Credentials — username & password management lands here
-               (AD3). No card yet; nothing renders until it exists. -->
+          <!-- Credentials — AD3. c1: password change. The email row
+               (c2) and username row (c3) land on this same card. -->
+          <div class="mm-card" style="margin-top:20px;">
+            <div class="mm-card-header">
+              <div class="mm-card-title">Credentials</div>
+              <div id="credStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
+            </div>
+            <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">Your login details. Changing your password signs out your other devices.</div>
+
+            <div id="credBanner" class="mm-banner mm-banner-danger" style="display:none;margin-bottom:14px;"></div>
+
+            <div style="max-width:420px;">
+              <div>
+                <label class="mm-label" for="credCurrent">Current password</label>
+                <input type="password" id="credCurrent" class="mm-input" autocomplete="current-password" oninput="credMarkDirty()" />
+                <div class="mm-field-error" id="credCurrentError" style="display:none;"></div>
+              </div>
+              <div style="margin-top:14px;">
+                <label class="mm-label" for="credNew">New password</label>
+                <input type="password" id="credNew" class="mm-input" autocomplete="new-password" oninput="credMarkDirty()" />
+                <div class="mm-field-error" id="credNewError" style="display:none;"></div>
+                <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">At least 8 characters.</div>
+              </div>
+              <div style="margin-top:14px;">
+                <label class="mm-label" for="credConfirm">Confirm new password</label>
+                <input type="password" id="credConfirm" class="mm-input" autocomplete="new-password" oninput="credMarkDirty()" />
+                <div class="mm-field-error" id="credConfirmError" style="display:none;"></div>
+              </div>
+              <div style="margin-top:18px;">
+                <button class="mm-btn mm-btn-primary" id="credPwBtn" onclick="submitPasswordChange()" disabled>Change password</button>
+              </div>
+            </div>
+          </div>
 
           <!-- Subscription (Session D5 card; Stripe portal actions) -->
           <div class="mm-card" style="margin-top:20px;" id="planUsageCard">
@@ -5319,6 +5350,101 @@
           set('Test failed: ' + (err.message || err), 'var(--danger)');
         }
         if (btn) setTimeout(() => { btn.disabled = false; }, 1500);
+      }
+
+      // ============================================================
+      // AD3 — credentials card
+      // ============================================================
+      // Password change: three fields, one button, generic server
+      // messages surfaced as-is (the server never distinguishes
+      // wrong-password from anything else, and neither do we).
+      function _credSetStatus(text, color) {
+        const el = document.getElementById('credStatus');
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.color = color || 'var(--text-muted)';
+      }
+
+      function _credClearErrors() {
+        for (const [inputId, errId] of [['credCurrent', 'credCurrentError'], ['credNew', 'credNewError'], ['credConfirm', 'credConfirmError']]) {
+          const input = document.getElementById(inputId);
+          const err = document.getElementById(errId);
+          if (input) input.classList.remove('mm-invalid');
+          if (err) err.style.display = 'none';
+        }
+        const banner = document.getElementById('credBanner');
+        if (banner) banner.style.display = 'none';
+      }
+
+      function _credFieldError(inputId, errId, msg) {
+        const input = document.getElementById(inputId);
+        const err = document.getElementById(errId);
+        if (input) input.classList.add('mm-invalid');
+        if (err) { err.textContent = msg; err.style.display = 'block'; }
+      }
+
+      function credMarkDirty() {
+        _credClearErrors();
+        const btn = document.getElementById('credPwBtn');
+        if (!btn) return;
+        const cur = document.getElementById('credCurrent').value;
+        const nw = document.getElementById('credNew').value;
+        const cf = document.getElementById('credConfirm').value;
+        btn.disabled = !(cur && nw && cf);
+      }
+
+      async function submitPasswordChange() {
+        const btn = document.getElementById('credPwBtn');
+        const banner = document.getElementById('credBanner');
+        const nw = document.getElementById('credNew').value;
+        const cf = document.getElementById('credConfirm').value;
+        _credClearErrors();
+        if (nw.length < 8) {
+          _credFieldError('credNew', 'credNewError', 'At least 8 characters.');
+          return;
+        }
+        if (nw !== cf) {
+          _credFieldError('credConfirm', 'credConfirmError', "New passwords don't match.");
+          return;
+        }
+        if (btn) btn.disabled = true;
+        _credSetStatus('Saving...');
+        try {
+          const res = await fetch('/api/credentials/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              current_password: document.getElementById('credCurrent').value,
+              new_password: nw,
+              confirm_password: cf,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            _credSetStatus('');
+            if (data.field === 'new_password') {
+              _credFieldError('credNew', 'credNewError', data.error);
+            } else if (data.field === 'confirm_password') {
+              _credFieldError('credConfirm', 'credConfirmError', data.error);
+            } else if (banner) {
+              banner.textContent = data.error || 'Could not change password (HTTP ' + res.status + ').';
+              banner.style.display = 'block';
+            }
+            credMarkDirty();
+            return;
+          }
+          for (const id of ['credCurrent', 'credNew', 'credConfirm']) document.getElementById(id).value = '';
+          const n = data.other_sessions_ended || 0;
+          _credSetStatus('Password changed' + (n ? ' — ' + n + ' other session' + (n === 1 ? '' : 's') + ' signed out.' : '.'), 'var(--success)');
+          setTimeout(() => _credSetStatus(''), 6000);
+        } catch (err) {
+          _credSetStatus('');
+          if (banner) {
+            banner.textContent = 'Could not change password: ' + (err.message || err);
+            banner.style.display = 'block';
+          }
+          credMarkDirty();
+        }
       }
 
       // ============================================================

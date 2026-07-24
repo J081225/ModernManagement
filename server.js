@@ -1360,6 +1360,54 @@ app.put('/api/settings', requireAuth, async (req, res) => {
 // In-memory rate limit: one test per minute per user (decision logic in
 // lib/contact-settings.testAlertGate). Resets on restart, which is fine
 // for a courtesy limiter on a self-serve test.
+// AD3: one shared oracle gate for everything that verifies the current
+// password (password change, and c2/c3's re-authed flows) — 5 attempts
+// per 15 minutes per user, counted across all of them.
+const _credAttempts = new Map();
+
+// AD3 c1: logged-in password change.
+app.post('/api/credentials/change-password', requireAuth, async (req, res) => {
+  const result = await credentials.changePassword(
+    pool, req.session.userId, req.body || {}, _credAttempts, Date.now(),
+    { rounds: BCRYPT_ROUNDS } // same cost factor as login/signup hashes
+  );
+  if (!result.changed) return res.status(result.status).json(result.body);
+
+  // Look-first (a): pg session store -> ending other sessions IS
+  // possible. Keep the current one; kill the rest.
+  let endedSessions = 0;
+  try {
+    endedSessions = await credentials.endOtherSessions(pool, req.session.userId, req.sessionID);
+  } catch (err) {
+    console.error('[credentials] end-other-sessions failed:', err.message);
+  }
+
+  // Security notice on the account-mail path (direct send, the
+  // reset-mail pattern). IGNORES notifications_enabled by
+  // construction — this send never consults it. No email on file ->
+  // logged honestly; nothing else we can do.
+  if (result.notifyEmail) {
+    try {
+      await sgMail.send({
+        to: result.notifyEmail,
+        from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        subject: 'Your Modern Management password was changed',
+        text: 'Your password was just changed. Other signed-in devices were signed out.\n\n' +
+          'If this was not you, reset your password now at ' +
+          ((process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '')) + '/forgot-password' +
+          ' and contact support.',
+      });
+    } catch (err) {
+      console.error('[credentials] password-change notice failed:', err.message);
+    }
+  } else {
+    console.error('[credentials] password changed but no email on file for user', req.session.userId, '— notice skipped');
+  }
+
+  res.json({ success: true, other_sessions_ended: endedSessions });
+});
+
 const _testAlertLast = new Map();
 app.post('/api/settings/test-alert', requireAuth, async (req, res) => {
   const gate = testAlertGate(_testAlertLast, req.session.userId, Date.now());
@@ -5840,6 +5888,9 @@ const { sendOwnerAlert } = require('./lib/owner-alert');
 // the test-alert limiter) so the suite drives the real path; the
 // endpoints below are thin adapters over it — still the ONE save path.
 const { saveContactSettings, testAlertGate } = require('./lib/contact-settings');
+// AD3: credential-change core (oracle gate, generic re-auth, hashed
+// verification tokens) — endpoints below are thin adapters.
+const credentials = require('./lib/credentials');
 const { persistOutboundMessage } = require('./lib/outbound-persist');
 const readState = require('./lib/read-state');
 const expensesLib = require('./lib/expenses');
