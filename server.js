@@ -1185,14 +1185,18 @@ async function sendNotificationEmail(userId, message) {
   try {
     // Get user's notification settings
     const { rows } = await pool.query(
-      'SELECT notification_email, notifications_enabled FROM users WHERE id=$1', [userId]
+      'SELECT notification_email, notifications_enabled, notification_email_verified_at FROM users WHERE id=$1', [userId]
     );
     if (!rows.length) return;
     const user = rows[0];
     if (!user.notifications_enabled) return;
 
     // Fall back to env var for admin if no email set
-    const toEmail = user.notification_email ||
+    // AD5 (Law 2): an unverified notification_email is treated as
+    // absent — new-message notices pause until it's verified (this
+    // sender never had a fallback; the card copy says "set and
+    // verified"). Grandfathered rows were stamped by migration 059.
+    const toEmail = (user.notification_email_verified_at ? user.notification_email : null) ||
       (userId === 1 ? (process.env.NOTIFICATION_EMAIL || process.env.SENDGRID_FROM_EMAIL) : null);
     if (!toEmail) return;
 

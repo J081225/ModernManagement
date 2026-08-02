@@ -26,14 +26,21 @@ function makeDb(users) {
   return {
     query: async (sql, params) => {
       if (sql.includes('UPDATE users')) {
-        const id = params[params.length - 1];
+        // AD5 shapes: [email, enabled, phone, id, emailChg, phoneChg]
+        // or [email, enabled, id, emailChg]; the CASE params clear
+        // verified_at when the value changed.
+        const hasPhone = sql.includes('alert_phone = $3');
+        const id = hasPhone ? params[3] : params[2];
         const u = users.get(id);
         if (!u) return { rows: [] };
         u.notification_email = params[0];
         u.notifications_enabled = params[1];
-        if (sql.includes('alert_phone = $3')) u.alert_phone = params[2];
+        if (hasPhone) u.alert_phone = params[2];
+        const emailChg = hasPhone ? params[4] : params[3];
+        if (emailChg) u.notification_email_verified_at = null;
+        if (hasPhone && params[5]) u.alert_phone_verified_at = null;
         const row = { notification_email: u.notification_email, notifications_enabled: u.notifications_enabled };
-        if (sql.includes('alert_phone = $3')) row.alert_phone = u.alert_phone;
+        if (hasPhone) row.alert_phone = u.alert_phone;
         return { rows: [row] };
       }
       if (sql.includes('SELECT id, alert_phone, notification_email, email, notifications_enabled')) {
@@ -175,13 +182,13 @@ function makeChannels(opts = {}) {
 
   // ---- CS10: phone-first, email on SMS failure — chain order intact ----
   {
-    const users = new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: true }]]);
+    const users = new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: true, alert_phone_verified_at: '2026-07-01T00:00:00Z', notification_email_verified_at: '2026-07-01T00:00:00Z' }]]);
     const { sent, ctx } = makeChannels();
     ctx.db = makeDb(users);
     const got = await sendOwnerAlert(ctx, 7, { smsBody: 'x', emailSubject: 's', respectEnabled: false });
     const c1 = got === 'sms' && sent[0].channel === 'sms' && sent[0].to === '+14435550199';
     const fx2 = makeChannels({ smsFails: true });
-    fx2.ctx.db = makeDb(new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: true }]]));
+    fx2.ctx.db = makeDb(new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: true, alert_phone_verified_at: '2026-07-01T00:00:00Z', notification_email_verified_at: '2026-07-01T00:00:00Z' }]]));
     const got2 = await sendOwnerAlert(fx2.ctx, 7, { smsBody: 'x', emailSubject: 's', respectEnabled: false });
     const c2 = got2 === 'email' && fx2.sent[0].to === 'n@a.test';
     check('CS10: phone first; SMS failure falls back to notification email', c1 && c2, JSON.stringify({ got, got2 }));
@@ -189,7 +196,7 @@ function makeChannels(opts = {}) {
 
   // ---- CS11: the toggle truth — respectEnabled honored, emergencies not silenced ----
   {
-    const mk = () => new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: false }]]);
+    const mk = () => new Map([[7, { alert_phone: '+14435550199', notification_email: 'n@a.test', email: 'acct@a.test', notifications_enabled: false, alert_phone_verified_at: '2026-07-01T00:00:00Z', notification_email_verified_at: '2026-07-01T00:00:00Z' }]]);
     const a = makeChannels(); a.ctx.db = makeDb(mk());
     const gotRespect = await sendOwnerAlert(a.ctx, 7, { smsBody: 'x', emailSubject: 's', respectEnabled: true });
     const b = makeChannels(); b.ctx.db = makeDb(mk());
