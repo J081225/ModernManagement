@@ -7,8 +7,12 @@
 // WORKSPACE copy (the c2 drift finding must not silently regress).
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
 const { saveContactSettings, testAlertGate } = require(path.join(__dirname, '..', 'lib', 'contact-settings'));
 const { sendOwnerAlert } = require(path.join(__dirname, '..', 'lib', 'owner-alert'));
+const credentials = require(path.join(__dirname, '..', 'lib', 'credentials'));
+
+const ROUNDS = 4; // fast fixture hashes; the server uses BCRYPT_ROUNDS=10
 
 let pass = 0, fail = 0;
 function check(name, ok, detail) {
@@ -35,6 +39,16 @@ function makeDb(users) {
       if (sql.includes('SELECT id, alert_phone, notification_email, email, notifications_enabled')) {
         const u = users.get(params[0]);
         return { rows: u ? [{ id: params[0], ...u }] : [] };
+      }
+      // AD4: the stored-values read that decides change-of-set
+      if (sql.includes('SELECT notification_email, alert_phone FROM users')) {
+        const u = users.get(params[0]);
+        return { rows: u ? [{ notification_email: u.notification_email || null, alert_phone: u.alert_phone || null }] : [] };
+      }
+      // AD4: lib/credentials._reauth's user read
+      if (sql.includes('SELECT id, username, password_hash, email FROM users')) {
+        const u = users.get(params[0]);
+        return { rows: u ? [{ id: params[0], username: u.username || 'u', password_hash: u.password_hash || '', email: u.email || '' }] : [] };
       }
       throw new Error('unexpected SQL: ' + sql.slice(0, 60));
     },
@@ -64,6 +78,8 @@ function makeChannels(opts = {}) {
 }
 
 (async () => {
+  const HASH = await bcrypt.hash('right-horse-4', ROUNDS);
+
   // ---- CS1: round-trip — save then read back, phone stored E.164 ----
   {
     const users = new Map([[7, { notification_email: null, notifications_enabled: true, alert_phone: null, email: 'acct@a.test' }]]);
@@ -112,9 +128,11 @@ function makeChannels(opts = {}) {
   }
 
   // ---- CS6: clearing stores NULL, never '' ----
+  // (AD4: clearing a SET value is a change — the body now carries the
+  // password, which is itself part of the row's proof.)
   {
-    const users = new Map([[7, { notification_email: 'old@a.test', notifications_enabled: true, alert_phone: '+14435550199' }]]);
-    const r = await saveContactSettings(makeDb(users), 7, { notification_email: '', notifications_enabled: true, alert_phone: '' });
+    const users = new Map([[7, { notification_email: 'old@a.test', notifications_enabled: true, alert_phone: '+14435550199', password_hash: HASH }]]);
+    const r = await saveContactSettings(makeDb(users), 7, { notification_email: '', notifications_enabled: true, alert_phone: '', current_password: 'right-horse-4' }, new Map());
     const u = users.get(7);
     check('CS6: cleared fields stored as NULL (not empty string)',
       r.status === 200 && u.notification_email === null && u.alert_phone === null
@@ -196,11 +214,11 @@ function makeChannels(opts = {}) {
   // ---- CS13: isolation — A's save never touches B ----
   {
     const users = new Map([
-      [7, { notification_email: 'a@a.test', notifications_enabled: true, alert_phone: '+14435550100' }],
+      [7, { notification_email: 'a@a.test', notifications_enabled: true, alert_phone: '+14435550100', password_hash: HASH }],
       [8, { notification_email: 'b@b.test', notifications_enabled: true, alert_phone: '+14435550200' }],
     ]);
     const before = JSON.stringify(users.get(8));
-    await saveContactSettings(makeDb(users), 7, { notification_email: 'new@a.test', notifications_enabled: false, alert_phone: '' });
+    await saveContactSettings(makeDb(users), 7, { notification_email: 'new@a.test', notifications_enabled: false, alert_phone: '', current_password: 'right-horse-4' }, new Map());
     check("CS13: user A's save leaves user B's row byte-identical", JSON.stringify(users.get(8)) === before);
   }
 
@@ -219,6 +237,92 @@ function makeChannels(opts = {}) {
     check('CS14: GET /api/settings sources business_phone from workspaces; users copy not selected',
       Boolean(getStart !== -1 && readsWorkspace && usersCopyGone),
       JSON.stringify({ readsWorkspace, usersSelect: usersSelect && usersSelect[0].slice(0, 80) }));
+  }
+
+  // ================= AD4 — Law 1 on the contact save path =================
+  const setUser = () => new Map([[7, {
+    notification_email: 'set@a.test', notifications_enabled: true,
+    alert_phone: '+14435550199', password_hash: HASH, email: 'acct@a.test',
+  }]]);
+
+  // ---- CS15: change-of-set with NO password -> 403, the generic sentence ----
+  {
+    const r = await saveContactSettings(makeDb(setUser()), 7, {
+      notification_email: 'moved@b.test', notifications_enabled: true, alert_phone: '(443) 555-0199',
+    }, new Map());
+    check('CS15: changing a set email with no password -> 403 + the generic sentence',
+      r.status === 403 && r.body.error === credentials.GENERIC_REAUTH, JSON.stringify(r));
+  }
+
+  // ---- CS16: wrong password -> 403, same sentence, nothing saved ----
+  {
+    const users = setUser();
+    const r = await saveContactSettings(makeDb(users), 7, {
+      notification_email: 'moved@b.test', notifications_enabled: true, alert_phone: '(443) 555-0199',
+      current_password: 'thief-guess',
+    }, new Map());
+    check('CS16: wrong password -> 403 + the same sentence; stored value untouched',
+      r.status === 403 && r.body.error === credentials.GENERIC_REAUTH
+        && users.get(7).notification_email === 'set@a.test', JSON.stringify(r));
+  }
+
+  // ---- CS17: right password -> 200, saved ----
+  {
+    const users = setUser();
+    const r = await saveContactSettings(makeDb(users), 7, {
+      notification_email: 'moved@b.test', notifications_enabled: true, alert_phone: '(443) 555-0199',
+      current_password: 'right-horse-4',
+    }, new Map());
+    check('CS17: right password -> 200, change lands',
+      r.status === 200 && users.get(7).notification_email === 'moved@b.test', JSON.stringify(r));
+  }
+
+  // ---- CS18: first-set (NULL -> value) passes with no password ----
+  // The onboarding proof: a fresh account sets its fields freely.
+  {
+    const users = new Map([[7, { notifications_enabled: true }]]);
+    const r = await saveContactSettings(makeDb(users), 7, {
+      notification_email: 'first@a.test', notifications_enabled: true, alert_phone: '4435550199',
+    }, new Map());
+    check('CS18: first-set of email AND phone passes with no password (onboarding intact)',
+      r.status === 200 && users.get(7).notification_email === 'first@a.test'
+        && users.get(7).alert_phone === '+14435550199', JSON.stringify(r));
+  }
+
+  // ---- CS19: toggle-only save passes; same phone in another format is no change ----
+  {
+    const users = setUser();
+    const r = await saveContactSettings(makeDb(users), 7, {
+      notification_email: 'set@a.test', notifications_enabled: false,
+      alert_phone: '(443) 555-0199', // same number as stored +14435550199
+    }, new Map());
+    check('CS19: toggle flip with identical values (phone reformatted) needs no password',
+      r.status === 200 && users.get(7).notifications_enabled === false
+        && users.get(7).alert_phone === '+14435550199', JSON.stringify(r));
+  }
+
+  // ---- CS20: ONE oracle budget across settings and credentials ----
+  {
+    const shared = new Map();
+    const users = setUser();
+    const db = makeDb(users);
+    for (let i = 0; i < 5; i++) {
+      await saveContactSettings(db, 7, {
+        notification_email: 'moved@b.test', notifications_enabled: true,
+        alert_phone: '(443) 555-0199', current_password: 'thief-guess',
+      }, shared, 1_000_000 + i * 1000);
+    }
+    const sixthSettings = await saveContactSettings(db, 7, {
+      notification_email: 'moved@b.test', notifications_enabled: true,
+      alert_phone: '(443) 555-0199', current_password: 'right-horse-4',
+    }, shared, 1_000_000 + 6000);
+    const pwAttempt = await credentials.changePassword(db, 7, {
+      current_password: 'right-horse-4', new_password: 'brand-new-pw-1', confirm_password: 'brand-new-pw-1',
+    }, shared, 1_000_000 + 7000, { rounds: ROUNDS });
+    check('CS20: 5 settings failures exhaust the SHARED budget — 6th settings try 403, change-password 429, same sentence on both',
+      sixthSettings.status === 403 && sixthSettings.body.error === credentials.GENERIC_REAUTH
+        && pwAttempt.status === 429 && pwAttempt.body.error === credentials.GENERIC_REAUTH,
+      JSON.stringify({ sixthSettings, pwAttempt: pwAttempt.body }));
   }
 
   console.log(`${pass}/${pass + fail} — contact-settings suite ${fail ? 'FAILED' : 'PASSED'}`);
