@@ -3179,16 +3179,44 @@
 
               <div>
                 <div>
-                  <label class="mm-label" for="notifEmail">Notification email</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <label class="mm-label" for="notifEmail">Notification email</label>
+                    <span id="notifEmailBadge" style="display:none;font-size:0.72em;font-weight:600;letter-spacing:0.04em;"></span>
+                  </div>
                   <input type="email" id="notifEmail" class="mm-input" placeholder="you@example.com" maxlength="254" oninput="contactMarkDirty()" />
                   <div class="mm-field-error" id="notifEmailError" style="display:none;"></div>
-                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Approval requests and urgent alerts go here — if blank, they fall back to your account email. New-message notices also arrive here, and only send when this is set.</div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Approval requests and urgent alerts go here — if blank, they fall back to your account email. New-message notices also arrive here, and only send when this is set and verified.</div>
+                  <!-- AD5: shown only while set + unverified. -->
+                  <div id="contactVerifyEmailZone" style="display:none;margin-top:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                      <span id="contactVerifyEmailMsg" style="font-size:0.8em;color:var(--warning);"></span>
+                      <button class="mm-btn mm-btn-ghost mm-btn-sm" id="contactVerifyEmailBtn" onclick="contactSendEmailVerify(this)">Send verification link</button>
+                    </div>
+                  </div>
                 </div>
                 <div style="margin-top:16px;">
-                  <label class="mm-label" for="alertPhone">Alert phone</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <label class="mm-label" for="alertPhone">Alert phone</label>
+                    <span id="alertPhoneBadge" style="display:none;font-size:0.72em;font-weight:600;letter-spacing:0.04em;"></span>
+                  </div>
                   <input type="tel" id="alertPhone" class="mm-input" placeholder="(443) 555-0199" maxlength="32" oninput="contactMarkDirty()" />
                   <div class="mm-field-error" id="alertPhoneError" style="display:none;"></div>
-                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Urgent alerts arrive by text when this is set; otherwise by email.</div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Urgent alerts arrive by email today; text delivery starts when carrier registration clears. Verify your number now so texts start the moment it does.</div>
+                  <!-- AD5: shown only while set + unverified. The code
+                       arrives by VOICE CALL (SMS isn't live pre-A2P). -->
+                  <div id="contactVerifyPhoneZone" style="display:none;margin-top:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                      <span id="contactVerifyPhoneMsg" style="font-size:0.8em;color:var(--warning);"></span>
+                      <button class="mm-btn mm-btn-ghost mm-btn-sm" id="contactCallBtn" onclick="contactCallForCode(this)">Verify by call</button>
+                    </div>
+                    <div id="contactCodeRow" style="display:none;margin-top:8px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <input type="text" id="contactCodeInput" class="mm-input" inputmode="numeric" maxlength="6" placeholder="6-digit code" style="max-width:140px;" aria-label="Verification code from the call" />
+                        <button class="mm-btn mm-btn-primary mm-btn-sm" onclick="contactSubmitCode(this)">Submit code</button>
+                      </div>
+                      <div class="mm-field-error" id="contactCodeError" style="display:none;"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -5240,6 +5268,120 @@
         if (banner) banner.style.display = 'none';
       }
 
+      // AD5: per-field verification truth — badges and zones. The rule
+      // everywhere: an unverified value is one alerts will not use.
+      let _contactVerify = null;
+
+      function _contactRenderVerify(data) {
+        _contactVerify = {
+          email_set: Boolean((data.notification_email || '').trim()),
+          email_verified: Boolean(data.notification_email_verified),
+          phone_set: Boolean((data.alert_phone || '').trim()),
+          phone_verified: Boolean(data.alert_phone_verified),
+          pending: data.pending_verifications || { notification_email: null, alert_phone: null },
+        };
+        const v = _contactVerify;
+        const badge = (el, isSet, verified) => {
+          if (!el) return;
+          if (!isSet) { el.style.display = 'none'; return; }
+          el.style.display = '';
+          el.textContent = verified ? 'Verified' : 'Unverified';
+          el.style.color = verified ? 'var(--success)' : 'var(--warning)';
+        };
+        badge(document.getElementById('notifEmailBadge'), v.email_set, v.email_verified);
+        badge(document.getElementById('alertPhoneBadge'), v.phone_set, v.phone_verified);
+
+        const ez = document.getElementById('contactVerifyEmailZone');
+        if (ez) {
+          const show = v.email_set && !v.email_verified;
+          ez.style.display = show ? 'block' : 'none';
+          if (show) {
+            const pend = v.pending.notification_email;
+            document.getElementById('contactVerifyEmailMsg').textContent = pend
+              ? 'Link sent — check that inbox.'
+              : "Alerts won't use this until you verify it.";
+            document.getElementById('contactVerifyEmailBtn').textContent = pend ? 'Resend link' : 'Send verification link';
+          }
+        }
+        const pz = document.getElementById('contactVerifyPhoneZone');
+        if (pz) {
+          const show = v.phone_set && !v.phone_verified;
+          pz.style.display = show ? 'block' : 'none';
+          if (show) {
+            const pend = v.pending.alert_phone;
+            document.getElementById('contactVerifyPhoneMsg').textContent = pend
+              ? 'Type the code from the call below.'
+              : "Alerts won't use this until you verify it.";
+            document.getElementById('contactCallBtn').textContent = pend ? 'Call again' : 'Verify by call';
+            document.getElementById('contactCodeRow').style.display = pend ? 'block' : 'none';
+          }
+        }
+      }
+
+      async function contactSendEmailVerify(btn) {
+        const label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        try {
+          const res = await fetch('/api/contact-verify/request-email', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          btn.textContent = res.ok ? 'Sent!' : (data.error || 'Failed');
+        } catch (err) {
+          btn.textContent = 'Failed';
+        }
+        setTimeout(() => { btn.disabled = false; btn.textContent = label; loadNotifSettings(); }, 2000);
+      }
+
+      async function contactCallForCode(btn) {
+        const label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Calling...';
+        try {
+          const res = await fetch('/api/contact-verify/call-phone', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            btn.textContent = data.error || 'Failed';
+            setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000);
+            return;
+          }
+          const row = document.getElementById('contactCodeRow');
+          if (row) row.style.display = 'block';
+          const msg = document.getElementById('contactVerifyPhoneMsg');
+          if (msg) msg.textContent = 'Type the code from the call below.';
+          btn.textContent = 'Call again';
+          btn.disabled = false;
+        } catch (err) {
+          btn.textContent = 'Failed';
+          setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000);
+        }
+      }
+
+      async function contactSubmitCode(btn) {
+        const input = document.getElementById('contactCodeInput');
+        const errEl = document.getElementById('contactCodeError');
+        if (errEl) errEl.style.display = 'none';
+        btn.disabled = true;
+        try {
+          const res = await fetch('/api/contact-verify/submit-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: input ? input.value.trim() : '' }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            if (errEl) { errEl.textContent = data.error || 'Code check failed.'; errEl.style.display = 'block'; }
+          } else {
+            if (input) input.value = '';
+            await loadNotifSettings();
+            _contactSetStatus('Phone verified!', 'var(--success)');
+            setTimeout(() => _contactSetStatus(''), 4000);
+          }
+        } catch (err) {
+          if (errEl) { errEl.textContent = 'Code check failed: ' + (err.message || err); errEl.style.display = 'block'; }
+        }
+        btn.disabled = false;
+      }
+
       // AD4: does the current form state change an ALREADY-SET email
       // or phone? (Server enforces the same rule authoritatively —
       // exact-after-trim, phone compared in E.164.)
@@ -5283,6 +5425,7 @@
         if (reauthRow) reauthRow.style.display = 'none';
         const reauthPw = document.getElementById('contactReauthPw');
         if (reauthPw) reauthPw.value = '';
+        _contactRenderVerify(data);
 
         // AD2 c2: the business identity — workspace-sourced, read-only.
         // business_phone is the copy live routing reads; NULL renders
@@ -5425,6 +5568,7 @@
           if (reauthPw) reauthPw.value = '';
           const reauthRowDone = document.getElementById('contactReauthRow');
           if (reauthRowDone) reauthRowDone.style.display = 'none';
+          loadNotifSettings(); // AD5: badges reflect the trust reset
           _contactSetStatus('Saved!', 'var(--success)');
           setTimeout(() => _contactSetStatus(''), 3000);
         } catch (err) {
