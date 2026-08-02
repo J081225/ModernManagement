@@ -3223,6 +3223,17 @@
 
             </div>
 
+            <!-- AD4: revealed only when the save would CHANGE an
+                 already-set email/phone (first-set and toggle-only
+                 saves never see it — onboarding included). Mirrors the
+                 Credentials card idiom one card below. -->
+            <div id="contactReauthRow" style="display:none;margin-top:16px;max-width:420px;">
+              <label class="mm-label" for="contactReauthPw">Current password</label>
+              <input type="password" id="contactReauthPw" class="mm-input" autocomplete="current-password" />
+              <div class="mm-field-error" id="contactReauthError" style="display:none;"></div>
+              <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;">Required to change a notification email or alert phone that's already set.</div>
+            </div>
+
             <div style="margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <button class="mm-btn mm-btn-primary" id="contactSaveBtn" onclick="saveNotifSettings()" disabled>Save settings</button>
               <button class="mm-btn mm-btn-ghost mm-btn-sm" id="testAlertBtn" onclick="sendTestAlert()">Send test alert</button>
@@ -5219,7 +5230,7 @@
       }
 
       function _contactClearErrors() {
-        for (const [inputId, errId] of [['notifEmail', 'notifEmailError'], ['alertPhone', 'alertPhoneError']]) {
+        for (const [inputId, errId] of [['notifEmail', 'notifEmailError'], ['alertPhone', 'alertPhoneError'], ['contactReauthPw', 'contactReauthError']]) {
           const input = document.getElementById(inputId);
           const err = document.getElementById(errId);
           if (input) input.classList.remove('mm-invalid');
@@ -5229,10 +5240,25 @@
         if (banner) banner.style.display = 'none';
       }
 
+      // AD4: does the current form state change an ALREADY-SET email
+      // or phone? (Server enforces the same rule authoritatively —
+      // exact-after-trim, phone compared in E.164.)
+      function _contactChangesSetField() {
+        if (!_contactSaved) return false;
+        const email = document.getElementById('notifEmail').value.trim();
+        const phoneRaw = document.getElementById('alertPhone').value.trim();
+        const emailChanges = Boolean(_contactSaved.email) && email !== _contactSaved.email;
+        const phoneNorm = phoneRaw ? (_contactNormalizePhone(phoneRaw) || phoneRaw) : '';
+        const phoneChanges = Boolean(_contactSaved.phone_e164) && phoneNorm !== _contactSaved.phone_e164;
+        return emailChanges || phoneChanges;
+      }
+
       function contactMarkDirty() {
         const btn = document.getElementById('contactSaveBtn');
         if (btn) btn.disabled = false;
         _contactClearErrors();
+        const row = document.getElementById('contactReauthRow');
+        if (row) row.style.display = _contactChangesSetField() ? 'block' : 'none';
       }
 
       async function loadNotifSettings() {
@@ -5253,6 +5279,10 @@
         };
         const btn = document.getElementById('contactSaveBtn');
         if (btn) btn.disabled = true;
+        const reauthRow = document.getElementById('contactReauthRow');
+        if (reauthRow) reauthRow.style.display = 'none';
+        const reauthPw = document.getElementById('contactReauthPw');
+        if (reauthPw) reauthPw.value = '';
 
         // AD2 c2: the business identity — workspace-sourced, read-only.
         // business_phone is the copy live routing reads; NULL renders
@@ -5338,6 +5368,16 @@
           _contactFieldError('alertPhone', 'alertPhoneError', 'Alert phone needs at least 10 digits');
           bad = true;
         }
+        // AD4: changing a set field needs the password before we even
+        // bother the server (which enforces it regardless).
+        const needsReauth = _contactChangesSetField();
+        const reauthPw = document.getElementById('contactReauthPw');
+        if (needsReauth && (!reauthPw || !reauthPw.value)) {
+          const row = document.getElementById('contactReauthRow');
+          if (row) row.style.display = 'block';
+          _contactFieldError('contactReauthPw', 'contactReauthError', 'Enter your current password to change these.');
+          bad = true;
+        }
         if (bad) return;
 
         if (btn) btn.disabled = true;
@@ -5346,16 +5386,24 @@
           const res = await fetch('/api/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            body: JSON.stringify(Object.assign({
               notification_email,
               notifications_enabled: document.getElementById('notifToggle').checked,
               alert_phone: rawPhone,
-            }),
+            }, needsReauth ? { current_password: reauthPw.value } : {})),
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
             _contactSetStatus('');
             if (btn) btn.disabled = false;
+            if (res.status === 403) {
+              // AD4 rejection — the generic sentence, on the password
+              // field, row kept visible.
+              const row = document.getElementById('contactReauthRow');
+              if (row) row.style.display = 'block';
+              _contactFieldError('contactReauthPw', 'contactReauthError', data.error || 'Current password incorrect or attempt limit reached.');
+              return;
+            }
             if (data.field === 'notification_email') {
               _contactFieldError('notifEmail', 'notifEmailError', data.error || 'Invalid email');
             } else if (data.field === 'alert_phone') {
@@ -5374,6 +5422,9 @@
             phone_e164: data.alert_phone || '',
             enabled: data.notifications_enabled !== false,
           };
+          if (reauthPw) reauthPw.value = '';
+          const reauthRowDone = document.getElementById('contactReauthRow');
+          if (reauthRowDone) reauthRowDone.style.display = 'none';
           _contactSetStatus('Saved!', 'var(--success)');
           setTimeout(() => _contactSetStatus(''), 3000);
         } catch (err) {
