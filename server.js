@@ -803,6 +803,16 @@ async function runPendingActionExpirySweep() {
       console.error('[credentials] pending-email sweep failed:', err.message);
     }
 
+    // AD5: expired contact verifications ride the same sweep. The
+    // unverified VALUE stays on the row (honest badge, never used);
+    // only the dead artifact is cleared.
+    try {
+      const sweptVerifs = await contactVerify.sweepExpiredContactVerifications(pool);
+      if (sweptVerifs) console.log('[contact-verify] cleared', sweptVerifs, 'expired verification(s)');
+    } catch (err) {
+      console.error('[contact-verify] sweep failed:', err.message);
+    }
+
     // FD3-CP7: suggestions expire quietly at 7 days — dismissed-flagged
     // (not deleted) so they stay in reflection's dedupe memory. Same
     // idempotency shape as above: the IS NULL guard flips each row once.
@@ -1328,9 +1338,27 @@ async function sendPushNotification(userId, message) {
 // --- Settings routes ---
 app.get('/api/settings', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT notification_email, notifications_enabled, inbound_email_alias, alert_phone FROM users WHERE id=$1', [req.session.userId]
+    'SELECT notification_email, notifications_enabled, inbound_email_alias, alert_phone, notification_email_verified_at, alert_phone_verified_at FROM users WHERE id=$1', [req.session.userId]
   );
   if (!rows.length) return res.status(404).json({ error: 'User not found' });
+  // AD5: per-field verified state + any in-flight verification, so the
+  // card can tell the truth without a second endpoint.
+  const pendingVerifs = { notification_email: null, alert_phone: null };
+  try {
+    const pv = await pool.query(
+      'SELECT field, expires_at, attempts FROM contact_verifications WHERE user_id = $1',
+      [req.session.userId]
+    );
+    for (const r of pv.rows) {
+      if (new Date(r.expires_at) < new Date()) continue; // expired = no pending
+      pendingVerifs[r.field] = {
+        expires_at: r.expires_at,
+        guesses_left: r.field === 'alert_phone' ? Math.max(0, contactVerify.MAX_CODE_GUESSES - r.attempts) : null,
+      };
+    }
+  } catch (err) {
+    console.error('[contact-verify] pending lookup failed:', err.message);
+  }
   // AD2 c2: business_phone is the WORKSPACE copy — the one live routing
   // actually reads (inbound lookupWorkspaceByTwilioNumber, outbound
   // sends in the engine / receipts / payment-requests). The
@@ -1350,11 +1378,15 @@ app.get('/api/settings', requireAuth, async (req, res) => {
   // the platform address (appointment-engine, env.SENDGRID_FROM_EMAIL,
   // same fallback the sendgrid libs hardcode).
   const acct = await pool.query('SELECT email FROM email_accounts WHERE user_id = $1 LIMIT 1', [req.session.userId]);
+  const { notification_email_verified_at, alert_phone_verified_at, ...userFields } = rows[0];
   res.json({
-    ...rows[0],
+    ...userFields,
     business_phone: businessPhone,
     outbound_email: (acct.rows[0] && acct.rows[0].email) || null,
     platform_from: process.env.SENDGRID_FROM_EMAIL || 'noreply@modernmanagementapp.com',
+    notification_email_verified: Boolean(notification_email_verified_at),
+    alert_phone_verified: Boolean(alert_phone_verified_at),
+    pending_verifications: pendingVerifs,
   });
 });
 
@@ -1597,6 +1629,95 @@ app.get('/verify-email-change', async (req, res) => {
     console.error('[credentials] verify-email-change error:', err.message);
     res.status(500).send(page('Something went wrong', 'Please try the link again in a moment.'));
   }
+});
+
+// AD5: contact-channel verification endpoints. Raw token/code exists
+// only in the mail / the spoken call; rows store sha256 (LAW 4).
+// Request limits: 3 per hour per user per channel (windowGate), own
+// buckets — nothing shared with the password oracle.
+const _emailVerifyRequests = new Map();
+const _phoneVerifyRequests = new Map();
+
+app.post('/api/contact-verify/request-email', requireAuth, async (req, res) => {
+  const gate = credentials.windowGate(_emailVerifyRequests, req.session.userId, Date.now(), 3, 60 * 60 * 1000);
+  if (!gate.allowed) {
+    return res.status(429).json({ error: 'Limit reached — try again in ' + Math.ceil(gate.retryAfterSeconds / 60) + ' min.' });
+  }
+  const result = await contactVerify.requestEmailVerification(pool, req.session.userId, Date.now());
+  if (!result.changed) return res.status(result.status).json(result.body);
+  const verifyUrl = _publicBaseUrl() + '/verify-contact-email?token=' + encodeURIComponent(result.token);
+  try {
+    await sgMail.send({
+      to: result.email,
+      from: _accountMailFrom,
+      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      subject: 'Verify your Modern Management notification email',
+      text: 'Confirm this address for Modern Management alerts and notices (link expires in 1 hour):\n' +
+        verifyUrl + '\n\n' +
+        "If you didn't request this, ignore this email — alerts won't use this address until it's verified.",
+    });
+  } catch (err) {
+    console.error('[contact-verify] verification mail failed:', err.message);
+  }
+  res.status(result.status).json(result.body);
+});
+
+// PUBLIC: the notification-email verification link. Same posture as
+// the AD3 page: one uninformative failure message, reason logged only.
+app.get('/verify-contact-email', async (req, res) => {
+  const page = (heading, detail) =>
+    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Modern Management</title></head>' +
+    '<body style="margin:0;padding:48px 20px;background:#f1f5f9;font-family:\'Inter\',Helvetica,Arial,sans-serif;">' +
+    '<div style="max-width:460px;margin:0 auto;background:#ffffff;border-radius:14px;padding:32px;text-align:center;">' +
+    '<div style="font-size:18px;font-weight:800;letter-spacing:-0.5px;margin-bottom:18px;">Modern Management</div>' +
+    '<h1 style="font-size:20px;margin:0 0 10px;">' + heading + '</h1>' +
+    '<p style="color:#475569;font-size:14px;line-height:1.6;margin:0;">' + detail + '</p>' +
+    '</div></body></html>';
+  try {
+    const result = await contactVerify.verifyEmailToken(pool, String(req.query.token || ''), Date.now());
+    if (!result.ok) {
+      console.error('[contact-verify] email verification failed:', result.reason);
+      return res.status(400).send(page(
+        'Link not valid',
+        'This verification link isn\u2019t valid anymore. Sign in and send a fresh one from your account page.'
+      ));
+    }
+    res.send(page('Email verified', 'This address now receives your Modern Management alerts and notices. You can close this tab.'));
+  } catch (err) {
+    console.error('[contact-verify] verify-contact-email error:', err.message);
+    res.status(500).send(page('Something went wrong', 'Please try the link again in a moment.'));
+  }
+});
+
+app.post('/api/contact-verify/call-phone', requireAuth, async (req, res) => {
+  const gate = credentials.windowGate(_phoneVerifyRequests, req.session.userId, Date.now(), 3, 60 * 60 * 1000);
+  if (!gate.allowed) {
+    return res.status(429).json({ error: 'Limit reached — try again in ' + Math.ceil(gate.retryAfterSeconds / 60) + ' min.' });
+  }
+  const result = await contactVerify.requestPhoneVerification(pool, req.session.userId, Date.now());
+  if (!result.changed) return res.status(result.status).json(result.body);
+  // Outbound voice with INLINE TwiML — no webhook. Voice is live
+  // pre-A2P; SMS is not (the whole reason this flow speaks).
+  try {
+    await twilioClient.calls.create({
+      to: result.phone,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      twiml: contactVerify.buildCodeTwiml(result.code),
+    });
+  } catch (err) {
+    console.error('[contact-verify] verification call failed:', err.message);
+    return res.status(502).json({ error: 'Could not place the call — try again shortly.' });
+  }
+  res.status(result.status).json(result.body);
+});
+
+app.post('/api/contact-verify/submit-code', requireAuth, async (req, res) => {
+  const result = await contactVerify.submitPhoneCode(
+    pool, req.session.userId, (req.body || {}).code, Date.now()
+  );
+  res.status(result.status).json(result.body);
 });
 
 const _testAlertLast = new Map();
@@ -6082,6 +6203,8 @@ const { saveContactSettings, testAlertGate } = require('./lib/contact-settings')
 // AD3: credential-change core (oracle gate, generic re-auth, hashed
 // verification tokens) — endpoints below are thin adapters.
 const credentials = require('./lib/credentials');
+// AD5: contact-channel verification (email link / spoken voice code).
+const contactVerify = require('./lib/contact-verify');
 const { persistOutboundMessage } = require('./lib/outbound-persist');
 const readState = require('./lib/read-state');
 const expensesLib = require('./lib/expenses');
