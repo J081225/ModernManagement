@@ -1451,13 +1451,18 @@ app.post('/api/credentials/change-password', requireAuth, async (req, res) => {
   );
   if (!result.changed) return res.status(result.status).json(result.body);
 
-  // Look-first (a): pg session store -> ending other sessions IS
-  // possible. Keep the current one; kill the rest.
+  // AD7 (Law 4): trigger 1 of exactly 2 — the kill-switch burns every
+  // live artifact (other sessions, stockpiled reset tokens, pending
+  // email swap, contact-verification codes, push subscriptions). The
+  // current sid survives; everything else an attacker could hold dies.
+  // Soft-fail: burn trouble never blocks the completed password change.
   let endedSessions = 0;
   try {
-    endedSessions = await credentials.endOtherSessions(pool, req.session.userId, req.sessionID);
+    const burned = await credentials.burnCredentialArtifacts(pool, req.session.userId, { keepSid: req.sessionID });
+    endedSessions = burned.sessions || 0;
+    console.log('[kill-switch] password change burn:', JSON.stringify(burned));
   } catch (err) {
-    console.error('[credentials] end-other-sessions failed:', err.message);
+    console.error('[credentials] kill-switch failed after password change:', err.message);
   }
 
   // Security notice on the account-mail path (direct send, the
@@ -1995,10 +2000,23 @@ app.post('/api/auth/reset-password', async (req, res) => {
     await client.query('COMMIT');
     console.log('[password-reset] Password reset completed for user_id=' + t.user_id);
 
+    // AD7 (Law 4): trigger 2 of exactly 2 — the reset is the RECOVERY
+    // path, so it keeps nothing: every session dies (no keepSid), and
+    // every artifact burns with them. Runs BEFORE the notice so the
+    // notice's sign-out claim is true when sent. Soft-fail: burn
+    // trouble never blocks or reverts the completed reset.
+    try {
+      const burned = await credentials.burnCredentialArtifacts(pool, t.user_id, {});
+      console.log('[kill-switch] password reset burn:', JSON.stringify(burned));
+    } catch (err) {
+      console.error('[credentials] kill-switch failed after password reset:', err.message);
+    }
+
     // AD6 (Law 3, ruling 2): the reset flow announces its completion —
     // it was the one credential change an email-thief would use that
     // never spoke. Informational only; soft-fail, never blocks or
-    // reverts the reset.
+    // reverts the reset. Wording per the AD7 ruling: the sign-out is
+    // now real, so the notice says so.
     try {
       const uR = await pool.query('SELECT email FROM users WHERE id = $1', [t.user_id]);
       await credentials.sendSecurityNotice(
@@ -2006,7 +2024,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
         ((uR.rows[0] || {}).email || ''),
         {
           subject: 'Your Modern Management password was reset',
-          text: 'Your password was just reset using a password-reset link.\n\n' +
+          text: 'Your password was just reset using a password-reset link, and every signed-in device has been signed out.\n\n' +
             "If this wasn't you, reset it again right now at " + _publicBaseUrl() +
             '/forgot-password and contact support immediately.',
         }
