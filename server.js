@@ -1358,7 +1358,10 @@ app.put('/api/settings', requireAuth, async (req, res) => {
   // AD2: validation, E.164 normalization, and honest NULL clearing —
   // all in lib/contact-settings (one save path; the onboarding
   // caller's key-conditional alert_phone contract lives there too).
-  const result = await saveContactSettings(pool, req.session.userId, req.body || {});
+  // AD4: changing an already-set email/phone re-auths against the
+  // SHARED oracle budget (_credAttempts — the same map the credential
+  // endpoints draw from); rejections are 403 + the generic sentence.
+  const result = await saveContactSettings(pool, req.session.userId, req.body || {}, _credAttempts, Date.now());
   res.status(result.status).json(result.body);
 });
 
