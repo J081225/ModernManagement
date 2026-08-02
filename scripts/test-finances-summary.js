@@ -395,7 +395,7 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   // boundaries, same demo arithmetic; they cannot disagree.
   fx = clone();
   const sum8 = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
-  const led8 = await composeLedgerRows({ db: makeLedgerDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV });
+  const led8 = await composeLedgerRows({ db: makeLedgerDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
   check('B21: LEDGER TOTALS === SUMMARY (in, out, net, demo) — the report and the dashboard read one truth',
     led8.totals.in_cents === sum8.money_in.combined_cents
     && led8.totals.out_cents === sum8.money_out.combined_cents
@@ -411,16 +411,16 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
     && led8.rows.some((r) => r.demo === true));
 
   // B21c: filters — direction narrows, category narrows, source skips feeds.
-  const ledIn = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, direction: 'in' });
-  const ledSup = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, category: 'Supplies' });
-  const ledExp = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, source: 'expenses' });
+  const ledIn = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW, direction: 'in' });
+  const ledSup = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW, category: 'Supplies' });
+  const ledExp = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW, source: 'expenses' });
   check('B21c: direction=in has no out rows; category=Supplies only Supplies; source=expenses only that feed',
     ledIn.rows.every((r) => r.direction === 'in') && ledIn.totals.out_cents === 0
     && ledSup.rows.every((r) => r.category === 'Supplies')
     && ledExp.rows.every((r) => r.source === 'expenses'));
 
   // B21d: workspace isolation — B's ledger never contains A's money.
-  const ledB = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: { id: 8, owner_user_id: 9, timezone: 'America/New_York' }, period: 'month', env: LIVE_ENV });
+  const ledB = await composeLedgerRows({ db: makeLedgerDb(clone()), workspace: { id: 8, owner_user_id: 9, timezone: 'America/New_York' }, period: 'month', env: LIVE_ENV, now: NOW });
   check('B21d: workspace B ledger = only its own rows (99900 in, 50000 out, 500000 rent)',
     ledB.totals.in_cents === 99900 + 500000 && ledB.totals.out_cents === 50000
     && !ledB.rows.some((r) => r.amount_cents === 5000 || r.amount_cents === 120000));
