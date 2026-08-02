@@ -1398,6 +1398,35 @@ app.put('/api/settings', requireAuth, async (req, res) => {
   // SHARED oracle budget (_credAttempts — the same map the credential
   // endpoints draw from); rejections are 403 + the generic sentence.
   const result = await saveContactSettings(pool, req.session.userId, req.body || {}, _credAttempts, Date.now());
+
+  // AD6 (Law 3, rulings 1+3): contact-channel changes SPEAK —
+  // first-set, edit, and clear all notice. Recipients come from the
+  // pure builder; the phone fallback is resolved POST-save so an email
+  // changed in this same request can never carry the phone notice.
+  // Soft-fail: mail trouble logs loudly and never blocks the change.
+  if (result.status === 200 && result.changes && (result.changes.emailChanged || result.changes.phoneChanged)) {
+    try {
+      const uR = await pool.query(
+        'SELECT email, notification_email, notification_email_verified_at FROM users WHERE id = $1',
+        [req.session.userId]
+      );
+      const u = uR.rows[0] || {};
+      const notices = buildContactChangeNotices({
+        changes: {
+          ...result.changes,
+          fallbackEmail: u.notification_email_verified_at ? (u.notification_email || '').trim() : null,
+        },
+        anchorEmail: u.email,
+        publicBaseUrl: _publicBaseUrl(),
+      });
+      for (const n of notices) {
+        await credentials.sendSecurityNotice({ sendgrid: sgMail, env: process.env }, n.to, n);
+      }
+    } catch (err) {
+      console.error('[security-notice] contact-change notices failed:', err.message);
+    }
+  }
+
   res.status(result.status).json(result.body);
 });
 
@@ -1965,6 +1994,27 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
     await client.query('COMMIT');
     console.log('[password-reset] Password reset completed for user_id=' + t.user_id);
+
+    // AD6 (Law 3, ruling 2): the reset flow announces its completion —
+    // it was the one credential change an email-thief would use that
+    // never spoke. Informational only; soft-fail, never blocks or
+    // reverts the reset.
+    try {
+      const uR = await pool.query('SELECT email FROM users WHERE id = $1', [t.user_id]);
+      await credentials.sendSecurityNotice(
+        { sendgrid: sgMail, env: process.env },
+        ((uR.rows[0] || {}).email || ''),
+        {
+          subject: 'Your Modern Management password was reset',
+          text: 'Your password was just reset using a password-reset link.\n\n' +
+            "If this wasn't you, reset it again right now at " + _publicBaseUrl() +
+            '/forgot-password and contact support immediately.',
+        }
+      );
+    } catch (err) {
+      console.error('[security-notice] reset-completion notice failed:', err.message);
+    }
+
     res.json({ success: true });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) {}
@@ -6199,7 +6249,7 @@ const { sendOwnerAlert } = require('./lib/owner-alert');
 // normalization via the FD1 phone helper, validation, NULL clearing,
 // the test-alert limiter) so the suite drives the real path; the
 // endpoints below are thin adapters over it — still the ONE save path.
-const { saveContactSettings, testAlertGate } = require('./lib/contact-settings');
+const { saveContactSettings, buildContactChangeNotices, testAlertGate } = require('./lib/contact-settings');
 // AD3: credential-change core (oracle gate, generic re-auth, hashed
 // verification tokens) — endpoints below are thin adapters.
 const credentials = require('./lib/credentials');
