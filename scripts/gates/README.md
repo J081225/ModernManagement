@@ -23,12 +23,12 @@ ships it; AD9 works it down.
 | expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Reincarnated** (slim) → `scripts/test-expiry-sweep.js` (7) |
 | ib1 | outbound persistence + linkage — owner/ai/system sends, backfill (IB1) | **Reincarnated** → `scripts/test-outbound-persist.js` (9) |
 | ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Reincarnated** (folded) → `scripts/test-read-state.js` grammar rows |
-| owner-context | assistant-context assembly for the owner `/api/command` brain | **Lost — rebuild** |
+| owner-context | assistant-context assembly for the owner `/api/command` brain | **Reincarnated** (slim) → `scripts/test-owner-context.js` (7) |
 | ping | approval-queue notification — badge/ping/TTL, restored customer origin (CP4/CP5) | **Reincarnated** (slim) → `scripts/test-queue-ping.js` (6); routing covered by security-notices/contact-verify |
 | playbook | conversation playbook regression — day-of notes, complaint receipts, thread unwedge (FD3-CP5) | **Reincarnated** → `scripts/test-playbook.js` (9) |
 | readstate | `read_at`, mark-on-fetch, Gmail-arithmetic unread counts (IB2) | **Reincarnated** → `scripts/test-read-state.js` (8) |
 | reflection | reflection pass — no-tools Haiku, strict JSON, dedupe, MAX suggestions (FD3-CP7) | **Reincarnated** → `scripts/test-reflection.js` (12) |
-| ws | voice websocket auth — answers only to Twilio (FD3-CP4) | **Lost — rebuild** |
+| ws | voice websocket auth — answers only to Twilio (FD3-CP4) | **Reincarnated** (slim) → `scripts/test-ws-auth.js` (7) |
 
 **Tally:** 2 exact reincarnations, 1 substantially covered, **13 to
 rebuild**.
