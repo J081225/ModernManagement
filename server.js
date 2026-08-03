@@ -1268,9 +1268,11 @@ async function sendNotificationEmail(userId, message) {
       html: htmlBody,
       text: `New message from ${message.resident}\n\n${message.subject}\n\n${preview}\n\nOpen your workspace: ${appUrl}/workspace`
     });
+    mailHealth.recordSuccess(); // AD8 (f): feeds the outage streak monitor
     console.log(`Notification email sent to ${toEmail} for message ${message.id}`);
   } catch (err) {
     console.error('Notification email error:', err.message);
+    mailHealth.recordFailure({ source: 'notification-email', reason: err.message });
   }
 }
 
@@ -6262,6 +6264,34 @@ const { saveContactSettings, buildContactChangeNotices, testAlertGate } = requir
 const credentials = require('./lib/credentials');
 // AD5: contact-channel verification (email link / spoken voice code).
 const contactVerify = require('./lib/contact-verify');
+// AD8 (f): mail-outage streak monitor. Configured just below with the
+// escalation that files an owner task — a channel that survives the
+// very outage it reports (DB, not email).
+const mailHealth = require('./lib/mail-health');
+mailHealth.configure({
+  threshold: mailHealth.DEFAULT_THRESHOLD,
+  escalate: async ({ consecutive, source, reason }) => {
+    // Escalate to the operator (admin) as an in-app TASK — the CP4
+    // expiry-sweep pattern. NEVER email: email is what's failing.
+    try {
+      const admin = await pool.query("SELECT id FROM users WHERE username = 'admin' LIMIT 1");
+      if (!admin.rows.length) return;
+      await pool.query(
+        'INSERT INTO tasks (user_id, title, category, "dueDate", notes) VALUES ($1, $2, $3, $4, $5)',
+        [admin.rows[0].id,
+          ('Email delivery is failing — ' + consecutive + ' sends in a row').slice(0, 200),
+          'other',
+          new Date().toISOString().slice(0, 10),
+          'The mail-outage monitor saw ' + consecutive + ' consecutive email send failures (last: ' +
+            (source || '?') + ' — ' + (reason || 'unknown') + '). Check the SendGrid account (plan/credits, 2FA, API key). ' +
+            'Security notices and new-message emails are not being delivered until this clears.']
+      );
+      console.error('[mail-outage] owner task filed for operator');
+    } catch (err) {
+      console.error('[mail-outage] could not file owner task:', err.message);
+    }
+  },
+});
 const { persistOutboundMessage } = require('./lib/outbound-persist');
 const readState = require('./lib/read-state');
 const expensesLib = require('./lib/expenses');
