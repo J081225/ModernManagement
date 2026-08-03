@@ -19,8 +19,8 @@ ships it; AD9 works it down.
 | behaviors | conversation behaviors — per-channel playbook responses (lib/appointment-engine) | **Reincarnated** (folded) → `scripts/test-playbook.js` |
 | deposits | deposit dormancy — `depositsLive()`, no real link until Stripe live (FD3-CP6) | **Reincarnated** → `scripts/test-deposits.js` (9) |
 | driver | per-thread driver/takeover — `appointment_threads.ai_paused`, precedence, voice-exempt (IB4, migration 054) | **Reincarnated** → `scripts/test-driver.js` (8) |
-| email | inbound email reaches the brain; non-alias fails loud (IB5) | **Lost — rebuild** |
-| expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Lost — rebuild** |
+| email | inbound email reaches the brain; non-alias fails loud (IB5) | **Reincarnated** (slim) → `scripts/test-email-routing.js` (8) |
+| expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Reincarnated** (slim) → `scripts/test-expiry-sweep.js` (7) |
 | ib1 | outbound persistence + linkage — owner/ai/system sends, backfill (IB1) | **Reincarnated** → `scripts/test-outbound-persist.js` (9) |
 | ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Reincarnated** (folded) → `scripts/test-read-state.js` grammar rows |
 | owner-context | assistant-context assembly for the owner `/api/command` brain | **Lost — rebuild** |
