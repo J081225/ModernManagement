@@ -1862,12 +1862,16 @@ app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async 
 
     const user = rows[0];
 
-    // Generate a 32-byte random token (URL-safe hex).
+    // Generate a 32-byte random token (URL-safe hex). AD8 (d): the raw
+    // token rides the email link exactly as before; the ROW stores only
+    // its sha256 (credentials.hashToken), so a DB read yields no usable
+    // link. The AD5/AD3 hashed-at-rest pattern, now applied to the one
+    // token type that predated it.
     const token = crypto.randomBytes(32).toString('hex');
 
     await pool.query(
       `INSERT INTO password_reset_tokens (token, user_id) VALUES ($1, $2)`,
-      [token, user.id]
+      [credentials.hashToken(token), user.id]
     );
 
     const baseUrl = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
@@ -1937,7 +1941,7 @@ app.get('/api/auth/check-reset-token', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT user_id, expires_at, used_at FROM password_reset_tokens WHERE token = $1`,
-      [token]
+      [credentials.hashToken(token)] // AD8 (d): look up by hash
     );
     if (!rows.length) return res.json({ valid: false, reason: 'not_found' });
     const t = rows[0];
@@ -1967,10 +1971,12 @@ app.post('/api/auth/reset-password', async (req, res) => {
     await client.query('BEGIN');
 
     // Lock the token row so concurrent reset attempts can't race.
+    // AD8 (d): the row is keyed by the token's hash, not the raw value.
+    const tokenHash = credentials.hashToken(token);
     const { rows: tokenRows } = await client.query(
       `SELECT user_id, expires_at, used_at FROM password_reset_tokens
         WHERE token = $1 FOR UPDATE`,
-      [token]
+      [tokenHash]
     );
     if (!tokenRows.length) {
       await client.query('ROLLBACK');
@@ -1994,7 +2000,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     );
     await client.query(
       `UPDATE password_reset_tokens SET used_at = NOW() WHERE token = $1`,
-      [token]
+      [tokenHash]
     );
 
     await client.query('COMMIT');

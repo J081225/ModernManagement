@@ -1,0 +1,11 @@
+-- AD8 (d): password_reset_tokens are now hashed at rest — the standing
+-- AD3 flag, closed. The column stays TEXT; going forward it holds
+-- sha256(token) instead of the raw token (the app mails the raw value
+-- and hashes on every lookup).
+--
+-- Existing rows hold PLAINTEXT tokens that become unmatchable the
+-- moment the code hashes its lookups. They are single-use with a
+-- 1-hour TTL, so the honest, ruling-approved path is to clear them:
+-- anyone mid-reset in that <=1h window simply requests a fresh link.
+-- No grace window, no dual-read.
+DELETE FROM password_reset_tokens;
