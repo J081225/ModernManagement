@@ -21,7 +21,7 @@ ships it; AD9 works it down.
 | driver | per-thread driver/takeover — `appointment_threads.ai_paused`, precedence, voice-exempt (IB4, migration 054) | **Lost — rebuild** |
 | email | inbound email reaches the brain; non-alias fails loud (IB5) | **Lost — rebuild** |
 | expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Lost — rebuild** |
-| ib1 | outbound persistence + linkage — owner/ai/system sends, backfill (IB1) | **Lost — rebuild** |
+| ib1 | outbound persistence + linkage — owner/ai/system sends, backfill (IB1) | **Reincarnated** → `scripts/test-outbound-persist.js` (9) |
 | ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Lost — rebuild** |
 | owner-context | assistant-context assembly for the owner `/api/command` brain | **Lost — rebuild** |
 | ping | approval-queue notification — badge/ping/TTL, restored customer origin (CP4/CP5) | **Lost — rebuild** |
