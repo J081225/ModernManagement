@@ -27,7 +27,7 @@ ships it; AD9 works it down.
 | ping | approval-queue notification — badge/ping/TTL, restored customer origin (CP4/CP5) | **Lost — rebuild** |
 | playbook | conversation playbook regression — day-of notes, complaint receipts, thread unwedge (FD3-CP5) | **Lost — rebuild** |
 | readstate | `read_at`, mark-on-fetch, Gmail-arithmetic unread counts (IB2) | **Reincarnated** → `scripts/test-read-state.js` (8) |
-| reflection | reflection pass — no-tools Haiku, strict JSON, dedupe, MAX suggestions (FD3-CP7) | **Lost — rebuild** |
+| reflection | reflection pass — no-tools Haiku, strict JSON, dedupe, MAX suggestions (FD3-CP7) | **Reincarnated** → `scripts/test-reflection.js` (12) |
 | ws | voice websocket auth — answers only to Twilio (FD3-CP4) | **Lost — rebuild** |
 
 **Tally:** 2 exact reincarnations, 1 substantially covered, **13 to
