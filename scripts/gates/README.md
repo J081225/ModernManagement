@@ -22,11 +22,11 @@ ships it; AD9 works it down.
 | email | inbound email reaches the brain; non-alias fails loud (IB5) | **Lost — rebuild** |
 | expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Lost — rebuild** |
 | ib1 | outbound persistence + linkage — owner/ai/system sends, backfill (IB1) | **Reincarnated** → `scripts/test-outbound-persist.js` (9) |
-| ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Lost — rebuild** |
+| ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Reincarnated** (folded) → `scripts/test-read-state.js` grammar rows |
 | owner-context | assistant-context assembly for the owner `/api/command` brain | **Lost — rebuild** |
 | ping | approval-queue notification — badge/ping/TTL, restored customer origin (CP4/CP5) | **Lost — rebuild** |
 | playbook | conversation playbook regression — day-of notes, complaint receipts, thread unwedge (FD3-CP5) | **Lost — rebuild** |
-| readstate | `read_at`, mark-on-fetch, Gmail-arithmetic unread counts (IB2) | **Lost — rebuild** |
+| readstate | `read_at`, mark-on-fetch, Gmail-arithmetic unread counts (IB2) | **Reincarnated** → `scripts/test-read-state.js` (8) |
 | reflection | reflection pass — no-tools Haiku, strict JSON, dedupe, MAX suggestions (FD3-CP7) | **Lost — rebuild** |
 | ws | voice websocket auth — answers only to Twilio (FD3-CP4) | **Lost — rebuild** |
 
