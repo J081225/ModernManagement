@@ -371,9 +371,9 @@ app.get('/login', (req, res) => {
 });
 app.get('/signup', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
-  // Phase B B1: now serves the multi-screen signup form from views/.
-  // The legacy single-screen public/signup.html is left on disk as a
-  // backup but no longer routed.
+  // Phase B B1: serves the multi-screen signup form from views/.
+  // (The legacy single-screen public/signup.html + its POST /api/signup
+  // backend were both retired in AD8.)
   res.sendFile(path.join(__dirname, 'views', 'signup.html'));
 });
 
@@ -2761,29 +2761,16 @@ app.get('/payments/connect/refresh', requireAuthPage, async (req, res) => {
   }
 });
 
-app.post('/api/signup', async (req, res) => {
-  const { username, password, email } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  try {
-    const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    const forwardToken = generateForwardToken();
-    const { rows } = await pool.query(
-      'INSERT INTO users (username, password_hash, email, plan, payment_forward_token) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [username.trim().toLowerCase(), hash, email || '', 'free', forwardToken]
-    );
-    const user = rows[0];
-    // Ensure automation row exists
-    await pool.query('INSERT INTO automation (user_id, "autoReplyEnabled") VALUES ($1, false) ON CONFLICT DO NOTHING', [user.id]);
-    req.session.authenticated = true;
-    req.session.userId = user.id;
-    req.session.username = user.username;
-    res.json({ success: true });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'Username already taken' });
-    console.error('Signup error:', err.message);
-    res.status(500).json({ error: 'Signup failed' });
-  }
+// AD8 (a): the legacy public free-account signup is RETIRED. It minted
+// a password + live session with no Stripe, workspace, or vertical —
+// bypassing the paid onboarding the product runs on — and its only
+// caller was the orphan public/signup.html (deleted this commit). The
+// real signup is /signup (views/signup.html) via /api/signup/checkout
+// + /api/signup/check-*, all untouched. A 404 tombstone stands in
+// place of a bare removal so the closure is explicit and can't be
+// silently reintroduced.
+app.post('/api/signup', (_req, res) => {
+  res.status(404).json({ error: 'Not found' });
 });
 
 app.get('/api/logout', (req, res) => {
