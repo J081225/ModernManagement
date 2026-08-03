@@ -3360,15 +3360,11 @@ app.get('/api/payments/forwarding-info', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/payments/rotate-token', requireAuth, async (req, res) => {
-  try {
-    const token = generateForwardToken();
-    await pool.query('UPDATE users SET payment_forward_token=$1 WHERE id=$2', [token, req.session.userId]);
-    res.json({ token, address: `payments+${token}@modernmanagementapp.com` });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to rotate token' });
-  }
-});
+// AD8 (b): POST /api/payments/rotate-token removed. It rotated the
+// payment-forwarding secret with session-only auth and had ZERO
+// callers (its UI card went in AD1). forwarding-info above is KEPT —
+// its lazy-mint backfills the token for older accounts and the
+// payments+TOKEN@ inbound routing that reads it is live.
 
 // List payment events (all + optional status filter)
 app.get('/api/payments/events', requireAuth, async (req, res) => {
