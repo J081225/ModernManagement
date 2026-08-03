@@ -49,7 +49,20 @@ rebuild**.
 
 ## The current in-repo harness (what green means today)
 
-`test-finances-summary` (39), `test-brain-expense` (12),
+**`npm test`** runs the whole harness via `scripts/gates/run-all.js`
+(auto-discovers every `scripts/test-*.js`). As of the AD9 close: **21
+suites, 237 checks**. The durability lesson is closed — the harness is
+in the repo and runs from one command; it can never again be an
+unrunnable pile of loose files.
+
+AD9 rebuilds (13): `test-deposits` (9), `test-outbound-persist` (9),
+`test-read-state` (8, incl. ib3 grammar), `test-reflection` (12),
+`test-playbook` (9, incl. behaviors), `test-driver` (8),
+`test-queue-ping` (6, slim), `test-email-routing` (8, slim),
+`test-expiry-sweep` (7, slim), `test-ws-auth` (7, slim),
+`test-owner-context` (7, slim).
+
+Pre-AD9 (8): `test-finances-summary` (39), `test-brain-expense` (12),
 `test-budget-insights` (11), `test-contact-settings` (20),
 `test-credentials` (17), `test-contact-verify` (12),
 `test-security-notices` (11), `test-kill-switch` (9),
