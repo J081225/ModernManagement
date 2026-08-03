@@ -17,7 +17,7 @@ ships it; AD9 works it down.
 | budget | finances-summary math — feeds, half-open window, demo gate, cents (BG1–4) | **Reincarnated** → `scripts/test-finances-summary.js` (39) |
 | ledger | unified ledger totals == summary; direction/category/source filters (BG8) | **Substantially covered** by `test-finances-summary.js` rows B21–B21d; a dedicated rebuild may still be warranted |
 | behaviors | conversation behaviors — per-channel playbook responses (lib/appointment-engine) | **Lost — rebuild** |
-| deposits | deposit dormancy — `depositsLive()`, no real link until Stripe live (FD3-CP6) | **Lost — rebuild** |
+| deposits | deposit dormancy — `depositsLive()`, no real link until Stripe live (FD3-CP6) | **Reincarnated** → `scripts/test-deposits.js` (9) |
 | driver | per-thread driver/takeover — `appointment_threads.ai_paused`, precedence, voice-exempt (IB4, migration 054) | **Lost — rebuild** |
 | email | inbound email reaches the brain; non-alias fails loud (IB5) | **Lost — rebuild** |
 | expiry | `pending_actions` expiry sweep — customer notify + owner task, idempotent (FD3-CP4) | **Lost — rebuild** |
