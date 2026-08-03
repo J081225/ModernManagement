@@ -16,7 +16,7 @@ ships it; AD9 works it down.
 | brain-expense | `post_expense` tool — approval-gated, owner-only, cents boundary (BG5) | **Reincarnated** → `scripts/test-brain-expense.js` (12) |
 | budget | finances-summary math — feeds, half-open window, demo gate, cents (BG1–4) | **Reincarnated** → `scripts/test-finances-summary.js` (39) |
 | ledger | unified ledger totals == summary; direction/category/source filters (BG8) | **Substantially covered** by `test-finances-summary.js` rows B21–B21d; a dedicated rebuild may still be warranted |
-| behaviors | conversation behaviors — per-channel playbook responses (lib/appointment-engine) | **Lost — rebuild** |
+| behaviors | conversation behaviors — per-channel playbook responses (lib/appointment-engine) | **Reincarnated** (folded) → `scripts/test-playbook.js` |
 | deposits | deposit dormancy — `depositsLive()`, no real link until Stripe live (FD3-CP6) | **Reincarnated** → `scripts/test-deposits.js` (9) |
 | driver | per-thread driver/takeover — `appointment_threads.ai_paused`, precedence, voice-exempt (IB4, migration 054) | **Lost — rebuild** |
 | email | inbound email reaches the brain; non-alias fails loud (IB5) | **Lost — rebuild** |
@@ -25,7 +25,7 @@ ships it; AD9 works it down.
 | ib3 | unified thread view — conversation grouping, thread key grammar (IB3) | **Reincarnated** (folded) → `scripts/test-read-state.js` grammar rows |
 | owner-context | assistant-context assembly for the owner `/api/command` brain | **Lost — rebuild** |
 | ping | approval-queue notification — badge/ping/TTL, restored customer origin (CP4/CP5) | **Lost — rebuild** |
-| playbook | conversation playbook regression — day-of notes, complaint receipts, thread unwedge (FD3-CP5) | **Lost — rebuild** |
+| playbook | conversation playbook regression — day-of notes, complaint receipts, thread unwedge (FD3-CP5) | **Reincarnated** → `scripts/test-playbook.js` (9) |
 | readstate | `read_at`, mark-on-fetch, Gmail-arithmetic unread counts (IB2) | **Reincarnated** → `scripts/test-read-state.js` (8) |
 | reflection | reflection pass — no-tools Haiku, strict JSON, dedupe, MAX suggestions (FD3-CP7) | **Reincarnated** → `scripts/test-reflection.js` (12) |
 | ws | voice websocket auth — answers only to Twilio (FD3-CP4) | **Lost — rebuild** |
