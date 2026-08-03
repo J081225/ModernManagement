@@ -223,8 +223,12 @@ const quiet = { error: () => {}, log: () => {} };
     const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'credentials.js'), 'utf8');
     const serverHashes = src.split('bcrypt.hash(').length - 1;
     const libHashes = lib.split('bcrypt.hash(').length - 1;
-    check('K9: bcrypt.hash site census — 4 in server.js (seed/reset/draft/legacy signup, all mapped) + 1 in lib; a 5th server site means an unwired password write',
-      serverHashes === 4 && libHashes === 1,
+    // After AD8 (a) retired the legacy public signup, server.js holds
+    // exactly 3 hash sites: the admin seed, the public reset, and the
+    // signup-checkout draft — all mapped, none an unwired password
+    // write. A 4th means a new site to classify.
+    check('K9: bcrypt.hash site census — 3 in server.js (seed/reset/draft, all mapped) + 1 in lib; a new server site means an unwired password write',
+      serverHashes === 3 && libHashes === 1,
       JSON.stringify({ serverHashes, libHashes }));
   }
 
