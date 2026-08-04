@@ -61,17 +61,28 @@ const PHONE = '+14435550100';
       lieGone && branch && stateCopy && honestHelp, JSON.stringify({ lieGone, branch, stateCopy, honestHelp }));
   }
 
-  // ---- NP4: regression pin — the AD2 business-identity card stays honest ----
+  // ---- NP4 [evolved]: the AD2 card is honest AND now state-specific ----
+  // SP2 pinned the generic "Not set up yet". SP4b made the card say
+  // WHICH not-set-up state it is ("Being set up" vs "Setup failed",
+  // with the retry offered only when there's something to retry) —
+  // strictly more honest, so the pin follows the improvement rather
+  // than freezing the older, vaguer copy.
   {
     const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
-    const nullState = app.includes("bizPhone.textContent = 'Not set up yet'");
-    const banner = app.includes('bizNoPhoneBanner') && app.includes("isn't set up yet");
-    const noCopyBtn = /Not set up yet[\s\S]{0,200}copyBtn\.style\.display = 'none'/.test(app);
-    check('NP4: the AD2 card still renders NULL as "Not set up yet" + warning banner, copy button hidden (regression pin on the already-honest surface)',
-      nullState && banner && noCopyBtn, JSON.stringify({ nullState, banner, noCopyBtn }));
+    const stateSpecific = app.includes("st === 'failed' ? 'Setup failed' : 'Being set up'");
+    const banner = app.includes('bizNoPhoneBanner') && app.includes('bizNoPhoneText');
+    const noCopyBtn = /'Setup failed' : 'Being set up'[\s\S]{0,240}copyBtn\.style\.display = 'none'/.test(app);
+    const retryOnlyWhenFailed = /retryBtn\.style\.display = st === 'failed' \? '' : 'none'/.test(app);
+    check('NP4 [evolved]: the AD2 card renders the SPECIFIC no-phone state (Being set up / Setup failed) with the banner, the copy button hidden, and the retry offered only when failed',
+      stateSpecific && banner && noCopyBtn && retryOnlyWhenFailed,
+      JSON.stringify({ stateSpecific, banner, noCopyBtn, retryOnlyWhenFailed }));
   }
 
-  // ---- NP5: the SP4 debt pin — exactly 4 platform-number fallbacks ----
+  // ---- NP5 [EVOLVED]: the fallback is RETIRED, so the pin asserts ZERO ----
+  // SP2 inventoried four platform-number fallbacks as SP4 debt. SP4b's
+  // ruling retired them: customer sends leave from the workspace's own
+  // number or HOLD. The census now guards the retirement — a
+  // reintroduced fallback fails this row.
   {
     const files = {
       'server.js': fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'),
@@ -83,8 +94,11 @@ const PHONE = '+14435550100';
     for (const src of Object.values(files)) {
       count += (src.match(/twilio_phone_number \|\| (process\.env\.|env\.)TWILIO_PHONE_NUMBER/g) || []).length;
     }
-    check('NP5: exactly 4 send paths fall back to the PLATFORM number (inventoried SP4 debt — hold-vs-fallback is SP4\'s ruling); a 5th appearing untracked fails this row',
-      count === 4, 'count=' + count);
+    const viaHelper = ['lib/appointment-engine.js', 'lib/payment-requests.js', 'lib/receipts.js']
+      .every((f) => files[f].includes('customerSmsFrom'))
+      && files['server.js'].includes('customerSmsFrom(ws)');
+    check('NP5 [evolved]: ZERO customer-facing platform-number fallbacks remain (the SP4b retirement) and all four sites route through customerSmsFrom',
+      count === 0 && viaHelper, JSON.stringify({ count, viaHelper }));
   }
 
   console.log(`${pass}/${pass + fail} — null-phone-states suite ${fail ? 'FAILED' : 'PASSED'}`);

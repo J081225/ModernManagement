@@ -250,6 +250,117 @@ const wsRow = (over = {}) => ({
       'wiring');
   }
 
+  // ================= SP4b: holds, recovery, honest states =================
+
+  // ---- PW11: the failure transition files exactly ONE owner task ----
+  {
+    const rows = new Map([[7, wsRow({ twilio_attempts: 5, owner_user_id: 3 })]]);
+    const tasks = [];
+    const db = makeDb(rows);
+    const baseQuery = db.query.bind(db);
+    db.query = async (sql, params = []) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      if (s.startsWith('INSERT INTO tasks')) { tasks.push({ user_id: params[0], title: params[1], notes: params[3] }); return { rows: [] }; }
+      if (s.startsWith("UPDATE workspaces SET twilio_status = 'failed'")) {
+        const w = rows.get(params[0]);
+        if (!w || w.twilio_status !== 'provisioning') return { rows: [] };
+        w.twilio_status = 'failed'; w.twilio_last_error = params[1]; w.twilio_next_attempt_at = null;
+        return { rows: [{ owner_user_id: w.owner_user_id }] };
+      }
+      return baseQuery(sql, params);
+    };
+    const deps = makeDeps({ available: {}, any: [] });
+    await worker.provisionWorkspaceNumber(db, 7, { deps, env: ENV, logger: quiet });
+    // A second sweep pass must NOT file another (status is no longer provisioning).
+    await worker.provisionWorkspaceNumber(db, 7, { deps, env: ENV, logger: quiet });
+    check('PW11: the failed transition files ONE owner task to the workspace owner (account-is-fine wording); a later pass files no duplicate',
+      tasks.length === 1 && tasks[0].user_id === 3
+        && /phone number needs attention/i.test(tasks[0].title)
+        && /account is fully working otherwise/i.test(tasks[0].notes),
+      JSON.stringify(tasks));
+  }
+
+  // ---- PW12: the re-arm is guarded and puts the row back in the queue ----
+  {
+    const rows = new Map([
+      [7, wsRow({ twilio_status: 'failed', twilio_attempts: 6, twilio_last_error: 'boom' })],
+      [8, wsRow({ twilio_status: 'active', twilio_phone_number: '+1', twilio_attempts: 1 })],
+      [9, wsRow({ twilio_status: 'provisioning', twilio_attempts: 2 })],
+    ]);
+    const db = makeDb(rows);
+    db.query = (function (base) {
+      return async (sql, params = []) => {
+        const s = sql.replace(/\s+/g, ' ').trim();
+        if (s.startsWith("UPDATE workspaces SET twilio_status = 'provisioning', twilio_attempts = 0")) {
+          const w = rows.get(params[0]);
+          if (!w || w.twilio_status !== 'failed') return { rows: [] };
+          w.twilio_status = 'provisioning'; w.twilio_attempts = 0; w.twilio_last_error = null; w.twilio_next_attempt_at = null;
+          return { rows: [{ id: params[0] }] };
+        }
+        return base(sql, params);
+      };
+    })(db.query.bind(db));
+    const failed = await worker.rearmProvisioning(db, 7);
+    const active = await worker.rearmProvisioning(db, 8);
+    const inflight = await worker.rearmProvisioning(db, 9);
+    check('PW12: re-arm restores a FAILED row to provisioning with attempts zeroed and error/gate cleared; an active or already-provisioning row is a guarded no-op',
+      failed.rearmed === true && rows.get(7).twilio_status === 'provisioning'
+        && rows.get(7).twilio_attempts === 0 && rows.get(7).twilio_last_error === null
+        && active.rearmed === false && rows.get(8).twilio_status === 'active' && rows.get(8).twilio_attempts === 1
+        && inflight.rearmed === false && rows.get(9).twilio_attempts === 2,
+      JSON.stringify({ failed, active, inflight }));
+  }
+
+  // ---- PW13: a re-armed workspace provisions on the very next attempt ----
+  {
+    const rows = new Map([[7, wsRow({ twilio_status: 'provisioning', twilio_attempts: 0 })]]);
+    const deps = makeDeps({ available: { 443: [{ phone_number: '+14435550999' }] } });
+    const r = await worker.provisionWorkspaceNumber(makeDb(rows), 7, { deps, env: ENV, logger: quiet });
+    check('PW13: after a re-arm the next attempt is attempt 1 again and can succeed — recovery is real, not cosmetic',
+      r.ok === true && r.attempt === 1 && rows.get(7).twilio_status === 'active');
+  }
+
+  // ---- PW14: the retry endpoint + status surfacing, source-pinned ----
+  {
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+    const success = fs.readFileSync(path.join(__dirname, '..', 'views', 'signup-success.html'), 'utf8');
+    const endpoint = srv.includes("app.post('/api/workspace/provisioning/retry'")
+      && srv.includes('rearmProvisioning(pool, workspaceId)')
+      && /Nothing to retry/.test(srv);
+    // the require must precede the route that uses it (a real bug caught in review)
+    const requireFirst = srv.indexOf("const provisioningWorker = require('./lib/provisioning-worker')")
+      < srv.indexOf("app.post('/api/workspace/provisioning/retry'");
+    const statusSurfaced = srv.includes('w.twilio_status, u.username') && srv.includes('business_phone_status');
+    const screenBranches = success.includes("ws.twilio_status === 'failed'")
+      && /account is ready and you can sign in now/.test(success);
+    const cardBranches = app.includes("st === 'failed' ? 'Setup failed' : 'Being set up'")
+      && app.includes('retryProvisioning');
+    check('PW14: the retry endpoint exists (guarded, kicks) with its require ordered before it; twilio_status is surfaced on BOTH the signup-status and settings responses; the success screen and the AD2 card each branch failed-vs-provisioning',
+      endpoint && requireFirst && statusSurfaced && screenBranches && cardBranches,
+      JSON.stringify({ endpoint, requireFirst, statusSurfaced, screenBranches, cardBranches }));
+  }
+
+  // ---- PW15: the customer-send holds, at every ruled site ----
+  {
+    const pr = fs.readFileSync(path.join(__dirname, '..', 'lib', 'payment-requests.js'), 'utf8');
+    const rc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'receipts.js'), 'utf8');
+    const ae = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const { customerSmsFrom } = require(path.join(__dirname, '..', 'lib', 'workspace-readiness'));
+    // the helper itself: number present -> that number; absent -> null
+    const helperOk = customerSmsFrom({ twilio_phone_number: '+14435550100' }) === '+14435550100'
+      && customerSmsFrom({ twilio_phone_number: null }) === null
+      && customerSmsFrom({ twilio_phone_number: '   ' }) === null
+      && customerSmsFrom({}) === null && customerSmsFrom(null) === null;
+    const holds = /HOLDING the link SMS/.test(pr) && /sms_held/.test(pr)
+      && /HOLDING the receipt SMS/.test(rc)
+      && /CANNOT reply/.test(ae)
+      && /CANNOT notify customer/.test(srv);
+    check('PW15: customerSmsFrom returns the workspace number or null (blank-safe), and all four sites hold with a loud log instead of sending from the platform number',
+      helperOk && holds, JSON.stringify({ helperOk, holds }));
+  }
+
   console.log(`${pass}/${pass + fail} — provisioning-worker suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
