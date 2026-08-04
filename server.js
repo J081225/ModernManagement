@@ -309,13 +309,49 @@ function validateTwilioSignature(req, res, next) {
     console.warn('[twilio-validate] Missing X-Twilio-Signature header on', req.originalUrl, 'from', req.ip);
     return res.status(403).type('text/plain').send('Forbidden');
   }
-  const base = process.env.PUBLIC_BASE_URL
-    ? process.env.PUBLIC_BASE_URL.replace(/\/+$/, '')
-    : (req.protocol + '://' + req.get('host'));
-  const publicUrl = base + req.originalUrl;
-  const ok = twilio.validateRequest(authToken, signature, publicUrl, req.body || {});
+  // SP5c: validate against EVERY url this request could legitimately
+  // have been called as, and accept if any matches.
+  //
+  // Why more than one: Twilio signs the url IT called. The old code
+  // only ever built the expected url from PUBLIC_BASE_URL, so a number
+  // configured on any other legitimate host (e.g. the onrender origin
+  // behind the custom domain) would fail validation and its calls
+  // would be dropped — the trap SP5's investigation found waiting for
+  // the day validation was switched back on.
+  //
+  // Why it stays safe: the auth token is the secret. A forged Host
+  // header only changes which url we CHECK; it cannot mint a valid
+  // seal for that url without the token. Adding candidates widens what
+  // we recognize, never what an attacker can forge.
+  //
+  // Proxy handling: `app.set('trust proxy', 1)` is set above, so
+  // req.protocol already reflects x-forwarded-proto on Render.
+  // x-forwarded-host is consulted explicitly because req.get('host')
+  // can carry the internal origin behind some proxies.
+  const candidateBases = [];
+  if (process.env.PUBLIC_BASE_URL) {
+    candidateBases.push(process.env.PUBLIC_BASE_URL.replace(/\/+$/, ''));
+  }
+  const proto = req.protocol || 'https';
+  const hostHeader = req.get('host');
+  if (hostHeader) candidateBases.push(proto + '://' + hostHeader);
+  const fwdHost = req.get('x-forwarded-host');
+  if (fwdHost) {
+    // May be a comma-separated chain; the first entry is the original.
+    const firstHop = String(fwdHost).split(',')[0].trim();
+    if (firstHop) candidateBases.push(proto + '://' + firstHop);
+  }
+  const seen = new Set();
+  const candidates = candidateBases
+    .filter((b) => b && !seen.has(b) && seen.add(b))
+    .map((b) => b + req.originalUrl);
+
+  const ok = candidates.some((url) =>
+    twilio.validateRequest(authToken, signature, url, req.body || {})
+  );
   if (!ok) {
-    console.warn('[twilio-validate] Bad signature for', publicUrl, 'from', req.ip);
+    console.warn('[twilio-validate] Bad signature for', req.originalUrl,
+      'from', req.ip, '— tried:', candidates.join(' , '));
     return res.status(403).type('text/plain').send('Forbidden');
   }
   next();
