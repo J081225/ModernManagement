@@ -171,6 +171,15 @@
       const helpEl = document.getElementById('success-phone-help');
       if (ws.twilio_phone_number) {
         phoneEl.textContent = ws.twilio_phone_number;
+      } else if (ws.twilio_status === 'failed') {
+        // SP4b: provisioning exhausted its retries. The ACCOUNT is
+        // fine — only the number failed — so the copy says exactly
+        // that and never implies the signup broke.
+        phoneEl.textContent = 'Taking longer than usual';
+        if (helpEl) helpEl.textContent =
+          "Your account is ready and you can sign in now — but we couldn't finish setting " +
+          'up your dedicated number automatically. We’ve been alerted and are on it; ' +
+          'you can also retry from your account page, and it will appear there once it lands.';
       } else {
         phoneEl.textContent = 'Being set up';
         if (helpEl) helpEl.textContent =

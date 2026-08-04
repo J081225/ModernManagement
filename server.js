@@ -2437,7 +2437,7 @@ app.get('/api/signup/status', async (req, res) => {
     }
 
     const { rows: wsRows } = await pool.query(
-      `SELECT w.business_name, w.twilio_phone_number, u.username
+      `SELECT w.business_name, w.twilio_phone_number, w.twilio_status, u.username
          FROM workspaces w
          JOIN users u ON u.id = w.owner_user_id
         WHERE w.stripe_subscription_id = $1
@@ -2449,11 +2449,15 @@ app.get('/api/signup/status', async (req, res) => {
       return res.json({ status: 'pending' });
     }
 
+    // SP4b: the account's success no longer implies a number (SP4a made
+    // provisioning async), so the screen needs the phone's own state to
+    // tell "arriving shortly" from "we're on it" — one additive field.
     res.json({
       status: 'success',
       workspace: {
         business_name: wsRows[0].business_name,
         twilio_phone_number: wsRows[0].twilio_phone_number,
+        twilio_status: wsRows[0].twilio_status,
         username: wsRows[0].username,
       },
       login_url: '/login',
