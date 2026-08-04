@@ -238,7 +238,10 @@ function makeChannels(opts = {}) {
     const getStart = src.indexOf("app.get('/api/settings'");
     const getEnd = src.indexOf("app.put('/api/settings'", getStart);
     const block = src.slice(getStart, getEnd);
-    const readsWorkspace = /SELECT twilio_phone_number FROM workspaces/.test(block) && block.includes('business_phone');
+    // SP4b: tolerant of ADDED columns (twilio_status now rides along),
+    // strict about the SOURCE — the phone must still come from the
+    // workspaces row, which is the whole point of this pin.
+    const readsWorkspace = /SELECT twilio_phone_number[^;]*FROM workspaces/.test(block) && block.includes('business_phone');
     const usersSelect = block.match(/SELECT[^']*FROM users/);
     const usersCopyGone = usersSelect && !usersSelect[0].includes('twilio_phone_number');
     check('CS14: GET /api/settings sources business_phone from workspaces; users copy not selected',
