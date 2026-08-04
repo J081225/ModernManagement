@@ -834,6 +834,18 @@ async function runPendingActionExpirySweep() {
 setInterval(runPendingActionExpirySweep, 30 * 60 * 1000); // every 30 minutes
 runPendingActionExpirySweep();
 
+// SP4a: the async number-provisioning sweep. The orchestrator kicks an
+// immediate attempt post-commit; this is the safety net — it catches
+// orphans (a restart mid-provision, a transient Twilio error) and
+// drives every backoff retry until 'active' or 'failed'-at-6.
+const provisioningWorker = require('./lib/provisioning-worker');
+setInterval(() => {
+  provisioningWorker.runProvisioningSweep(pool)
+    .catch((err) => console.error('[provisioning] sweep crashed:', err.message));
+}, 60 * 1000); // every minute
+provisioningWorker.runProvisioningSweep(pool)
+  .catch((err) => console.error('[provisioning] boot sweep crashed:', err.message));
+
 async function initDB() {
   // Verify DB connection is alive before doing anything
   await pool.query('SELECT 1');
