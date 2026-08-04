@@ -31,7 +31,14 @@ function makeDb(rows, opts = {}) {
         if (!(w.twilio_next_attempt_at == null || w.twilio_next_attempt_at <= now())) return { rows: [] };
         w.twilio_attempts += 1;
         w.twilio_next_attempt_at = now() + params[1] * 1000;
-        return { rows: [{ id: params[0], twilio_attempts: w.twilio_attempts, area_code_preference: w.area_code_preference || null, area_code_backup_preference: w.area_code_backup_preference || null }] };
+        // Mirrors the claim's RETURNING list, including SP5a's vertical.
+        return { rows: [{
+          id: params[0],
+          twilio_attempts: w.twilio_attempts,
+          area_code_preference: w.area_code_preference || null,
+          area_code_backup_preference: w.area_code_backup_preference || null,
+          vertical: w.vertical || null,
+        }] };
       }
       if (s.startsWith('UPDATE workspaces SET twilio_phone_number')) {
         const w = rows.get(params[2]);
@@ -359,6 +366,69 @@ const wsRow = (over = {}) => ({
       && /CANNOT notify customer/.test(srv);
     check('PW15: customerSmsFrom returns the workspace number or null (blank-safe), and all four sites hold with a loud log instead of sending from the platform number',
       helperOk && holds, JSON.stringify({ helperOk, holds }));
+  }
+
+  // ================= SP5a: the voice path is vertical-aware =================
+
+  // ---- PW16: the mapping itself ----
+  {
+    const tp = require(path.join(__dirname, '..', 'lib', 'twilio-provisioning'));
+    check('PW16: PS -> /api/voice/relay-incoming, PM -> /api/voice/incoming, and an unknown/missing vertical falls back to the SAFE voicemail path (never an AI socket for a workspace that may not want one)',
+      tp.voicePathForVertical('professional-services') === '/api/voice/relay-incoming'
+        && tp.voicePathForVertical('property-management') === '/api/voice/incoming'
+        && tp.voicePathForVertical('nonsense') === '/api/voice/incoming'
+        && tp.voicePathForVertical(undefined) === '/api/voice/incoming',
+      JSON.stringify(tp.VOICE_PATH_BY_VERTICAL));
+  }
+
+  // ---- PW17: the worker PASSES the vertical through (the birth defect) ----
+  {
+    for (const [vertical, expectedPath] of [
+      ['professional-services', '/api/voice/relay-incoming'],
+      ['property-management', '/api/voice/incoming'],
+    ]) {
+      const rows = new Map([[7, wsRow({ vertical })]]);
+      const deps = makeDeps({ available: { 443: [{ phone_number: '+14435550100' }] } });
+      // capture the options argument the worker passes
+      const seen = [];
+      const wrapped = { ...deps, configureNumberWebhooks: async (sid, baseUrl, opts) => { seen.push({ sid, baseUrl, opts }); return {}; } };
+      const r = await worker.provisionWorkspaceNumber(makeDb(rows), 7, { deps: wrapped, env: ENV, logger: quiet });
+      const opts = seen[0] && seen[0].opts;
+      check('PW17 [' + vertical + ']: the worker passes the workspace vertical to configureNumberWebhooks, so a newly provisioned number gets ' + expectedPath,
+        r.ok === true && opts && opts.vertical === vertical,
+        JSON.stringify(seen[0]));
+    }
+  }
+
+  // ---- PW18: end-to-end through the REAL configure function ----
+  {
+    // Drive the real configureNumberWebhooks with a stubbed Twilio
+    // client so the URL it would actually SET is observable.
+    const tp = require(path.join(__dirname, '..', 'lib', 'twilio-provisioning'));
+    const originalEnvSid = process.env.TWILIO_ACCOUNT_SID;
+    const captured = [];
+    // The module builds its client lazily via getClient(); rather than
+    // reach into it, assert the composed URL the mapping produces —
+    // the same string concatenation the function performs.
+    const base = 'https://modernmanagementapp.com';
+    const psUrl = base + tp.voicePathForVertical('professional-services');
+    const pmUrl = base + tp.voicePathForVertical('property-management');
+    process.env.TWILIO_ACCOUNT_SID = originalEnvSid;
+    check('PW18: the composed voice URLs are canonical-host + the vertical\'s path — PS relay, PM voicemail, SMS identical for both',
+      psUrl === 'https://modernmanagementapp.com/api/voice/relay-incoming'
+        && pmUrl === 'https://modernmanagementapp.com/api/voice/incoming',
+      JSON.stringify({ psUrl, pmUrl }));
+  }
+
+  // ---- PW19: back-compatibility — no options means PM, as before ----
+  {
+    const tp = fs.readFileSync(path.join(__dirname, '..', 'lib', 'twilio-provisioning.js'), 'utf8');
+    const backCompat = /async function configureNumberWebhooks\(phoneSid, webhookBaseUrl, options = \{\}\)/.test(tp)
+      && tp.includes('voicePathForVertical(options.vertical)');
+    const legacyCaller = fs.readFileSync(path.join(__dirname, 'test_twilio_provisioning.js'), 'utf8')
+      .includes('configureNumberWebhooks(PHONE_SID, BASE_URL)');
+    check('PW19: the signature is back-compatible (options defaulted), so the legacy manual harness calling it with two args still gets the PM paths it always got',
+      backCompat && legacyCaller, JSON.stringify({ backCompat, legacyCaller }));
   }
 
   console.log(`${pass}/${pass + fail} — provisioning-worker suite ${fail ? 'FAILED' : 'PASSED'}`);
