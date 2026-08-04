@@ -6276,6 +6276,8 @@ const { saveContactSettings, buildContactChangeNotices, testAlertGate } = requir
 const credentials = require('./lib/credentials');
 // AD5: contact-channel verification (email link / spoken voice code).
 const contactVerify = require('./lib/contact-verify');
+// SP4b: customer sends leave from the workspace's own number or hold.
+const { customerSmsFrom } = require('./lib/workspace-readiness');
 // AD8 (f): mail-outage streak monitor. Configured just below with the
 // escalation that files an owner task — a channel that survives the
 // very outage it reports (DB, not email).
@@ -8062,9 +8064,18 @@ async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
     const wsR = await pool.query('SELECT owner_user_id, twilio_phone_number FROM workspaces WHERE id = $1', [workspaceId]);
     const ws = wsR.rows[0];
     if (!ws) return;
-    if (pending.customer_phone) {
+    // SP4b: the outcome text leaves from the workspace's OWN number or
+    // not at all — the platform fallback is retired. Unreachable while
+    // provisioning (a customer-originated pending needs an inbound),
+    // so a null here is a broken state worth logging loudly.
+    const notifyFrom = customerSmsFrom(ws);
+    if (pending.customer_phone && !notifyFrom) {
+      console.error('[pending-actions] CANNOT notify customer — workspace ' + workspaceId +
+        ' has no number; outcome withheld for pending action ' + pending.id);
+    }
+    if (pending.customer_phone && notifyFrom) {
       await twilioClient.messages.create({
-        from: ws.twilio_phone_number || process.env.TWILIO_PHONE_NUMBER,
+        from: notifyFrom,
         to: pending.customer_phone,
         body: outcomeText,
       });
