@@ -2585,7 +2585,10 @@ app.post('/api/stripe/webhook', async (req, res) => {
           }
         } else {
           try {
-            const result = await processCheckoutCompletedEvent(event, pool);
+            // SP4c: the signup Stripe client rides along so a failed
+            // orchestration can cancel the subscription and refund the
+            // charge instead of silently keeping the money.
+            const result = await processCheckoutCompletedEvent(event, pool, stripeSignup);
             console.log('[stripe-webhook] orchestrator result:', JSON.stringify(result));
           } catch (orchErr) {
             // Should not throw — processCheckoutCompletedEvent catches its own
