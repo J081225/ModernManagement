@@ -114,7 +114,7 @@
         <div class="phone-block">
           <div class="phone-label">Your business phone number</div>
           <div class="phone-number" id="success-phone">—</div>
-          <div class="phone-help">
+          <div class="phone-help" id="success-phone-help">
             Share this number with your tenants for SMS and voice. Our AI handles routine
             inquiries; you'll get notified for the rest.
           </div>
@@ -163,7 +163,21 @@
 
     function showSuccess(data) {
       const ws = data.workspace || {};
-      document.getElementById('success-phone').textContent = ws.twilio_phone_number || '(provisioned)';
+      // SP2: render the TRUTH about the number. A missing phone is a
+      // STATE ("being set up"), never a pretend value — the old
+      // fallback here printed the literal string "(provisioned)",
+      // asserting a number existed when none did.
+      const phoneEl = document.getElementById('success-phone');
+      const helpEl = document.getElementById('success-phone-help');
+      if (ws.twilio_phone_number) {
+        phoneEl.textContent = ws.twilio_phone_number;
+      } else {
+        phoneEl.textContent = 'Being set up';
+        if (helpEl) helpEl.textContent =
+          'Your dedicated number is still being provisioned — it will appear on your ' +
+          'account page shortly, and texts and calls will route the moment it does. ' +
+          'Everything else is ready; you can sign in now.';
+      }
       document.getElementById('success-username').textContent = ws.username || '(your username)';
       show('state-success');
       try { sessionStorage.removeItem('signupDraft'); } catch (e) {}
