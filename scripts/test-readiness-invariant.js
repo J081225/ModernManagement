@@ -82,15 +82,25 @@ function checksAccept(row) {
         && !/DROP |DELETE FROM workspaces|ALTER COLUMN/.test(mig));
   }
 
-  // ---- RI5: the orchestrator write is ATOMIC — status and number in one statement ----
+  // ---- RI5: the ACTIVE write is ATOMIC — status and number in one statement ----
+  // (Re-pinned for SP4a: the write moved from the orchestrator's
+  // transaction to the provisioning worker's flip. The pin did its
+  // job — it caught the move — and now guards the new home: the
+  // worker's flip is one guarded statement, and the orchestrator
+  // writes only 'provisioning' at INSERT, never 'active'.)
   {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'signup-orchestrator.js'), 'utf8');
-    const i = src.indexOf('SET twilio_phone_number   = $1');
-    const stmt = src.slice(i, src.indexOf('WHERE id = $3', i));
-    check("RI5: the orchestrator's provision UPDATE sets the number, twilio_status='active', and clears last_error in ONE statement (no divergence window)",
-      i !== -1 && stmt.includes("twilio_status         = 'active'") && stmt.includes('twilio_last_error     = NULL')
-        && src.split('twilio_status         =').length - 1 === 1, // the only writer today
-      'atomic statement');
+    const wrk = fs.readFileSync(path.join(__dirname, '..', 'lib', 'provisioning-worker.js'), 'utf8');
+    const orch = fs.readFileSync(path.join(__dirname, '..', 'lib', 'signup-orchestrator.js'), 'utf8');
+    const i = wrk.indexOf('SET twilio_phone_number   = $1');
+    const stmt = wrk.slice(i, wrk.indexOf('RETURNING id', i));
+    const atomicFlip = i !== -1
+      && stmt.includes("twilio_status         = 'active'")
+      && stmt.includes('twilio_last_error     = NULL')
+      && stmt.includes("WHERE id = $3 AND twilio_status = 'provisioning'");
+    const orchProvisioningOnly = /'provisioning'/.test(orch) && !orch.includes("twilio_status         = 'active'");
+    check("RI5: the worker's flip sets number + twilio_status='active' + clears error in ONE statement guarded by status='provisioning'; the orchestrator writes only 'provisioning' at INSERT",
+      atomicFlip && orchProvisioningOnly,
+      JSON.stringify({ atomicFlip, orchProvisioningOnly }));
   }
 
   // ---- RI6: connect_status readers pinned UNTOUCHED (the ruling's other half) ----
