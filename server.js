@@ -834,11 +834,34 @@ async function runPendingActionExpirySweep() {
 setInterval(runPendingActionExpirySweep, 30 * 60 * 1000); // every 30 minutes
 runPendingActionExpirySweep();
 
+const provisioningWorker = require('./lib/provisioning-worker');
+
+// SP4b: the one-tap re-arm. A 'failed' workspace goes back in the
+// queue with a zeroed counter, then we kick immediately so the owner
+// sees a result in seconds rather than waiting for the next sweep.
+// Guarded in the lib on status='failed' — an active or already-
+// provisioning workspace is a no-op, reported honestly.
+app.post('/api/workspace/provisioning/retry', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const result = await provisioningWorker.rearmProvisioning(pool, workspaceId);
+    if (!result.rearmed) {
+      return res.status(400).json({ error: 'Nothing to retry — the number is not in a failed state.' });
+    }
+    provisioningWorker.provisionWorkspaceNumber(pool, workspaceId)
+      .catch((err) => console.error('[provisioning] retry kick errored (sweep will retry):', err.message));
+    res.json({ ok: true, twilio_status: 'provisioning' });
+  } catch (err) {
+    console.error('[provisioning] retry endpoint error:', err.message);
+    res.status(500).json({ error: 'Could not retry provisioning' });
+  }
+});
+
 // SP4a: the async number-provisioning sweep. The orchestrator kicks an
 // immediate attempt post-commit; this is the safety net — it catches
 // orphans (a restart mid-provision, a transient Twilio error) and
 // drives every backoff retry until 'active' or 'failed'-at-6.
-const provisioningWorker = require('./lib/provisioning-worker');
 setInterval(() => {
   provisioningWorker.runProvisioningSweep(pool)
     .catch((err) => console.error('[provisioning] sweep crashed:', err.message));
@@ -1383,9 +1406,14 @@ app.get('/api/settings', requireAuth, async (req, res) => {
   // no writes.
   const workspaceId = await getWorkspaceId(req);
   let businessPhone = null;
+  // SP4b: the phone's STATE rides along so the card can distinguish
+  // "arriving" from "failed, retry available" instead of inferring
+  // from a NULL.
+  let businessPhoneStatus = 'not_started';
   if (workspaceId) {
-    const w = await pool.query('SELECT twilio_phone_number FROM workspaces WHERE id = $1', [workspaceId]);
+    const w = await pool.query('SELECT twilio_phone_number, twilio_status FROM workspaces WHERE id = $1', [workspaceId]);
     businessPhone = (w.rows[0] && w.rows[0].twilio_phone_number) || null;
+    businessPhoneStatus = (w.rows[0] && w.rows[0].twilio_status) || 'not_started';
   }
   // Outbound email identity: replies the owner writes send from the
   // connected account (sendViaConnectedAccount); AI replies send from
@@ -1396,6 +1424,7 @@ app.get('/api/settings', requireAuth, async (req, res) => {
   res.json({
     ...userFields,
     business_phone: businessPhone,
+    business_phone_status: businessPhoneStatus,
     outbound_email: (acct.rows[0] && acct.rows[0].email) || null,
     platform_from: process.env.SENDGRID_FROM_EMAIL || 'noreply@modernmanagementapp.com',
     notification_email_verified: Boolean(notification_email_verified_at),

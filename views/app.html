@@ -3282,7 +3282,13 @@
             </div>
             <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.5;">What customers see and use — distinct from your personal contact above. Contact support to change your business number; changing a provisioned number affects Twilio, A2P registration, and customers who saved it.</div>
 
-            <div id="bizNoPhoneBanner" class="mm-banner mm-banner-warning" style="display:none;margin-bottom:14px;">Your business number isn't set up yet — customers can't text or call until provisioning completes.</div>
+            <!-- SP4b: the banner now speaks the phone's real state
+                 (provisioning vs failed) and offers the one-tap retry
+                 when, and only when, there is something to retry. -->
+            <div id="bizNoPhoneBanner" class="mm-banner mm-banner-warning" style="display:none;margin-bottom:14px;">
+              <span id="bizNoPhoneText">Your business number isn't set up yet — customers can't text or call until provisioning completes.</span>
+              <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizRetryBtn" onclick="retryProvisioning(this)" style="display:none;margin-left:10px;">Try again</button>
+            </div>
 
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;" id="bizIdentityGrid">
               <div class="routing-pill">
@@ -5441,10 +5447,21 @@
             if (copyBtn) copyBtn.style.display = '';
             if (noPhone) noPhone.style.display = 'none';
           } else {
-            bizPhone.textContent = 'Not set up yet';
+            // SP4b: say WHICH not-set-up state this is, and offer the
+            // retry only when there's something to retry.
+            const st = data.business_phone_status || 'not_started';
+            bizPhone.textContent = st === 'failed' ? 'Setup failed' : 'Being set up';
             delete bizPhone.dataset.copy;
             if (copyBtn) copyBtn.style.display = 'none';
             if (noPhone) noPhone.style.display = 'block';
+            const noPhoneText = document.getElementById('bizNoPhoneText');
+            const retryBtn = document.getElementById('bizRetryBtn');
+            if (noPhoneText) {
+              noPhoneText.textContent = st === 'failed'
+                ? "We couldn't finish setting up your business number automatically. Support has been alerted — you can also try again here."
+                : "Your business number is being set up — customers can't text or call until it lands. This usually takes under a minute.";
+            }
+            if (retryBtn) retryBtn.style.display = st === 'failed' ? '' : 'none';
           }
         }
         const bizEmail = document.getElementById('bizEmailValue');
@@ -5578,6 +5595,30 @@
             banner.textContent = 'Could not save: ' + (err.message || err);
             banner.style.display = 'block';
           }
+        }
+      }
+
+      // SP4b: the one-tap re-arm. Puts a failed workspace back in the
+      // provisioning queue and kicks an immediate attempt; the card
+      // reloads so the owner sees the new state rather than a guess.
+      async function retryProvisioning(btn) {
+        const label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Retrying...';
+        try {
+          const res = await fetch('/api/workspace/provisioning/retry', { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            btn.textContent = data.error || 'Retry failed';
+            setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000);
+            return;
+          }
+          btn.textContent = 'Retrying — this takes a few seconds';
+          // Give the kick a moment to land, then show the truth.
+          setTimeout(() => { loadNotifSettings(); }, 6000);
+        } catch (err) {
+          btn.textContent = 'Retry failed';
+          setTimeout(() => { btn.textContent = label; btn.disabled = false; }, 3000);
         }
       }
 
