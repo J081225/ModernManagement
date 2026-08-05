@@ -8,12 +8,10 @@
 // t/c/m group-read grammar mirrors the /api/conversations endpoint
 // (source-pinned here).
 //
-// FLAGGED DIVERGENCE (RS7): unreadConversationCount groups threadless
-// rows by 'm'+id, while /api/conversations groups threadless-but-
-// contact-linked rows by 'c'+contact_id. The badge therefore over-
-// counts vs the list for that row class. Documented, not patched
-// (AD9 is test-infra only) — reported in the commit for a future
-// ruling.
+// RS7 (resolved): the badge's grouping grammar now matches the list's
+// (thread → contact → id), per Jay's Admin-arc-close ruling. RS7
+// asserts badge === list; the fixture models whichever grammar the
+// SQL actually carries, so a lib revert fails the row honestly.
 const path = require('path');
 const fs = require('fs');
 const readState = require(path.join(__dirname, '..', 'lib', 'read-state'));
@@ -52,12 +50,16 @@ function makeDb(rows, opts = {}) {
         return mark((r) => r.user_id === params[0] && r.id === params[1]);
       }
       if (s.startsWith('SELECT COUNT(DISTINCT COALESCE')) {
-        // COUNT(DISTINCT COALESCE('t'||thread_id, 'm'||id)) for inbox
-        // inbound unread — the badge's exact grammar.
+        // The badge count. The fixture models the grammar the SQL
+        // ACTUALLY carries: with 'c' || contact_id in the COALESCE it
+        // folds thread → contact → id (the RS7 fix); without it, the
+        // old per-row grammar — so a lib revert fails RS7, honestly.
+        const foldsContact = s.includes("'c' || contact_id");
         const keys = new Set();
         for (const r of rows) {
           if (r.user_id === params[0] && r.folder === 'inbox' && r.direction === 'inbound' && !r.read_at) {
-            keys.add(r.thread_id ? 't' + r.thread_id : 'm' + r.id);
+            keys.add(r.thread_id ? 't' + r.thread_id
+              : (foldsContact && r.contact_id ? 'c' + r.contact_id : 'm' + r.id));
           }
         }
         return { rows: [{ n: keys.size }] };
@@ -143,22 +145,23 @@ function makeDb(rows, opts = {}) {
       JSON.stringify({ t, c, m, bad, noId }));
   }
 
-  // ---- RS7: the FLAGGED badge-vs-list divergence, captured as a fact ----
+  // ---- RS7: badge === list — the divergence is FIXED ----
   {
-    // Two threadless inbound rows for ONE contact. The badge grammar
-    // ('m'+id) counts them as 2; the /api/conversations grammar
-    // ('c'+contact_id) groups them as 1. This asserts the CURRENT
-    // behavior so the divergence is on the record, not silently
-    // "passing".
+    // Two threadless inbound rows for ONE contact, plus an unlinked
+    // single. The badge now groups exactly as the list does
+    // (conversationKeyOf: thread → contact → id): the contact's pair
+    // folds to one conversation, the unlinked row stands alone.
     const rows = [
       { id: 20, user_id: 3, thread_id: null, contact_id: 42, direction: 'inbound', read_at: null, folder: 'inbox' },
       { id: 21, user_id: 3, thread_id: null, contact_id: 42, direction: 'inbound', read_at: null, folder: 'inbox' },
+      { id: 22, user_id: 3, thread_id: null, contact_id: null, direction: 'inbound', read_at: null, folder: 'inbox' },
     ];
     const badge = await readState.unreadConversationCount({ db: makeDb(rows), userId: 3 });
-    // list grouping (conversationKeyOf): both -> 'c42' -> one bucket
+    // list grouping (conversationKeyOf): 'c42' + 'm22' -> two buckets
     const listKeys = new Set(rows.map((r) => r.thread_id ? 't' + r.thread_id : (r.contact_id ? 'c' + r.contact_id : 'm' + r.id)));
-    check('RS7 [FLAG]: badge counts 2 for a contact\'s 2 threadless unread; the list groups them to 1 — a real divergence (documented, unpatched)',
-      badge === 2 && listKeys.size === 1, JSON.stringify({ badge, listBuckets: listKeys.size }));
+    check('RS7: badge === list — a contact\'s N threadless unread count as ONE conversation (plus the unlinked single), matching conversationKeyOf exactly; the AD9-flagged divergence is closed',
+      badge === 2 && listKeys.size === 2 && badge === listKeys.size,
+      JSON.stringify({ badge, listBuckets: listKeys.size }));
   }
 
   // ---- RS8: source-pin — the endpoint grammar matches the lib grammar ----
