@@ -9248,7 +9248,16 @@ app.post('/api/transactions/:id/refund', requireAuth, async (req, res) => {
       [newRefunded, newStatus, parent.id, workspaceId]
     );
 
-    res.json({ success: true, refund_transaction_id: refundId, parent_status: newStatus });
+    // TR2 (G2 honesty): the API says what actually happened — a record
+    // was written; no money moved. The client renders money_moved
+    // honestly and the note names the manual step for card payments.
+    res.json({
+      success: true,
+      refund_transaction_id: refundId,
+      parent_status: newStatus,
+      money_moved: false,
+      note: 'Refund recorded. No money was moved — for card payments, process the refund in your Stripe dashboard.',
+    });
   } catch (err) {
     console.error('[POST /api/transactions/:id/refund]', err.message);
     res.status(500).json({ error: 'Failed to issue refund' });
