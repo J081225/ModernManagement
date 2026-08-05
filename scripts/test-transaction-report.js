@@ -487,6 +487,65 @@ const args = (extra = {}) => ({
       JSON.stringify({ led: led.slice(0, 60), rpt: rpt.slice(0, 60) }));
   }
 
+  // ---- TX23: the watchdog — a hang can strand nothing, and retry RECOVERS ----
+  {
+    // The exact live state: fresh page entry, _finPeriod never born
+    // (undeclared), loaders dead upstream of every fetch, cards on
+    // "Loading…". The watchdog must flip them to the honest timeout,
+    // and its retry must RECOVER (create the period state and load) —
+    // not re-throw.
+    const elements = {};
+    const el = (id) => elements[id] || (elements[id] = {
+      id, innerHTML: id === 'ledgerList' || id === 'rptList' ? 'Loading&hellip;' : '<div class="fin-skeleton"></div>',
+      style: {}, dataset: {}, textContent: '', value: '', classList: { toggle() {} },
+    });
+    const fetched = [];
+    const summary = { period: { start: '2026-08-01T04:00:00.000Z', end: '2026-09-01T04:00:00.000Z', kind: 'month' }, live_mode: true, money_in: {}, money_out: {}, by_category: [] };
+    const ledger = { rows: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, demo_cents: 0 }, capped: false, total_rows: 0 };
+    const report = { groups: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, count: 0 }, hidden_test: { count: 0, cents: 0 }, include_test: false, capped: false, total_rows: 0, source_total_rows: 0 };
+    const sandbox = {
+      console: { error() {}, log() {} }, setTimeout,
+      document: { getElementById: el, querySelectorAll: () => [] },
+      window: {}, _rptIncludeTest: false, calTz: () => 'America/New_York',
+      URLSearchParams, Date, Math, JSON, String, Number, Array, Object, Set, Map, parseInt, isNaN, Promise, RegExp,
+      // NOTE: _finPeriod deliberately NOT provided — the live bug's state.
+      fetch: async (url) => {
+        fetched.push(url.split('?')[0]);
+        const body = url.includes('/summary') ? summary : url.includes('/ledger') ? ledger : report;
+        return { ok: true, status: 200, json: async () => body };
+      },
+    };
+    const names = ['_finArmWatchdog', 'finWatchdogRetry', 'setFinPeriod', 'loadFinancesSummary', '_finStrandError',
+      'renderFinScorecard', 'renderFinBreakdown', '_finTile', 'loadLedger', '_ledParams', 'loadReport', '_rptParams',
+      'renderReport', 'formatCents', '_expFmtCents', '_convEsc', 'escapeHtmlInv'];
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(names.map((n) => _grabFn(appHtml, n)).join('\n'), ctx);
+
+    // 1) the strand: watchdog armed with a short fuse, nothing loads
+    vm.runInContext('_finArmWatchdog(15)', ctx);
+    await new Promise((r) => setTimeout(r, 80));
+    const led = String(el('ledgerList').innerHTML);
+    const rpt = String(el('rptList').innerHTML);
+    const grid1 = String(el('finScorecard').innerHTML);
+    const flipped = [led, rpt, grid1].every((h) => h.includes('taking too long') && h.includes('finWatchdogRetry'))
+      && !led.includes('Loading');
+    // 2) the recovery: the retry link's handler must complete the FULL
+    //    chain from the broken state (no _finPeriod anywhere)
+    await vm.runInContext('finWatchdogRetry()', ctx);
+    await new Promise((r) => setTimeout(r, 100));
+    const recovered = fetched.includes('/api/finances/summary')
+      && fetched.includes('/api/finances/ledger')
+      && fetched.includes('/api/finances/report')
+      && String(el('rptList').innerHTML).includes('No money movement');
+    check('TX23 [the watchdog]: cards stuck loading flip to "taking too long" + retry after the fuse — and the retry RECOVERS from the exact live state (period state never born): full chain runs, all three fetches fire, cards render',
+      flipped && recovered,
+      JSON.stringify({ flipped, recovered, fetched, led: led.slice(0, 60) }));
+    // 3) armed on page ENTRY, before anything can throw
+    const entryArmed = /async function loadFinancesPage\(\) \{\s*\n\s*_finArmWatchdog\(\);/.test(appHtml);
+    check('TX23b: the watchdog is armed as loadFinancesPage\'s FIRST act — upstream of every loader, so no failure class can precede it',
+      entryArmed);
+  }
+
   console.log(`${pass}/${pass + fail} — transaction-report suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();

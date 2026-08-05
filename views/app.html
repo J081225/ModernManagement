@@ -12182,7 +12182,36 @@
       let _openTx = null;
       let _financesVertical = null; // 'professional-services' | 'property-management'
 
+      // The watchdog: nothing on this page may sit in a loading state
+      // forever. Armed on page ENTRY — before any loader can run or
+      // throw — so even a failure upstream of every fetch (the class
+      // of bug the strand fix could not reach) flips to an honest
+      // timeout with a working retry.
+      function _finArmWatchdog(delayMs) {
+        setTimeout(() => {
+          const retry = ' <a href="#" onclick="event.preventDefault();finWatchdogRetry();" style="color:var(--accent);font-weight:600;">Try again</a>';
+          for (const id of ['ledgerList', 'rptList']) {
+            const target = document.getElementById(id);
+            if (target && /Loading/.test(target.innerHTML)) {
+              target.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">This is taking too long —' + retry + '</div>';
+            }
+          }
+          const grid = document.getElementById('finScorecard');
+          if (grid && /fin-skeleton/.test(grid.innerHTML)) {
+            grid.innerHTML = '<div class="mm-empty" style="grid-column:1/-1;padding:16px;">This is taking too long —' + retry + '</div>';
+          }
+        }, delayMs || 10000);
+      }
+      // The retry must RECOVER, not just re-run: if the period state
+      // was never born (the undeclared-_finPeriod class), reset to the
+      // default tab — which creates it — instead of re-throwing.
+      function finWatchdogRetry() {
+        if (typeof _finPeriod === 'undefined') { setFinPeriod('month'); return; }
+        loadFinancesSummary();
+      }
+
       async function loadFinancesPage() {
+        _finArmWatchdog();
         // Resolve vertical from the cached plan summary (D5) if present
         let vertical = 'property-management';
         try {
