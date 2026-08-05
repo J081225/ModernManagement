@@ -35,7 +35,10 @@ function makeDb(fx) {
       }
       if (sql.includes('FROM budget_transactions')) {
         const uid = params[0];
-        let rows = fx.budget.filter((r) => r.user_id === uid && r.type === 'expense');
+        // TR2 (G1): the stub honors the SQL's type filter — income and
+        // expense are now distinct queries in the lib.
+        const wantType = sql.includes("type = 'income'") ? 'income' : 'expense';
+        let rows = fx.budget.filter((r) => r.user_id === uid && r.type === wantType);
         if (sql.includes('date >= $2')) rows = rows.filter((r) => r.date >= params[1] && r.date < params[2]);
         else if (sql.includes('date > $2')) rows = rows.filter((r) => r.date > params[1]);
         if (sql.includes('GROUP BY')) {
@@ -110,14 +113,14 @@ function makeLedgerDb(fx) {
         const rows = fx.ledger
           .filter((r) => r.workspace_id === params[0] && r.status === 'completed'
             && r.created_at >= params[1] && r.created_at < params[2])
-          .map((r) => ({ amount_cents: r.amount_cents, payment_type: r.payment_type || 'payment', payment_method: r.payment_method, created_at: r.created_at, customer_display_name: 'Dana' }));
+          .map((r, i) => ({ payment_id: r.id || (100 + i), transaction_id: r.transaction_id || (200 + i), amount_cents: r.amount_cents, payment_type: r.payment_type || 'payment', payment_method: r.payment_method, created_at: r.created_at, customer_display_name: 'Dana' }));
         return { rows };
       }
       if (sql.includes('FROM rent_payments')) {
         const dateOf = (r) => r.paid_date || r.due_date;
         const rows = fx.rent
           .filter((r) => r.user_id === params[0] && r.status === 'paid' && dateOf(r) >= params[1] && dateOf(r) < params[2])
-          .map((r) => ({ resident: r.resident || 'Tenant', unit: r.unit || '', amount: r.amount, d: dateOf(r) }));
+          .map((r, i) => ({ id: r.id || (300 + i), resident: r.resident || 'Tenant', unit: r.unit || '', amount: r.amount, d: dateOf(r) }));
         return { rows };
       }
       if (sql.includes('FROM expenses')) {
@@ -127,9 +130,11 @@ function makeLedgerDb(fx) {
         return { rows };
       }
       if (sql.includes('FROM budget_transactions')) {
+        // TR2 (G1): the ledger reads BOTH types now, and carries type
+        // + id through (the lib maps income -> direction 'in').
         const rows = fx.budget
-          .filter((r) => r.user_id === params[0] && r.type === 'expense' && r.date >= params[1] && r.date < params[2])
-          .map((r) => ({ amount: r.amount, category: r.category, description: r.description || '', date: r.date }));
+          .filter((r) => r.user_id === params[0] && (r.type === 'expense' || r.type === 'income') && r.date >= params[1] && r.date < params[2])
+          .map((r, i) => ({ id: r.id || (900 + i), amount: r.amount, category: r.category, description: r.description || '', date: r.date, type: r.type }));
         return { rows };
       }
       throw new Error('unexpected ledger SQL: ' + sql.slice(0, 50));
@@ -145,8 +150,10 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
 
   // B1: money_in sums both feeds with provenance; pending + out-of-period excluded
   let s = await computeFinancesSummary({ db: makeDb(clone()), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
-  check('B1: PS feed = completed July cents minus demo (5000), rent legacy = 120000, combined 125000',
-    s.money_in.ps_cents === 5000 && s.money_in.pm_rent_legacy_cents === 120000 && s.money_in.combined_cents === 125000);
+  check('B1 [evolved TR2/G1]: PS feed = completed July cents minus demo (5000), rent legacy = 120000, income legacy = 120000 (the once-invisible rows), combined 245000',
+    s.money_in.ps_cents === 5000 && s.money_in.pm_rent_legacy_cents === 120000
+    && s.money_in.legacy_budget_income_cents === 120000
+    && s.money_in.combined_cents === 245000);
   check('B1b: pending rows and June money excluded from the period', s.money_in.ps_cents + s.money_in_demo_cents === 6000);
 
   // B2: test-mode demo split — stripe $10 reported as demo, not real
@@ -187,22 +194,22 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
   // after 07-01: PS 6000, rent 120000, legacy out 29450, real out 19200
-  check('B6b: earlier anchor counts each event exactly once (100000+6000+120000−29450−19200)',
-    s.cash_current_cents === 100000 + 6000 + 120000 - 29450 - 19200);
+  check('B6b [evolved TR2/G1]: earlier anchor counts each event exactly once, income included (100000+6000+120000+120000−29450−19200)',
+    s.cash_current_cents === 100000 + 6000 + 120000 + 120000 - 29450 - 19200);
 
   // B6c: test-mode cash excludes the demo money entirely
   fx = clone();
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
-  check('B6c: test-mode drawer never holds test dollars (stripe 1000 excluded from cash)',
-    s.cash_current_cents === 100000 + 5000 + 120000 - 29450 - 19200);
+  check('B6c [evolved TR2/G1]: test-mode drawer never holds test dollars (stripe 1000 excluded; real income included)',
+    s.cash_current_cents === 100000 + 5000 + 120000 + 120000 - 29450 - 19200);
 
   // B7: goal progress
   fx = clone();
   fx.goals.push({ workspace_id: 7, type: 'revenue', label: 'July target', target_cents: 250000, period: 'month', active: true, id: 1 });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
-  check('B7: goal read with progress vs combined money_in (126000/250000 = 50%)',
-    s.goal && s.goal.target_cents === 250000 && s.goal.progress_cents === 126000 && s.goal.progress_pct === 50);
+  check('B7 [evolved TR2/G1]: goal read with progress vs combined money_in, income included (246000/250000 = 98%)',
+    s.goal && s.goal.target_cents === 250000 && s.goal.progress_cents === 246000 && s.goal.progress_pct === 98);
 
   // B8: workspace isolation — workspace 8's summary sees only its own money
   const WS_B = { id: 8, owner_user_id: 9, timezone: 'America/New_York' };
@@ -292,8 +299,8 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
   const pre = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
   const counted = 200000;
   const drift = counted - pre.cash_current_cents;
-  check('B17b: drift = counted − expected (expected 177350 → drift +22650), pure derivation',
-    pre.cash_current_cents === 100000 + 6000 + 120000 - 29450 - 19200 && drift === counted - 177350);
+  check('B17b [evolved TR2/G1]: drift = counted − expected (expected 297350 with income → drift −97350), pure derivation',
+    pre.cash_current_cents === 100000 + 6000 + 120000 + 120000 - 29450 - 19200 && drift === counted - 297350);
 
   // B18: one ACTIVE goal per period governs; an inactive same-period
   // goal is ignored; workspace isolation holds for anchors and goals.
@@ -347,14 +354,14 @@ const LIVE_ENV = { DEPOSITS_LIVE_OVERRIDE: 'true' };
     s.money_in.deposits_cents === 1500);
   fx.anchors.push({ workspace_id: 7, amount_cents: 100000, as_of: '2026-07-01T00:00:00.000Z' });
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: TEST_ENV, now: NOW });
-  check('B16c: cash_current holds only real money across all sources (100000+5500+120000−29450−19200)',
-    s.cash_current_cents === 100000 + 5500 + 120000 - 29450 - 19200);
+  check('B16c [evolved TR2/G1]: cash_current holds only real money across all sources, income included (100000+5500+120000+120000−29450−19200)',
+    s.cash_current_cents === 100000 + 5500 + 120000 + 120000 - 29450 - 19200);
   // LIVE MODE: everything folds in.
   s = await computeFinancesSummary({ db: makeDb(fx), workspace: WS_A, period: 'month', env: LIVE_ENV, now: NOW });
   check('B16d: live — all sources fold in (PS 8500, deposits 3500, demo 0)',
     s.money_in.ps_cents === 8500 && s.money_in.deposits_cents === 3500 && s.money_in_demo_cents === 0);
-  check('B16e: live cash_current includes the former demo dollars',
-    s.cash_current_cents === 100000 + 8500 + 120000 - 29450 - 19200);
+  check('B16e [evolved TR2/G1]: live cash_current includes the former demo dollars and the income rows',
+    s.cash_current_cents === 100000 + 8500 + 120000 + 120000 - 29450 - 19200);
 
   // ---- BG2: expense validation + the invoice bridge ----
   const { validateExpenseInput, bridgeInvoiceToExpense } = require('../lib/expenses');
