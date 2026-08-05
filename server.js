@@ -8989,6 +8989,32 @@ app.get('/api/finances/ledger', requireAuth, async (req, res) => {
   }
 });
 
+// TR2: the transaction-history report — a grouped, subtotaled VIEW
+// over the same composeLedgerRows the ledger and dashboard read (the
+// one-source-of-truth ruling; a third query stack could drift).
+// Real-only by default; ?include_test=true folds test rows back in.
+app.get('/api/finances/report', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
+    const out = await require('./lib/transaction-report').composeTransactionReport({
+      db: pool, workspace: wR.rows[0],
+      period: req.query.period || 'month', start: req.query.start, end: req.query.end,
+      env: process.env,
+      direction: req.query.direction, category: req.query.category, source: req.query.source,
+      customer: req.query.customer,
+      include_test: req.query.include_test === 'true',
+      group_by: req.query.group_by || 'month',
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[GET /api/finances/report]', err.message);
+    res.status(500).json({ error: 'Failed to compose the report' });
+  }
+});
+
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
