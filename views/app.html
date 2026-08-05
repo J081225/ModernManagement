@@ -12332,6 +12332,16 @@
         }
       }
 
+      // THE ROOT CAUSE of the Finances loading strand: this variable
+      // was read by every loader but never declared or initialized —
+      // it only came into existence when a period tab's onclick ran
+      // setFinPeriod. On a fresh page load with no click, the first
+      // read threw ReferenceError upstream of every fetch, stranding
+      // the tiles on skeletons and both cards on "Loading…" (since
+      // BG3; masked whenever a tab was clicked). Born initialized,
+      // matching the tab that renders active by default.
+      let _finPeriod = 'month';
+
       function setFinPeriod(kind) {
         _finPeriod = kind;
         document.querySelectorAll('[data-fin-period]').forEach((b) => {

@@ -420,7 +420,7 @@ const args = (extra = {}) => ({
     const sandbox = {
       console: { error() {}, log() {} }, setTimeout,
       document: { getElementById: el, querySelectorAll: () => [] },
-      window: {}, _finPeriod: 'month', _rptIncludeTest: false,
+      window: {}, _rptIncludeTest: false,
       calTz: () => 'America/New_York',
       URLSearchParams, Date, Math, JSON, String, Number, Array, Object, Set, Map, parseInt, isNaN, Promise,
       fetch: fetchImpl,
@@ -428,8 +428,15 @@ const args = (extra = {}) => ({
     const names = ['loadFinancesSummary', '_finStrandError', 'renderFinScorecard', 'renderFinBreakdown',
       '_finTile', 'loadLedger', '_ledParams', 'loadReport', '_rptParams', 'renderReport',
       'formatCents', '_expFmtCents', '_convEsc', 'escapeHtmlInv'];
+    // ROUND-1 LESSON: the sandbox used to INJECT _finPeriod:'month',
+    // masking the undeclared-variable root cause — the vm "proved" a
+    // chain the real browser could not run. Now the page's own
+    // declaration is extracted verbatim; if it is ever removed, the
+    // extraction fails and every chain row fails with it.
+    const declMatch = appHtml.match(/let _finPeriod = '[a-z]+';/);
+    if (!declMatch) throw new Error('_finPeriod declaration missing from app.html — the BG3 fresh-load strand is back');
     const ctx = vm.createContext(sandbox);
-    vm.runInContext(names.map((n) => _grabFn(appHtml, n)).join('\n'), ctx);
+    vm.runInContext(declMatch[0] + '\n' + names.map((n) => _grabFn(appHtml, n)).join('\n'), ctx);
     return { ctx, el };
   }
 
@@ -485,6 +492,29 @@ const args = (extra = {}) => ({
       led.includes('Could not load the ledger') && led.includes('Try again')
         && rpt.includes('Could not load the report') && rpt.includes('Try again'),
       JSON.stringify({ led: led.slice(0, 60), rpt: rpt.slice(0, 60) }));
+  }
+
+  // ---- TX22: the fresh-load chain — the row that would have caught BG3's strand ----
+  {
+    // A fresh page load, NO period tab ever clicked, nothing injected:
+    // the chain must complete purely from the page's own declarations.
+    // Against the pre-fix code this throws ReferenceError before the
+    // first fetch — the live bug, exactly.
+    const summary = { period: { start: '2026-08-01T04:00:00.000Z', end: '2026-09-01T04:00:00.000Z', kind: 'month' }, live_mode: true, money_in: {}, money_out: {}, by_category: [] };
+    const ledger = { rows: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, demo_cents: 0 }, capped: false, total_rows: 0 };
+    const report = { groups: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, count: 0 }, hidden_test: { count: 0, cents: 0 }, include_test: false, capped: false, total_rows: 0, source_total_rows: 0 };
+    const fetched = [];
+    const { ctx, el } = _chainSandbox(async (url) => {
+      fetched.push(url.split('?')[0]);
+      const body = url.includes('/summary') ? summary : url.includes('/ledger') ? ledger : report;
+      return { ok: true, status: 200, json: async () => body };
+    });
+    let threw = null;
+    try { await vm.runInContext('loadFinancesSummary()', ctx); } catch (e) { threw = e.message; }
+    await new Promise((r) => setTimeout(r, 100));
+    check('TX22 [the root cause]: a FRESH load with no tab click completes the whole chain from the page\'s own state — _finPeriod is born initialized, all three fetches fire, both cards render (pre-fix: ReferenceError before the first fetch)',
+      threw === null && fetched.length === 3 && String(el('rptList').innerHTML).includes('No money movement'),
+      JSON.stringify({ threw, fetched }));
   }
 
   // ---- TX23: the watchdog — a hang can strand nothing, and retry RECOVERS ----
