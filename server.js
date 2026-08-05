@@ -9015,6 +9015,105 @@ app.get('/api/finances/report', requireAuth, async (req, res) => {
   }
 });
 
+// TR4: the printable report — a server-rendered, print-styled page
+// over the SAME composer (TR2's one-source-of-truth ruling). The
+// ruled shape: print-styled HTML, browser print-to-PDF produces the
+// PDF, no server-side PDF dependency. Server-side rendering means
+// lib/money.formatCents is used DIRECTLY — the one formatter, no
+// mirror needed on this surface.
+const _rptEscHtml = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+app.get('/finances/report/print', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).send('No workspace for user');
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).send('Workspace not found');
+    const ws = wR.rows[0];
+    const { formatCents } = require('./lib/money');
+    const data = await require('./lib/transaction-report').composeTransactionReport({
+      db: pool, workspace: ws,
+      period: req.query.period || 'month', start: req.query.start, end: req.query.end,
+      env: process.env,
+      direction: req.query.direction, category: req.query.category, source: req.query.source,
+      customer: req.query.customer,
+      include_test: req.query.include_test === 'true',
+      group_by: req.query.group_by || 'month',
+    });
+
+    const esc = _rptEscHtml;
+    const net = (c) => (c >= 0 ? '+' : '−') + formatCents(Math.abs(c));
+    const periodLabel = String(data.period.start).slice(0, 10) + ' – '
+      + new Date(new Date(data.period.end).getTime() - 86400000).toISOString().slice(0, 10);
+    const filterBits = [];
+    if (req.query.direction) filterBits.push('direction: ' + req.query.direction);
+    if (req.query.source) filterBits.push('source: ' + req.query.source);
+    if (req.query.category) filterBits.push('category: ' + req.query.category);
+    if (req.query.customer) filterBits.push('customer: ' + req.query.customer);
+    filterBits.push(data.include_test ? 'test rows included' : 'real money only');
+
+    const groupsHtml = data.groups.map((g) => {
+      const rows = g.rows.map((r) => {
+        const ref = r.ref && r.ref.kind === 'payment' && r.ref.transaction_id ? '#' + r.ref.transaction_id : '';
+        return '<tr>'
+          + '<td>' + esc(r.date) + '</td>'
+          + '<td>' + esc(r.description) + (r.demo ? ' <em>(test)</em>' : '') + '</td>'
+          + '<td>' + esc(r.category) + '</td>'
+          + '<td>' + esc(ref) + '</td>'
+          + '<td class="amt">' + (r.direction === 'in' ? '+' : '−') + formatCents(r.amount_cents) + '</td>'
+          + '</tr>';
+      }).join('');
+      return '<section class="grp">'
+        + '<h2>' + esc(g.label) + '</h2>'
+        + '<table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Ref</th><th class="amt">Amount</th></tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+        + '<tfoot><tr><td colspan="4">Subtotal — In ' + formatCents(g.subtotals.in_cents)
+        + ' · Out ' + formatCents(g.subtotals.out_cents) + '</td>'
+        + '<td class="amt">Net ' + net(g.subtotals.net_cents) + '</td></tr></tfoot>'
+        + '</table></section>';
+    }).join('');
+
+    const hiddenLine = (!data.include_test && data.hidden_test.count > 0)
+      ? '<p class="muted">' + data.hidden_test.count + ' test row' + (data.hidden_test.count === 1 ? '' : 's')
+        + ' (' + formatCents(data.hidden_test.cents) + ') excluded from this report.</p>'
+      : '';
+    const cappedLine = data.capped
+      ? '<p class="muted">Showing the first ' + data.total_rows + ' of ' + data.source_total_rows + ' rows in this period.</p>'
+      : '';
+
+    res.type('html').send('<!DOCTYPE html><html><head><meta charset="utf-8">'
+      + '<title>Transaction Report — ' + esc(ws.business_name || 'Workspace') + '</title>'
+      + '<style>'
+      + 'body{font:13px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#111;margin:40px auto;max-width:820px;padding:0 20px;}'
+      + 'h1{font-size:1.35em;margin:0 0 2px;} h2{font-size:1.02em;margin:22px 0 6px;border-bottom:2px solid #111;padding-bottom:3px;}'
+      + '.muted{color:#666;font-size:0.92em;margin:3px 0;}'
+      + 'table{width:100%;border-collapse:collapse;margin-bottom:4px;}'
+      + 'th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #ddd;font-size:0.95em;}'
+      + 'th{border-bottom:1px solid #999;font-weight:600;} .amt{text-align:right;white-space:nowrap;}'
+      + 'tfoot td{font-weight:600;border-bottom:none;border-top:1px solid #999;}'
+      + '.totals{margin-top:18px;padding-top:10px;border-top:2px solid #111;font-weight:600;}'
+      + '.grp{break-inside:avoid;page-break-inside:avoid;}'
+      + '.noprint{margin:0 0 18px;} @media print{.noprint{display:none;}body{margin:0 auto;}}'
+      + '</style></head><body>'
+      + '<div class="noprint"><button onclick="window.print()" style="padding:8px 18px;font-weight:600;cursor:pointer;">Print / Save as PDF</button></div>'
+      + '<h1>Transaction Report — ' + esc(ws.business_name || 'Workspace') + '</h1>'
+      + '<p class="muted">' + esc(periodLabel) + ' · grouped by ' + esc(data.group_by) + ' · ' + esc(filterBits.join(' · ')) + '</p>'
+      + '<p class="muted">Generated ' + new Date().toISOString().slice(0, 10) + ' · amounts in USD</p>'
+      + hiddenLine + cappedLine
+      + (data.groups.length ? groupsHtml : '<p class="muted">No money movement in this period.</p>')
+      + '<p class="totals">Total — In ' + formatCents(data.totals.in_cents)
+      + ' · Out ' + formatCents(data.totals.out_cents)
+      + ' · Net ' + net(data.totals.net_cents)
+      + ' · ' + data.totals.count + ' rows</p>'
+      + '</body></html>');
+  } catch (err) {
+    console.error('[GET /finances/report/print]', err.message);
+    res.status(500).send('Failed to compose the printable report');
+  }
+});
+
 app.get('/api/transactions', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
