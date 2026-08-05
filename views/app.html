@@ -3562,6 +3562,10 @@
             <div class="mm-card" id="finReportCard" style="margin-top:14px;">
               <div class="mm-card-header">
                 <div class="mm-card-title">Report</div>
+                <div style="display:flex;gap:8px;">
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" id="rptPrintBtn" onclick="printReport()">Print</button>
+                  <button class="mm-btn mm-btn-secondary mm-btn-sm" id="rptExportBtn" onclick="exportReportCsv()">Export CSV</button>
+                </div>
               </div>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
                 <select id="rptGroupBy" onchange="loadReport()"
@@ -12532,6 +12536,19 @@
       function toggleReportTest() {
         _rptIncludeTest = !_rptIncludeTest;
         loadReport();
+      }
+
+      // TR4: the two artifacts, driven by the SAME params as the
+      // on-screen report — what you see is what prints/exports.
+      function exportReportCsv() {
+        const params = _rptParams();
+        if (!params) return;
+        window.location.href = '/api/finances/report/export.csv?' + params.toString();
+      }
+      function printReport() {
+        const params = _rptParams();
+        if (!params) return;
+        window.open('/finances/report/print?' + params.toString(), '_blank');
       }
 
       // Same period resolution as the ledger: the ONE control above.

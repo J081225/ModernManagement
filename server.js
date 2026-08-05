@@ -9015,6 +9015,73 @@ app.get('/api/finances/report', requireAuth, async (req, res) => {
   }
 });
 
+// TR4: the report-scoped CSV — the accountant's artifact (the ruled
+// shape: extend the CSV surface, don't add a third unrelated one).
+// Same composer, same grammar as /api/finances/report; cells through
+// lib/money.centsToDecimal (no symbol, no separators — spreadsheets
+// parse a number), grouping carried as a column plus subtotal rows.
+app.get('/api/finances/report/export.csv', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const wR = await pool.query('SELECT * FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0]) return res.status(404).json({ error: 'Workspace not found' });
+    const { centsToDecimal } = require('./lib/money');
+    const data = await require('./lib/transaction-report').composeTransactionReport({
+      db: pool, workspace: wR.rows[0],
+      period: req.query.period || 'month', start: req.query.start, end: req.query.end,
+      env: process.env,
+      direction: req.query.direction, category: req.query.category, source: req.query.source,
+      customer: req.query.customer,
+      include_test: req.query.include_test === 'true',
+      group_by: req.query.group_by || 'month',
+    });
+
+    const SOURCE_LABEL = { ledger: 'Payments', legacy_rent: 'Rent (legacy)', expenses: 'Expenses', legacy_budget: 'Budget (legacy)' };
+    const REF_PREFIX = { payment: 'TX', rent_payment: 'RENT', expense: 'EXP', legacy_budget: 'BGT' };
+    const refOf = (r) => {
+      if (!r.ref) return '';
+      if (r.ref.kind === 'payment') return 'TX-' + r.ref.transaction_id;
+      return (REF_PREFIX[r.ref.kind] || 'REF') + '-' + r.ref.id;
+    };
+
+    const header = ['Group', 'Date', 'Direction', 'Description', 'Category', 'Source', 'Customer', 'Reference', 'Money', 'Amount'];
+    const lines = [header.join(',')];
+    for (const g of data.groups) {
+      for (const r of g.rows) {
+        lines.push([
+          _csvEscape(g.label),
+          r.date,
+          r.direction === 'in' ? 'In' : 'Out',
+          _csvEscape(r.description),
+          _csvEscape(r.category),
+          SOURCE_LABEL[r.source] || r.source,
+          _csvEscape(r.customer || ''),
+          refOf(r),
+          r.demo ? 'Test' : 'Real',
+          centsToDecimal(r.direction === 'in' ? r.amount_cents : -r.amount_cents),
+        ].join(','));
+      }
+      lines.push([_csvEscape(g.label + ' subtotal'), '', '', '', '', '', '', '', 'Net', centsToDecimal(g.subtotals.net_cents)].join(','));
+    }
+    lines.push('');
+    lines.push(['Totals', '', '', '', '', '', '', '', 'In', centsToDecimal(data.totals.in_cents)].join(','));
+    lines.push(['', '', '', '', '', '', '', '', 'Out', centsToDecimal(data.totals.out_cents)].join(','));
+    lines.push(['', '', '', '', '', '', '', '', 'Net', centsToDecimal(data.totals.net_cents)].join(','));
+    if (!data.include_test && data.hidden_test.count > 0) {
+      lines.push(['Hidden test rows: ' + data.hidden_test.count, '', '', '', '', '', '', '', 'Test', centsToDecimal(data.hidden_test.cents)].join(','));
+    }
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="report-' + stamp + '.csv"');
+    res.send(lines.join('\r\n'));
+  } catch (err) {
+    console.error('[GET /api/finances/report/export.csv]', err.message);
+    res.status(500).json({ error: 'Failed to export the report' });
+  }
+});
+
 // TR4: the printable report — a server-rendered, print-styled page
 // over the SAME composer (TR2's one-source-of-truth ruling). The
 // ruled shape: print-styled HTML, browser print-to-PDF produces the
