@@ -219,6 +219,69 @@ const args = (extra = {}) => ({
       wired);
   }
 
+  // ================= TR3: the report screen =================
+  const appHtml = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+
+  // ---- TX11: the page's formatCents MIRRORS lib/money.js, behaviorally ----
+  {
+    const m = appHtml.match(/function formatCents\(cents\) \{[\s\S]*?\n      \}/);
+    let uiFormatCents = null;
+    if (m) {
+      // eslint-disable-next-line no-eval
+      uiFormatCents = eval('(' + m[0] + ')');
+    }
+    const probes = [0, 1, 99, 100, 950, -950, 123456, 1234567890, -1234567890,
+      NaN, null, undefined, 100.4, -0];
+    const parity = uiFormatCents && probes.every((p) => uiFormatCents(p) === formatCents(p));
+    check('TX11: the page formatCents and lib/money.formatCents agree on every probe (zero, cents-only, thousands, negatives, non-numbers, floats) — the mirror is pinned behaviorally, not by comment',
+      parity, uiFormatCents ? JSON.stringify(probes.map((p) => [String(p), uiFormatCents(p), formatCents(p)]).filter(([, a, b]) => a !== b)) : 'formatCents not found in app.html');
+  }
+
+  // ---- TX12: formatCents is the ONLY formatter the TR3 code touches ----
+  {
+    const start = appHtml.indexOf('// ---------- TR3: the transaction-history report ----------');
+    const end = appHtml.indexOf('// ---------- BG7');
+    const block = start >= 0 && end > start ? appHtml.slice(start, end) : '';
+    const pure = block.length > 0
+      && !block.includes('toFixed')
+      && !block.includes('_expFmtCents')
+      && !block.includes('toLocaleString(\'en-US\', { minimumFractionDigits');
+    // the single "/ 100" allowed is INSIDE formatCents itself
+    const outsideFormatter = block.replace(/function formatCents\(cents\) \{[\s\S]*?\n      \}/, '');
+    const noInlineMath = !outsideFormatter.includes('/ 100');
+    check('TX12: the TR3 block formats money through formatCents alone — no toFixed, no _expFmtCents, no inline /100 outside the formatter itself',
+      pure && noInlineMath, JSON.stringify({ blockFound: block.length > 0, pure, noInlineMath }));
+  }
+
+  // ---- TX13: the card, its controls, and the one-period-control chain ----
+  {
+    const cardOnce = appHtml.split('id="finReportCard"').length - 1 === 1;
+    const groupBy = /id="rptGroupBy"[\s\S]{0,400}value="month"[\s\S]{0,200}value="customer"[\s\S]{0,200}value="category"/.test(appHtml);
+    const dirSrc = appHtml.includes('id="rptDirection"') && appHtml.includes('id="rptSource"')
+      && appHtml.includes('id="rptCustomer"');
+    // follows the ONE period control: _rptParams reads _finPeriod and
+    // there is NO separate report period selector; the summary chain
+    // calls loadReport beside loadLedger.
+    const followsPeriod = appHtml.includes("const params = new URLSearchParams({ period: _finPeriod });")
+      && !appHtml.includes('rptPeriod')
+      && /loadLedger === 'function'\) loadLedger\(\);[\s\S]{0,200}loadReport === 'function'\) loadReport\(\);/.test(appHtml);
+    check('TX13: the Report card exists exactly once with group-by (month/customer/category), direction, source, and customer controls, and follows the page\'s ONE period control (no second period state)',
+      cardOnce && groupBy && dirSrc && followsPeriod,
+      JSON.stringify({ cardOnce, groupBy, dirSrc, followsPeriod }));
+  }
+
+  // ---- TX14: the hidden-test disclosure is a LINE with a toggle ----
+  {
+    const disclosure = /hidden\.innerHTML = data\.hidden_test\.count[\s\S]{0,300}formatCents\(data\.hidden_test\.cents\)[\s\S]{0,300}toggleReportTest/.test(appHtml);
+    const reverse = /Including ' \+ shownTestRows \+ ' test row/.test(appHtml)
+      && appHtml.includes('_rptIncludeTest = !_rptIncludeTest');
+    const subtotalsRendered = /formatCents\(s\.in_cents\)/.test(appHtml) && /formatCents\(s\.out_cents\)/.test(appHtml);
+    const refBadge = /r\.ref\.kind === 'payment' && r\.ref\.transaction_id/.test(appHtml);
+    check('TX14: hidden-test renders count+sum through formatCents with the show/hide toggle both ways; group subtotals and the transaction-id ref badge render from the TR2 fields',
+      disclosure && reverse && subtotalsRendered && refBadge,
+      JSON.stringify({ disclosure, reverse, subtotalsRendered, refBadge }));
+  }
+
   console.log(`${pass}/${pass + fail} — transaction-report suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
