@@ -282,6 +282,52 @@ const args = (extra = {}) => ({
       JSON.stringify({ disclosure, reverse, subtotalsRendered, refBadge }));
   }
 
+  // ================= TR4: the two artifacts =================
+  const srvSrc = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+
+  // ---- TX15: the print route — authed, one composer, one formatter ----
+  {
+    const start = srvSrc.indexOf("app.get('/finances/report/print'");
+    const block = start >= 0 ? srvSrc.slice(start, srvSrc.indexOf("app.get('/api/transactions'", start)) : '';
+    const authed = block.startsWith("app.get('/finances/report/print', requireAuth");
+    const oneComposer = block.includes("composeTransactionReport({");
+    const libFormatter = block.includes("const { formatCents } = require('./lib/money')");
+    // no inline money formatting in the print surface
+    const noInline = !block.includes('toFixed') && !/\(\s*[\w.]+\s*\/\s*100\s*\)/.test(block);
+    const printCss = block.includes('@media print') && block.includes('break-inside:avoid');
+    const honest = block.includes('excluded from this report') && block.includes('Showing the first ');
+    check('TX15: the print route is authed, renders the SAME composer through lib/money.formatCents directly (no inline formatting anywhere in it), carries print CSS with break-inside:avoid, and DISCLOSES hidden-test and capped states on the printed page',
+      authed && oneComposer && libFormatter && noInline && printCss && honest,
+      JSON.stringify({ authed, oneComposer, libFormatter, noInline, printCss, honest }));
+  }
+
+  // ---- TX16: the CSV route — centsToDecimal, signed amounts, disclosure ----
+  {
+    const start = srvSrc.indexOf("app.get('/api/finances/report/export.csv'");
+    const block = start >= 0 ? srvSrc.slice(start, srvSrc.indexOf("app.get('/finances/report/print'", start)) : '';
+    const authed = block.startsWith("app.get('/api/finances/report/export.csv', requireAuth");
+    const viaHelper = block.includes("const { centsToDecimal } = require('./lib/money')")
+      && !block.includes('toFixed') && !block.includes('_csvDollars');
+    const signed = block.includes("centsToDecimal(r.direction === 'in' ? r.amount_cents : -r.amount_cents)");
+    const grouped = block.includes("'Group', 'Date', 'Direction'") && block.includes("subtotal'), '', ''");
+    const disclosure = block.includes("'Hidden test rows: ' + data.hidden_test.count");
+    const refs = block.includes("'TX-' + r.ref.transaction_id");
+    check('TX16: the report CSV is authed, formats ONLY through centsToDecimal (not _csvDollars), signs amounts so the Amount column sums to Net, carries Group/Customer/Reference columns with per-group Net subtotals, and discloses hidden test money in the footer',
+      authed && viaHelper && signed && grouped && disclosure && refs,
+      JSON.stringify({ authed, viaHelper, signed, grouped, disclosure, refs }));
+  }
+
+  // ---- TX17: the card buttons drive BOTH artifacts from _rptParams ----
+  {
+    const printBtn = appHtml.includes('id="rptPrintBtn"') && appHtml.includes('onclick="printReport()"');
+    const exportBtn = appHtml.includes('id="rptExportBtn"') && appHtml.includes('onclick="exportReportCsv()"');
+    const sameParams = /function exportReportCsv\(\) \{[\s\S]{0,200}_rptParams\(\)[\s\S]{0,200}\/api\/finances\/report\/export\.csv\?/.test(appHtml)
+      && /function printReport\(\) \{[\s\S]{0,200}_rptParams\(\)[\s\S]{0,200}\/finances\/report\/print\?/.test(appHtml);
+    check('TX17: Print and Export CSV on the Report card both build their URLs from _rptParams() — what the screen shows is exactly what prints and exports, filters and grouping included',
+      printBtn && exportBtn && sameParams,
+      JSON.stringify({ printBtn, exportBtn, sameParams }));
+  }
+
   console.log(`${pass}/${pass + fail} — transaction-report suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
