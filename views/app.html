@@ -12313,6 +12313,18 @@
         if (kind !== 'custom') loadFinancesSummary();
       }
 
+      // The loading state must never strand silently: when the summary
+      // fails, the downstream cards say so and offer the retry.
+      function _finStrandError(reason) {
+        for (const id of ['ledgerList', 'rptList']) {
+          const target = document.getElementById(id);
+          if (target) {
+            target.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">' + reason
+              + ' <a href="#" onclick="event.preventDefault();loadFinancesSummary();" style="color:var(--accent);font-weight:600;">Try again</a></div>';
+          }
+        }
+      }
+
       function _finTile(label, valueHtml, subHtml) {
         return '<div class="fin-tile"><div class="fin-tile-label">' + label + '</div>'
           + '<div class="fin-tile-value">' + valueHtml + '</div>'
@@ -12345,13 +12357,25 @@
           sum = await r.json();
         } catch (err) {
           console.error('[finances] summary load failed:', err);
-          grid.innerHTML = '<div class="mm-empty" style="grid-column:1/-1;padding:16px;">Could not load the summary.</div>';
+          grid.innerHTML = '<div class="mm-empty" style="grid-column:1/-1;padding:16px;">Could not load the summary. '
+            + '<a href="#" onclick="event.preventDefault();loadFinancesSummary();" style="color:var(--accent);font-weight:600;">Try again</a></div>';
+          // The strand fix: the ledger and report load AFTER the
+          // summary, so a failed summary used to leave them on
+          // "Loading…" forever with no error. Every downstream card
+          // states the failure honestly and offers the retry.
+          _finStrandError('The summary failed to load, so this card is waiting.');
           return;
         }
         grid.dataset.loaded = '1';
         window._finSummary = sum;
-        renderFinScorecard(sum);
-        renderFinBreakdown(sum);
+        // A renderer throw must not strand the ledger/report loads —
+        // the cards' data does not depend on the tiles' rendering.
+        try {
+          renderFinScorecard(sum);
+          renderFinBreakdown(sum);
+        } catch (renderErr) {
+          console.error('[finances] tile render failed (cards still load):', renderErr);
+        }
         // BG8: the ledger follows the dashboard's period control.
         if (typeof loadLedger === 'function') loadLedger();
         // TR3: so does the report — one control, three consistent views.
@@ -12481,7 +12505,8 @@
           data = await r.json();
         } catch (err) {
           console.error('[ledger] load failed:', err);
-          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the ledger.</div>';
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the ledger. '
+            + '<a href="#" onclick="event.preventDefault();loadLedger();" style="color:var(--accent);font-weight:600;">Try again</a></div>';
           return;
         }
         const totals = document.getElementById('ledgerTotalsRow');
@@ -12585,7 +12610,8 @@
           data = await r.json();
         } catch (err) {
           console.error('[report] load failed:', err);
-          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the report.</div>';
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the report. '
+            + '<a href="#" onclick="event.preventDefault();loadReport();" style="color:var(--accent);font-weight:600;">Try again</a></div>';
           return;
         }
         renderReport(data);

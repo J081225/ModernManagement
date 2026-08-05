@@ -8,6 +8,7 @@
 // documents, and no TR surface formats money on its own.
 const path = require('path');
 const fs = require('fs');
+const vm = require('vm');
 const { composeTransactionReport, monthLabel } = require(path.join(__dirname, '..', 'lib', 'transaction-report'));
 const { composeLedgerRows } = require(path.join(__dirname, '..', 'lib', 'finances-summary'));
 const { formatCents, centsToDecimal } = require(path.join(__dirname, '..', 'lib', 'money'));
@@ -391,6 +392,99 @@ const args = (extra = {}) => ({
     check('TX20 [row-source census]: composeLedgerRows reads EXACTLY the four named sources, the report CSV labels the same four, and the report composer consumes the ledger (a new money table must evolve this pin — a silent omission from the report is structurally impossible)',
       exact && csvLabels && viewNotSource,
       JSON.stringify({ found, csvLabels, viewNotSource }));
+  }
+
+  // ================= the strand fix: no silent "Loading…" =================
+  // These rows EXECUTE the page's real chain (functions extracted from
+  // app.html, run in a vm with a recording DOM) — the row class that
+  // would have caught the live bug: a failed/throwing step upstream
+  // leaving the ledger and report cards on "Loading…" forever.
+  function _grabFn(html, name) {
+    const re = new RegExp('(?:async )?function ' + name + '\\([^)]*\\) \\{');
+    const m = re.exec(html);
+    if (!m) throw new Error('function not found in app.html: ' + name);
+    let depth = 0;
+    const start = html.indexOf('{', m.index);
+    for (let j = start; j < html.length; j++) {
+      if (html[j] === '{') depth++;
+      if (html[j] === '}') { depth--; if (depth === 0) return html.slice(m.index, j + 1); }
+    }
+    throw new Error('unbalanced braces: ' + name);
+  }
+  function _chainSandbox(fetchImpl) {
+    const elements = {};
+    const el = (id) => elements[id] || (elements[id] = {
+      id, innerHTML: '(untouched)', style: {}, dataset: {}, textContent: '', value: '',
+      classList: { toggle() {} },
+    });
+    const sandbox = {
+      console: { error() {}, log() {} }, setTimeout,
+      document: { getElementById: el, querySelectorAll: () => [] },
+      window: {}, _finPeriod: 'month', _rptIncludeTest: false,
+      calTz: () => 'America/New_York',
+      URLSearchParams, Date, Math, JSON, String, Number, Array, Object, Set, Map, parseInt, isNaN, Promise,
+      fetch: fetchImpl,
+    };
+    const names = ['loadFinancesSummary', '_finStrandError', 'renderFinScorecard', 'renderFinBreakdown',
+      '_finTile', 'loadLedger', '_ledParams', 'loadReport', '_rptParams', 'renderReport',
+      'formatCents', '_expFmtCents', '_convEsc', 'escapeHtmlInv'];
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(names.map((n) => _grabFn(appHtml, n)).join('\n'), ctx);
+    return { ctx, el };
+  }
+
+  // ---- TX21: a failed summary fetch strands NOTHING ----
+  {
+    const { ctx, el } = _chainSandbox(async () => { throw new Error('network down (deploy restart)'); });
+    await vm.runInContext('loadFinancesSummary()', ctx);
+    const grid = String(el('finScorecard').innerHTML);
+    const led = String(el('ledgerList').innerHTML);
+    const rpt = String(el('rptList').innerHTML);
+    const allHonest = [grid, led, rpt].every((h) => h.includes('Try again'))
+      && !led.includes('Loading') && !rpt.includes('Loading')
+      && led.includes('summary failed to load') && rpt.includes('summary failed to load');
+    check('TX21 [the live bug]: when the summary fetch fails (e.g. mid-deploy), the summary, ledger, AND report cards all show an honest error with a retry — never a stranded "Loading…"',
+      allHonest, JSON.stringify({ grid: grid.slice(0, 60), led: led.slice(0, 60), rpt: rpt.slice(0, 60) }));
+  }
+
+  // ---- TX21b: a tile-render throw cannot strand the card loads ----
+  {
+    const summary = { period: { start: '2026-08-01T04:00:00.000Z', end: '2026-09-01T04:00:00.000Z', kind: 'month' }, live_mode: true, money_in: {}, money_out: {}, by_category: [] };
+    const ledger = { rows: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, demo_cents: 0 }, capped: false, total_rows: 0 };
+    const report = { groups: [], totals: { in_cents: 0, out_cents: 0, net_cents: 0, count: 0 }, hidden_test: { count: 0, cents: 0 }, include_test: false, capped: false, total_rows: 0, source_total_rows: 0 };
+    const fetched = [];
+    const { ctx, el } = _chainSandbox(async (url) => {
+      fetched.push(url.split('?')[0]);
+      const body = url.includes('/summary') ? summary : url.includes('/ledger') ? ledger : report;
+      return { ok: true, status: 200, json: async () => body };
+    });
+    // sabotage the tile renderer AFTER extraction — the guard must contain it
+    vm.runInContext('renderFinScorecard = function () { throw new Error("renderer bug"); };', ctx);
+    await vm.runInContext('loadFinancesSummary()', ctx);
+    await new Promise((r) => setTimeout(r, 100));
+    const led = String(el('ledgerList').innerHTML);
+    const rpt = String(el('rptList').innerHTML);
+    check('TX21b: a throwing tile renderer is contained — the ledger and report fetches still fire and both cards render (empty states here), instead of the whole chain dying upstream',
+      fetched.includes('/api/finances/ledger') && fetched.includes('/api/finances/report')
+        && led.includes('Nothing in this period') && rpt.includes('No money movement'),
+      JSON.stringify({ fetched, led: led.slice(0, 50), rpt: rpt.slice(0, 50) }));
+  }
+
+  // ---- TX21c: each card's OWN fetch failure shows its honest error ----
+  {
+    const summary = { period: { start: '2026-08-01T04:00:00.000Z', end: '2026-09-01T04:00:00.000Z', kind: 'month' }, live_mode: true, money_in: {}, money_out: {}, by_category: [] };
+    const { ctx, el } = _chainSandbox(async (url) => {
+      if (url.includes('/summary')) return { ok: true, status: 200, json: async () => summary };
+      return { ok: false, status: 500, json: async () => ({}) };
+    });
+    await vm.runInContext('loadFinancesSummary()', ctx);
+    await new Promise((r) => setTimeout(r, 100));
+    const led = String(el('ledgerList').innerHTML);
+    const rpt = String(el('rptList').innerHTML);
+    check('TX21c: when the ledger/report fetches themselves 500, each card shows its own honest error with a retry link — no silent strand anywhere in the chain',
+      led.includes('Could not load the ledger') && led.includes('Try again')
+        && rpt.includes('Could not load the report') && rpt.includes('Try again'),
+      JSON.stringify({ led: led.slice(0, 60), rpt: rpt.slice(0, 60) }));
   }
 
   console.log(`${pass}/${pass + fail} — transaction-report suite ${fail ? 'FAILED' : 'PASSED'}`);
