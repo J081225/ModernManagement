@@ -3554,6 +3554,45 @@
               <div id="ledgerList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
             </div>
 
+            <!-- TR3: the transaction-history report — the TR2 composer
+                 rendered. A card here (not its own page) so the ONE
+                 period control above drives summary, ledger, and
+                 report — three views that can never show different
+                 windows. Both verticals. -->
+            <div class="mm-card" id="finReportCard" style="margin-top:14px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Report</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+                <select id="rptGroupBy" onchange="loadReport()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="month">By month</option>
+                  <option value="customer">By customer</option>
+                  <option value="category">By category</option>
+                </select>
+                <select id="rptDirection" onchange="loadReport()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">In &amp; out</option>
+                  <option value="in">Money in</option>
+                  <option value="out">Money out</option>
+                </select>
+                <select id="rptSource" onchange="loadReport()"
+                  style="padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.88em;cursor:pointer;">
+                  <option value="">All sources</option>
+                  <option value="ledger">Payments (PS)</option>
+                  <option value="legacy_rent">Rent (legacy)</option>
+                  <option value="expenses">Expenses</option>
+                  <option value="legacy_budget">Budget (legacy)</option>
+                </select>
+                <input type="search" id="rptCustomer" placeholder="Customer&hellip;" oninput="loadReport()"
+                  style="min-width:150px;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.88em;">
+                <span style="font-size:0.78em;color:var(--text-muted);">follows the period above</span>
+              </div>
+              <div id="rptTotalsRow" style="display:none;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:0.88em;"></div>
+              <div id="rptHiddenTest" style="display:none;padding:7px 12px;margin-bottom:10px;background:var(--bg-sunken);border:1px dashed var(--border-strong);border-radius:8px;font-size:0.82em;color:var(--text-muted);"></div>
+              <div id="rptList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
+            </div>
+
             <!-- E13: PS-only Card Payments status card. Visibility driven by
                  _financesVertical === 'professional-services' (set by
                  loadFinancesPage). Inner state driven by
@@ -12311,6 +12350,8 @@
         renderFinBreakdown(sum);
         // BG8: the ledger follows the dashboard's period control.
         if (typeof loadLedger === 'function') loadLedger();
+        // TR3: so does the report — one control, three consistent views.
+        if (typeof loadReport === 'function') loadReport();
         if (label) {
           const fmtD = (iso) => { try { return new Date(iso).toLocaleDateString('en-US', { timeZone: calTz(), month: 'short', day: 'numeric' }); } catch (e) { return String(iso).slice(0, 10); } };
           // period.end is exclusive — show the last included day.
@@ -12472,6 +12513,131 @@
         const params = _ledParams();
         if (!params) return;
         window.location.href = '/api/finances/ledger/export.csv?' + params.toString();
+      }
+
+      // ---------- TR3: the transaction-history report ----------
+      // formatCents mirrors lib/money.js EXACTLY — the one formatter
+      // for every TR surface (the TR ruling). If the two ever drift,
+      // the suite's parity row fails.
+      function formatCents(cents) {
+        if (!Number.isFinite(cents)) return '—';
+        const sign = cents < 0 ? '-' : '';
+        const abs = Math.abs(Math.round(cents));
+        const dollars = Math.floor(abs / 100).toLocaleString('en-US');
+        const rem = String(abs % 100).padStart(2, '0');
+        return sign + '$' + dollars + '.' + rem;
+      }
+
+      let _rptIncludeTest = false;
+      function toggleReportTest() {
+        _rptIncludeTest = !_rptIncludeTest;
+        loadReport();
+      }
+
+      // Same period resolution as the ledger: the ONE control above.
+      function _rptParams() {
+        const params = new URLSearchParams({ period: _finPeriod });
+        if (_finPeriod === 'custom') {
+          const s = document.getElementById('finCustomStart');
+          const e = document.getElementById('finCustomEnd');
+          if (!s || !e || !s.value || !e.value) return null;
+          params.set('start', s.value);
+          params.set('end', e.value);
+        }
+        const grp = document.getElementById('rptGroupBy');
+        const dir = document.getElementById('rptDirection');
+        const src = document.getElementById('rptSource');
+        const cust = document.getElementById('rptCustomer');
+        if (grp && grp.value) params.set('group_by', grp.value);
+        if (dir && dir.value) params.set('direction', dir.value);
+        if (src && src.value) params.set('source', src.value);
+        if (cust && cust.value.trim()) params.set('customer', cust.value.trim());
+        if (_rptIncludeTest) params.set('include_test', 'true');
+        return params;
+      }
+
+      async function loadReport() {
+        const list = document.getElementById('rptList');
+        if (!list) return;
+        const params = _rptParams();
+        if (!params) return;
+        let data;
+        try {
+          const r = await fetch('/api/finances/report?' + params.toString(), { credentials: 'include' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          data = await r.json();
+        } catch (err) {
+          console.error('[report] load failed:', err);
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">Could not load the report.</div>';
+          return;
+        }
+        renderReport(data);
+      }
+
+      function renderReport(data) {
+        const list = document.getElementById('rptList');
+        const totals = document.getElementById('rptTotalsRow');
+        const hidden = document.getElementById('rptHiddenTest');
+
+        if (totals) {
+          totals.style.display = 'flex';
+          totals.innerHTML =
+            '<span style="color:var(--success);font-weight:600;">In ' + formatCents(data.totals.in_cents) + '</span>'
+            + '<span style="color:var(--danger);font-weight:600;">Out ' + formatCents(data.totals.out_cents) + '</span>'
+            + '<span style="font-weight:700;color:var(--text-primary);">Net ' + (data.totals.net_cents >= 0 ? '+' : '−') + formatCents(Math.abs(data.totals.net_cents)) + '</span>'
+            + '<span style="color:var(--text-muted);font-size:0.82em;">' + data.totals.count + ' row' + (data.totals.count === 1 ? '' : 's') + '</span>'
+            + (data.capped ? '<span style="color:var(--text-muted);font-size:0.82em;">showing first ' + data.total_rows + ' of ' + data.source_total_rows + '</span>' : '');
+        }
+
+        // The hidden-test disclosure doubles as the toggle (TR1 r5:
+        // real-only default, test toggle). Hidden money is announced,
+        // never vanished.
+        if (hidden) {
+          const shownTestRows = data.groups.reduce((a, g) => a + g.rows.filter((r) => r.demo).length, 0);
+          if (!data.include_test && data.hidden_test.count > 0) {
+            hidden.style.display = 'block';
+            hidden.innerHTML = data.hidden_test.count + ' test row' + (data.hidden_test.count === 1 ? '' : 's')
+              + ' (' + formatCents(data.hidden_test.cents) + ') hidden — '
+              + '<a href="#" onclick="event.preventDefault();toggleReportTest();" style="color:var(--accent);font-weight:600;">show</a>';
+          } else if (data.include_test && shownTestRows > 0) {
+            hidden.style.display = 'block';
+            hidden.innerHTML = 'Including ' + shownTestRows + ' test row' + (shownTestRows === 1 ? '' : 's')
+              + ' — <a href="#" onclick="event.preventDefault();toggleReportTest();" style="color:var(--accent);font-weight:600;">hide</a>';
+          } else {
+            hidden.style.display = 'none';
+          }
+        }
+
+        if (!data.groups.length) {
+          list.innerHTML = '<div class="mm-empty" style="padding:18px 10px;">No money movement in this period. Payments, rent, expenses, and refunds will appear here as they happen.</div>';
+          return;
+        }
+
+        list.innerHTML = data.groups.map((g) => {
+          const s = g.subtotals;
+          const head = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;padding:10px 6px 6px;border-bottom:2px solid var(--border-strong);">'
+            + '<div style="font-weight:700;color:var(--text-primary);">' + escapeHtmlInv(g.label) + '</div>'
+            + '<div style="font-size:0.82em;color:var(--text-muted);">'
+            + '<span style="color:var(--success);">In ' + formatCents(s.in_cents) + '</span> &middot; '
+            + '<span style="color:var(--danger);">Out ' + formatCents(s.out_cents) + '</span> &middot; '
+            + '<span style="font-weight:700;color:var(--text-primary);">Net ' + (s.net_cents >= 0 ? '+' : '−') + formatCents(Math.abs(s.net_cents)) + '</span>'
+            + '</div></div>';
+          const rows = g.rows.map((r) => {
+            const isIn = r.direction === 'in';
+            const txRef = r.ref && r.ref.kind === 'payment' && r.ref.transaction_id
+              ? '<span class="mm-badge" style="font-size:0.68em;" title="Transaction #' + r.ref.transaction_id + '">#' + r.ref.transaction_id + '</span>'
+              : '';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--border);">'
+              + '<div style="flex-shrink:0;font-size:0.8em;color:var(--text-muted);width:74px;">' + r.date + '</div>'
+              + '<div style="flex:1;min-width:0;font-size:0.9em;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtmlInv(r.description) + '</div>'
+              + '<span class="mm-badge">' + escapeHtmlInv(r.category) + '</span>'
+              + txRef
+              + (r.demo ? '<span style="font-size:0.72em;color:var(--warning);">test</span>' : '')
+              + '<div style="font-weight:700;font-size:0.9em;color:' + (isIn ? 'var(--success)' : 'var(--text-primary)') + ';">' + (isIn ? '+' : '−') + formatCents(r.amount_cents) + '</div>'
+              + '</div>';
+          }).join('');
+          return head + rows;
+        }).join('');
       }
 
       // ---------- BG7: budget insights on the dashboard ----------
