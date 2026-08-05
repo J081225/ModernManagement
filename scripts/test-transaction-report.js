@@ -328,6 +328,71 @@ const args = (extra = {}) => ({
       JSON.stringify({ printBtn, exportBtn, sameParams }));
   }
 
+  // ================= TR5: the hardening pins =================
+  // Runtime surface = server.js + views/app.html + lib/**.js. The
+  // scripts/ dir is deliberately NOT scanned (test fixtures may quote
+  // the very patterns these pins hunt).
+  const runtimeFiles = (() => {
+    const files = ['server.js', 'views/app.html'];
+    for (const f of fs.readdirSync(path.join(__dirname, '..', 'lib'))) {
+      if (f.endsWith('.js')) files.push('lib/' + f);
+    }
+    for (const f of fs.readdirSync(path.join(__dirname, '..', 'lib', 'tools'))) {
+      if (f.endsWith('.js')) files.push('lib/tools/' + f);
+    }
+    return files.map((f) => [f, fs.readFileSync(path.join(__dirname, '..', f), 'utf8')]);
+  })();
+
+  // ---- TX18: the retention pin — money tables are append-only, as LAW ----
+  {
+    // Pattern built from parts so no source file can match by quoting it.
+    const del = new RegExp('DELETE\\s+FROM\\s+' + 'transaction', 'gi');
+    const offenders = runtimeFiles
+      .filter(([, src]) => (src.match(del) || []).length > 0)
+      .map(([f]) => f);
+    check('TX18 [retention pin]: ZERO delete paths exist on transactions/transaction_payments anywhere in runtime code — the permanent-storage ruling is law, not convention; corrections are voids and linked refunds',
+      offenders.length === 0, JSON.stringify(offenders));
+  }
+
+  // ---- TX19: the cents ratchet — the legacy inventory may only shrink ----
+  {
+    // TR1 inventoried the legacy inline-formatting sites; the ruling:
+    // migration is follow-up scope, but NO NEW SITE may land. Pinned at
+    // the inventoried count (P1 toFixed-style 42 + P2 toLocaleString-
+    // style 2 = 44), excluding lib/money.js — the boundary itself, whose
+    // header COMMENT quotes the pattern it exists to replace.
+    const RATCHET = 44;
+    const P1 = /\/ ?100\)\.toFixed\(2\)/g;
+    const P2 = /toLocaleString\('en-US', \{ minimumFractionDigits/g;
+    let count = 0;
+    const perFile = [];
+    for (const [f, src] of runtimeFiles) {
+      if (f === 'lib/money.js') continue;
+      const n = (src.match(P1) || []).length + (src.match(P2) || []).length;
+      if (n) perFile.push(f + ':' + n);
+      count += n;
+    }
+    check('TX19 [cents ratchet]: inline money-formatting sites = ' + count + ', pinned at <= ' + RATCHET + ' — a new site fails this row (route it through lib/money.js); when migration shrinks the count, re-pin DOWNWARD',
+      count <= RATCHET, 'count=' + count + ' > ' + RATCHET + ' — new inline site(s) in: ' + perFile.join(', '));
+    if (count < RATCHET) console.log('      note: count ' + count + ' is BELOW the ratchet ' + RATCHET + ' — re-pin downward to lock in the progress');
+  }
+
+  // ---- TX20: the row-source census — four sources, by name ----
+  {
+    const fin = fs.readFileSync(path.join(__dirname, '..', 'lib', 'finances-summary.js'), 'utf8');
+    const wanted = ['ledger', 'legacy_rent', 'expenses', 'legacy_budget'];
+    const found = [...fin.matchAll(/wantSource\('([a-z_]+)'\)/g)].map((m) => m[1]);
+    const exact = found.length === 4 && wanted.every((w) => found.includes(w));
+    // the CSV's label map must name the SAME four — a fifth source
+    // must evolve BOTH, forcing the "does the report include it?" decision.
+    const csvLabels = /SOURCE_LABEL = \{ ledger: [^}]*legacy_rent: [^}]*expenses: [^}]*legacy_budget: [^}]*\}/.test(srvSrc);
+    const viewNotSource = fs.readFileSync(path.join(__dirname, '..', 'lib', 'transaction-report.js'), 'utf8')
+      .includes("require('./finances-summary')");
+    check('TX20 [row-source census]: composeLedgerRows reads EXACTLY the four named sources, the report CSV labels the same four, and the report composer consumes the ledger (a new money table must evolve this pin — a silent omission from the report is structurally impossible)',
+      exact && csvLabels && viewNotSource,
+      JSON.stringify({ found, csvLabels, viewNotSource }));
+  }
+
   console.log(`${pass}/${pass + fail} — transaction-report suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
