@@ -362,7 +362,9 @@ const args = (extra = {}) => ({
     // the inventoried count (P1 toFixed-style 42 + P2 toLocaleString-
     // style 2 = 44), excluding lib/money.js — the boundary itself, whose
     // header COMMENT quotes the pattern it exists to replace.
-    const RATCHET = 44;
+    // Re-pinned 44 -> 43: ST5a routed the payment-link SMS amount
+    // through lib/money.formatCents (the ratchet working as designed).
+    const RATCHET = 43;
     const P1 = /\/ ?100\)\.toFixed\(2\)/g;
     const P2 = /toLocaleString\('en-US', \{ minimumFractionDigits/g;
     let count = 0;
