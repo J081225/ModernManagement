@@ -106,9 +106,12 @@ function check(name, ok, detail) {
     const control = app.includes('id="mbCustomerLanguage"')
       && /value="en">English \(default\)/.test(app) && app.includes('Espa&ntilde;ol');
     const onlyTwo = (app.match(/id="mbCustomerLanguage"[\s\S]{0,600}?<\/select>/) || [''])[0].split('<option').length - 1 === 2;
-    const channelTruth = app.includes('Phone calls: English for now');
+    // CL6 [evolved ST5b]: voice shipped, so the truth claims BOTH
+    // channels — and the old voice-lags caveat must be GONE.
+    const channelTruth = app.includes('Texts and phone calls: your assistant greets and replies in this language')
+      && !app.includes('Phone calls: English for now');
     const wired = app.includes('loadCustomerLanguage();') && app.includes('mbSaveCustomerLanguage');
-    check('CL6: the control offers EXACTLY the two ruled languages, carries per-channel truth (voice honestly English until ST5b ships), and is wired fire-and-forget',
+    check('CL6 [evolved ST5b]: the control offers EXACTLY the two ruled languages, claims BOTH channels now that voice shipped (the old voice-lags caveat is gone), and is wired fire-and-forget',
       control && onlyTwo && channelTruth && wired,
       JSON.stringify({ control, onlyTwo, channelTruth, wired }));
   }
@@ -121,6 +124,22 @@ function check(name, ok, detail) {
     check('CL7: dates localize per language (es short/long differ from en; unknown language falls back to en, never throws)',
       es !== en && /agosto|ago/.test(esLong + es) && shortDate('2026-08-06T15:00:00Z', 'xx') === en,
       JSON.stringify({ es, en, esLong }));
+  }
+
+  // ---- CL8 (ST5b): the voice path speaks the setting ----
+  {
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const block = srv.slice(srv.indexOf('const wsUrl = '), srv.indexOf('// ============================================================\n// Reports'));
+    const greetingViaModule = block.includes("voiceString(lang, 'voice_greeting', { businessName: bizName })");
+    const esAttr = block.includes(`lang === 'es' ? ' language="es-US"' : ''`);
+    const twimlCarries = block.includes("welcomeGreeting=\"' + greeting + '\"' + langAttr");
+    // the es greeting itself is declared Spanish (CL1 covers presence;
+    // this proves content)
+    const esGreeting = customerString('es', 'voice_greeting', { businessName: 'X' });
+    const greetingSpanish = esGreeting.includes('Hola') && esGreeting.includes('llamar') && !/thanks for calling/i.test(esGreeting);
+    check('CL8 [ST5b]: the relay TwiML greets from the declared-variants module in the workspace language and sets language="es-US" for Spanish (default voices); English emits NO attribute — existing workspaces keep byte-identical TwiML',
+      greetingViaModule && esAttr && twimlCarries && greetingSpanish,
+      JSON.stringify({ greetingViaModule, esAttr, twimlCarries, greetingSpanish }));
   }
 
   console.log(`${pass}/${pass + fail} — customer-language suite ${fail ? 'FAILED' : 'PASSED'}`);

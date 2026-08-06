@@ -7242,13 +7242,22 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
   // /v2/<token> is the versioned authenticated path (FD3-CP4); the bare
   // legacy path survives only inside the post-boot grace window below.
   const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/v2/' + relayToken;
-  const greeting = escapeXmlAttr('Hi, thanks for calling ' + bizName + '. How can I help you today?');
+  // ST5b: the greeting comes from the declared-variants module in the
+  // workspace's customer language, and the session's STT+TTS language
+  // rides the same setting. Spanish uses es-US with Twilio's DEFAULT
+  // voice for the language (the ruled shape — no premium providers);
+  // English emits no language attribute at all, so existing workspaces
+  // keep byte-identical TwiML.
+  const lang = (workspace && workspace.customer_language) || 'en';
+  const { customerString: voiceString } = require('./lib/customer-strings');
+  const greeting = escapeXmlAttr(voiceString(lang, 'voice_greeting', { businessName: bizName }));
+  const langAttr = lang === 'es' ? ' language="es-US"' : '';
 
   res.type('text/xml').send(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<Response>\n' +
     '  <Connect>\n' +
-    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '" />\n' +
+    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '"' + langAttr + ' />\n' +
     '  </Connect>\n' +
     '</Response>'
   );

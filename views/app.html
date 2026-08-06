@@ -3966,7 +3966,9 @@
                          changes only when voice actually ships. -->
                     <div>
                       <label for="mbCustomerLanguage" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer language</label>
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="mbCustomerLanguageTruth">Texts: your assistant greets and replies in this language, and follows the customer if they switch. Phone calls: English for now &mdash; Spanish arrives with a coming update.</span>
+                      <!-- ST5b shipped voice: the per-channel truth now
+                           claims both channels, honestly. -->
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="mbCustomerLanguageTruth">Texts and phone calls: your assistant greets and replies in this language, and follows the customer if they switch languages.</span>
                       <select id="mbCustomerLanguage" onchange="mbSaveCustomerLanguage()"
                         style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="en">English (default)</option>
