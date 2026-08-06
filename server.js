@@ -7269,6 +7269,71 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
 });
 
 // ============================================================
+// SPIKE (autodetect, Phase 2) — the language-detection test line.
+// ISOLATED from production by construction: its own number points
+// here, its own wss path, and it writes ONLY to spike_transcripts.
+// No workspace, no engine, no customer tables. The whole block is
+// removed when the spike closes with a ruling.
+//
+// The rig: ConversationRelay with Deepgram multi (automatic language
+// detection) for STT; TTS stays default English — the spike measures
+// TRANSCRIPTION quality per language/dialect, and canned English
+// confirmations keep testers moving through the protocol sheet.
+const SPIKE_RELAY_TOKEN = crypto
+  .createHmac('sha256', process.env.TWILIO_AUTH_TOKEN || 'spike')
+  .update('spike-autodetect-relay').digest('hex').slice(0, 48);
+
+app.post('/api/voice/spike-incoming', validateTwilioSignature, (req, res) => {
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/spike/' + SPIKE_RELAY_TOKEN;
+  res.type('text/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<Response>\n' +
+    '  <Connect>\n' +
+    '    <ConversationRelay url="' + wsUrl + '"' +
+    ' welcomeGreeting="This is the Modern Management language test line. After the beep sound of my voice, please read your first scripted line, then pause."' +
+    ' transcriptionProvider="Deepgram" speechModel="nova-3-general" transcriptionLanguage="multi" />\n' +
+    '  </Connect>\n' +
+    '</Response>'
+  );
+});
+
+async function recordSpikeEvent(callSid, eventType, detectedLanguage, transcript, payload) {
+  try {
+    await pool.query(
+      `INSERT INTO spike_transcripts (call_sid, event_type, detected_language, transcript, payload)
+       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+      [callSid, eventType, detectedLanguage, transcript, JSON.stringify(payload || {})]
+    );
+  } catch (err) {
+    console.error('[spike] transcript insert failed:', err.message);
+  }
+}
+
+function handleSpikeConnection(ws) {
+  let spikeCallSid = null;
+  ws.on('message', async (raw) => {
+    let msg = null;
+    try { msg = JSON.parse(raw.toString()); } catch (e) { return; }
+    if (msg.type === 'setup') {
+      spikeCallSid = msg.callSid || null;
+      await recordSpikeEvent(spikeCallSid, 'setup', null, null, { from: msg.from, to: msg.to, sessionId: msg.sessionId });
+      return;
+    }
+    if (msg.type === 'prompt') {
+      // The evidence row: Twilio sends the transcript and, under
+      // multi, the detected language per utterance.
+      await recordSpikeEvent(spikeCallSid, 'prompt', msg.lang || null, msg.voicePrompt || '', msg);
+      try {
+        ws.send(JSON.stringify({ type: 'text', token: 'Recorded. Please read your next line.', last: true }));
+      } catch (e) { /* caller hung up */ }
+      return;
+    }
+    if (msg.type === 'error') {
+      await recordSpikeEvent(spikeCallSid, 'error', null, null, msg);
+    }
+  });
+}
+
 // Reports — saved AI-generated reports (Session B4)
 //
 // Two callers share generateReportContent():
@@ -10578,6 +10643,21 @@ async function handleRelayUpgrade(req, socket, head) {
   try {
     pathname = new URL(req.url, 'http://localhost').pathname;
   } catch (err) {
+    socket.destroy();
+    return;
+  }
+  // SPIKE (autodetect): its own path + deterministic token, its own
+  // handler — never enters the production connection flow below.
+  const spikeMatch = pathname.match(/^\/twilio-relay\/spike\/([a-f0-9]{48})$/);
+  if (spikeMatch) {
+    try {
+      const a = Buffer.from(spikeMatch[1]);
+      const b = Buffer.from(SPIKE_RELAY_TOKEN);
+      if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+        wss.handleUpgrade(req, socket, head, (ws) => handleSpikeConnection(ws));
+        return;
+      }
+    } catch (err) { /* fall through to destroy */ }
     socket.destroy();
     return;
   }
