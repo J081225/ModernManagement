@@ -3970,6 +3970,25 @@
               </div>
             </div>
 
+            <!-- ST3: the business time zone. Real hooks all along (wsTz:
+                 calendar day-math, ledger/report dating, "today") — set
+                 at signup with no recourse until now. -->
+            <div class="mm-card" id="mbTimezoneCard" style="margin-top:20px;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Business time zone</div>
+              </div>
+              <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:12px;line-height:1.55;">
+                Sets what &ldquo;today&rdquo; means for your calendar, appointment times, and financial reports.
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <select id="mbTimezone"
+                  style="min-width:240px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.9em;cursor:pointer;"></select>
+                <button onclick="mbSaveTimezone()"
+                  style="padding:9px 18px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Save</button>
+                <div id="mbTimezoneStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
+              </div>
+            </div>
+
             <!-- FD3-CP3: the autonomy matrix. One row per category the
                  engine's choke point actually enforces (lib/autonomy.js
                  TOOL_CATEGORY), a three-position control per row, and a
@@ -13412,6 +13431,9 @@
       let mbPoliciesId = null;
 
       async function loadMyBusinessPage() {
+        // ST3: fire-and-forget like the other card loads — a failure
+        // here never blocks the rest of the page.
+        loadTimezoneCard();
         // Reset ids each load so a stale cache doesn't cause a duplicate
         // create if the underlying row was deleted server-side.
         mbDescriptionId = null;
@@ -13826,6 +13848,43 @@
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
+        }
+      }
+
+      // ---------- ST3: business time zone ----------
+      // Options come from the RUNTIME's own zone list (the same
+      // authority the server validates against) — never a hand list.
+      async function loadTimezoneCard() {
+        const sel = document.getElementById('mbTimezone');
+        if (!sel || sel.options.length) return;
+        let current = 'America/New_York';
+        try {
+          const r = await fetch('/api/workspace/timezone', { credentials: 'include' });
+          if (r.ok) current = (await r.json()).timezone || current;
+        } catch (e) { /* select still renders with the default */ }
+        let zones = [];
+        try { zones = Intl.supportedValuesOf('timeZone'); } catch (e) { zones = [current]; }
+        if (!zones.includes(current)) zones.unshift(current);
+        sel.innerHTML = zones.map((z) =>
+          '<option value="' + z + '"' + (z === current ? ' selected' : '') + '>' + z.replace(/_/g, ' ') + '</option>').join('');
+      }
+      async function mbSaveTimezone() {
+        const sel = document.getElementById('mbTimezone');
+        const status = document.getElementById('mbTimezoneStatus');
+        if (!sel) return;
+        if (status) status.textContent = 'Saving…';
+        try {
+          const r = await fetch('/api/workspace/timezone', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ timezone: sel.value }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) { if (status) status.textContent = data.error || 'Could not save.'; return; }
+          if (status) status.textContent = 'Saved — calendar and reports now use ' + data.timezone.replace(/_/g, ' ') + '.';
+        } catch (err) {
+          if (status) status.textContent = 'Network error — not saved.';
         }
       }
 

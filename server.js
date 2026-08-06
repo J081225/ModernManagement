@@ -872,6 +872,39 @@ runPendingActionExpirySweep();
 
 const provisioningWorker = require('./lib/provisioning-worker');
 
+// ST3: the business time zone. Real hooks existed all along (wsTz
+// drives calendar day-math and every ledger/report date) but the
+// value was set at signup with no recourse. IANA-validated by the
+// runtime (lib/timezone), never a hand-kept list.
+app.get('/api/workspace/timezone', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query('SELECT timezone FROM workspaces WHERE id = $1', [workspaceId]);
+    res.json({ timezone: (r.rows[0] && r.rows[0].timezone) || 'America/New_York' });
+  } catch (err) {
+    console.error('[GET /api/workspace/timezone]', err.message);
+    res.status(500).json({ error: 'Could not load the time zone' });
+  }
+});
+
+app.patch('/api/workspace/timezone', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const tz = String((req.body && req.body.timezone) || '').trim();
+    const { isValidTimeZone } = require('./lib/timezone');
+    if (!isValidTimeZone(tz)) {
+      return res.status(400).json({ error: 'Not a valid IANA time zone (e.g. America/Chicago)' });
+    }
+    await pool.query('UPDATE workspaces SET timezone = $1 WHERE id = $2', [tz, workspaceId]);
+    res.json({ ok: true, timezone: tz });
+  } catch (err) {
+    console.error('[PATCH /api/workspace/timezone]', err.message);
+    res.status(500).json({ error: 'Could not save the time zone' });
+  }
+});
+
 // SP4b: the one-tap re-arm. A 'failed' workspace goes back in the
 // queue with a zeroed counter, then we kick immediately so the owner
 // sees a result in seconds rather than waiting for the next sweep.
