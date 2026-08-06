@@ -3598,7 +3598,9 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 
 // Protect all /api/* routes except login/signup and inbound webhooks
 app.use('/api', (req, res, next) => {
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/billing/webhook'];
+  // '/voice/spike-incoming' is the TEMPORARY autodetect-spike line
+  // (signature-validated like every Twilio route); remove with the spike.
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/spike-incoming', '/billing/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
