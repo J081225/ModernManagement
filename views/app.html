@@ -3966,13 +3966,16 @@
                          changes only when voice actually ships. -->
                     <div>
                       <label for="mbCustomerLanguage" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer language</label>
-                      <!-- ST5b shipped voice: the per-channel truth now
-                           claims both channels, honestly. -->
+                      <!-- ST7a: the per-channel truth is PER LANGUAGE now —
+                           es claims both channels; ar claims text only until
+                           the ST7b voice spike proves Arabic STT. The line
+                           is set by _langTruth() on load and change. -->
                       <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="mbCustomerLanguageTruth">Texts and phone calls: your assistant greets and replies in this language, and follows the customer if they switch languages.</span>
                       <select id="mbCustomerLanguage" onchange="mbSaveCustomerLanguage()"
                         style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="en">English (default)</option>
                         <option value="es">Espa&ntilde;ol</option>
+                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577; (Arabic)</option>
                       </select>
                       <div id="mbCustomerLanguageStatus" style="font-size:0.8em;color:var(--text-muted);min-height:1em;margin-top:6px;"></div>
                     </div>
@@ -13870,6 +13873,19 @@
       }
 
       // ---------- ST5a: customer language ----------
+      // ST7a: per-channel truth, PER LANGUAGE. Arabic claims text only
+      // until the voice spike proves Arabic STT — the control never
+      // promises a channel the pipeline can't deliver.
+      function _langTruth(lang) {
+        if (lang === 'ar') {
+          return 'Texts and receipts: your assistant reads and replies in Arabic, and follows the customer if they switch languages. Phone calls: English for now.';
+        }
+        return 'Texts and phone calls: your assistant greets and replies in this language, and follows the customer if they switch languages.';
+      }
+      function _applyLangTruth(lang) {
+        const truth = document.getElementById('mbCustomerLanguageTruth');
+        if (truth) truth.textContent = _langTruth(lang);
+      }
       async function loadCustomerLanguage() {
         const sel = document.getElementById('mbCustomerLanguage');
         if (!sel) return;
@@ -13877,6 +13893,7 @@
           const r = await fetch('/api/workspace/customer-language', { credentials: 'include' });
           if (r.ok) sel.value = (await r.json()).customer_language || 'en';
         } catch (e) { /* select keeps its default */ }
+        _applyLangTruth(sel.value);
       }
       async function mbSaveCustomerLanguage() {
         const sel = document.getElementById('mbCustomerLanguage');
@@ -13892,9 +13909,12 @@
           });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) { if (status) status.textContent = data.error || 'Could not save.'; return; }
+          _applyLangTruth(sel.value);
           if (status) status.textContent = sel.value === 'es'
             ? 'Guardado — su asistente ahora escribe a los clientes en español.'
-            : 'Saved — your assistant texts customers in English.';
+            : sel.value === 'ar'
+              ? 'تم الحفظ — مساعدتكم الآن تراسل العملاء بالعربية.'
+              : 'Saved — your assistant texts customers in English.';
         } catch (err) {
           if (status) status.textContent = 'Network error — not saved.';
         }

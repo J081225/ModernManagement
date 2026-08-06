@@ -908,7 +908,7 @@ app.patch('/api/workspace/timezone', requireAuth, async (req, res) => {
 // ST5a: the customer-facing language. Ruled launch list: en + es
 // ONLY — the DB CHECK (063) and this validation enforce the same
 // honesty rule: we never store a language we can't claim.
-const CUSTOMER_LANGUAGES = ['en', 'es'];
+const CUSTOMER_LANGUAGES = ['en', 'es', 'ar'];
 app.get('/api/workspace/customer-language', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
@@ -927,7 +927,7 @@ app.patch('/api/workspace/customer-language', requireAuth, async (req, res) => {
     if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
     const lang = String((req.body && req.body.customer_language) || '').trim();
     if (!CUSTOMER_LANGUAGES.includes(lang)) {
-      return res.status(400).json({ error: 'Supported languages: en (English), es (Español)' });
+      return res.status(400).json({ error: 'Supported languages: en (English), es (Español), ar (العربية)' });
     }
     await pool.query('UPDATE workspaces SET customer_language = $1 WHERE id = $2', [lang, workspaceId]);
     res.json({ ok: true, customer_language: lang });
@@ -7249,9 +7249,14 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
   // English emits no language attribute at all, so existing workspaces
   // keep byte-identical TwiML.
   const lang = (workspace && workspace.customer_language) || 'en';
-  const { customerString: voiceString } = require('./lib/customer-strings');
-  const greeting = escapeXmlAttr(voiceString(lang, 'voice_greeting', { businessName: bizName }));
-  const langAttr = lang === 'es' ? ' language="es-US"' : '';
+  const { customerString: voiceString, voiceLanguageFor } = require('./lib/customer-strings');
+  // ST7a: the VOICE language is gated separately from the text
+  // language (VOICE_READY). An ar workspace keeps the ENGLISH
+  // greeting and session — an Arabic greeting without proven Arabic
+  // STT would promise comprehension the pipeline can't deliver.
+  const vlang = voiceLanguageFor(lang);
+  const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
+  const langAttr = vlang === 'es' ? ' language="es-US"' : '';
 
   res.type('text/xml').send(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +

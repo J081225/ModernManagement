@@ -33,24 +33,29 @@ function check(name, ok, detail) {
     // and the variants must genuinely differ (a copy-pasted English
     // "translation" is the subtle failure mode)
     const sameParams = { businessName: 'X', paymentType: 'deposit', amount: '$1.00', url: 'u', customer: 'C', date: 'd', total: '$1.00', method: 'cash', txId: 1 };
-    const lazy = keys.filter((k) => {
+    // no non-English variant may be a byte-copy of the English
+    const lazy = [];
+    for (const k of keys) {
       const en = JSON.stringify(STRINGS[k].en(sameParams));
-      const es = JSON.stringify(STRINGS[k].es(sameParams));
-      return en === es;
-    });
-    check('CL1 [the ruled census]: every canned-string key declares BOTH en and es (' + keys.length + ' keys × ' + LANGUAGES.length + ' languages), and no es variant is a copy of the English',
+      for (const lang of LANGUAGES.filter((l) => l !== 'en')) {
+        if (JSON.stringify(STRINGS[k][lang](sameParams)) === en) lazy.push(k + ':' + lang);
+      }
+    }
+    check('CL1 [the ruled census]: every canned-string key declares EVERY supported language (' + keys.length + ' keys × ' + LANGUAGES.length + ' languages), and no variant is a byte-copy of the English',
       missing.length === 0 && lazy.length === 0,
       JSON.stringify({ missing, lazy }));
   }
 
-  // ---- CL2: the three copies of the language set agree ----
+  // ---- CL2 [evolved ST7a]: the three copies of the language set agree ----
   {
-    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '063_customer_language.sql'), 'utf8');
+    // 064 is the CURRENT authority (it re-creates the constraint 063
+    // introduced); the widening evolved this pin exactly as designed.
+    const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '064_arabic_language.sql'), 'utf8');
     const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-    const dbSet = /CHECK \(customer_language IN \('en', 'es'\)\)/.test(migration);
-    const endpointSet = srv.includes("const CUSTOMER_LANGUAGES = ['en', 'es'];");
-    const moduleSet = JSON.stringify(LANGUAGES) === JSON.stringify(['en', 'es']);
-    check('CL2: the ruled launch set (en+es ONLY) is identical in the DB CHECK, the endpoint, and the strings module — a new language must widen all three, forcing the claim decision',
+    const dbSet = /CHECK \(customer_language IN \('en', 'es', 'ar'\)\)/.test(migration);
+    const endpointSet = srv.includes("const CUSTOMER_LANGUAGES = ['en', 'es', 'ar'];");
+    const moduleSet = JSON.stringify(LANGUAGES) === JSON.stringify(['en', 'es', 'ar']);
+    check('CL2 [evolved ST7a]: the ruled set (en+es+ar) is identical in the DB CHECK (064), the endpoint, and the strings module — a new language must widen all three, forcing the claim decision',
       dbSet && endpointSet && moduleSet, JSON.stringify({ dbSet, endpointSet, moduleSet }));
   }
 
@@ -60,11 +65,15 @@ function check(name, ok, detail) {
     const es = buildSystemPrompt({ ...base, workspace: { id: 7, business_name: 'X', vertical: 'professional-services', customer_language: 'es' } });
     const en = buildSystemPrompt({ ...base, workspace: { id: 7, business_name: 'X', vertical: 'professional-services', customer_language: 'en' } });
     const unset = buildSystemPrompt({ ...base, workspace: { id: 7, business_name: 'X', vertical: 'professional-services' } });
-    const esOk = es.includes('## Language') && es.includes('Greet and reply in Spanish by default')
-      && es.includes('follow the customer');
-    const enOk = en.includes('Greet and reply in English by default') && en.includes('follow the customer');
-    const unsetOk = unset.includes('Greet and reply in English by default');
-    check('CL3: the real prompt builder injects the Language block ALWAYS — Spanish default-and-follow for es, explicit English for en AND for legacy unset workspaces (no implicit drift)',
+    // CL3 [evolved ST7a]: the E3 eval caught "default" beating
+    // "follow" — the contract now puts the customer's message
+    // language FIRST, with the workspace default as tie-breaker.
+    const followFirst = 'Always reply in the language the customer\'s message is written in';
+    const esOk = es.includes('## Language') && es.includes(followFirst)
+      && es.includes('Default to Spanish only when') && es.includes('Never mix languages');
+    const enOk = en.includes(followFirst) && en.includes('Default to English only when');
+    const unsetOk = unset.includes('Default to English only when');
+    check('CL3 [evolved ST7a]: the Language contract is ordered by dominance — customer\'s message language outranks the workspace default, no mixed-language replies, explicit English for legacy unset workspaces',
       esOk && enOk && unsetOk, JSON.stringify({ esOk, enOk, unsetOk }));
   }
 
@@ -104,16 +113,19 @@ function check(name, ok, detail) {
   {
     const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
     const control = app.includes('id="mbCustomerLanguage"')
-      && /value="en">English \(default\)/.test(app) && app.includes('Espa&ntilde;ol');
-    const onlyTwo = (app.match(/id="mbCustomerLanguage"[\s\S]{0,600}?<\/select>/) || [''])[0].split('<option').length - 1 === 2;
-    // CL6 [evolved ST5b]: voice shipped, so the truth claims BOTH
-    // channels — and the old voice-lags caveat must be GONE.
-    const channelTruth = app.includes('Texts and phone calls: your assistant greets and replies in this language')
-      && !app.includes('Phone calls: English for now');
+      && /value="en">English \(default\)/.test(app) && app.includes('Espa&ntilde;ol')
+      && app.includes('value="ar"');
+    const exactlyThree = (app.match(/id="mbCustomerLanguage"[\s\S]{0,800}?<\/select>/) || [''])[0].split('<option').length - 1 === 3;
+    // CL6 [evolved ST7a]: the truth is PER LANGUAGE — es claims both
+    // channels; ar claims text only ("Phone calls: English for now")
+    // until the ST7b spike proves Arabic STT.
+    const truthFn = /_langTruth[\s\S]{0,400}lang === 'ar'[\s\S]{0,400}Phone calls: English for now/.test(app)
+      && app.includes('Texts and phone calls: your assistant greets and replies in this language');
+    const applied = app.includes('_applyLangTruth(sel.value)');
     const wired = app.includes('loadCustomerLanguage();') && app.includes('mbSaveCustomerLanguage');
-    check('CL6 [evolved ST5b]: the control offers EXACTLY the two ruled languages, claims BOTH channels now that voice shipped (the old voice-lags caveat is gone), and is wired fire-and-forget',
-      control && onlyTwo && channelTruth && wired,
-      JSON.stringify({ control, onlyTwo, channelTruth, wired }));
+    check('CL6 [evolved ST7a]: the control offers EXACTLY the three ruled languages with PER-LANGUAGE channel truth — es claims both channels, ar honestly claims text only until the voice spike — applied on load and on change',
+      control && exactlyThree && truthFn && applied && wired,
+      JSON.stringify({ control, exactlyThree, truthFn, applied, wired }));
   }
 
   // ---- CL7: date localization ----
@@ -130,16 +142,52 @@ function check(name, ok, detail) {
   {
     const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
     const block = srv.slice(srv.indexOf('const wsUrl = '), srv.indexOf('// ============================================================\n// Reports'));
-    const greetingViaModule = block.includes("voiceString(lang, 'voice_greeting', { businessName: bizName })");
-    const esAttr = block.includes(`lang === 'es' ? ' language="es-US"' : ''`);
+    // CL8 [evolved ST7a]: the voice language is GATED separately
+    // through voiceLanguageFor — ar workspaces keep the English
+    // greeting and session until the spike proves Arabic STT.
+    const { voiceLanguageFor, VOICE_READY } = require(path.join(__dirname, '..', 'lib', 'customer-strings'));
+    const greetingViaModule = block.includes("voiceString(vlang, 'voice_greeting', { businessName: bizName })");
+    const gated = block.includes('const vlang = voiceLanguageFor(lang);')
+      && block.includes(`vlang === 'es' ? ' language="es-US"' : ''`);
     const twimlCarries = block.includes("welcomeGreeting=\"' + greeting + '\"' + langAttr");
-    // the es greeting itself is declared Spanish (CL1 covers presence;
-    // this proves content)
+    const mapping = voiceLanguageFor('es') === 'es' && voiceLanguageFor('en') === 'en'
+      && voiceLanguageFor('ar') === 'en' && voiceLanguageFor(undefined) === 'en'
+      && JSON.stringify(VOICE_READY) === JSON.stringify(['en', 'es']);
     const esGreeting = customerString('es', 'voice_greeting', { businessName: 'X' });
-    const greetingSpanish = esGreeting.includes('Hola') && esGreeting.includes('llamar') && !/thanks for calling/i.test(esGreeting);
-    check('CL8 [ST5b]: the relay TwiML greets from the declared-variants module in the workspace language and sets language="es-US" for Spanish (default voices); English emits NO attribute — existing workspaces keep byte-identical TwiML',
-      greetingViaModule && esAttr && twimlCarries && greetingSpanish,
-      JSON.stringify({ greetingViaModule, esAttr, twimlCarries, greetingSpanish }));
+    const greetingSpanish = esGreeting.includes('Hola') && !/thanks for calling/i.test(esGreeting);
+    check('CL8 [evolved ST7a]: the relay greets via voiceLanguageFor — es speaks Spanish (es-US, default voices), ar workspaces get the ENGLISH greeting and session (no overclaim-by-behavior), en emits no attribute; the ST7b flip is VOICE_READY alone',
+      greetingViaModule && gated && twimlCarries && mapping && greetingSpanish,
+      JSON.stringify({ greetingViaModule, gated, twimlCarries, mapping, greetingSpanish }));
+  }
+
+  // ---- CL9 (ST7a): the Arabic prompt branch carries the ST6 gate ----
+  {
+    const base = { contact: null, knowledge: [], callerAppointments: [], menu: [], thread: {}, channel: 'sms' };
+    const ar = buildSystemPrompt({ ...base, workspace: { id: 7, business_name: 'X', vertical: 'professional-services', customer_language: 'ar' } });
+    const ok = ar.includes('Default to Arabic only when')
+      && ar.includes('mirror their dialect in conversation')
+      && ar.includes('Modern Standard Arabic')
+      && ar.includes('آسفة')                       // the feminine-register guard (the observed slip)
+      && ar.includes('Always quote exact menu prices') // the price-quoting guard
+      && ar.includes('Always reply in the language the customer\'s message is written in');
+    check('CL9 [ST7a]: the Arabic prompt branch encodes the eval-gate contract — customer-language-first, dialect-mirroring + MSA-for-formal, the feminine-register guard (آسفة), the quote-exact-prices guard',
+      ok);
+  }
+
+  // ---- CL10 (ST7a): RTL receipts render right, en/es untouched ----
+  {
+    const tx = { id: 88, total_cents: 4500, subtotal_cents: 4500, tax_cents: 300, discount_cents: 100, customer_display_name: 'ليلى', payment_method: 'cash', payment_received_at: '2026-08-06T15:00:00Z', line_items: [{ description: 'قصة شعر', quantity: 1, total_cents: 4500 }] };
+    const ar = receipts.generateReceiptHTML(tx, { business_name: 'صالون ياسمين', customer_language: 'ar' });
+    const en = receipts.generateReceiptHTML(tx, { business_name: 'B', customer_language: 'en' });
+    const dirOk = ar.includes('<html dir="rtl" lang="ar">');
+    // every money value and the reference are LTR runs (bidi-safe)
+    const ltrRuns = (ar.match(/<span dir="ltr">/g) || []).length >= 6; // 5 money cells + ref
+    const arLabels = ['إيصال', 'العميل', 'البنود', 'الإجمالي', 'طريقة الدفع', 'شكراً لزيارتكم'].every((s) => ar.includes(s));
+    const westernDigits = ar.includes('$45.00') && !/[٠-٩]/.test(ar); // nu-latn ruling: no Eastern Arabic numerals
+    const enClean = !en.includes('dir=') && !en.includes('<span dir');
+    check('CL10 [ST7a]: an ar receipt renders dir="rtl" lang="ar" with every amount and the reference wrapped as LTR runs (no bidi artifacts), Arabic labels throughout, WESTERN digits per the numerals ruling; en output carries no RTL residue',
+      dirOk && ltrRuns && arLabels && westernDigits && enClean,
+      JSON.stringify({ dirOk, ltrRuns, arLabels, westernDigits, enClean }));
   }
 
   console.log(`${pass}/${pass + fail} — customer-language suite ${fail ? 'FAILED' : 'PASSED'}`);
