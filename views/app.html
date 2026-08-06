@@ -2256,7 +2256,9 @@
         <a href="#" id="nav-operations" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" id="nav-calendar" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
-        <a href="#" id="nav-admin" onclick="showPage('admin', '&#128188;', this)"><span class="nav-icon">&#128188;</span> Admin</a>
+        <!-- ST2: user-facing name is Settings; internal ids/routes keep
+             'admin' (renaming them churns arc pins for zero user value). -->
+        <a href="#" id="nav-admin" onclick="showPage('admin', '&#9881;&#65039;', this)"><span class="nav-icon">&#9881;&#65039;</span> Settings</a>
         <a href="#" id="nav-finances" onclick="showPage('finances', '&#128181;', this)"><span class="nav-icon">&#128181;</span> Finances</a>
         <!-- E4: Services & Products + Inventory — PS-only (toggled by JS post-plan-summary). Inventory also requires inventory_tracking_enabled. -->
         <a href="#" id="nav-menu" onclick="showPage('menu', '&#127860;', this)" style="display:none;"><span class="nav-icon">&#127860;</span> Services &amp; Products</a>
@@ -2437,10 +2439,10 @@
               <div class="quick-tile-title">Calendar</div>
               <div class="quick-tile-desc">Events, tasks and scheduling</div>
             </div>
-            <div class="quick-tile" onclick="showPage('admin','&#128188;',document.querySelector('#sidebar nav a:nth-child(5)'))">
-              <div class="quick-tile-icon">&#128188;</div>
-              <div class="quick-tile-title">Admin</div>
-              <div class="quick-tile-desc">Rent, invoices and budget</div>
+            <div class="quick-tile" onclick="showPage('admin','&#9881;&#65039;',document.querySelector('#sidebar nav a:nth-child(5)'))">
+              <div class="quick-tile-icon">&#9881;&#65039;</div>
+              <div class="quick-tile-title">Settings</div>
+              <div class="quick-tile-desc">Account, credentials and billing</div>
             </div>
             <div class="quick-tile" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
               <div class="quick-tile-icon">&#128100;</div>
