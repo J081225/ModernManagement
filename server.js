@@ -905,6 +905,38 @@ app.patch('/api/workspace/timezone', requireAuth, async (req, res) => {
   }
 });
 
+// ST5a: the customer-facing language. Ruled launch list: en + es
+// ONLY — the DB CHECK (063) and this validation enforce the same
+// honesty rule: we never store a language we can't claim.
+const CUSTOMER_LANGUAGES = ['en', 'es'];
+app.get('/api/workspace/customer-language', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const r = await pool.query('SELECT customer_language FROM workspaces WHERE id = $1', [workspaceId]);
+    res.json({ customer_language: (r.rows[0] && r.rows[0].customer_language) || 'en' });
+  } catch (err) {
+    console.error('[GET /api/workspace/customer-language]', err.message);
+    res.status(500).json({ error: 'Could not load the language' });
+  }
+});
+
+app.patch('/api/workspace/customer-language', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const lang = String((req.body && req.body.customer_language) || '').trim();
+    if (!CUSTOMER_LANGUAGES.includes(lang)) {
+      return res.status(400).json({ error: 'Supported languages: en (English), es (Español)' });
+    }
+    await pool.query('UPDATE workspaces SET customer_language = $1 WHERE id = $2', [lang, workspaceId]);
+    res.json({ ok: true, customer_language: lang });
+  } catch (err) {
+    console.error('[PATCH /api/workspace/customer-language]', err.message);
+    res.status(500).json({ error: 'Could not save the language' });
+  }
+});
+
 // SP4b: the one-tap re-arm. A 'failed' workspace goes back in the
 // queue with a zeroed counter, then we kick immediately so the owner
 // sees a result in seconds rather than waiting for the next sweep.

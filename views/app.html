@@ -3959,6 +3959,21 @@
                         <option value="proactive">Gently suggest add-ons</option>
                       </select>
                     </div>
+
+                    <!-- ST5a: customer language. Per-channel truth on the
+                         control (the deposits pattern): text is live now,
+                         voice arrives with ST5b — the copy says so and
+                         changes only when voice actually ships. -->
+                    <div>
+                      <label for="mbCustomerLanguage" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer language</label>
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="mbCustomerLanguageTruth">Texts: your assistant greets and replies in this language, and follows the customer if they switch. Phone calls: English for now &mdash; Spanish arrives with a coming update.</span>
+                      <select id="mbCustomerLanguage" onchange="mbSaveCustomerLanguage()"
+                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
+                        <option value="en">English (default)</option>
+                        <option value="es">Espa&ntilde;ol</option>
+                      </select>
+                      <div id="mbCustomerLanguageStatus" style="font-size:0.8em;color:var(--text-muted);min-height:1em;margin-top:6px;"></div>
+                    </div>
                   </div>
                 </div>
 
@@ -13431,9 +13446,10 @@
       let mbPoliciesId = null;
 
       async function loadMyBusinessPage() {
-        // ST3: fire-and-forget like the other card loads — a failure
-        // here never blocks the rest of the page.
+        // ST3/ST5a: fire-and-forget like the other card loads — a
+        // failure here never blocks the rest of the page.
         loadTimezoneCard();
+        loadCustomerLanguage();
         // Reset ids each load so a stale cache doesn't cause a duplicate
         // create if the underlying row was deleted server-side.
         mbDescriptionId = null;
@@ -13848,6 +13864,37 @@
         } catch (err) {
           console.error('[my-business ai-settings] save failed:', err);
           _mbSetStatus('mbAISettingsStatus', 'Save failed: ' + (err.message || err), 'var(--danger)');
+        }
+      }
+
+      // ---------- ST5a: customer language ----------
+      async function loadCustomerLanguage() {
+        const sel = document.getElementById('mbCustomerLanguage');
+        if (!sel) return;
+        try {
+          const r = await fetch('/api/workspace/customer-language', { credentials: 'include' });
+          if (r.ok) sel.value = (await r.json()).customer_language || 'en';
+        } catch (e) { /* select keeps its default */ }
+      }
+      async function mbSaveCustomerLanguage() {
+        const sel = document.getElementById('mbCustomerLanguage');
+        const status = document.getElementById('mbCustomerLanguageStatus');
+        if (!sel) return;
+        if (status) status.textContent = 'Saving…';
+        try {
+          const r = await fetch('/api/workspace/customer-language', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ customer_language: sel.value }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) { if (status) status.textContent = data.error || 'Could not save.'; return; }
+          if (status) status.textContent = sel.value === 'es'
+            ? 'Guardado — su asistente ahora escribe a los clientes en español.'
+            : 'Saved — your assistant texts customers in English.';
+        } catch (err) {
+          if (status) status.textContent = 'Network error — not saved.';
         }
       }
 
