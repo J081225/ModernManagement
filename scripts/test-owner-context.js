@@ -71,10 +71,18 @@ function screenContext(body, currentPage) {
     const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
     const idx = src.indexOf('const systemPrompt = `${businessFraming}');
     const block = src.slice(idx, idx + 700);
-    check('OC5: systemPrompt embeds businessFraming, contextSummary, the ws-timezone anchor, and screenContext in one prompt',
-      idx !== -1 && block.includes('${contextSummary}') && block.includes('promptTimeAnchor(_workspaceRow)')
-        && block.includes('${screenContext}'),
-      'assembly');
+    // OC5 [evolved HN3]: the anchor is now computed ONCE from
+    // _workspaceRow above the template and used twice — in this
+    // prompt and again on the live turn, where it outranks replayed
+    // history. Same intent (the prompt carries the ws-timezone
+    // anchor), stronger guarantee.
+    const anchorFromWorkspace = src.includes('const _timeAnchor = require(\'./lib/time-helpers\').promptTimeAnchor(_workspaceRow)');
+    const anchorInPrompt = block.includes('${_timeAnchor.tz}') && block.includes('${_timeAnchor.nowInTz}');
+    const anchorOnLiveTurn = src.includes('[Current date and time: ${_timeAnchor.nowInTz}');
+    check('OC5 [evolved HN3]: systemPrompt embeds businessFraming, contextSummary, the ws-timezone anchor and screenContext — and the anchor, computed once from _workspaceRow, ALSO rides the live turn so history cannot outrank it',
+      idx !== -1 && block.includes('${contextSummary}') && block.includes('${screenContext}')
+        && anchorFromWorkspace && anchorInPrompt && anchorOnLiveTurn,
+      JSON.stringify({ anchorFromWorkspace, anchorInPrompt, anchorOnLiveTurn }));
   }
 
   // ---- OC6: source-pin — the OWNER brain is NOT gated by the autonomy matrix ----
