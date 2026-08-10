@@ -118,6 +118,9 @@ const plans = require('./lib/plans');
 // /api/command increments per successful AI request; report-creation
 // paths increment once per saved report.
 const usage = require('./lib/usage');
+// HN: owner-assistant honesty guards (history sanitation + the
+// verify-before-claiming gate).
+const { stripToolMarker, verifyReplyClaims } = require('./lib/assistant-honesty');
 
 // Session D4: plan enforcement layer. Bundles plans + usage with
 // workspace-fetch + status-check semantics. Route handlers call into
@@ -5863,10 +5866,17 @@ app.post('/api/command', requireAuth, async (req, res) => {
       let total = 0;
       for (let i = rows.length - 1; i >= 0; i--) { // newest → oldest
         const r = rows[i];
-        let text = String(r.content || '').slice(0, MAX_MSG);
-        if (r.role === 'assistant' && r.tool_calls_summary) {
-          text += `\n[tools used: ${String(r.tool_calls_summary).slice(0, 120)}]`;
-        }
+        // HN1: the assistant channel carries the assistant's WORDS and
+        // nothing else. The "[tools used: X]" marker used to be
+        // appended here; the model read its own replayed turns as
+        // examples and began writing that marker as PROSE instead of
+        // calling tools — claiming mutations that never happened.
+        // Tool records now live only in tool_calls_summary (for the
+        // UI). The strip also neutralizes rows already poisoned with
+        // a model-written marker, on read, forever.
+        let text = String(r.content || '');
+        if (r.role === 'assistant') text = stripToolMarker(text);
+        text = text.slice(0, MAX_MSG);
         if (total + text.length > MAX_TOTAL) break; // truncate oldest first
         total += text.length;
         built.unshift({ role: r.role === 'assistant' ? 'assistant' : 'user', content: text });
