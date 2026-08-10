@@ -7772,6 +7772,32 @@ async function buildPSSnapshot({ workspace, type, parameters }) {
     snapshot.inbox_messages = [];
   }
 
+  // RV2 (money guardrail, LAW): the ONE money-total source for any
+  // narrative report is the TR composer — never a fresh sum of raw
+  // rows. composeTransactionReport applies the real-vs-test split and
+  // the one-source law TR pinned; summing recent_transactions by hand
+  // would silently count test-mode money as revenue. So the snapshot
+  // carries a composer-sourced this-month summary, and the prompt
+  // forbids totalling the raw sample rows below.
+  try {
+    const { composeTransactionReport } = require('./lib/transaction-report');
+    const rep = await composeTransactionReport({
+      db: pool, workspace, period: 'month', env: process.env, group_by: 'category',
+    });
+    snapshot.money_summary = {
+      source: 'transaction-history-composer',
+      period: rep.period,
+      in_cents: rep.totals.in_cents,
+      out_cents: rep.totals.out_cents,
+      net_cents: rep.totals.net_cents,
+      row_count: rep.totals.count,
+      note: 'Authoritative totals from the Finances Transaction History composer (real money only; test-mode excluded). Cite these for any dollar figure.',
+    };
+  } catch (err) {
+    console.error('[snapshot ps] money_summary (composer) failed:', err.message);
+    snapshot.money_summary = null;
+  }
+
   return snapshot;
 }
 
@@ -8034,26 +8060,49 @@ async function generateReportContent({ workspaceId, type, prompt, parameters }) 
   }
 
   const snapshot = await buildReportSnapshot({ workspaceId, type, parameters });
+  const reportVertical = (snapshot.workspace && snapshot.workspace.vertical) || 'property-management';
+  const isPSReport = reportVertical === 'professional-services';
 
-  const systemPrompt = `You are an expert property management advisor writing a written report for a property manager.
+  // RV2: the advisor's voice and per-type guidance are vertical-aware.
+  // PM keeps its property-management framing verbatim; PS gets a
+  // services-business advisor with its own launch report types
+  // (activity, customers, week_ahead — all NON-money narrative). The
+  // money-guardrail line is shared and absolute: cite money_summary,
+  // never total the raw rows.
+  const MONEY_GUARDRAIL = 'For ANY dollar figure, cite ONLY the money_summary block (it comes from the Finances Transaction History composer and already excludes test-mode money). NEVER add up recent_transactions, outstanding_balances, or quoted prices yourself — those raw rows are context samples, not totals. If money_summary is null, say revenue data is unavailable rather than computing it.';
+
+  const psGuidance = `When writing an activity report, summarize the recent operating rhythm — appointments booked and completed, active customer conversations, and open tasks — and flag anything that needs the owner's attention.
+When writing a customers report, profile the customer base from contacts: who's new, who's a repeat, notable relationships; do NOT invent visit counts the data doesn't show.
+When writing a week_ahead report, walk the upcoming 14 days of appointments day by day, call out gaps and busy stretches, and note any prep the owner should do. Frame expected demand from booked appointments, but state no revenue total except from money_summary.
+When writing a general report, give a balanced cross-cutting overview of the business.`;
+
+  const pmGuidance = `When writing budget content, always include actionable suggestions ("Consider X because Y").
+When writing tenant content, surface anyone whose lease is expiring soon or whose rent is overdue.
+When writing inventory content, call out occupancy rate and any vacant units.
+When writing activity content, summarize what happened in the relevant time window.
+When writing general content, give a balanced cross-cutting overview.`;
+
+  const advisorLine = isPSReport
+    ? 'You are an expert advisor for an appointment-based service business (salon, spa, stylist, trainer, clinic, etc.), writing a report for the owner.'
+    : 'You are an expert property management advisor writing a written report for a property manager.';
+
+  const systemPrompt = `${advisorLine}
 
 Write the report in well-formatted markdown. Use headers (##), bullet lists, and bold text where helpful. Keep paragraphs short and scannable. Open with a one-paragraph executive summary, then dig into the relevant sections.
 
 Report type: ${type}
 User's request: ${prompt || 'Generate a default report of this type.'}
 
-The data snapshot below contains the workspace's current state. Use only data present here — do not invent numbers or events. If the data shows zero of something (no overdue tenants, no recent maintenance), say so plainly rather than padding.
+The data snapshot below contains the workspace's current state. Use only data present here — do not invent numbers or events. If the data shows zero of something, say so plainly rather than padding.
 
-When writing budget content, always include actionable suggestions ("Consider X because Y").
-When writing tenant content, surface anyone whose lease is expiring soon or whose rent is overdue.
-When writing inventory content, call out occupancy rate and any vacant units.
-When writing activity content, summarize what happened in the relevant time window.
-When writing general content, give a balanced cross-cutting overview.
+${MONEY_GUARDRAIL}
+
+${isPSReport ? psGuidance : pmGuidance}
 
 Data snapshot:
 ${JSON.stringify(snapshot, null, 2)}`;
 
-  const userMessage = prompt || `Generate a ${type} report for the current state of the property.`;
+  const userMessage = prompt || `Generate a ${type} report for the current state of the ${isPSReport ? 'business' : 'property'}.`;
 
   const response = await anthropic.messages.create({
     // Long-form written report — quality dominates cost/latency, so keep
