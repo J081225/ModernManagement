@@ -10183,6 +10183,15 @@
         add_task:               ['tasks', 'home', 'calendar'],
         update_task:            ['tasks', 'home', 'calendar'],
         escalate_appointment_to_owner: ['tasks', 'home'],
+        // HN5: menu mutations were MISSING from this map entirely, so
+        // an assistant-added service or product never refreshed the
+        // grids that display it — the owner saw a success message over
+        // an unchanged screen. Both surfaces render menu items: the
+        // Services & Products page (page-menu) and My Business's
+        // services/products cards.
+        add_menu_item:          ['menu', 'my-business'],
+        update_menu_item:       ['menu', 'my-business'],
+        archive_menu_item:      ['menu', 'my-business'],
         // AP3: approval-gated settings/knowledge/refund tools
         update_ai_settings:     ['my-business'],
         update_knowledge:       ['my-business', 'operations'],
@@ -10257,6 +10266,23 @@
               break;
             case 'reports':
               if (typeof loadReports === 'function') await loadReports();
+              break;
+            // HN5: the two surfaces that render menu items had no case
+            // here at all, so even a mapped tool refreshed nothing.
+            // HN5: the two surfaces that render menu items had no case
+            // here at all, so even a mapped tool refreshed nothing.
+            // page-menu owns all three tabs (Services / Products /
+            // Add-ons) through its own loader; My Business has its own
+            // services + products cards.
+            case 'menu':
+              if (typeof loadMenuPage === 'function') await loadMenuPage();
+              break;
+            case 'my-business':
+              if (typeof mbLoadServices === 'function') await mbLoadServices();
+              if (typeof mbLoadProducts === 'function') await mbLoadProducts();
+              break;
+            case 'finances':
+              if (typeof loadFinancesSummary === 'function') await loadFinancesSummary();
               break;
           }
         } catch (err) {
