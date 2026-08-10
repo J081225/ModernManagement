@@ -2664,6 +2664,11 @@
               <div class="card-head-rule"></div>
 
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:10px;flex-wrap:wrap;">
+                <!-- RV2b: options populated per vertical by
+                     applyReportTypeOptions() — PM keeps budget/tenant/
+                     inventory/activity/general; PS gets activity/
+                     customers/week_ahead/general. The static list here
+                     is the PM default (pre-JS render). -->
                 <select id="reportTypeFilter" onchange="loadReportsList()" style="padding:9px 14px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);font-family:inherit;cursor:pointer;">
                   <option value="">All types</option>
                   <option value="budget">Budget</option>
@@ -9095,6 +9100,26 @@
       //
       // (Was updateE4SidebarVisibility — renamed in E6 because it now
       // covers PM-only items as well as the original PS-only ones.)
+      // RV2b: the vertical-gated Reports type lists. PM report types are
+      // property-substance (Tenant/Inventory/Budget); PS gets the ruled
+      // launch types (Activity/Customers/Week Ahead) + General. Applied
+      // to BOTH the list filter and the New-Report generation picker so
+      // a PS owner can neither filter by nor generate a PM-only type —
+      // no fake control, no wasted Opus report.
+      function applyReportTypeOptions(isPS) {
+        const PM = [['budget', 'Budget'], ['tenant', 'Tenant'], ['inventory', 'Inventory'], ['activity', 'Activity'], ['general', 'General']];
+        const PS = [['activity', 'Activity'], ['customers', 'Customers'], ['week_ahead', 'Week Ahead'], ['general', 'General']];
+        const types = isPS ? PS : PM;
+        const opts = (leadValue, leadLabel) =>
+          `<option value="${leadValue}">${leadLabel}</option>` +
+          types.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        const filter = document.getElementById('reportTypeFilter');
+        const gen = document.getElementById('newReportType');
+        // preserve the current selection if it survives the vertical swap
+        if (filter) { const cur = filter.value; filter.innerHTML = opts('', 'All types'); filter.value = [...filter.options].some(o => o.value === cur) ? cur : ''; }
+        if (gen) { const cur = gen.value; gen.innerHTML = opts('', 'Auto-detect'); gen.value = [...gen.options].some(o => o.value === cur) ? cur : ''; }
+      }
+
       function applyVerticalVisibility(data) {
         const isPS = data && data.workspace_vertical === 'professional-services';
         const invEnabled = !!(data && data.inventory_tracking_enabled);
@@ -9121,6 +9146,11 @@
         const conductPM = document.getElementById('mbConductPM');
         if (conductPS) conductPS.style.display = isPS ? '' : 'none';
         if (conductPM) conductPM.style.display = isPS ? 'none' : '';
+
+        // RV2b: the Reports type dropdowns are vertical-gated — PS never
+        // sees Tenant/Inventory/Budget (PM-substance report types that
+        // would be a fake control with an Opus bill for a salon).
+        applyReportTypeOptions(isPS);
 
         // Inventory-tracking workspace settings row + toggle (PS-only).
         const settingsRow = document.getElementById('workspaceSettingsRow');
@@ -15567,6 +15597,8 @@
 
       <div class="form-block">
         <label class="form-block-label">Type</label>
+        <!-- RV2b: options populated per vertical by
+             applyReportTypeOptions(); PM default shown pre-JS. -->
         <select id="newReportType" style="background:var(--bg-surface);border:1px solid var(--border-strong);color:var(--text-primary);padding:10px 12px;border-radius:8px;font-family:inherit;width:100%;">
           <option value="">Auto-detect</option>
           <option value="budget">Budget</option>

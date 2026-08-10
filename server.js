@@ -7407,7 +7407,11 @@ async function deriveReportTitle({ type, prompt }) {
     const lastSpace = cutoff.lastIndexOf(' ');
     return capitalizeFirst((lastSpace > 30 ? cutoff.slice(0, lastSpace) : cutoff)) + '...';
   }
-  return `${capitalizeFirst(type)} Report — ${new Date().toLocaleDateString()}`;
+  // RV2b: prettify multi-word type slugs (week_ahead -> "Week Ahead")
+  // so the auto title reads cleanly for the PS launch types.
+  const prettyType = String(type || 'general')
+    .split('_').map(capitalizeFirst).join(' ');
+  return `${prettyType} Report — ${new Date().toLocaleDateString()}`;
 }
 
 // Build the structured data slice the AI sees when writing a report.
