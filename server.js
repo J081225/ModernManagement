@@ -6288,6 +6288,22 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
       summary: result.summary || null,
     }));
 
+    // HN4: verify before claiming. The defect's second mechanism was
+    // that NOTHING checked the reply against reality — a turn that
+    // invoked zero tools could still say "I've added it," and did,
+    // three times in one session. allActions is every tool the model
+    // actually requested across every turn; when that is empty, a
+    // completion claim is false by construction and must not reach
+    // the owner OR command_history (where it would become the next
+    // imitation example).
+    const _claimCheck = verifyReplyClaims({ reply, toolInvocationCount: allActions.length });
+    if (!_claimCheck.ok) {
+      console.error('[command] UNVERIFIED CLAIM suppressed (' + _claimCheck.reason
+        + ') ws=' + _workspaceRow.id + ' — model claimed a mutation with zero tool calls. Original: '
+        + String(reply).slice(0, 200));
+      reply = _claimCheck.reply;
+    }
+
     // Navigation hint considers the full union of actions across turns;
     // selectNavigation picks the last action with a nav policy that fires.
     const navigation = selectNavigation(allExecutionResults, currentPage, registry);
