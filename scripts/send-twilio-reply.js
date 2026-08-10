@@ -1,45 +1,42 @@
-// scripts/send-twilio-reply.js — PREPARED, NOT SENT.
-//
-// The Twilio-reviewer reply, sent from the authenticated domain
-// (jay@modernmanagementapp.com — SendGrid domain auth covers any
-// @modernmanagementapp.com sender). Deliberately inert without BOTH:
-//   --to <ticket-reply-address>   (Jay provides from the ticket)
-//   --send                        (the explicit trigger)
-// Anything less prints the preview and exits. Body text below is the
-// draft awaiting Jay's approval — edit before sending if he revises.
-//
-// Usage:
-//   node scripts/send-twilio-reply.js                      # preview only
-//   node scripts/send-twilio-reply.js --to X@twilio.com --send
+// scripts/send-twilio-reply.js — DISPATCH VERSION (Jay's ruling,
+// ticket confirmed). Headers and body verbatim from Jay. Still
+// requires --to AND --send; preview otherwise.
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const sgMail = require('@sendgrid/mail');
 
-const FROM = { name: 'Jay Horton — R2 LABS LLC', email: 'jay@modernmanagementapp.com' };
-const SUBJECT = 'Re: Toll-Free Verification — Modern Management (R2 LABS LLC)';
+const FROM = { name: 'Jay Horton — R2 Labs LLC', email: 'jay@modernmanagementapp.com' };
+const REPLY_TO = 'jayhorton87@gmail.com';
+const SUBJECT = 'Re: Request #28847766 — R2 LABS LLC profile verification (BU93940826a7eaa1d353df389e1204e09c)';
 
-// ---- DRAFT BODY (awaiting Jay's approval) ----
 const BODY_TEXT = [
-  'Hello,',
+  'Hi Danny,',
   '',
-  'Thank you for the review. Two updates on the items raised:',
+  'Thank you for the response — happy to provide both items.',
   '',
-  '1. Entity attribution: modernmanagementapp.com has been corrected',
-  '   site-wide. Every public page now carries the accurate notice:',
-  '   "© 2026 R2 LABS LLC · Modern Management is a product of',
-  '   R2 LABS LLC, New York, NY." The Terms of Service and Privacy',
-  '   Policy name R2 LABS LLC, a New York limited liability company,',
-  '   as the operating entity.',
+  '1. Business association with the website: Modern Management is the',
+  'product name of R2 LABS LLC — there is no separate company. The site',
+  'previously displayed outdated placeholder text reading "Modern',
+  'Management Inc.," which was an error; no such corporation exists. The',
+  'site has been corrected: every public page of',
+  'https://modernmanagementapp.com now identifies R2 LABS LLC, a New York',
+  'limited liability company, as the operating entity, and the footer',
+  'reads "Modern Management is a product of R2 LABS LLC, New York, NY" —',
+  'which you can verify live.',
   '',
-  '2. This reply is sent from the authenticated business domain',
-  '   (jay@modernmanagementapp.com), matching the website and the',
-  '   business records on the verification.',
+  '2. Business domain email: this reply is sent from',
+  'jay@modernmanagementapp.com, on our business domain, to confirm our',
+  'association with the entity.',
   '',
-  'Happy to provide anything further.',
+  'For reference: Profile SID BU93940826a7eaa1d353df389e1204e09c,',
+  'R2 LABS LLC, EIN 42-3378394 — our CP-575 is already attached to this',
+  'ticket.',
   '',
-  'Jay Horton',
-  'R2 LABS LLC — Modern Management',
-  'modernmanagementapp.com',
+  'Please let me know if anything further would help.',
+  '',
+  'Best regards,',
+  'James "Jay" Horton',
+  'R2 Labs LLC',
 ].join('\n');
 
 const args = process.argv.slice(2);
@@ -47,9 +44,10 @@ const toIdx = args.indexOf('--to');
 const to = toIdx >= 0 ? args[toIdx + 1] : null;
 const send = args.includes('--send');
 
-console.log('FROM:    ' + FROM.name + ' <' + FROM.email + '>');
-console.log('TO:      ' + (to || '(not provided — waiting on the ticket reply address)'));
-console.log('SUBJECT: ' + SUBJECT);
+console.log('FROM:     ' + FROM.name + ' <' + FROM.email + '>');
+console.log('REPLY-TO: ' + REPLY_TO);
+console.log('TO:       ' + (to || '(not provided)'));
+console.log('SUBJECT:  ' + SUBJECT);
 console.log('---\n' + BODY_TEXT + '\n---');
 
 if (!to || !send) {
@@ -61,6 +59,10 @@ if (!process.env.SENDGRID_API_KEY) {
   process.exit(1);
 }
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-sgMail.send({ to, from: FROM, subject: SUBJECT, text: BODY_TEXT })
-  .then(() => console.log('SENT to ' + to))
+sgMail.send({ to, from: FROM, replyTo: REPLY_TO, subject: SUBJECT, text: BODY_TEXT })
+  .then(([res]) => {
+    console.log('SENT to ' + to);
+    console.log('SendGrid status: ' + res.statusCode);
+    console.log('x-message-id: ' + (res.headers['x-message-id'] || '(none)'));
+  })
   .catch((e) => { console.error('SEND FAILED: ' + (e.response ? JSON.stringify(e.response.body) : e.message)); process.exit(1); });
