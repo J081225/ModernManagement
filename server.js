@@ -5852,9 +5852,16 @@ app.post('/api/command', requireAuth, async (req, res) => {
   const historyMessages = [];
   if (workspaceId) {
     try {
+      // HN2: bounded by TIME as well as count. The 20-turn cap alone
+      // replayed turns five weeks old — including an assistant message
+      // asserting "Today is Saturday, July 4, 2026", which the model
+      // then repeated as fact on August 9. Conversation memory is for
+      // continuity, not archaeology: 48 hours covers "what were we
+      // just doing" and lets stale world-state age out on its own.
       const hist = await pool.query(
         `SELECT role, content, tool_calls_summary FROM command_history
           WHERE workspace_id = $1 AND user_id = $2
+            AND created_at > NOW() - INTERVAL '48 hours'
           ORDER BY created_at DESC, id DESC
           LIMIT 20`,
         [workspaceId, req.session.userId]
@@ -6036,11 +6043,18 @@ You help property managers get things done by taking action within the app.`;
     return bits.join(' ').slice(0, 600);
   })();
 
+  // HN3: computed once, used TWICE — in the system prompt and again as
+  // the last thing the model reads before answering (below). The date
+  // was always correct here; it lost to a replayed assistant turn that
+  // asserted a different "today" in the assistant's own authoritative
+  // voice. Recency now works for the truth instead of against it.
+  const _timeAnchor = require('./lib/time-helpers').promptTimeAnchor(_workspaceRow);
+
   const systemPrompt = `${businessFraming}
 
 ${contextSummary}
 
-${(() => { const a = require('./lib/time-helpers').promptTimeAnchor(_workspaceRow); return `Business timezone: ${a.tz}. Right now it is ${a.nowInTz}.`; })()}
+Business timezone: ${_timeAnchor.tz}. Right now it is ${_timeAnchor.nowInTz}.
 ${screenContext}
 When the owner uses relative references, resolve them from the screen context above: "this Friday" means the Friday of the visible or selected week; "this customer" or "them" means the open contact; "this appointment" means the open event. If the screen context cannot resolve a reference, ask ONE short clarifying question — never guess a date or which existing record was meant. That caution is about resolving TARGETS, not about creating records: when you have complete information for a new record (for a new contact, a name plus a phone or email), create it directly — do not ask permission first.
 
@@ -6105,7 +6119,16 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
     // queues, command_history writes downstream) still happen.
     const MAX_ITERATIONS = 5;
     // AP2: prior turns ride ahead of the current prompt.
-    const conversationMessages = [...historyMessages, { role: 'user', content: prompt }];
+    // HN3: the current time rides WITH the live turn — the last thing
+    // read, and explicitly authoritative over anything earlier in the
+    // conversation. A stale "today is X" still inside the 48-hour
+    // window can no longer win by recency. The raw prompt is what gets
+    // stored in command_history; only the API call sees the wrapper.
+    const anchoredPrompt =
+      `[Current date and time: ${_timeAnchor.nowInTz} (${_timeAnchor.tz}). `
+      + 'This is authoritative — it overrides any date mentioned earlier in this conversation.]\n\n'
+      + prompt;
+    const conversationMessages = [...historyMessages, { role: 'user', content: anchoredPrompt }];
 
     let reply = '';
     const allActions = [];           // accumulator across every turn
