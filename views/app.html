@@ -2600,38 +2600,6 @@
                 <div class="page-hero-sub">Automation settings, email connection, and your AI knowledge base</div>
               </div>
             </div>
-          <div class="card">
-            <div class="card-head">
-              <div class="card-head-tile">
-                <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              </div>
-              <div class="card-head-titles">
-                <div class="card-head-title">Automation settings</div>
-                <div class="card-head-subtitle">Decide whether the AI replies on its own or routes everything to you first.</div>
-              </div>
-            </div>
-            <div class="card-head-rule"></div>
-
-            <div class="asymmetric-1-1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
-              <label id="label-auto" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
-                  <span class="mode-card-title">Auto-reply</span>
-                </div>
-                <span class="mode-card-hint" style="padding-left:26px;">AI sends responses immediately under your name. Use after you trust the knowledge base.</span>
-              </label>
-              <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
-                  <span class="mode-card-title">Manager review</span>
-                </div>
-                <span class="mode-card-hint" style="padding-left:26px;">AI drafts every reply; nothing leaves until you approve. Recommended default.</span>
-              </label>
-            </div>
-
-            <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save settings</button>
-          </div>
-
           </div>
         </div>
 
@@ -3902,8 +3870,12 @@
 
             <!-- How your assistant works — two real toggles that map to
                  workspaces.appointment_auto_respond (engine on/off) and
-                 workspaces.appointment_auto_confirm (auto-confirm bookings). -->
-            <div class="card" style="margin-top:20px;">
+                 workspaces.appointment_auto_confirm (auto-confirm bookings).
+                 ST10c: this is the PS conduct card — gated PS-only by
+                 applyVerticalVisibility so a PM owner never sees the
+                 appointment-oriented toggles that don't govern their
+                 email path. -->
+            <div class="card" id="mbConductPS" style="margin-top:20px;">
               <div class="card-head">
                 <div class="card-head-tile">&#129302;</div>
                 <div class="card-head-titles">
@@ -3993,6 +3965,46 @@
                   <div id="mbAISettingsStatus" style="font-size:0.85em;color:var(--text-muted);min-height:1em;"></div>
                 </div>
               </div>
+            </div>
+
+            <!-- ST10c: PM response mode — moved here from the dissolving
+                 Operations page. This is the PM conduct card (governs the
+                 email auto-reply path via automation.autoReplyEnabled,
+                 server.js:6829). Gated PM-only by applyVerticalVisibility,
+                 the mirror of the PS card above — each vertical sees only
+                 the conduct control that actually governs its own AI. The
+                 card markup, the responseMode radios, updateModeUI and
+                 saveAutomation are unchanged. -->
+            <div class="card" id="mbConductPM" style="margin-top:20px;display:none;">
+              <div class="card-head">
+                <div class="card-head-tile">
+                  <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <div class="card-head-titles">
+                  <div class="card-head-title">Automation settings</div>
+                  <div class="card-head-subtitle">Decide whether the AI replies on its own or routes everything to you first.</div>
+                </div>
+              </div>
+              <div class="card-head-rule"></div>
+
+              <div class="asymmetric-1-1" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+                <label id="label-auto" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="radio" name="responseMode" id="autoReply" value="auto" onchange="updateModeUI()" style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
+                    <span class="mode-card-title">Auto-reply</span>
+                  </div>
+                  <span class="mode-card-hint" style="padding-left:26px;">AI sends responses immediately under your name. Use after you trust the knowledge base.</span>
+                </label>
+                <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
+                    <span class="mode-card-title">Manager review</span>
+                  </div>
+                  <span class="mode-card-hint" style="padding-left:26px;">AI drafts every reply; nothing leaves until you approve. Recommended default.</span>
+                </label>
+              </div>
+
+              <button class="btn-primary" onclick="saveAutomation()" style="width:100%;">Save settings</button>
             </div>
 
             <!-- ST3: the business time zone. Real hooks all along (wsTz:
@@ -9117,6 +9129,17 @@
         document.querySelectorAll('.nav-pm-only').forEach(el => {
           el.style.display = isPS ? 'none' : '';
         });
+
+        // ST10c: the two My Business conduct cards are per-vertical.
+        // PS sees "How your assistant works" (appointment engine);
+        // PM sees "Automation settings" (email auto-reply). Neither
+        // ever sees a control that doesn't govern its own AI — the
+        // dead-toggle problem that made a PS owner stare at PM email
+        // settings on the old Operations page.
+        const conductPS = document.getElementById('mbConductPS');
+        const conductPM = document.getElementById('mbConductPM');
+        if (conductPS) conductPS.style.display = isPS ? '' : 'none';
+        if (conductPM) conductPM.style.display = isPS ? 'none' : '';
 
         // Inventory-tracking workspace settings row + toggle (PS-only).
         const settingsRow = document.getElementById('workspaceSettingsRow');
