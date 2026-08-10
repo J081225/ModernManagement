@@ -2253,7 +2253,6 @@
         <a href="#" class="active" onclick="showPage('home', '&#127968;', this)" id="nav-home"><span class="nav-icon">&#127968;</span> Home</a>
         <a href="#" id="nav-my-business" onclick="showPage('my-business', '&#127978;', this)"><span class="nav-icon">&#127978;</span> My Business</a>
         <a href="#" onclick="showPage('inbox', '&#9993;', this)" id="nav-inbox"><span class="nav-icon">&#9993;</span> Inbox <span id="inbox-alert-badge" style="display:none;background:var(--danger);color:white;font-size:0.7em;font-weight:700;border-radius:20px;padding:1px 7px;margin-left:4px;animation:badgePop 0.3s ease;"></span></a>
-        <a href="#" id="nav-operations" onclick="showPage('operations', '&#9881;', this)"><span class="nav-icon">&#9881;</span> Operations</a>
         <a href="#" id="nav-calendar" onclick="showPage('calendar', '&#128197;', this)"><span class="nav-icon">&#128197;</span> Calendar</a>
         <a href="#" id="nav-reports" onclick="showPage('reports', '&#128203;', this)"><span class="nav-icon">&#128203;</span> Reports</a>
         <!-- ST2: user-facing name is Settings; internal ids/routes keep
@@ -2337,12 +2336,12 @@
               <div id="stat-tasks" class="stat-tile-num">—</div>
               <div class="stat-tile-label">Pending Tasks</div>
             </div>
-            <div class="stat-tile" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
+            <div class="stat-tile" onclick="showPage('contacts','&#128100;',document.getElementById('nav-contacts'))">
               <div class="stat-tile-icon">&#128100;</div>
               <div id="stat-contacts" class="stat-tile-num">—</div>
               <div class="stat-tile-label">Contacts</div>
             </div>
-            <div class="stat-tile" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
+            <div class="stat-tile" onclick="showPage('calendar','&#128197;',document.getElementById('nav-calendar'))">
               <div class="stat-tile-icon">&#128197;</div>
               <div id="stat-events" class="stat-tile-num">—</div>
               <div class="stat-tile-label">Upcoming Events</div>
@@ -2417,7 +2416,7 @@
                   <div class="hero-subtitle">Residents expiring in the next 90 days</div>
                 </div>
               </div>
-              <button onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))" class="btn-secondary" style="font-size:0.82em;padding:8px 14px;">View All</button>
+              <button onclick="showPage('contacts','&#128100;',document.getElementById('nav-contacts'))" class="btn-secondary" style="font-size:0.82em;padding:8px 14px;">View All</button>
             </div>
             <div id="leaseExpirationsList"></div>
           </div>
@@ -2429,22 +2428,17 @@
               <div class="quick-tile-title">Inbox</div>
               <div class="quick-tile-desc">View and respond to resident messages</div>
             </div>
-            <div class="quick-tile" onclick="showPage('operations','&#9881;',document.querySelector('#sidebar nav a:nth-child(3)'))">
-              <div class="quick-tile-icon">&#9881;</div>
-              <div class="quick-tile-title">Operations</div>
-              <div class="quick-tile-desc">Automation settings and knowledge base</div>
-            </div>
-            <div class="quick-tile" onclick="showPage('calendar','&#128197;',document.querySelector('#sidebar nav a:nth-child(4)'))">
+            <div class="quick-tile" onclick="showPage('calendar','&#128197;',document.getElementById('nav-calendar'))">
               <div class="quick-tile-icon">&#128197;</div>
               <div class="quick-tile-title">Calendar</div>
               <div class="quick-tile-desc">Events, tasks and scheduling</div>
             </div>
-            <div class="quick-tile" onclick="showPage('admin','&#9881;&#65039;',document.querySelector('#sidebar nav a:nth-child(5)'))">
+            <div class="quick-tile" onclick="showPage('admin','&#9881;&#65039;',document.getElementById('nav-admin'))">
               <div class="quick-tile-icon">&#9881;&#65039;</div>
               <div class="quick-tile-title">Settings</div>
               <div class="quick-tile-desc">Account, credentials and billing</div>
             </div>
-            <div class="quick-tile" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'))">
+            <div class="quick-tile" onclick="showPage('contacts','&#128100;',document.getElementById('nav-contacts'))">
               <div class="quick-tile-icon">&#128100;</div>
               <div class="quick-tile-title">Contacts</div>
               <div class="quick-tile-desc">Residents, vendors and staff</div>
@@ -2589,19 +2583,6 @@
           </div>
         </div>
 
-        <!-- OPERATIONS PAGE -->
-        <div class="page" id="page-operations">
-          <div class="page-content">
-            <div class="page-hero">
-              <div class="page-hero-overlay-dark"></div>
-              <div class="page-hero-glow"></div>
-              <div class="page-hero-content">
-                <div class="page-hero-title">Operations</div>
-                <div class="page-hero-sub">Automation settings, email connection, and your AI knowledge base</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- CALENDAR PAGE -->
         <div class="page" id="page-calendar">
@@ -4679,7 +4660,7 @@
       // Icon map for pages — used when showPage is invoked without an
       // explicit (icon, link) pair (e.g., from B5's handlePostActionNavigation).
       const PAGE_ICONS = {
-        home: '&#127968;', inbox: '&#9993;', operations: '&#9881;',
+        home: '&#127968;', inbox: '&#9993;', 
         calendar: '&#128197;', reports: '&#128203;', admin: '&#128188;',
         maintenance: '&#128295;', contacts: '&#128100;',
         inventory: '&#127970;', tasks: '&#10003;', finances: '&#128181;',
@@ -4701,7 +4682,7 @@
         // (E6 had this swap to "Customers" for PS; per design review,
         // "Contacts" is the right word for both verticals because the page
         // holds customers, vendors, and important relationships.)
-        const titles = { home: 'Home', inbox: 'Inbox', operations: 'Operations', calendar: 'Calendar', admin: 'Your account', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
+        const titles = { home: 'Home', inbox: 'Inbox', calendar: 'Calendar', admin: 'Your account', maintenance: 'Maintenance', tasks: 'Tasks', contacts: 'Contacts', inventory: 'Inventory', reports: 'Reports', finances: 'Finances', menu: 'Services & Products', 'inventory-ps': 'Inventory' };
         if (name === 'home') {
           loadHomeStats();
           loadLeases();
@@ -8979,7 +8960,7 @@
           const cls = days <= 0 ? 'lease-red' : days <= 30 ? 'lease-red' : days <= 60 ? 'lease-yellow' : 'lease-green';
           const label = days <= 0 ? 'Expired' : days === 1 ? '1 day' : `${days} days`;
           const rent = c.monthly_rent > 0 ? ` · $${Number(c.monthly_rent).toLocaleString('en-US',{minimumFractionDigits:0})}/mo` : '';
-          return `<div class="lease-row" onclick="showPage('contacts','&#128100;',document.querySelector('#sidebar nav a:nth-child(6)'));setTimeout(()=>selectContact(${c.id}),200);" style="cursor:pointer;">
+          return `<div class="lease-row" onclick="showPage('contacts','&#128100;',document.getElementById('nav-contacts'));setTimeout(()=>selectContact(${c.id}),200);" style="cursor:pointer;">
             <div>
               <div style="font-weight:600;color:var(--text-primary);font-size:0.9em;">${c.name}${c.unit ? ' <span style="color:var(--text-muted);">· Unit ' + c.unit + '</span>' : ''}</div>
               <div style="font-size:0.78em;color:var(--text-muted);margin-top:2px;">Expires ${c.lease_end}${rent}</div>
@@ -10222,7 +10203,7 @@
         archive_menu_item:      ['menu', 'my-business'],
         // AP3: approval-gated settings/knowledge/refund tools
         update_ai_settings:     ['my-business'],
-        update_knowledge:       ['my-business', 'operations'],
+        update_knowledge:       ['my-business'],
         refund_transaction:     ['finances', 'admin'],
         // AP3: precision delete/archive tools
         delete_task:            ['tasks', 'home', 'calendar'],
