@@ -2818,6 +2818,35 @@ function verifySquareState(state) {
 }
 const SQUARE_REDIRECT_URI = () => (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '') + '/square/connect/callback';
 
+// SQ3e: the explicit active-processor switch. Guarded — you can only
+// activate a processor that is actually usable (Stripe ready / Square
+// connected), so the switch can never point card payments at a dead
+// processor. Ruling 2: switching is explicit and does NOT disconnect
+// the other; pending payments on the now-inactive processor still
+// complete (the webhook routes by processor_ref).
+app.patch('/api/workspace/payment-processor', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const target = String((req.body && req.body.payment_processor) || '').trim();
+    if (target !== 'stripe' && target !== 'square') {
+      return res.status(400).json({ error: 'payment_processor must be stripe or square' });
+    }
+    const wr = await pool.query(
+      'SELECT connect_status, square_status FROM workspaces WHERE id = $1', [workspaceId]);
+    const row = wr.rows[0] || {};
+    const usable = target === 'square' ? row.square_status === 'connected' : row.connect_status === 'ready';
+    if (!usable) {
+      return res.status(400).json({ error: 'That processor is not connected/ready yet — connect it before making it active.' });
+    }
+    await pool.query('UPDATE workspaces SET payment_processor = $1 WHERE id = $2', [target, workspaceId]);
+    res.json({ ok: true, payment_processor: target });
+  } catch (err) {
+    console.error('[workspace/payment-processor]', err.message);
+    res.status(500).json({ error: 'Could not switch processor' });
+  }
+});
+
 app.get('/api/square/connect/start', requireAuth, async (req, res) => {
   if (!squareConnect.isConfigured()) {
     return res.status(503).json({ error: 'Square connect is not configured yet (missing app credentials or TOKEN_ENCRYPTION_KEY).' });

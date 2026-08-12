@@ -3535,6 +3535,31 @@
                 <button id="connectActionBtn" type="button" onclick="startConnectOnboarding()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Set up card payments</button>
                 <span id="connectActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
               </div>
+
+              <!-- SQ3e: Square as a second processor, beside Stripe.
+                   The connect button; the active/inactive badge; and an
+                   explicit "Make active" switch that renderConnectCard
+                   shows ONLY when BOTH processors are connected
+                   (ruling 1/2). Auto-set on first connect happens
+                   server-side. -->
+              <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#9633; Square</div>
+                <span id="squareStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
+                <button id="squareActionBtn" type="button" onclick="startSquareConnect()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Connect Square</button>
+                <span id="squareActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
+              </div>
+
+              <!-- The active-processor switch. Hidden unless two
+                   connections exist; then it names the active one and
+                   offers to switch. -->
+              <div id="processorSwitch" style="display:none;border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
+                <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:10px;">Both processors are connected. Only the <strong>active</strong> one takes new customer card payments.</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span id="activeProcessorLabel" style="font-size:0.9em;font-weight:600;color:var(--text-primary);"></span>
+                  <button id="switchProcessorBtn" type="button" onclick="switchProcessor()" style="padding:8px 14px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;"></button>
+                  <span id="switchProcessorNote" style="color:var(--text-muted);font-size:0.82em;"></span>
+                </div>
+              </div>
             </div>
 
             <!-- PS-only: Transactions section -->
@@ -12406,6 +12431,102 @@
           badge.style.color = 'var(--text-muted)';
           subtitle.textContent = 'Accept card payments from customers via Stripe.';
           btn.textContent = 'Set up card payments';
+        }
+
+        // SQ3e: render the Square row + the active-processor switch off
+        // the same plan summary.
+        renderSquareRow(ps);
+      }
+
+      // SQ3e: the Square connection row and the active-processor switch.
+      // Square is "connected"/"not_started"/"expired"/"revoked"; the
+      // active processor is ps.payment_processor. The switch appears
+      // ONLY when BOTH are connected (ruling 1/2).
+      function renderSquareRow(ps) {
+        const badge = document.getElementById('squareStatusBadge');
+        const btn = document.getElementById('squareActionBtn');
+        const note = document.getElementById('squareActionNote');
+        const sw = document.getElementById('processorSwitch');
+        if (!badge || !btn || !note || !sw) return;
+
+        const sqStatus = ps.square_status || 'not_started';
+        const active = ps.payment_processor || 'stripe';
+        const stripeReady = ps.connect_status === 'ready';
+        const squareConnected = sqStatus === 'connected';
+
+        btn.style.display = '';
+        note.textContent = '';
+        if (squareConnected) {
+          badge.textContent = active === 'square' ? '✓ Active' : 'Connected';
+          badge.style.background = active === 'square' ? 'var(--success-soft)' : 'var(--bg-sunken)';
+          badge.style.color = active === 'square' ? 'var(--success)' : 'var(--text-muted)';
+          btn.style.display = 'none';
+        } else if (sqStatus === 'expired' || sqStatus === 'revoked') {
+          badge.textContent = sqStatus === 'expired' ? 'Reconnect needed' : 'Disconnected';
+          badge.style.background = 'var(--danger-soft)';
+          badge.style.color = 'var(--danger)';
+          btn.textContent = 'Reconnect Square';
+        } else {
+          badge.textContent = 'Not connected';
+          badge.style.background = 'var(--bg-sunken)';
+          badge.style.color = 'var(--text-muted)';
+          btn.textContent = 'Connect Square';
+        }
+
+        // The switch: only when BOTH processors are usable.
+        if (stripeReady && squareConnected) {
+          sw.style.display = '';
+          const label = document.getElementById('activeProcessorLabel');
+          const swBtn = document.getElementById('switchProcessorBtn');
+          const activeName = active === 'square' ? 'Square' : 'Stripe';
+          const otherName = active === 'square' ? 'Stripe' : 'Square';
+          if (label) label.textContent = 'Active: ' + activeName;
+          if (swBtn) { swBtn.textContent = 'Switch to ' + otherName; swBtn.dataset.target = active === 'square' ? 'stripe' : 'square'; }
+        } else {
+          sw.style.display = 'none';
+        }
+      }
+
+      async function startSquareConnect() {
+        const note = document.getElementById('squareActionNote');
+        const btn = document.getElementById('squareActionBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Opening Square…'; }
+        try {
+          const r = await fetch('/api/square/connect/start', { credentials: 'include' });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.url) {
+            if (note) note.textContent = data.error || 'Could not start Square connection.';
+            if (btn) { btn.disabled = false; btn.textContent = 'Connect Square'; }
+            return;
+          }
+          window.location.href = data.url; // Square-hosted authorize page
+        } catch (err) {
+          if (note) note.textContent = 'Network error starting Square connection.';
+          if (btn) { btn.disabled = false; btn.textContent = 'Connect Square'; }
+        }
+      }
+
+      async function switchProcessor() {
+        const swBtn = document.getElementById('switchProcessorBtn');
+        const note = document.getElementById('switchProcessorNote');
+        const target = swBtn && swBtn.dataset.target;
+        if (!target) return;
+        if (swBtn) { swBtn.disabled = true; }
+        if (note) note.textContent = 'Switching…';
+        try {
+          const r = await fetch('/api/workspace/payment-processor', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ payment_processor: target }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) { if (note) note.textContent = data.error || 'Could not switch.'; if (swBtn) swBtn.disabled = false; return; }
+          // refresh the cached summary so both cards re-render
+          if (window._planSummary) window._planSummary.payment_processor = data.payment_processor;
+          if (note) note.textContent = 'Now using ' + (data.payment_processor === 'square' ? 'Square' : 'Stripe') + '.';
+          if (typeof renderConnectCard === 'function') renderConnectCard();
+        } catch (err) {
+          if (note) note.textContent = 'Network error.';
+          if (swBtn) swBtn.disabled = false;
         }
       }
 
