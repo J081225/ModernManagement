@@ -3105,13 +3105,19 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     let connectStatus = 'not_started';
     let connectChargesEnabled = false;
     let connectDetailsSubmitted = false;
+    // SQ3: effective card-processor state for the UI.
+    let paymentProcessor = 'stripe';
+    let squareStatus = 'not_started';
+    let cardsReadyDerived = false;
+    let squareRow = null;
     // CP1: the browser needs the workspace timezone to render calendar
     // times correctly (nullable — frontend falls back to browser tz).
     let workspaceTimezone = null;
     try {
       const wR = await pool.query(
         `SELECT vertical, inventory_tracking_enabled, timezone,
-                connect_status, connect_charges_enabled, connect_details_submitted
+                connect_status, connect_charges_enabled, connect_details_submitted,
+                payment_processor, square_status
            FROM workspaces WHERE id = $1`,
         [workspaceId]
       );
@@ -3121,6 +3127,14 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
         if (wR.rows[0].connect_status) connectStatus = wR.rows[0].connect_status;
         connectChargesEnabled = !!wR.rows[0].connect_charges_enabled;
         connectDetailsSubmitted = !!wR.rows[0].connect_details_submitted;
+        // SQ3: the effective card-processor state — the derived
+        // helper is the one source, so the UI never re-implements the
+        // two-processor logic.
+        const { cardsReady, activeProcessor } = require('./lib/workspace-readiness');
+        squareRow = wR.rows[0];
+        paymentProcessor = activeProcessor(wR.rows[0]);
+        squareStatus = wR.rows[0].square_status || 'not_started';
+        cardsReadyDerived = cardsReady(wR.rows[0]);
         // Send the EFFECTIVE timezone: wsTz maps a NULL column to the
         // same America/New_York default the server itself books with,
         // so browser rendering can never disagree with server writes.
@@ -3141,6 +3155,12 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       connect_status: connectStatus,
       connect_charges_enabled: connectChargesEnabled,
       connect_details_submitted: connectDetailsSubmitted,
+      // SQ3: the effective card-processor state. cards_ready is the
+      // derived helper's answer for the ACTIVE processor — the UI gates
+      // on this, never a raw status.
+      payment_processor: paymentProcessor,
+      square_status: squareStatus,
+      cards_ready: cardsReadyDerived,
       workspace_timezone: workspaceTimezone,
       limits: planConfig.limits,
       features: planConfig.features,

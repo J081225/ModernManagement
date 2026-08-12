@@ -109,13 +109,20 @@ function checksAccept(row) {
     const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
     const cl = fs.readFileSync(path.join(__dirname, '..', 'lib', 'connect-lifecycle.js'), 'utf8');
     const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-    const gate = pr.includes("if (workspace.connect_status !== 'ready' || !workspace.stripe_connect_account_id)");
+    // RI6 [evolved SQ3]: the payment gate is now the DERIVED helper
+    // (cardsReady) rather than a raw connect_status compare — SQ3
+    // generalized it to two processors. The invariant that survives:
+    // the gate reads the single-source helper (not a hand-rolled
+    // status check), deriveConnectStatus is untouched, and the
+    // connect_status writers stay bounded + Twilio-decoupled.
+    const gate = pr.includes('if (!cardsReady(workspace) || !workspace.stripe_connect_account_id)')
+      && pr.includes("require('./workspace-readiness')");
     const ui = app.includes("window._planSummary.connect_status === 'ready'");
     const derive = cl.includes("if (charges_enabled === true) return 'ready';");
     // no writer of connect_status consults twilio anything
     const writers = (srv.match(/connect_status\s+= '/g) || []).length + (cl.match(/connect_status\s+=\s+\$/g) || []).length;
     const noCoupling = !/connect_status[\s\S]{0,200}twilio_phone_number/.test(cl);
-    check('RI6: the payment gate, the UI card read, and deriveConnectStatus are byte-untouched; connect_status writers remain 2 and never consult a Twilio column',
+    check('RI6 [evolved SQ3]: the payment gate reads the derived cardsReady() helper (not a raw connect_status compare), deriveConnectStatus is untouched, and connect_status writers stay bounded (2) + Twilio-decoupled',
       gate && ui && derive && writers === 2 && noCoupling,
       JSON.stringify({ gate, ui, derive, writers, noCoupling }));
   }
