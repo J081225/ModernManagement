@@ -38,8 +38,8 @@ function makeDb(rows) {
         rows.push(row);
         return { rows: [{ id: row.id, status: row.status }] };
       }
-      if (s.includes("WHERE processor = 'stripe' AND processor_ref = $1")) {
-        const found = rows.filter((r) => r.processor === 'stripe' && r.processor_ref === params[0]);
+      if (s.includes('WHERE processor = $1 AND processor_ref = $2')) {
+        const found = rows.filter((r) => r.processor === params[0] && r.processor_ref === params[1]);
         return { rows: found.map((r) => ({ id: r.id, transaction_id: r.transaction_id, status: r.status, payment_type: r.payment_type })) };
       }
       if (s.startsWith("UPDATE transaction_payments SET status = 'completed'")) {
@@ -156,7 +156,7 @@ function makeDb(rows) {
       && /processor_ref/.test(mig)
       && /idx_transaction_payments_processor_ref/.test(mig)
       && /'stripe', 'square'/.test(mig);
-    const lookupGeneric = led.includes("WHERE processor = 'stripe' AND processor_ref = $1");
+    const lookupGeneric = led.includes('WHERE processor = $1 AND processor_ref = $2');
     check('PS6: migration 066 adds processor/processor_ref + the unique anchor + widens the method enum; the webhook lookup is generic',
       schemaOk && lookupGeneric, JSON.stringify({ schemaOk, lookupGeneric }));
   }

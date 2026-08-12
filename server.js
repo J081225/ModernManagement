@@ -247,6 +247,8 @@ app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 // Phase B B2: signup-flow Stripe webhook (separate from /api/billing/webhook
 // which serves the legacy live-mode flow). Same raw-body requirement.
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+// SQ4: Square webhook needs the raw body for HMAC signature verification.
+app.use('/api/square/webhook', express.raw({ type: 'application/json' }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 // Required on Render (and any reverse proxy that terminates HTTPS) so
@@ -2818,6 +2820,58 @@ function verifySquareState(state) {
 }
 const SQUARE_REDIRECT_URI = () => (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '') + '/square/connect/callback';
 
+// SQ4: the Square webhook. payment.updated with status COMPLETED
+// settles the pending ledger row. Verified THREE ways before anything
+// moves (security addendum item 3): valid HMAC signature (here), then
+// merchant + amount + currency match (in processSquarePaymentCompleted).
+// Mounted on the raw body above. Signature: HMAC-SHA256 over
+// (notificationUrl + rawBody), base64, keyed by SQUARE_WEBHOOK_SIGNATURE_KEY.
+function verifySquareSignature(req) {
+  const key = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  if (!key) return { ok: false, reason: 'no_signing_key' };
+  const sig = req.get('x-square-hmacsha256-signature');
+  if (!sig) return { ok: false, reason: 'no_signature' };
+  const url = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '') + '/api/square/webhook';
+  const body = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : String(req.body || '');
+  const expected = crypto.createHmac('sha256', key).update(url + body).digest('base64');
+  try {
+    const a = Buffer.from(expected), b = Buffer.from(sig);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) return { ok: true, body };
+  } catch (e) { /* fall through */ }
+  return { ok: false, reason: 'bad_signature' };
+}
+
+app.post('/api/square/webhook', async (req, res) => {
+  const v = verifySquareSignature(req);
+  if (!v.ok) {
+    // A bad/absent signature is either a misconfiguration or a forgery.
+    // 400, logged, nothing touched. No detail leaks to the caller.
+    console.error('[square-webhook] signature check failed:', v.reason);
+    return res.status(400).send('bad signature');
+  }
+  // Respond 200 fast; process after. Square retries on non-2xx, and the
+  // completion is idempotent, so a crash mid-process is safe to retry.
+  res.sendStatus(200);
+  try {
+    const event = JSON.parse(v.body);
+    const type = event && event.type;
+    if (type !== 'payment.updated' && type !== 'payment.created') return;
+    const payment = event.data && event.data.object && event.data.object.payment;
+    if (!payment || payment.status !== 'COMPLETED') return; // only settle on COMPLETED
+    const result = await paymentLedger.processSquarePaymentCompleted(pool, {
+      orderId: payment.order_id,
+      merchantId: event.merchant_id,
+      amountCents: payment.amount_money && payment.amount_money.amount,
+      currency: payment.amount_money && payment.amount_money.currency,
+    });
+    if (!result.ok && result.reason && result.reason.endsWith('_mismatch')) {
+      console.error('[square-webhook] completion REFUSED (' + result.reason + ') for order ' + payment.order_id);
+    }
+  } catch (err) {
+    console.error('[square-webhook] processing error:', err.message);
+  }
+});
+
 // SQ3e: the explicit active-processor switch. Guarded — you can only
 // activate a processor that is actually usable (Stripe ready / Square
 // connected), so the switch can never point card payments at a dead
@@ -3740,7 +3794,7 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 app.use('/api', (req, res, next) => {
   // '/voice/spike-incoming' is the TEMPORARY autodetect-spike line
   // (signature-validated like every Twilio route); remove with the spike.
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/spike-incoming', '/billing/webhook'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/spike-incoming', '/billing/webhook', '/square/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
