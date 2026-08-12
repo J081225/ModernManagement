@@ -3546,6 +3546,7 @@
                 <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#9633; Square</div>
                 <span id="squareStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
                 <button id="squareActionBtn" type="button" onclick="startSquareConnect()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Connect Square</button>
+                <button id="squareDisconnectBtn" type="button" onclick="disconnectSquare()" style="display:none;padding:8px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Disconnect</button>
                 <span id="squareActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
               </div>
 
@@ -12456,6 +12457,8 @@
 
         btn.style.display = '';
         note.textContent = '';
+        const disconnectBtn = document.getElementById('squareDisconnectBtn');
+        if (disconnectBtn) disconnectBtn.style.display = squareConnected ? '' : 'none';
         if (squareConnected) {
           badge.textContent = active === 'square' ? '✓ Active' : 'Connected';
           badge.style.background = active === 'square' ? 'var(--success-soft)' : 'var(--bg-sunken)';
@@ -12487,12 +12490,21 @@
         }
       }
 
+      // SEC item 2: money-flow changes re-auth. The password is collected
+      // here and posted over HTTPS; the SERVER verifies it (shared oracle
+      // budget) and sends the security notice. (Masked-modal input is the
+      // pending UX polish — prompt() is the interim collector.)
       async function startSquareConnect() {
         const note = document.getElementById('squareActionNote');
         const btn = document.getElementById('squareActionBtn');
+        const pw = window.prompt('Confirm your password to connect a payment account:');
+        if (pw == null) return; // cancelled
         if (btn) { btn.disabled = true; btn.textContent = 'Opening Square…'; }
         try {
-          const r = await fetch('/api/square/connect/start', { credentials: 'include' });
+          const r = await fetch('/api/square/connect/start', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ current_password: pw }),
+          });
           const data = await r.json().catch(() => ({}));
           if (!r.ok || !data.url) {
             if (note) note.textContent = data.error || 'Could not start Square connection.';
@@ -12511,22 +12523,53 @@
         const note = document.getElementById('switchProcessorNote');
         const target = swBtn && swBtn.dataset.target;
         if (!target) return;
+        const pw = window.prompt('Confirm your password to change your active card processor:');
+        if (pw == null) return;
         if (swBtn) { swBtn.disabled = true; }
         if (note) note.textContent = 'Switching…';
         try {
           const r = await fetch('/api/workspace/payment-processor', {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-            body: JSON.stringify({ payment_processor: target }),
+            body: JSON.stringify({ payment_processor: target, current_password: pw }),
           });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) { if (note) note.textContent = data.error || 'Could not switch.'; if (swBtn) swBtn.disabled = false; return; }
-          // refresh the cached summary so both cards re-render
           if (window._planSummary) window._planSummary.payment_processor = data.payment_processor;
           if (note) note.textContent = 'Now using ' + (data.payment_processor === 'square' ? 'Square' : 'Stripe') + '.';
           if (typeof renderConnectCard === 'function') renderConnectCard();
         } catch (err) {
           if (note) note.textContent = 'Network error.';
           if (swBtn) swBtn.disabled = false;
+        }
+      }
+
+      // SEC item 8: disconnect Square. Warns with the pending count first
+      // (the server returns needs_confirm), then re-auths. Pending
+      // requests still complete after disconnect — the copy says so.
+      async function disconnectSquare() {
+        const note = document.getElementById('squareActionNote');
+        const post = (bodyExtra) => fetch('/api/square/disconnect', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify(bodyExtra),
+        });
+        try {
+          // Step 1: probe for pending-count warning (no password yet).
+          let r = await post({});
+          let data = await r.json().catch(() => ({}));
+          if (r.status === 409 && data.needs_confirm) {
+            if (!window.confirm(data.message)) return;
+          }
+          const pw = window.prompt('Confirm your password to disconnect Square:');
+          if (pw == null) return;
+          r = await post({ confirm: true, current_password: pw });
+          data = await r.json().catch(() => ({}));
+          if (!r.ok) { if (note) note.textContent = data.error || 'Could not disconnect.'; return; }
+          if (window._planSummary) { window._planSummary.square_status = 'revoked'; if (data && data.pending_count != null) {} }
+          if (note) note.textContent = 'Square disconnected.';
+          if (typeof loadPlanSummary === 'function') { await loadPlanSummary(); }
+          if (typeof renderConnectCard === 'function') renderConnectCard();
+        } catch (err) {
+          if (note) note.textContent = 'Network error.';
         }
       }
 

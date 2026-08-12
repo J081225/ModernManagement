@@ -40,10 +40,12 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
 
   // ---- SC2: the connect routes exist with the right guards ----
   {
-    const start = srv.includes("app.get('/api/square/connect/start', requireAuth")
-      && srv.includes('squareConnect.isConfigured()') && srv.includes('mintSquareState(workspaceId)');
+    // SEC item 2: start is now POST (carries current_password for
+    // re-auth); the signed state is session-bound (mintSquareState(req,…)).
+    const start = srv.includes("app.post('/api/square/connect/start', requireAuth")
+      && srv.includes('squareConnect.isConfigured()') && srv.includes('mintSquareState(req, workspaceId)');
     const callback = srv.includes("app.get('/square/connect/callback'")
-      && srv.includes('verifySquareState(req.query.state)')
+      && srv.includes('verifySquareState(req, req.query.state)')
       && srv.includes('encryptToken(tok.access_token)') && srv.includes('encryptToken(tok.refresh_token)');
     // the callback is NOT requireAuth (Square calls it in the browser)
     const callbackPublic = !/app\.get\('\/square\/connect\/callback', requireAuth/.test(srv);

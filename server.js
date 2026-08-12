@@ -2803,18 +2803,29 @@ const { encryptToken } = require('./lib/token-crypto');
 // SESSION_SECRET (fine for CSRF state — it is not a stored credential),
 // 10-minute expiry. Verified on callback so a forged/replayed state
 // can't bind a Square account to the wrong workspace.
-function mintSquareState(workspaceId) {
-  const payload = `${workspaceId}.${Date.now()}.${crypto.randomBytes(8).toString('hex')}`;
-  const sig = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(payload).digest('hex').slice(0, 32);
+// SEC item 1: the state is bound to BOTH the workspace AND the
+// initiating session, is single-use, and is short-lived. The nonce is
+// also stashed in the session; the callback requires the same session
+// AND consumes the nonce, so a state captured from one browser can't
+// be replayed in another (or twice).
+function mintSquareState(req, workspaceId) {
+  const nonce = crypto.randomBytes(12).toString('hex');
+  const sid = req.sessionID || '';
+  const payload = `${workspaceId}.${Date.now()}.${nonce}`;
+  const sig = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(`${payload}.${sid}`).digest('hex').slice(0, 32);
+  req.session.squareStateNonce = nonce; // single-use marker, cleared on callback
   return Buffer.from(`${payload}.${sig}`).toString('base64url');
 }
-function verifySquareState(state) {
+function verifySquareState(req, state) {
   try {
     const decoded = Buffer.from(String(state), 'base64url').toString('utf8');
     const [wid, ts, nonce, sig] = decoded.split('.');
-    const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(`${wid}.${ts}.${nonce}`).digest('hex').slice(0, 32);
-    if (sig !== expected) return null;
+    const sid = req.sessionID || '';
+    const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(`${wid}.${ts}.${nonce}.${sid}`).digest('hex').slice(0, 32);
+    if (sig !== expected) return null;                              // wrong session or tampered
     if (Date.now() - parseInt(ts, 10) > 10 * 60 * 1000) return null; // 10-min expiry
+    if (!req.session || req.session.squareStateNonce !== nonce) return null; // absent/mismatched/already-used
+    delete req.session.squareStateNonce;                            // single-use: consume it
     return parseInt(wid, 10);
   } catch (e) { return null; }
 }
@@ -2886,6 +2897,9 @@ app.patch('/api/workspace/payment-processor', requireAuth, async (req, res) => {
     if (target !== 'stripe' && target !== 'square') {
       return res.status(400).json({ error: 'payment_processor must be stripe or square' });
     }
+    // SEC item 2: switching where money flows is a credential-class event.
+    const re = await credentials._reauth(pool, req.session.userId, (req.body || {}).current_password, _credAttempts, Date.now());
+    if (re.status) return res.status(re.status === 429 ? 429 : 403).json(re.body);
     const wr = await pool.query(
       'SELECT connect_status, square_status FROM workspaces WHERE id = $1', [workspaceId]);
     const row = wr.rows[0] || {};
@@ -2894,6 +2908,7 @@ app.patch('/api/workspace/payment-processor', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'That processor is not connected/ready yet — connect it before making it active.' });
     }
     await pool.query('UPDATE workspaces SET payment_processor = $1 WHERE id = $2', [target, workspaceId]);
+    await sendSquareSecurityNotice(re.user, 'switch');
     res.json({ ok: true, payment_processor: target });
   } catch (err) {
     console.error('[workspace/payment-processor]', err.message);
@@ -2901,20 +2916,95 @@ app.patch('/api/workspace/payment-processor', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/square/connect/start', requireAuth, async (req, res) => {
+// SEC item 8: disconnect Square. Credential-class (re-auth + notice).
+// WARNS with the pending-request count first (a two-step confirm), but
+// the disconnect NEVER blocks completion of those pending payments —
+// their webhook resolves by processor_ref and needs no stored token.
+// If Square was active, the active processor falls back to Stripe when
+// Stripe is ready (else the workspace simply has no active card
+// processor until it reconnects, which cardsReady reports honestly).
+app.post('/api/square/disconnect', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const body = req.body || {};
+    const pend = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM transaction_payments WHERE workspace_id = $1 AND processor = 'square' AND status = 'pending'",
+      [workspaceId]
+    );
+    const pendingCount = pend.rows[0].n;
+    // Step 1: unless the caller confirmed, surface the warning + count.
+    if (pendingCount > 0 && body.confirm !== true) {
+      return res.status(409).json({
+        needs_confirm: true, pending_count: pendingCount,
+        message: `${pendingCount} Square payment request${pendingCount === 1 ? '' : 's'} ${pendingCount === 1 ? 'is' : 'are'} still open. `
+          + 'They will still complete if the customer pays — disconnecting only stops new requests. Confirm to disconnect.',
+      });
+    }
+    // Step 2: re-auth then disconnect.
+    const re = await credentials._reauth(pool, req.session.userId, body.current_password, _credAttempts, Date.now());
+    if (re.status) return res.status(re.status === 429 ? 429 : 403).json(re.body);
+    const wr = await pool.query('SELECT connect_status, payment_processor FROM workspaces WHERE id = $1', [workspaceId]);
+    const stripeReady = wr.rows[0] && wr.rows[0].connect_status === 'ready';
+    const wasActive = wr.rows[0] && wr.rows[0].payment_processor === 'square';
+    await pool.query(
+      `UPDATE workspaces
+          SET square_status = 'revoked',
+              square_access_token_enc = NULL,
+              square_refresh_token_enc = NULL,
+              square_token_expires_at = NULL,
+              payment_processor = CASE WHEN $2 AND $3 THEN 'stripe' ELSE payment_processor END
+        WHERE id = $1`,
+      [workspaceId, wasActive, stripeReady]
+    );
+    await sendSquareSecurityNotice(re.user, 'disconnect');
+    res.json({ ok: true, disconnected: true, pending_count: pendingCount });
+  } catch (err) {
+    console.error('[square/disconnect]', err.message);
+    res.status(500).json({ error: 'Could not disconnect Square' });
+  }
+});
+
+// SEC item 2: connecting a payment processor is a CREDENTIAL-CLASS
+// event (it changes where a business's money flows), so it re-auths
+// against the shared oracle budget and sends an AD6 security notice to
+// the anchor email — same law as changing an email or password. Now a
+// POST (carries current_password); the frontend collects it first.
+// SEC item 5: a public/unauthenticated caller learns nothing about
+// connection state — this route is authed, and its errors are generic.
+app.post('/api/square/connect/start', requireAuth, async (req, res) => {
   if (!squareConnect.isConfigured()) {
-    return res.status(503).json({ error: 'Square connect is not configured yet (missing app credentials or TOKEN_ENCRYPTION_KEY).' });
+    return res.status(503).json({ error: 'Square connect is not available right now.' });
   }
   try {
     const workspaceId = await getWorkspaceId(req);
     if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
-    const url = squareConnect.authorizeUrl({ state: mintSquareState(workspaceId), redirectUri: SQUARE_REDIRECT_URI() });
+    const re = await credentials._reauth(pool, req.session.userId, (req.body || {}).current_password, _credAttempts, Date.now());
+    if (re.status) return res.status(re.status === 429 ? 429 : 403).json(re.body);
+    await sendSquareSecurityNotice(re.user, 'connect');
+    const url = squareConnect.authorizeUrl({ state: mintSquareState(req, workspaceId), redirectUri: SQUARE_REDIRECT_URI() });
     res.json({ url });
   } catch (err) {
     console.error('[square/connect/start]', err.message);
     res.status(500).json({ error: 'Could not start Square connection' });
   }
 });
+
+// The AD6-style security notice for a Square money-flow change.
+async function sendSquareSecurityNotice(user, action) {
+  const verb = action === 'connect' ? 'started connecting a Square payment account to'
+    : action === 'disconnect' ? 'disconnected the Square payment account from'
+    : 'changed the active card processor for';
+  try {
+    await credentials.sendSecurityNotice({ sendgrid: sgMail, env: process.env }, user && user.email, {
+      subject: 'Security alert: a payment change on your Modern Management account',
+      text: `Someone ${verb} your business account. If this was you, no action is needed. `
+        + `If it wasn't, change your password immediately and contact support.`,
+    });
+  } catch (err) {
+    console.error('[square security-notice] send failed:', err.message);
+  }
+}
 
 // The OAuth redirect target. Square sends ?code&state (or ?error).
 // Not requireAuth — Square calls it in the owner's browser after the
@@ -2924,9 +3014,11 @@ app.get('/square/connect/callback', async (req, res) => {
     '<!DOCTYPE html><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:0 20px;">'
     + '<h2>Square connection didn\'t complete</h2><p>' + msg + '</p>'
     + '<p><a href="/">Back to Modern Management</a></p></body>');
-  if (req.query.error) return fail('Square reported: ' + String(req.query.error).slice(0, 120));
-  const workspaceId = verifySquareState(req.query.state);
-  if (!workspaceId) return fail('The connection link expired or was invalid. Please start again from Settings.');
+  // SEC item 5: bland, non-oracular copy — the same message whether the
+  // state was forged, expired, replayed, or from another session.
+  if (req.query.error) return fail('The connection could not be completed. Please start again from Settings.');
+  const workspaceId = verifySquareState(req, req.query.state);
+  if (!workspaceId) return fail('The connection could not be completed. Please start again from Settings.');
   if (!squareConnect.isConfigured()) return fail('Square connect is not configured.');
 
   try {
