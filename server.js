@@ -9978,6 +9978,8 @@ const REQUEST_PAYMENT_STATUS_BY_REASON = {
   amount_exceeds_remaining: 400,
   already_pending:          409,   // NEW (Stage 1 guard)
   stripe_session_failed:    500,
+  square_link_failed:       500,   // SQ4
+  square_token_expired:     400,   // SEC item 7
   ledger_insert_failed:     500,
 };
 app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) => {
@@ -10003,7 +10005,8 @@ app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) 
     const wsR = await pool.query(
       `SELECT id, vertical, business_name, owner_user_id,
               twilio_phone_number, stripe_connect_account_id, connect_status,
-              payment_processor, square_status, square_access_token_enc
+              payment_processor, square_status, square_access_token_enc,
+              square_refresh_token_enc, square_token_expires_at
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
@@ -10024,6 +10027,19 @@ app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) 
     });
 
     if (!result.success) {
+      // SEC item 7: an expired Square token flipped square_status in the
+      // lib; alert the owner (loudly, never silently) with the
+      // re-connect path. Best-effort mail; the error still returns.
+      if (result.reason === 'square_token_expired') {
+        try {
+          const uR = await pool.query('SELECT email FROM users WHERE id = $1', [workspace.owner_user_id]);
+          await credentials.sendSecurityNotice({ sendgrid: sgMail, env: process.env }, uR.rows[0] && uR.rows[0].email, {
+            subject: 'Action needed: reconnect Square to keep taking card payments',
+            text: 'Your Square connection expired, so a card payment request could not be sent. '
+              + 'Reconnect Square in Settings to resume taking cards. No customer was charged.',
+          });
+        } catch (e) { console.error('[square expiry notice] send failed:', e.message); }
+      }
       const status = REQUEST_PAYMENT_STATUS_BY_REASON[result.reason] || 500;
       const body = { error: result.message };
       if (result.detail) body.detail = result.detail;

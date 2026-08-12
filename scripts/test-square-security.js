@@ -91,6 +91,25 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
       JSON.stringify({ warns, clearsTokens, webhookTokenless, uiConfirm }));
   }
 
+  // ---- SS7 [item 7]: expiry honesty — refresh, then flip + notify loudly ----
+  {
+    const pr = fs.readFileSync(path.join(__dirname, '..', 'lib', 'payment-requests.js'), 'utf8');
+    const helper = pr.includes('async function ensureFreshSquareToken(pool, workspace')
+      && pr.includes('refreshAccessToken({ refreshToken })');
+    // refresh failure flips to expired and throws (loud, not silent) —
+    // the flip, the tagged error, and the throw all present in the helper
+    const flipAndThrow = pr.includes("UPDATE workspaces SET square_status = 'expired' WHERE id = $1")
+      && pr.includes('e.squareExpired = true;') && /throw e;/.test(pr);
+    // the dispatch surfaces a distinct reason; the endpoint notifies
+    const reason = pr.includes("reason: 'square_token_expired'");
+    const notice = srv.includes("reason === 'square_token_expired'")
+      && srv.includes('reconnect Square to keep taking card payments');
+    const mapped = srv.includes('square_token_expired:     400');
+    check('SS7 [item 7]: a near/expired Square token is refreshed; if refresh FAILS the status flips to expired and the path throws (loud) — the endpoint sends an owner reconnect notice, never a silent send',
+      helper && flipAndThrow && reason && notice && mapped,
+      JSON.stringify({ helper, flipAndThrow, reason, notice, mapped }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-security gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
