@@ -9856,7 +9856,8 @@ app.post('/api/transactions/:id/request-payment', requireAuth, async (req, res) 
 
     const wsR = await pool.query(
       `SELECT id, vertical, business_name, owner_user_id,
-              twilio_phone_number, stripe_connect_account_id, connect_status
+              twilio_phone_number, stripe_connect_account_id, connect_status,
+              payment_processor, square_status, square_access_token_enc
          FROM workspaces WHERE id = $1`,
       [workspaceId]
     );

@@ -115,7 +115,11 @@ function checksAccept(row) {
     // the gate reads the single-source helper (not a hand-rolled
     // status check), deriveConnectStatus is untouched, and the
     // connect_status writers stay bounded + Twilio-decoupled.
-    const gate = pr.includes('if (!cardsReady(workspace) || !workspace.stripe_connect_account_id)')
+    // SQ4: the gate is now cardsReady() ALONE — the helper answers
+    // readiness for whichever processor is active, so the Stripe-only
+    // account check was dropped (a Square-active workspace has no
+    // stripe account and is gated by square_status via the helper).
+    const gate = pr.includes('if (!cardsReady(workspace)) {')
       && pr.includes("require('./workspace-readiness')");
     const ui = app.includes("window._planSummary.connect_status === 'ready'");
     const derive = cl.includes("if (charges_enabled === true) return 'ready';");
