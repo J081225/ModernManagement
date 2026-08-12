@@ -2789,6 +2789,94 @@ app.post('/api/stripe/webhook', async (req, res) => {
 // Reuses the existing stripeSignup test-mode client.
 // =====================================================================
 
+// ============================================================
+// SQ3: Square OAuth connect (SANDBOX). The seller authorizes our app
+// on their existing Square account; we store encrypted tokens and mark
+// the workspace connected. Auto-sets Square active on the FIRST
+// connection (ruling 1); an explicit switch (SQ3e UX) handles the
+// two-connection case.
+const squareConnect = require('./lib/square-connect');
+const { encryptToken } = require('./lib/token-crypto');
+// Short-lived signed state: workspaceId + nonce, HMAC'd with
+// SESSION_SECRET (fine for CSRF state — it is not a stored credential),
+// 10-minute expiry. Verified on callback so a forged/replayed state
+// can't bind a Square account to the wrong workspace.
+function mintSquareState(workspaceId) {
+  const payload = `${workspaceId}.${Date.now()}.${crypto.randomBytes(8).toString('hex')}`;
+  const sig = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(payload).digest('hex').slice(0, 32);
+  return Buffer.from(`${payload}.${sig}`).toString('base64url');
+}
+function verifySquareState(state) {
+  try {
+    const decoded = Buffer.from(String(state), 'base64url').toString('utf8');
+    const [wid, ts, nonce, sig] = decoded.split('.');
+    const expected = crypto.createHmac('sha256', process.env.SESSION_SECRET || 'dev').update(`${wid}.${ts}.${nonce}`).digest('hex').slice(0, 32);
+    if (sig !== expected) return null;
+    if (Date.now() - parseInt(ts, 10) > 10 * 60 * 1000) return null; // 10-min expiry
+    return parseInt(wid, 10);
+  } catch (e) { return null; }
+}
+const SQUARE_REDIRECT_URI = () => (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '') + '/square/connect/callback';
+
+app.get('/api/square/connect/start', requireAuth, async (req, res) => {
+  if (!squareConnect.isConfigured()) {
+    return res.status(503).json({ error: 'Square connect is not configured yet (missing app credentials or TOKEN_ENCRYPTION_KEY).' });
+  }
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const url = squareConnect.authorizeUrl({ state: mintSquareState(workspaceId), redirectUri: SQUARE_REDIRECT_URI() });
+    res.json({ url });
+  } catch (err) {
+    console.error('[square/connect/start]', err.message);
+    res.status(500).json({ error: 'Could not start Square connection' });
+  }
+});
+
+// The OAuth redirect target. Square sends ?code&state (or ?error).
+// Not requireAuth — Square calls it in the owner's browser after the
+// authorize page; the signed state is the trust anchor.
+app.get('/square/connect/callback', async (req, res) => {
+  const fail = (msg) => res.status(400).type('html').send(
+    '<!DOCTYPE html><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:0 20px;">'
+    + '<h2>Square connection didn\'t complete</h2><p>' + msg + '</p>'
+    + '<p><a href="/">Back to Modern Management</a></p></body>');
+  if (req.query.error) return fail('Square reported: ' + String(req.query.error).slice(0, 120));
+  const workspaceId = verifySquareState(req.query.state);
+  if (!workspaceId) return fail('The connection link expired or was invalid. Please start again from Settings.');
+  if (!squareConnect.isConfigured()) return fail('Square connect is not configured.');
+
+  try {
+    const tok = await squareConnect.exchangeCodeForToken({ code: String(req.query.code || ''), redirectUri: SQUARE_REDIRECT_URI() });
+    // Auto-set Square active only if this is the FIRST processor the
+    // owner has connected (ruling 1): if Stripe isn't ready, Square
+    // becomes active; if Stripe IS ready, both are connected and the
+    // active flag is left as-is (the explicit switch in Settings
+    // decides). We detect "first" as: connect_status not 'ready'.
+    const wr = await pool.query('SELECT connect_status FROM workspaces WHERE id = $1', [workspaceId]);
+    const stripeReady = wr.rows[0] && wr.rows[0].connect_status === 'ready';
+    await pool.query(
+      `UPDATE workspaces
+          SET square_merchant_id       = $2,
+              square_access_token_enc  = $3,
+              square_refresh_token_enc = $4,
+              square_token_expires_at  = $5,
+              square_status            = 'connected',
+              payment_processor        = CASE WHEN $6 THEN payment_processor ELSE 'square' END
+        WHERE id = $1`,
+      [workspaceId, tok.merchant_id, encryptToken(tok.access_token), encryptToken(tok.refresh_token), tok.expires_at, stripeReady]
+    );
+    res.type('html').send(
+      '<!DOCTYPE html><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:0 20px;">'
+      + '<h2>Square connected ✓</h2><p>Your Square account is linked'
+      + (stripeReady ? ' — you can choose which processor is active in Settings.' : ' and set as your active card processor.')
+      + '</p><p><a href="/">Back to Modern Management</a></p></body>');
+  } catch (err) {
+    console.error('[square/connect/callback]', err.message);
+    return fail('We couldn\'t complete the connection with Square. Please try again.');
+  }
+});
+
 // POST /api/connect/onboarding/start
 // Authenticated. PS workspaces only. On first call, creates an Express
 // connected account and stores the acct_xxx id on the workspace. On every
