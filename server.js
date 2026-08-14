@@ -6549,6 +6549,17 @@ For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "
         // instead of executing. Approval lives downstream.
         if (tool.requiresApproval) {
           try {
+            // Pre-queue gate: a tool may reject BEFORE queuing so the
+            // assistant reads back an honest reason instead of queuing a
+            // no-op (e.g. a draft can't be requested — finalize first).
+            // Nothing is written to the approval queue on rejection.
+            if (typeof tool.validateBeforeQueue === 'function') {
+              const pre = await tool.validateBeforeQueue(action.input, ctx);
+              if (pre && pre.ok === false) {
+                turnExecutionResults.push({ action, result: pre.result });
+                continue;
+              }
+            }
             const summary = buildPendingActionSummary(action.toolName, action.input);
             const inserted = await pool.query(
               `INSERT INTO pending_actions (workspace_id, user_id, tool_name, input, ai_summary, status)
