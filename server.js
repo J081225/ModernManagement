@@ -2848,6 +2848,7 @@ app.post('/api/stripe/webhook', async (req, res) => {
 // connection (ruling 1); an explicit switch (SQ3e UX) handles the
 // two-connection case.
 const squareConnect = require('./lib/square-connect');
+const { squareRedirectUri } = require('./lib/square-env');
 const { encryptToken } = require('./lib/token-crypto');
 // Short-lived signed state: workspaceId + nonce, HMAC'd with
 // SESSION_SECRET (fine for CSRF state — it is not a stored credential),
@@ -2879,7 +2880,10 @@ function verifySquareState(req, state) {
     return parseInt(wid, 10);
   } catch (e) { return null; }
 }
-const SQUARE_REDIRECT_URI = () => (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/+$/, '') + '/square/connect/callback';
+// PUBLIC_BASE_URL is REQUIRED here — squareRedirectUri THROWS (tagged
+// err.squareConfig) rather than silently emit a localhost redirect_uri
+// that Square rejects with a blank page. Both call sites catch it below.
+const SQUARE_REDIRECT_URI = () => squareRedirectUri(process.env.PUBLIC_BASE_URL);
 
 // SQ4: the Square webhook. payment.updated with status COMPLETED
 // settles the pending ledger row. Verified THREE ways before anything
@@ -3035,6 +3039,14 @@ app.post('/api/square/connect/start', requireAuth, async (req, res) => {
     const url = squareConnect.authorizeUrl({ state: mintSquareState(req, workspaceId), redirectUri: SQUARE_REDIRECT_URI() });
     res.json({ url });
   } catch (err) {
+    // A missing PUBLIC_BASE_URL is a server misconfiguration, not an
+    // owner error: fail LOUDLY in the log, and tell the owner it's
+    // unavailable (same bland shape as the not-configured 503) rather
+    // than hand them a broken localhost authorize link.
+    if (err.squareConfig) {
+      console.error('[square/connect/start] MISCONFIGURED — refusing to start:', err.message);
+      return res.status(503).json({ error: 'Square connect is not available right now.' });
+    }
     console.error('[square/connect/start]', err.message);
     res.status(500).json({ error: 'Could not start Square connection' });
   }
@@ -3097,7 +3109,10 @@ app.get('/square/connect/callback', async (req, res) => {
       + (stripeReady ? ' — you can choose which processor is active in Settings.' : ' and set as your active card processor.')
       + '</p><p><a href="/">Back to Modern Management</a></p></body>');
   } catch (err) {
-    console.error('[square/connect/callback]', err.message);
+    // Same config guard on the return leg (the token exchange reuses the
+    // redirect_uri): log LOUDLY, keep the user-facing copy bland (SEC 5).
+    if (err.squareConfig) console.error('[square/connect/callback] MISCONFIGURED:', err.message);
+    else console.error('[square/connect/callback]', err.message);
     return fail('We couldn\'t complete the connection with Square. Please try again.');
   }
 });

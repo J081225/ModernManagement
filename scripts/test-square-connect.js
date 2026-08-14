@@ -153,6 +153,28 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
       ok, JSON.stringify({ sb, dflt, pr }));
   }
 
+  // ---- SC9: PUBLIC_BASE_URL hardening — the Square connect path fails
+  // LOUD on a missing var, never a silent localhost redirect_uri (the
+  // blank-page footgun). Drive the real builder + source-pin the guards. ----
+  {
+    const { squareRedirectUri } = require(path.join(__dirname, '..', 'lib', 'square-env'));
+    const tag = (v) => { try { squareRedirectUri(v); return false; } catch (e) { return e.squareConfig === true; } };
+    const throwsOnBlank = tag('') && tag('   ') && tag(null) && tag(undefined);
+    const built = squareRedirectUri('https://modernmanagementapp.com');
+    const stripped = squareRedirectUri('https://modernmanagementapp.com///');
+    const okBuild = built === 'https://modernmanagementapp.com/square/connect/callback'
+      && stripped === 'https://modernmanagementapp.com/square/connect/callback';
+    const noLocalhostBuilder = !/localhost/.test(squareRedirectUri('https://x'));
+    // server const delegates to the lib and carries NO localhost fallback
+    const serverDelegates = srv.includes('const SQUARE_REDIRECT_URI = () => squareRedirectUri(process.env.PUBLIC_BASE_URL)');
+    const serverNoFallback = !/SQUARE_REDIRECT_URI = \(\)[\s\S]{0,80}localhost/.test(srv);
+    // connect/start 503s LOUDLY on the tagged config error
+    const loud503 = /err\.squareConfig\)[\s\S]{0,220}status\(503\)/.test(srv);
+    check('SC9: squareRedirectUri THROWS (err.squareConfig) on missing/blank PUBLIC_BASE_URL, never emits localhost; the server const delegates with no fallback and connect/start 503s loudly on the config error',
+      throwsOnBlank && okBuild && noLocalhostBuilder && serverDelegates && serverNoFallback && loud503,
+      JSON.stringify({ throwsOnBlank, okBuild, noLocalhostBuilder, serverDelegates, serverNoFallback, loud503 }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-connect gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
