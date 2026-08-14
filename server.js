@@ -6447,7 +6447,10 @@ Chained operations: you can call a tool, see its result in the next turn, and th
 
 CRITICAL DISAMBIGUATION RULE for inventory tools: when the user references a property, unit, or contact by name, that name may match more than one record in the snapshot above (e.g., two properties both starting with "Riverside", or two contacts named "Maria"). NEVER guess or pick the first match. Before calling create_unit / update_unit / set_unit_off_market / retire_unit / assign_tenant_to_unit / move_tenant_to_unit / update_property / archive_property, scan the Properties / Units / Contacts sections of the snapshot. If a name is ambiguous, do NOT call the tool — instead reply with a clarifying question that lists the candidates (e.g., "Which Riverside — Riverside Lofts (#4) or Riverside North (#7)?"). Only call the tool once the user has clarified.
 
-For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.`;
+For READ questions about inventory ("what's vacant?", "who lives in Unit 3B?", "how many units at Glenwood?", "show my properties", "what's the occupancy rate at Glenwood?"), answer directly from the snapshot — do NOT call any tools.${vertical === 'professional-services' ? `
+
+Payment requests, finalizing, and approvals:
+- request_payments_batch REQUIRES owner approval and only sends for a FINALIZED, unpaid balance. If a tool result says a transaction is "still a draft" / not finalized, do NOT report a bare success and do NOT say a link will go out. Say plainly that it's still a draft, and offer to fix it in ONE step: "#N is still a draft — want me to finalize it and send the request?" If the owner confirms, call finalize_transaction for that transaction and THEN request_payments_batch in the same turn. Never finalize a draft without the owner's explicit yes (no silent auto-finalize).` : ''}`;
 
   try {
     // Tool execution context — built once, reused across every turn of
