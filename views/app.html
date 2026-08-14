@@ -9424,6 +9424,9 @@
       function _psTxnStatusBadge(status) {
         if (status === 'paid') return '<span class="ps-badge ps-badge-paid">Paid</span>';
         if (status === 'partially_paid') return '<span class="ps-badge ps-badge-pending">Partial</span>';
+        if (status === 'unpaid') return '<span class="ps-badge ps-badge-attention">Unpaid</span>';
+        if (status === 'draft') return '<span class="ps-badge ps-badge-muted">Draft</span>';
+        if (status === 'pending') return '<span class="ps-badge ps-badge-pending">Pending</span>';
         return '<span class="ps-badge ps-badge-muted">' + _psEscape(status || '?') + '</span>';
       }
 

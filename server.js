@@ -3535,12 +3535,17 @@ app.get('/api/dashboard/ps', requireAuth, async (req, res) => {
     let recent_transactions = [];
     try {
       const r = await pool.query(
+        // A created transaction is never invisible: drafts and unpaid
+        // (full-balance-owed) rows show alongside paid/partial, ordered
+        // by activity (a fresh draft sorts by created_at). Only the
+        // terminal voided/refunded rows stay out of the recent tile —
+        // they live in the full transactions list.
         `SELECT id, customer_display_name, total_cents, amount_paid_cents,
                 status, payment_method, payment_received_at, created_at
            FROM transactions
           WHERE workspace_id = $1
-            AND status IN ('paid', 'partially_paid')
-          ORDER BY payment_received_at DESC NULLS LAST
+            AND status IN ('draft', 'pending', 'unpaid', 'partially_paid', 'paid')
+          ORDER BY COALESCE(payment_received_at, created_at) DESC, id DESC
           LIMIT 10`,
         [workspaceId]
       );
