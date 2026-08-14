@@ -942,6 +942,46 @@ app.patch('/api/workspace/customer-language', requireAuth, async (req, res) => {
   }
 });
 
+// VZ item 1: save the workspace's Venmo handle + Zelle info for
+// MANUAL-CONFIRM direct payments. These are display/reference strings
+// the owner reconciles by hand — NOT credential-class (no money moves,
+// no processor access granted), so this mirrors the timezone /
+// customer-language settings pattern (session auth, workspace-scoped),
+// NOT the connect/switch/disconnect money-flow gate (which re-auths).
+// Partial by design: only the keys present in the body are written, so
+// each row on the card can save independently. Storage only — the
+// request/QR/mark-paid surfaces (VZ 2-5) stay queued, so saving does
+// not yet expose these to customers.
+app.patch('/api/workspace/direct-payments', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const { normalizeVenmoHandle, normalizeZelleInfo } = require('./lib/direct-payments');
+    const body = req.body || {};
+    const updates = [];
+    const vals = [];
+    let i = 1;
+    if ('venmo_handle' in body) {
+      const v = normalizeVenmoHandle(body.venmo_handle);
+      if (v.error) return res.status(400).json({ error: v.error });
+      updates.push(`venmo_handle = $${i++}`); vals.push(v.value);
+    }
+    if ('zelle_info' in body) {
+      const z = normalizeZelleInfo(body.zelle_info);
+      if (z.error) return res.status(400).json({ error: z.error });
+      updates.push(`zelle_info = $${i++}`); vals.push(z.value);
+    }
+    if (!updates.length) return res.status(400).json({ error: 'Nothing to save.' });
+    vals.push(workspaceId);
+    await pool.query(`UPDATE workspaces SET ${updates.join(', ')} WHERE id = $${i}`, vals);
+    const r = await pool.query('SELECT venmo_handle, zelle_info FROM workspaces WHERE id = $1', [workspaceId]);
+    res.json({ ok: true, venmo_handle: r.rows[0].venmo_handle, zelle_info: r.rows[0].zelle_info });
+  } catch (err) {
+    console.error('[PATCH /api/workspace/direct-payments]', err.message);
+    res.status(500).json({ error: 'Could not save your direct-payment info.' });
+  }
+});
+
 // SP4b: the one-tap re-arm. A 'failed' workspace goes back in the
 // queue with a zeroed counter, then we kick immediately so the owner
 // sees a result in seconds rather than waiting for the next sweep.
@@ -3295,6 +3335,10 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     let squareStatus = 'not_started';
     let cardsReadyDerived = false;
     let squareRow = null;
+    // VZ item 1: the saved direct-payment handles, so the card can
+    // pre-fill the inputs without a second fetch (nullable).
+    let venmoHandle = null;
+    let zelleInfo = null;
     // CP1: the browser needs the workspace timezone to render calendar
     // times correctly (nullable — frontend falls back to browser tz).
     let workspaceTimezone = null;
@@ -3302,7 +3346,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       const wR = await pool.query(
         `SELECT vertical, inventory_tracking_enabled, timezone,
                 connect_status, connect_charges_enabled, connect_details_submitted,
-                payment_processor, square_status
+                payment_processor, square_status, venmo_handle, zelle_info
            FROM workspaces WHERE id = $1`,
         [workspaceId]
       );
@@ -3320,6 +3364,9 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
         paymentProcessor = activeProcessor(wR.rows[0]);
         squareStatus = wR.rows[0].square_status || 'not_started';
         cardsReadyDerived = cardsReady(wR.rows[0]);
+        // VZ item 1: nullable direct-payment handles for card pre-fill.
+        venmoHandle = wR.rows[0].venmo_handle || null;
+        zelleInfo = wR.rows[0].zelle_info || null;
         // Send the EFFECTIVE timezone: wsTz maps a NULL column to the
         // same America/New_York default the server itself books with,
         // so browser rendering can never disagree with server writes.
@@ -3346,6 +3393,9 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       payment_processor: paymentProcessor,
       square_status: squareStatus,
       cards_ready: cardsReadyDerived,
+      // VZ item 1: saved direct-payment handles (null when unset).
+      venmo_handle: venmoHandle,
+      zelle_info: zelleInfo,
       workspace_timezone: workspaceTimezone,
       limits: planConfig.limits,
       features: planConfig.features,

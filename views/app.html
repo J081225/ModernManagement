@@ -3518,47 +3518,86 @@
               <div id="rptList"><div class="mm-empty" style="padding:18px 10px;">Loading&hellip;</div></div>
             </div>
 
-            <!-- E13: PS-only Card Payments status card. Visibility driven by
-                 _financesVertical === 'professional-services' (set by
-                 loadFinancesPage). Inner state driven by
-                 window._planSummary.connect_status. -->
+            <!-- E13 / SQ3 / VZ1: "How you get paid" — one card, every
+                 method visible. Card processors (Stripe + Square as
+                 parallel NAMED rows, exactly one active — SQ3 rules
+                 stand) and Direct payments (Venmo + Zelle, MANUAL-
+                 confirm). PS-only; visibility driven by
+                 _financesVertical. Inner state from window._planSummary. -->
             <div class="card" id="connectCard" style="display:none;margin-top:20px;">
               <div class="card-head">
                 <div class="card-head-tile">&#128179;</div>
                 <div class="card-head-titles">
-                  <div class="card-head-title">Card Payments</div>
-                  <div class="card-head-subtitle" id="connectCardSubtitle">Accept card payments from customers via Stripe.</div>
+                  <div class="card-head-title">How you get paid</div>
+                  <div class="card-head-subtitle">Card processors and direct payment methods you offer customers.</div>
                 </div>
               </div>
-              <div id="connectCardBody" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+
+              <!-- Section: card processors. Stripe and Square are named,
+                   parallel rows; exactly one is the active processor. -->
+              <div style="font-size:0.78em;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-bottom:4px;">Card processors</div>
+              <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:14px;">Connect one or both. Only the <strong>active</strong> processor takes new customer card payments.</div>
+
+              <!-- Stripe row (this was the original "Card Payments" block —
+                   now named so customers/owners know the processor). -->
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+                <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);min-width:80px;">Stripe</div>
                 <span id="connectStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
                 <button id="connectActionBtn" type="button" onclick="startConnectOnboarding()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Set up card payments</button>
                 <span id="connectActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
               </div>
+              <div id="connectCardSubtitle" style="font-size:0.82em;color:var(--text-muted);margin-top:6px;">Accept card payments from customers via Stripe.</div>
 
-              <!-- SQ3e: Square as a second processor, beside Stripe.
-                   The connect button; the active/inactive badge; and an
-                   explicit "Make active" switch that renderConnectCard
-                   shows ONLY when BOTH processors are connected
-                   (ruling 1/2). Auto-set on first connect happens
-                   server-side. -->
+              <!-- Square row (SQ3e). Connect / active badge / disconnect. -->
               <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-                <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);display:flex;align-items:center;gap:8px;">&#9633; Square</div>
+                <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);min-width:80px;">Square</div>
                 <span id="squareStatusBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:0.82em;font-weight:600;">Status</span>
                 <button id="squareActionBtn" type="button" onclick="startSquareConnect()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Connect Square</button>
                 <button id="squareDisconnectBtn" type="button" onclick="disconnectSquare()" style="display:none;padding:8px 14px;background:transparent;color:var(--danger);border:1px solid var(--danger);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;">Disconnect</button>
                 <span id="squareActionNote" style="color:var(--text-muted);font-size:0.82em;"></span>
               </div>
 
-              <!-- The active-processor switch. Hidden unless two
-                   connections exist; then it names the active one and
-                   offers to switch. -->
+              <!-- The active-processor switch (SQ3, unchanged). Hidden
+                   unless two connections exist; then it names the active
+                   one and offers to switch. -->
               <div id="processorSwitch" style="display:none;border-top:1px solid var(--border);margin-top:16px;padding-top:16px;">
                 <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:10px;">Both processors are connected. Only the <strong>active</strong> one takes new customer card payments.</div>
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                   <span id="activeProcessorLabel" style="font-size:0.9em;font-weight:600;color:var(--text-primary);"></span>
                   <button id="switchProcessorBtn" type="button" onclick="switchProcessor()" style="padding:8px 14px;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85em;"></button>
                   <span id="switchProcessorNote" style="color:var(--text-muted);font-size:0.82em;"></span>
+                </div>
+              </div>
+
+              <!-- Section: direct payments (VZ item 1). Venmo + Zelle are
+                   MANUAL-confirm — per-method truth on their face. Today
+                   this only STORES the handle; the request/QR/mark-paid
+                   surfaces (VZ 2-5) are queued, so the copy must not imply
+                   customers see these yet (claims census). -->
+              <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;">
+                <div style="font-size:0.78em;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-bottom:4px;">Direct payments</div>
+                <div style="font-size:0.85em;color:var(--text-muted);margin-bottom:4px;">Venmo and Zelle <strong>confirm manually</strong> — there's no automatic confirmation, so you mark these paid yourself.</div>
+
+                <!-- Venmo row -->
+                <div style="margin-top:14px;">
+                  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);min-width:80px;">Venmo</div>
+                    <input id="venmoHandleInput" type="text" placeholder="@your-handle" autocomplete="off" style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;" />
+                    <button id="venmoSaveBtn" type="button" onclick="saveVenmoHandle()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Save</button>
+                    <span id="venmoNote" style="color:var(--text-muted);font-size:0.82em;"></span>
+                  </div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;margin-left:92px;">Saved to your workspace. Adding it to payment requests and QR codes is coming — it isn't shown to customers yet.</div>
+                </div>
+
+                <!-- Zelle row -->
+                <div style="margin-top:14px;">
+                  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div style="font-size:0.9em;font-weight:600;color:var(--text-primary);min-width:80px;">Zelle</div>
+                    <input id="zelleInfoInput" type="text" placeholder="Email or phone linked to Zelle" autocomplete="off" style="flex:1;min-width:200px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;" />
+                    <button id="zelleSaveBtn" type="button" onclick="saveZelleInfo()" style="padding:9px 16px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.88em;">Save</button>
+                    <span id="zelleNote" style="color:var(--text-muted);font-size:0.82em;"></span>
+                  </div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;margin-left:92px;">Saved to your workspace. Adding it to payment requests and QR codes is coming — it isn't shown to customers yet.</div>
                 </div>
               </div>
             </div>
@@ -12407,11 +12446,21 @@
         btn.style.display = '';
         note.textContent = '';
 
+        // SQ3/VZ1: Stripe shows "Active" only when it's the ACTIVE
+        // processor; "Connected" when usable but Square is active — the
+        // same Active/Connected distinction Square's row makes, so the
+        // two named rows read symmetrically. Chip vocabulary: Active /
+        // Connected / In progress / Not connected (+ the honest
+        // "Needs more info" edge for Stripe's 'restricted' state).
+        const active = ps.payment_processor || 'stripe';
         if (status === 'ready') {
-          badge.textContent = '✓ Active';
-          badge.style.background = 'var(--success-soft)';
-          badge.style.color = 'var(--success)';
-          subtitle.textContent = 'Card payments are active. You can accept cards from customers.';
+          const isActive = active === 'stripe';
+          badge.textContent = isActive ? '✓ Active' : 'Connected';
+          badge.style.background = isActive ? 'var(--success-soft)' : 'var(--bg-sunken)';
+          badge.style.color = isActive ? 'var(--success)' : 'var(--text-muted)';
+          subtitle.textContent = isActive
+            ? 'Active — Stripe takes new customer card payments.'
+            : 'Connected. Square is currently the active processor.';
           btn.style.display = 'none';
         } else if (status === 'restricted') {
           badge.textContent = 'Needs more info';
@@ -12427,7 +12476,7 @@
           btn.textContent = 'Continue setup';
         } else {
           // 'not_started' (default) — includes legacy/null rows
-          badge.textContent = 'Not set up';
+          badge.textContent = 'Not connected';
           badge.style.background = 'var(--bg-sunken)';
           badge.style.color = 'var(--text-muted)';
           subtitle.textContent = 'Accept card payments from customers via Stripe.';
@@ -12437,6 +12486,8 @@
         // SQ3e: render the Square row + the active-processor switch off
         // the same plan summary.
         renderSquareRow(ps);
+        // VZ1: pre-fill the Venmo/Zelle inputs off the same summary.
+        renderDirectPayments(ps);
       }
 
       // SQ3e: the Square connection row and the active-processor switch.
@@ -12570,6 +12621,80 @@
           if (typeof renderConnectCard === 'function') renderConnectCard();
         } catch (err) {
           if (note) note.textContent = 'Network error.';
+        }
+      }
+
+      // VZ item 1: pre-fill the Venmo/Zelle inputs from the saved
+      // handles on the plan summary. Venmo displays WITH the '@' (stored
+      // without). Never clobber a field the owner is actively editing.
+      function renderDirectPayments(ps) {
+        const vIn = document.getElementById('venmoHandleInput');
+        const zIn = document.getElementById('zelleInfoInput');
+        if (vIn && document.activeElement !== vIn) {
+          vIn.value = ps.venmo_handle ? '@' + ps.venmo_handle : '';
+        }
+        if (zIn && document.activeElement !== zIn) {
+          zIn.value = ps.zelle_info || '';
+        }
+      }
+
+      // VZ item 1: persist the Venmo handle through the REAL endpoint —
+      // these are not decorative inputs (claims census). Empty clears.
+      // The server is the validator; a 400 surfaces its honest message.
+      async function saveVenmoHandle() {
+        const input = document.getElementById('venmoHandleInput');
+        const note = document.getElementById('venmoNote');
+        const btn = document.getElementById('venmoSaveBtn');
+        if (!input) return;
+        if (btn) btn.disabled = true;
+        if (note) { note.style.color = 'var(--text-muted)'; note.textContent = 'Saving…'; }
+        try {
+          const r = await fetch('/api/workspace/direct-payments', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ venmo_handle: input.value }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            if (note) { note.style.color = 'var(--danger)'; note.textContent = data.error || 'Could not save.'; }
+            if (btn) btn.disabled = false;
+            return;
+          }
+          if (window._planSummary) window._planSummary.venmo_handle = data.venmo_handle;
+          input.value = data.venmo_handle ? '@' + data.venmo_handle : '';
+          if (note) { note.style.color = 'var(--success)'; note.textContent = data.venmo_handle ? 'Saved.' : 'Cleared.'; }
+          if (btn) btn.disabled = false;
+        } catch (err) {
+          if (note) { note.style.color = 'var(--danger)'; note.textContent = 'Network error.'; }
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      // VZ item 1: persist the Zelle contact (email or phone). Same shape.
+      async function saveZelleInfo() {
+        const input = document.getElementById('zelleInfoInput');
+        const note = document.getElementById('zelleNote');
+        const btn = document.getElementById('zelleSaveBtn');
+        if (!input) return;
+        if (btn) btn.disabled = true;
+        if (note) { note.style.color = 'var(--text-muted)'; note.textContent = 'Saving…'; }
+        try {
+          const r = await fetch('/api/workspace/direct-payments', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ zelle_info: input.value }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            if (note) { note.style.color = 'var(--danger)'; note.textContent = data.error || 'Could not save.'; }
+            if (btn) btn.disabled = false;
+            return;
+          }
+          if (window._planSummary) window._planSummary.zelle_info = data.zelle_info;
+          input.value = data.zelle_info || '';
+          if (note) { note.style.color = 'var(--success)'; note.textContent = data.zelle_info ? 'Saved.' : 'Cleared.'; }
+          if (btn) btn.disabled = false;
+        } catch (err) {
+          if (note) { note.style.color = 'var(--danger)'; note.textContent = 'Network error.'; }
+          if (btn) btn.disabled = false;
         }
       }
 
