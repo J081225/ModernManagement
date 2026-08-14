@@ -123,6 +123,36 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
       verify(st) === 17 && verify(st.slice(0, -2) + 'zz') === null && verify('garbage') === null);
   }
 
+  // ---- SC8: the built authorize URL host is EXACTLY Square's Connect
+  // base — sandbox AND production forms. The blank-page live-test
+  // (2026-08-14) made the host a first-class invariant: the bare
+  // squareup(sandbox).com host renders blank; the API/OAuth host carries
+  // the required `connect.` subdomain. Build the URL under each env and
+  // assert the host + path exactly. ----
+  {
+    process.env.SQUARE_APP_ID = process.env.SQUARE_APP_ID || 'sandbox-sq0idb-test';
+    const envPath = require.resolve(path.join(__dirname, '..', 'lib', 'square-env'));
+    const connPath = require.resolve(path.join(__dirname, '..', 'lib', 'square-connect'));
+    function authorizeHost(env) {
+      const prev = process.env.SQUARE_ENV;
+      if (env === undefined) delete process.env.SQUARE_ENV; else process.env.SQUARE_ENV = env;
+      delete require.cache[envPath]; delete require.cache[connPath];
+      const { authorizeUrl } = require(connPath);
+      const u = new URL(authorizeUrl({ state: 's', redirectUri: 'https://mm.test/square/connect/callback' }));
+      if (prev === undefined) delete process.env.SQUARE_ENV; else process.env.SQUARE_ENV = prev;
+      delete require.cache[envPath]; delete require.cache[connPath];
+      return { host: u.host, path: u.pathname };
+    }
+    const sb = authorizeHost('sandbox');
+    const dflt = authorizeHost(undefined);      // default must be sandbox
+    const pr = authorizeHost('production');
+    const ok = sb.host === 'connect.squareupsandbox.com' && sb.path === '/oauth2/authorize'
+      && dflt.host === 'connect.squareupsandbox.com'
+      && pr.host === 'connect.squareup.com' && pr.path === '/oauth2/authorize';
+    check('SC8: authorize URL host is EXACTLY connect.squareupsandbox.com (sandbox/default) and connect.squareup.com (production), path /oauth2/authorize — never the bare squareup(sandbox).com host',
+      ok, JSON.stringify({ sb, dflt, pr }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-connect gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
