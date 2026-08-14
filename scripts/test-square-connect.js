@@ -133,7 +133,7 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
     process.env.SQUARE_APP_ID = process.env.SQUARE_APP_ID || 'sandbox-sq0idb-test';
     const envPath = require.resolve(path.join(__dirname, '..', 'lib', 'square-env'));
     const connPath = require.resolve(path.join(__dirname, '..', 'lib', 'square-connect'));
-    function authorizeHost(env) {
+    function authorizeParts(env) {
       const prev = process.env.SQUARE_ENV;
       if (env === undefined) delete process.env.SQUARE_ENV; else process.env.SQUARE_ENV = env;
       delete require.cache[envPath]; delete require.cache[connPath];
@@ -141,16 +141,20 @@ const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'ut
       const u = new URL(authorizeUrl({ state: 's', redirectUri: 'https://mm.test/square/connect/callback' }));
       if (prev === undefined) delete process.env.SQUARE_ENV; else process.env.SQUARE_ENV = prev;
       delete require.cache[envPath]; delete require.cache[connPath];
-      return { host: u.host, path: u.pathname };
+      return { host: u.host, path: u.pathname, hasSession: u.searchParams.has('session'), session: u.searchParams.get('session') };
     }
-    const sb = authorizeHost('sandbox');
-    const dflt = authorizeHost(undefined);      // default must be sandbox
-    const pr = authorizeHost('production');
-    const ok = sb.host === 'connect.squareupsandbox.com' && sb.path === '/oauth2/authorize'
+    const sb = authorizeParts('sandbox');
+    const dflt = authorizeParts(undefined);      // default must be sandbox
+    const pr = authorizeParts('production');
+    const hostOk = sb.host === 'connect.squareupsandbox.com' && sb.path === '/oauth2/authorize'
       && dflt.host === 'connect.squareupsandbox.com'
       && pr.host === 'connect.squareup.com' && pr.path === '/oauth2/authorize';
-    check('SC8: authorize URL host is EXACTLY connect.squareupsandbox.com (sandbox/default) and connect.squareup.com (production), path /oauth2/authorize — never the bare squareup(sandbox).com host',
-      ok, JSON.stringify({ sb, dflt, pr }));
+    // session: omitted in BOTH envs (Square default true); NEVER 'false'
+    // in sandbox — that was the blank-page bug.
+    const sessionOk = sb.hasSession === false && dflt.hasSession === false && pr.hasSession === false
+      && sb.session !== 'false';
+    check('SC8: authorize URL host is EXACTLY connect.squareupsandbox.com (sandbox/default) / connect.squareup.com (production) at /oauth2/authorize, and the session param is OMITTED in both envs — never session=false (the sandbox blank-page bug)',
+      hostOk && sessionOk, JSON.stringify({ sb, dflt, pr }));
   }
 
   // ---- SC9: PUBLIC_BASE_URL hardening — the Square connect path fails
