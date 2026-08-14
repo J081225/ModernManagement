@@ -4512,6 +4512,7 @@
           <button onclick="closeTxDetailModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.4em;line-height:1;padding:4px 8px;">&times;</button>
         </div>
         <div id="txDetailBody" style="flex:1;overflow-y:auto;padding:12px 0 16px;color:var(--text-secondary);font-size:0.92em;line-height:1.55;"></div>
+        <div id="txDetailPaymentLink" style="display:none;margin-top:8px;padding:12px 14px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;"></div>
         <div id="txDetailActions" style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px;margin-top:8px;flex-wrap:wrap;"></div>
       </div>
     </div>
@@ -13603,16 +13604,21 @@
 
         // Action buttons
         const actions = document.getElementById('txDetailActions');
+        // A fresh request clears any stale link box from a prior open.
+        const _linkBox = document.getElementById('txDetailPaymentLink');
+        if (_linkBox) { _linkBox.style.display = 'none'; _linkBox.innerHTML = ''; }
         const canVoid = ['draft', 'pending', 'unpaid'].includes(tx.status);
         const canRefund = ['paid', 'partially_paid'].includes(tx.status);
         const remaining = (tx.total_cents - (tx.amount_refunded_cents || 0));
-        // E14 Step 6: Request deposit / Request payment buttons. Gated on
-        // connect_status='ready' (read from the cached plan summary) so
-        // they never appear for a workspace that hasn't finished Stripe
-        // Connect onboarding.
-        const connectReady = !!(window._planSummary && window._planSummary.connect_status === 'ready');
-        const canRequestDeposit = connectReady && ['draft', 'pending', 'unpaid'].includes(tx.status);
-        const canRequestPayment = connectReady && ['draft', 'pending', 'unpaid', 'partially_paid'].includes(tx.status);
+        // SQ3+: gate Request deposit / Request payment on the ACTIVE
+        // processor's readiness (cards_ready — Stripe ready OR Square
+        // connected), NOT Stripe's connect_status alone. A Square-active
+        // workspace was hiding these buttons (connect_status='pending').
+        // Only finalized, money-owed transactions are requestable
+        // (unpaid / partially_paid) — a draft is finalized first.
+        const cardsReady = !!(window._planSummary && window._planSummary.cards_ready);
+        const canRequestDeposit = cardsReady && ['unpaid', 'partially_paid'].includes(tx.status);
+        const canRequestPayment = cardsReady && ['unpaid', 'partially_paid'].includes(tx.status);
         actions.innerHTML = [
           `<button onclick="resendReceipt(${tx.id})" class="btn-secondary" style="font-size:0.85em;">Send/Resend receipt</button>`,
           canRefund && remaining > 0
@@ -13653,14 +13659,48 @@
             alert(`Could not create ${label} link: ${data.error || 'unknown error'}`);
             return;
           }
-          if (data.texted) {
-            alert(`${label.charAt(0).toUpperCase() + label.slice(1)} link texted to the customer.`);
-          } else {
-            // No phone on file — surface the url so the owner can copy/paste.
-            prompt(`No phone on file. Copy this ${label} link to send to the customer:`, data.url || '');
-          }
+          // Always show the link with a copy button, and be honest about
+          // whether it was texted (owner link-readback).
+          renderPaymentLinkBox(data.url || '', !!data.texted, label);
         } catch (e) {
           alert(`Could not create ${label} link.`);
+        }
+      }
+
+      // Owner link-readback: display the processor link (Square/Stripe per
+      // active processor) with a copy button, and state honestly whether
+      // an SMS actually went out — the owner always has the link in hand.
+      function renderPaymentLinkBox(url, texted, label) {
+        const box = document.getElementById('txDetailPaymentLink');
+        if (!box) return;
+        const Cap = label.charAt(0).toUpperCase() + label.slice(1);
+        const smsLine = texted
+          ? '<span style="color:var(--success);">&#10003; Texted to the customer.</span>'
+          : '<span style="color:var(--warning);">Not texted (no phone on file) — copy the link and send it yourself.</span>';
+        box.innerHTML =
+          `<div style="font-weight:600;color:var(--text-primary);font-size:0.9em;margin-bottom:6px;">${Cap} link created</div>`
+          + `<div style="font-size:0.82em;margin-bottom:8px;">${smsLine}</div>`
+          + `<div style="display:flex;gap:8px;align-items:center;">`
+          + `<input id="txPaymentLinkInput" type="text" readonly onclick="this.select();" style="flex:1;min-width:0;padding:8px 10px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:0.82em;" />`
+          + `<button id="txPaymentLinkCopy" onclick="copyPaymentLink()" class="btn-secondary" style="font-size:0.82em;white-space:nowrap;">Copy link</button>`
+          + `</div>`;
+        // Set the value via property (never innerHTML) so the URL can't
+        // break out of the attribute.
+        const input = document.getElementById('txPaymentLinkInput');
+        if (input) input.value = url;
+        box.style.display = '';
+      }
+
+      function copyPaymentLink() {
+        const input = document.getElementById('txPaymentLinkInput');
+        const btn = document.getElementById('txPaymentLinkCopy');
+        if (!input) return;
+        input.select();
+        const done = () => { if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy link'; }, 1500); } };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(input.value).then(done).catch(() => { try { document.execCommand('copy'); done(); } catch (_) {} });
+        } else {
+          try { document.execCommand('copy'); done(); } catch (_) {}
         }
       }
 

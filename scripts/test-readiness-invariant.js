@@ -121,7 +121,12 @@ function checksAccept(row) {
     // stripe account and is gated by square_status via the helper).
     const gate = pr.includes('if (!cardsReady(workspace)) {')
       && pr.includes("require('./workspace-readiness')");
-    const ui = app.includes("window._planSummary.connect_status === 'ready'");
+    // SQ3+ doorknob fix: the UI's Request-payment gate now reads the
+    // DERIVED cards_ready (active processor), matching the lib gate. The
+    // old Stripe-only connect_status==='ready' UI gate hid the button for
+    // Square-active workspaces — the pin follows that improvement.
+    const ui = app.includes('window._planSummary.cards_ready')
+      && !app.includes("window._planSummary.connect_status === 'ready'");
     const derive = cl.includes("if (charges_enabled === true) return 'ready';");
     // no writer of connect_status consults twilio anything
     const writers = (srv.match(/connect_status\s+= '/g) || []).length + (cl.match(/connect_status\s+=\s+\$/g) || []).length;
