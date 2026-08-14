@@ -117,6 +117,27 @@ function sweep(rows, now) {
         && /UPDATE tasks SET dismissed_at = NOW\(\)[\s\S]{0,120}suggested = true/.test(fn));
   }
 
+  // ---- EX8: the stale-suggestion sweep ages rows by a tasks column the
+  // schema actually DEFINES — regression pin for the createdAt phantom.
+  // FD3-CP7 compared tasks."createdAt" while the tasks table had no such
+  // column (in any case), so the sweep threw on every run for ~26 days
+  // and no suggestion aged out. Tie the sweep's age column to the DDL
+  // (CREATE + idempotent ALTER) so query and schema can never drift. ----
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const fn = src.slice(src.indexOf('async function runPendingActionExpirySweep'), src.indexOf('\nsetInterval(runPendingActionExpirySweep'));
+    // pull the column the stale-suggestion UPDATE compares to NOW()-INTERVAL
+    const m = fn.match(/dismissed_at = NOW\(\)[\s\S]{0,200}?AND\s+"?(\w+)"?\s*<\s*NOW\(\)\s*-\s*INTERVAL '7 days'/);
+    const ageCol = m && m[1];
+    // the tasks CREATE block (bounded slice) must list that column...
+    const createBlock = src.slice(src.indexOf('CREATE TABLE IF NOT EXISTS tasks'), src.indexOf('CREATE TABLE IF NOT EXISTS tasks') + 600);
+    const inCreate = !!ageCol && new RegExp('"' + ageCol + '"\\s+TIMESTAMPTZ').test(createBlock);
+    // ...AND an idempotent ALTER must add it for pre-existing databases
+    const inAlter = !!ageCol && new RegExp('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "' + ageCol + '"').test(src);
+    check('EX8: the stale-suggestion sweep ages by tasks."' + ageCol + '", and the tasks schema DEFINES it (CREATE + idempotent ALTER) — no phantom-column regression',
+      !!ageCol && inCreate && inAlter, JSON.stringify({ ageCol, inCreate, inAlter }));
+  }
+
   console.log(`${pass}/${pass + fail} — expiry-sweep gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();

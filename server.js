@@ -1063,7 +1063,8 @@ async function initDB() {
       notes TEXT,
       done BOOLEAN DEFAULT false,
       suggested BOOLEAN DEFAULT false,
-      "aiReason" TEXT DEFAULT ''
+      "aiReason" TEXT DEFAULT '',
+      "createdAt" TIMESTAMPTZ DEFAULT NOW()
     )
   `);
   await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 1`, 'tasks.user_id');
@@ -1073,6 +1074,15 @@ async function initDB() {
   // so reflection can dedupe against recent dismissals — a deleted row
   // can't stop its own re-suggestion.
   await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS dismissed_at TIMESTAMPTZ`, 'tasks.dismissed_at');
+  // FD3-CP7 FIX: the stale-suggestion sweep ages rows by tasks."createdAt",
+  // but tasks (unlike its sibling tables messages/maintenance_tickets)
+  // never had that column — the sweep threw `column "createdAt" does not
+  // exist` on every boot + 30-min run since 2026-07-19, so NO suggestion
+  // ever aged out. Add it. Existing rows take NOW() at ALTER time: tasks
+  // kept no creation timestamp, so true ages are unrecoverable — we start
+  // the clock honestly here (a one-time 7-day grace for the backlog)
+  // rather than fabricate past dates.
+  await migrate(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW()`, 'tasks.createdAt');
 
   const { rows: taskRows } = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=1');
   if (taskRows[0].count === '0') {
