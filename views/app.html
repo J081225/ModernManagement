@@ -13656,7 +13656,13 @@
           });
           const data = await r.json();
           if (!r.ok) {
-            alert(`Could not create ${label} link: ${data.error || 'unknown error'}`);
+            // Surface the REAL reason to the owner: Square's error body
+            // rides in `detail`. Showing only the generic `error` echoed
+            // "Could not create payment link: Could not create payment
+            // link" and cost a diagnosis round. This is the owner surface
+            // (authed modal) — the customer never sees it.
+            const reason = data.detail || data.error || 'unknown error';
+            alert(`Could not create the ${label} link.\n\n${reason}`);
             return;
           }
           // Always show the link with a copy button, and be honest about
