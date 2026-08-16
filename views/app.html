@@ -4573,6 +4573,15 @@
           <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Reason</label>
           <textarea id="txRefundReason" rows="3" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;font-family:inherit;resize:vertical;"></textarea>
         </div>
+        <!-- SQ5: a Square-paid transaction issues a REAL money-moving
+             refund via Square — shown only then, and gated on re-auth. -->
+        <div id="txRefundSquareBanner" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--warning-soft);border:1px solid var(--warning);border-radius:8px;font-size:0.82em;color:var(--text-primary);">
+          This transaction was paid by <strong>Square</strong>. Confirming will <strong>move money</strong> — the refund is issued to the customer's card via Square. Enter your password to authorize.
+        </div>
+        <div id="txRefundReauth" style="display:none;margin-bottom:14px;">
+          <label style="display:block;font-size:0.78em;color:var(--text-muted);margin-bottom:4px;">Your password (required for card refunds)</label>
+          <input type="password" id="txRefundPassword" autocomplete="current-password" style="width:100%;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-size:0.92em;">
+        </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
           <button onclick="closeTxRefundModal()" class="btn-secondary">Cancel</button>
           <button id="txRefundConfirmBtn" onclick="submitRefund()" class="btn-primary">Confirm refund</button>
@@ -13531,6 +13540,9 @@
       }
 
       function renderTxDetail(tx, refunds, payments = []) {
+        // SQ5: a Square-paid, completed ledger row means the refund moves
+        // real money and needs re-auth. Stash the flag for the modal.
+        if (tx) tx._squarePaid = (payments || []).some(function (p) { return p.processor === 'square' && p.status === 'completed'; });
         document.getElementById('txDetailTitle').textContent =
           `Transaction #${tx.id} — ${tx.customer_display_name}`;
         const date = (tx.payment_received_at || tx.created_at || '').slice(0, 10);
@@ -13760,6 +13772,13 @@
           `Refunding transaction #${_openTx.id} — ${_openTx.customer_display_name}. Remaining unrefunded: ${_txFormatCents(remaining)}.`;
         document.getElementById('txRefundAmount').value = (remaining / 100).toFixed(2);
         document.getElementById('txRefundReason').value = '';
+        // SQ5: for a Square-paid transaction show the money-moving banner
+        // + the re-auth password; hide both otherwise (record-only).
+        const sq = !!(_openTx && _openTx._squarePaid);
+        document.getElementById('txRefundSquareBanner').style.display = sq ? '' : 'none';
+        document.getElementById('txRefundReauth').style.display = sq ? '' : 'none';
+        const pwEl = document.getElementById('txRefundPassword');
+        if (pwEl) pwEl.value = '';
         document.getElementById('txRefundConfirmBtn').dataset.txid = txId;
         document.getElementById('txRefundModal').style.display = 'flex';
       }
@@ -13775,22 +13794,29 @@
         if (!txId || isNaN(dollars) || dollars <= 0) { alert('Enter a valid refund amount.'); return; }
         if (!reason) { alert('Please enter a reason.'); return; }
         const cents = Math.round(dollars * 100);
+        // SQ5: a Square-paid refund moves money → send the re-auth password.
+        const sq = !!(_openTx && _openTx._squarePaid);
+        const pw = sq ? (document.getElementById('txRefundPassword').value || '') : '';
+        if (sq && !pw) { alert('Enter your password to authorize this card refund.'); return; }
         try {
+          const body = { amount_cents: cents, reason };
+          if (sq) body.current_password = pw;
           const r = await fetch(`/api/transactions/${txId}/refund`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ amount_cents: cents, reason }),
+            body: JSON.stringify(body),
           });
           const data = await r.json();
           if (!r.ok || !data.success) {
-            alert('Refund failed: ' + (data.error || 'unknown error'));
+            // Surface the real reason (Square's detail rides in `detail`).
+            alert('Refund failed: ' + (data.detail || data.error || 'unknown error'));
             return;
           }
           closeTxRefundModal();
           closeTxDetailModal();
           loadTransactions();
-          alert(`Refund #${data.refund_transaction_id} created. Parent status: ${data.parent_status}.`);
+          alert(data.note || 'Refund processed.');
         } catch (e) { alert('Refund failed.'); }
       }
 

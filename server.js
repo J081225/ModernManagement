@@ -2850,8 +2850,9 @@ app.post('/api/stripe/webhook', async (req, res) => {
 // connection (ruling 1); an explicit switch (SQ3e UX) handles the
 // two-connection case.
 const squareConnect = require('./lib/square-connect');
+const squareRefunds = require('./lib/square-refunds');
 const { squareRedirectUri } = require('./lib/square-env');
-const { encryptToken } = require('./lib/token-crypto');
+const { encryptToken, decryptToken } = require('./lib/token-crypto');
 // Short-lived signed state: workspaceId + nonce, HMAC'd with
 // SESSION_SECRET (fine for CSRF state — it is not a stored credential),
 // 10-minute expiry. Verified on callback so a forged/replayed state
@@ -2922,6 +2923,24 @@ app.post('/api/square/webhook', async (req, res) => {
   try {
     const event = JSON.parse(v.body);
     const type = event && event.type;
+    // SQ5: refund.created/updated settles a Square money-moving refund.
+    // Signature already verified at the edge; the three-way merchant +
+    // amount + currency check runs inside processSquareRefundCompleted,
+    // which is idempotent against redelivery.
+    if (type === 'refund.created' || type === 'refund.updated') {
+      const refund = event.data && event.data.object && event.data.object.refund;
+      if (!refund || refund.status !== 'COMPLETED') return; // settle only on COMPLETED
+      const rr = await paymentLedger.processSquareRefundCompleted(pool, {
+        refundId: refund.id,
+        merchantId: event.merchant_id,
+        amountCents: refund.amount_money && refund.amount_money.amount,
+        currency: refund.amount_money && refund.amount_money.currency,
+      });
+      if (!rr.ok && rr.reason && rr.reason.endsWith('_mismatch')) {
+        console.error('[square-webhook] refund REFUSED (' + rr.reason + ') for refund ' + refund.id);
+      }
+      return;
+    }
     if (type !== 'payment.updated' && type !== 'payment.created') return;
     const payment = event.data && event.data.object && event.data.object.payment;
     if (!payment || payment.status !== 'COMPLETED') return; // only settle on COMPLETED
@@ -2930,6 +2949,7 @@ app.post('/api/square/webhook', async (req, res) => {
       merchantId: event.merchant_id,
       amountCents: payment.amount_money && payment.amount_money.amount,
       currency: payment.amount_money && payment.amount_money.currency,
+      paymentId: payment.id, // SQ5: capture for later refunds
     });
     if (!result.ok && result.reason && result.reason.endsWith('_mismatch')) {
       console.error('[square-webhook] completion REFUSED (' + result.reason + ') for order ' + payment.order_id);
@@ -3058,6 +3078,7 @@ app.post('/api/square/connect/start', requireAuth, async (req, res) => {
 async function sendSquareSecurityNotice(user, action) {
   const verb = action === 'connect' ? 'started connecting a Square payment account to'
     : action === 'disconnect' ? 'disconnected the Square payment account from'
+    : action === 'refund' ? 'issued a card refund from'
     : 'changed the active card processor for';
   try {
     await credentials.sendSecurityNotice({ sendgrid: sgMail, env: process.env }, user && user.email, {
@@ -10001,7 +10022,7 @@ app.get('/api/transactions/:id', requireAuth, async (req, res) => {
     // chronological payment history.
     const payments = await pool.query(
       `SELECT id, amount_cents, payment_type, payment_method, status,
-              created_at, notes
+              processor, created_at, notes
          FROM transaction_payments
         WHERE transaction_id = $1 AND workspace_id = $2
         ORDER BY created_at ASC`,
@@ -10043,6 +10064,99 @@ app.post('/api/transactions/:id/refund', requireAuth, async (req, res) => {
       return res.status(400).json({ error: `Refund amount exceeds remaining unrefunded amount ($${(remaining / 100).toFixed(2)})` });
     }
 
+    // How was this transaction PAID? The ledger is the source of truth.
+    const payR = await pool.query(
+      `SELECT processor, processor_ref, square_payment_id
+         FROM transaction_payments
+        WHERE transaction_id = $1 AND workspace_id = $2 AND status = 'completed'
+          AND payment_type IN ('deposit','payment')
+        ORDER BY created_at DESC LIMIT 1`,
+      [id, workspaceId]
+    );
+    const paidVia = payR.rows[0];
+
+    // ===== SQ5: SQUARE = a real, money-moving refund =====
+    if (paidVia && paidVia.processor === 'square') {
+      // Ruling 1: a money-moving refund is a credential-class event — owner
+      // RE-AUTH (shared _reauth), so a stolen session can never move money.
+      // Structural: no assistant path reaches this endpoint (requireAuth +
+      // re-auth); the assistant refund tool stays record-only forever.
+      const re = await credentials._reauth(pool, req.session.userId, (req.body || {}).current_password, _credAttempts, Date.now());
+      if (re.status) return res.status(re.status === 429 ? 429 : 403).json(re.body);
+
+      const wr = await pool.query('SELECT square_access_token_enc, square_merchant_id FROM workspaces WHERE id = $1', [workspaceId]);
+      const ws = wr.rows[0] || {};
+      if (!ws.square_access_token_enc) return res.status(400).json({ error: 'Square is not connected on this workspace.' });
+      let accessToken;
+      try { accessToken = decryptToken(ws.square_access_token_enc); }
+      catch (e) { return res.status(500).json({ error: 'Could not read the Square credential.' }); }
+
+      // Ruling 2: resolve + VERIFY the payment id ties to THIS order (and
+      // the merchant-scoped token) BEFORE any refund call — never refund
+      // an id we can't tie to the row. Captured rows skip the lookup.
+      let paymentId = paidVia.square_payment_id;
+      try {
+        if (!paymentId) {
+          const resolved = await squareRefunds.resolvePaymentIdForOrder({ accessToken, orderId: paidVia.processor_ref });
+          paymentId = resolved.paymentId;
+        }
+        await squareRefunds.assertPaymentTiesToOrder({ accessToken, paymentId, orderId: paidVia.processor_ref });
+      } catch (err) {
+        console.error('[refund] payment resolve/verify FAILED:', err.message);
+        return res.status(502).json({ error: 'Could not verify the Square payment to refund.', detail: err.message });
+      }
+
+      // RefundPayment — idempotency key (ws+txn+amount) so a retry can't
+      // mint two refunds.
+      let refund;
+      try {
+        refund = await squareRefunds.refundSquarePayment({
+          accessToken, paymentId, amountCents: amount_cents,
+          idempotencyKey: `sqrf-${workspaceId}-${id}-${amount_cents}`, reason,
+        });
+      } catch (err) {
+        console.error('[refund] Square RefundPayment FAILED (status ' + (err.squareStatus || '?') + '):', err.message);
+        return res.status(502).json({ error: 'Square refused the refund.', detail: err.message });
+      }
+
+      // Record refund state in the ISOLATED square_refunds table (NEVER a
+      // transaction_payments row — that table is revenue-summed).
+      await pool.query(
+        `INSERT INTO square_refunds
+           (workspace_id, transaction_id, square_refund_id, square_payment_id, amount_cents, currency, status, reason, created_by_user_id)
+         VALUES ($1,$2,$3,$4,$5,'USD','pending',$6,$7)
+         ON CONFLICT (square_refund_id) DO NOTHING`,
+        [workspaceId, id, refund.refund_id, paymentId, amount_cents, reason, req.session.userId]
+      );
+      await sendSquareSecurityNotice(re.user, 'refund'); // AD6-style alert
+
+      // G2: the books move (child txn + parent ratchet) ONLY on Square's
+      // COMPLETED confirmation. If Square returned COMPLETED synchronously,
+      // run the completion core now; otherwise the refund.updated webhook
+      // does — idempotent either way.
+      let confirmed = null;
+      if (refund.status === 'COMPLETED') {
+        try {
+          confirmed = await paymentLedger.processSquareRefundCompleted(pool, {
+            refundId: refund.refund_id, merchantId: ws.square_merchant_id, amountCents: amount_cents, currency: 'USD',
+          });
+        } catch (e) { console.error('[refund] sync completion failed (webhook will retry):', e.message); }
+      }
+      const moved = !!(confirmed && confirmed.ok);
+      const { formatCents } = require('./lib/money'); // the one money formatter
+      return res.json({
+        success: true,
+        square_refund_id: refund.refund_id,
+        money_moved: moved,
+        refund_transaction_id: confirmed && confirmed.refund_child_transaction_id,
+        parent_status: moved ? confirmed.parent_status : parent.status,
+        note: moved
+          ? `Refund of ${formatCents(amount_cents)} completed via Square — returned to the customer's card.`
+          : `Refund of ${formatCents(amount_cents)} submitted to Square. It will show as refunded once Square confirms (usually seconds).`,
+      });
+    }
+
+    // ===== Non-Square (Stripe / cash / other): RECORD-ONLY (unchanged) =====
     // Create the refund transaction (linked, source='refund')
     const refundLineItems = [{
       description: `Refund: ${reason}`,
