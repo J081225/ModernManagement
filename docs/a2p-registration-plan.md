@@ -61,8 +61,29 @@ against the Twilio Trust Hub API 2026-08-16.
 
 ### 2a. A2P Brand registration (uses BU2df49…)
 
-The Brand is created from the approved Primary Business Profile. Fields
-the Brand form requires (verbatim-ish; most auto-fill from the profile):
+**⚠️ SUBMISSION REALITY (found 2026-08-16, before submitting):** the Brand
+POST requires TWO bundles — `CustomerProfileBundleSid` (BU2df49 ✓,
+approved) **and `A2PProfileBundleSid`, an "A2P Messaging Profile"
+TrustProduct that DOES NOT EXIST yet.** The account's only two bundles are
+**SHAKEN/STIR (voice)** and **Toll-free** — neither is A2P messaging.
+Creating the A2P bundle is a multi-step TrustHub operation (TrustProduct
+with the A2P policy → assign BU2df49 + an `us_a2p_messaging_profile`
+end-user → evaluate → submit → await its OWN approval), and only then can
+the Brand be POSTed (then the Brand itself needs approval).
+
+**Path decision (Jay's call):**
+- **Console A2P wizard (recommended):** creates the A2P bundle + brand in
+  one guided flow AND shows the exact fee BEFORE charging (a raw API POST
+  charges with no preview). Enter the fields below; report the Brand SID +
+  fee it shows.
+- **API orchestration (I can do it):** I build the A2P bundle + brand via
+  TrustHub calls — flagged risk: several async approval gates and
+  end-user attributes that, done wrong, create rejected/malformed bundles
+  and waste fees. I did NOT fire these blind.
+
+Brand type is **STANDARD** (Low-Volume is a campaign/vetting distinction,
+not a brand type; set `SkipAutomaticSecVet=true` to avoid the ~$40 sec
+vet). Fields the Brand form requires (most auto-fill from BU2df49):
 
 - **Legal business name** (must match EIN records exactly)
 - **Business type / structure** (e.g., Private / LLC)
