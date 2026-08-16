@@ -78,11 +78,13 @@ function makeDb() {
   {
     const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
     const pr = fs.readFileSync(path.join(__dirname, '..', 'lib', 'payment-requests.js'), 'utf8');
+    // LP2a strengthened the send conditions: opt-out AND the demo
+    // hard-block both gate the actual .create call.
     const engGate = eng.includes("require('./sms-consent').isOptedOut(db, workspace.id, customer_phone)")
-      && /&& !_optedOut\) \{/.test(eng);
+      && /&& !_optedOut && !workspace\.is_demo\) \{/.test(eng);
     const prGate = pr.includes("require('./sms-consent').isOptedOut(pool, workspace.id, customerPhone)")
-      && /&& !_custOptedOut\) \{/.test(pr);
-    check('OC4: the customer send paths (appointment-engine reply + payment-link SMS) check isOptedOut and skip the send for an opted-out number — suppression is at OUR send layer',
+      && /&& !_custOptedOut && !workspace\.is_demo\) \{/.test(pr);
+    check('OC4: the customer send paths (appointment-engine reply + payment-link SMS) gate the send on isOptedOut AND the is_demo hard-block — suppression is at OUR send layer',
       engGate && prGate, JSON.stringify({ engGate, prGate }));
   }
 

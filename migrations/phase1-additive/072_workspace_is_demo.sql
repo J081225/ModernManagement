@@ -1,0 +1,13 @@
+-- LP2a: the demo workspace flag (Northside Barbers — the landing page's
+-- live demo line, R2/R3 rulings 2026-08-16).
+--
+-- is_demo marks a workspace as the public demo. Three behaviors key off it,
+-- all structural (not prompt-level, same stance as the refund gate):
+--   1. SMS HARD-BLOCK — a demo workspace may NEVER send an SMS while the
+--      A2P campaign is pending (guards at the appointment-engine outbound
+--      seam, the payment-link SMS seam, and send_broadcast).
+--   2. 3-minute max call — the ConversationRelay WS handler ends demo
+--      calls politely at ~3 minutes.
+--   3. Daily minutes ceiling — /api/voice/relay-incoming declines demo
+--      calls once today's demo minutes exceed the cap (~$100/mo budget).
+ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE;

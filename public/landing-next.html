@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modern Management — Your phone, answered. Forever.</title>
+  <meta name="description" content="An AI receptionist for salons and barbershops. Answers every call, books the appointment, hands you the books — 24/7, in English and Spanish. $320/month." />
+  <!-- Preview route: not indexed until this page becomes /. -->
+  <meta name="robots" content="noindex" />
+  <meta property="og:title" content="Modern Management — Your phone, answered. Forever." />
+  <meta property="og:description" content="Call the demo shop and hear it yourself: (332) 249-4333. A real AI answers on the real product." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23071510'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='600' fill='%23C9A96A' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..650&family=Instrument+Sans:wght@400;500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ================================================================
+       LP2 design tokens — the forest system (LP1 §2, ruled R8).
+       Brass = CTAs only. Emerald = live/true states ONLY — never
+       decoration, so when green appears it means something.
+       ================================================================ */
+    :root {
+      --forest-950: #071510;
+      --forest-900: #0B1F17;
+      --forest-700: #1F5B3F;
+      --emerald:    #2E8B61;
+      --cream:      #F4EFE6;
+      --cream-64:   rgba(244, 239, 230, 0.64);
+      --cream-40:   rgba(244, 239, 230, 0.40);
+      --hairline:   rgba(244, 239, 230, 0.10);
+      --brass:      #C9A96A;
+      --brass-deep: #B08F4F;
+      --ink:        #132A20;
+
+      --font-display: 'Fraunces', Georgia, serif;
+      --font-text: 'Instrument Sans', -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'Spline Sans Mono', 'Courier New', monospace;
+
+      /* Type scale — strict ratio 1.25 (mobile). Desktop re-declares at 1.333. */
+      --step-0: 1rem;
+      --step-1: 1.25rem;
+      --step-2: 1.563rem;
+      --step-3: 1.953rem;
+      --step-4: 2.441rem;
+      --step-5: 3.052rem;
+
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* fast-out, slow-in */
+    }
+    @media (min-width: 768px) {
+      :root {
+        --step-1: 1.333rem;
+        --step-2: 1.777rem;
+        --step-3: 2.369rem;
+        --step-4: 3.157rem;
+        --step-5: 4.209rem;
+      }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-text);
+      background: var(--forest-950);
+      color: var(--cream);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: var(--brass); color: var(--forest-950); }
+    a { color: inherit; }
+    :focus-visible {
+      outline: 2px solid var(--brass);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    /* ── Nav ── */
+    header.nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      background: rgba(7, 21, 16, 0.82);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 11px;
+      text-decoration: none; font-weight: 600; letter-spacing: -0.01em;
+      font-size: 0.98rem;
+    }
+    .nav-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 600;
+      color: var(--brass); font-size: 1.05rem;
+    }
+    .nav-links { display: flex; align-items: center; gap: 22px; }
+    .nav-ghost {
+      color: var(--cream-64); text-decoration: none;
+      font-size: 0.9rem; font-weight: 500;
+      transition: color 0.2s var(--ease-out);
+    }
+    .nav-ghost:hover { color: var(--cream); }
+    .btn-brass {
+      display: inline-block;
+      background: var(--brass); color: var(--forest-950);
+      text-decoration: none; font-weight: 600;
+      padding: 10px 20px; border-radius: 9px;
+      font-size: 0.92rem;
+      transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out);
+    }
+    .btn-brass:hover { transform: translateY(-1px); background: var(--brass-deep); }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1060px; margin: 0 auto;
+      padding: 72px 20px 84px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-size: 0.78rem; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--brass);
+      margin-bottom: 26px;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      /* Fraunces at display size: high optical size, LIGHT-ish weight —
+         never faux-bold (design brief). */
+      font-variation-settings: 'opsz' 144;
+      font-weight: 380;
+      font-size: clamp(2.8rem, 8.5vw, var(--step-5));
+      line-height: 1.06;
+      letter-spacing: -0.015em;
+      text-wrap: balance;
+      max-width: 17ch;
+      margin: 0 auto 22px;
+    }
+    .hero-lede {
+      font-size: var(--step-1);
+      line-height: 1.55;
+      color: var(--cream-64);
+      max-width: 44ch;
+      margin: 0 auto 48px;
+      text-wrap: balance;
+    }
+    .hero-lede strong { color: var(--cream); font-weight: 500; }
+
+    /* The demo card — "the phone number is the image." */
+    .demo-card {
+      max-width: 560px;
+      margin: 0 auto 44px;
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 18px;
+      padding: 34px 26px 30px;
+      text-align: center;
+    }
+    .demo-live {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--emerald);
+      margin-bottom: 18px;
+    }
+    /* Emerald dot = the line is LIVE — the palette's one "true" signal.
+       Static by design: nothing loops forever. */
+    .demo-live::before {
+      content: ''; width: 7px; height: 7px; border-radius: 50%;
+      background: var(--emerald);
+    }
+    .demo-number {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(1.9rem, 7vw, 2.6rem);
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--cream);
+      text-decoration: none;
+      border-bottom: 2px solid var(--brass);
+      padding-bottom: 2px;
+      margin-bottom: 18px;
+      transition: color 0.25s var(--ease-out);
+    }
+    .demo-number:hover { color: var(--brass); }
+    .demo-invite {
+      font-size: 1.02rem; line-height: 1.6;
+      color: var(--cream-64);
+      max-width: 40ch; margin: 0 auto 16px;
+    }
+    .demo-invite strong { color: var(--cream); font-weight: 600; }
+    .demo-fineprint {
+      font-size: 0.78rem; color: var(--cream-40);
+      font-family: var(--font-mono);
+    }
+
+    /* CTA row */
+    .hero-cta { margin-bottom: 10px; }
+    .btn-hero {
+      display: inline-block;
+      background: var(--brass); color: var(--forest-950);
+      text-decoration: none;
+      font-weight: 600; font-size: 1.05rem;
+      padding: 16px 38px; border-radius: 12px;
+      transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out);
+    }
+    .btn-hero:hover { transform: translateY(-2px); background: var(--brass-deep); }
+    .hero-price-line {
+      font-size: 0.92rem; color: var(--cream-64);
+      font-variant-numeric: tabular-nums;
+      margin-top: 16px;
+    }
+    .hero-price-line strong { color: var(--cream); font-weight: 600; }
+
+    /* ── Transcript panel (renders ONLY when the real recording exists — see JS) ── */
+    .transcript {
+      max-width: 620px;
+      margin: 56px auto 0;
+      text-align: left;
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 18px;
+      padding: 26px 24px;
+      display: none; /* shown by JS when /audio/demo-call.json exists */
+    }
+    .transcript.is-ready { display: block; }
+    .transcript-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; margin-bottom: 18px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .transcript-title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--cream-64);
+    }
+    .transcript-play {
+      background: var(--brass); color: var(--forest-950);
+      border: none; border-radius: 8px;
+      font-family: var(--font-text); font-weight: 600; font-size: 0.88rem;
+      padding: 9px 18px; cursor: pointer;
+      transition: background 0.25s var(--ease-out);
+    }
+    .transcript-play:hover { background: var(--brass-deep); }
+    .transcript-lines { display: flex; flex-direction: column; gap: 14px; }
+    .t-line { display: none; }
+    .t-line.is-shown { display: block; }
+    .t-who {
+      font-family: var(--font-mono);
+      font-size: 0.7rem; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      display: block; margin-bottom: 3px;
+      color: var(--cream-40);
+    }
+    .t-line.ai .t-who { color: var(--emerald); } /* live/true: the AI's real words */
+    .t-text { font-size: 0.98rem; line-height: 1.55; color: var(--cream); }
+    .transcript-note {
+      margin-top: 18px; font-size: 0.78rem; color: var(--cream-40);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
+    .mini-cta {
+      position: fixed; left: 50%; bottom: 18px; z-index: 90;
+      transform: translate(-50%, 140%);
+      opacity: 0;
+      transition: transform 0.35s var(--ease-out), opacity 0.35s var(--ease-out);
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 999px;
+      padding: 8px 8px 8px 20px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      white-space: nowrap;
+    }
+    .mini-cta.is-shown { transform: translate(-50%, 0); opacity: 1; }
+    .mini-cta .mini-number {
+      font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+      font-size: 0.88rem; font-weight: 500; color: var(--cream);
+      text-decoration: none;
+    }
+    .mini-cta .btn-brass { padding: 8px 16px; font-size: 0.85rem; }
+
+    /* ── Entrance reveals: transform+opacity only, staggered ≤300ms ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+    }
+    .reveal.is-in { opacity: 1; transform: none; }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      .mini-cta { transition: none; }
+      .btn-brass, .btn-hero, .demo-number { transition: none; }
+      /* Transcript: no typing — the full conversation shows statically. */
+      .t-line { display: block; }
+    }
+
+    @media (max-width: 480px) {
+      .nav-links .nav-ghost.hide-sm { display: none; }
+      .hero { padding: 52px 18px 64px; }
+      .demo-card { padding: 28px 18px 24px; }
+      .mini-cta { max-width: calc(100vw - 24px); padding-left: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="nav">
+    <a href="/" class="nav-logo" aria-label="Modern Management home">
+      <span class="nav-mark" aria-hidden="true">M</span>
+      <span>Modern Management</span>
+    </a>
+    <nav class="nav-links" aria-label="Main">
+      <a href="/professional-services#pricing" class="nav-ghost hide-sm">Pricing</a>
+      <a href="/login" class="nav-ghost">Sign in</a>
+      <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-brass">Start free trial</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <p class="hero-eyebrow reveal" style="transition-delay:0ms">AI receptionist for salons &amp; barbershops</p>
+      <h1 class="reveal" style="transition-delay:70ms">Your phone, answered. Forever.</h1>
+      <p class="hero-lede reveal" style="transition-delay:140ms">
+        She answers every call, books the appointment, and hands you the books &mdash;
+        <strong>24/7, in English and Spanish.</strong>
+      </p>
+
+      <div class="demo-card reveal" style="transition-delay:210ms">
+        <span class="demo-live">Live now</span><br>
+        <a class="demo-number" href="tel:+13322494333" aria-label="Call the demo shop at (332) 249-4333">(332)&nbsp;249&#8209;4333</a>
+        <p class="demo-invite">
+          Don&rsquo;t take our word for it. Call <strong>Northside Barbers</strong> &mdash;
+          our demo shop &mdash; and a real AI answers on the real product.
+          <strong>Try to book something.</strong>
+        </p>
+        <p class="demo-fineprint">Demo calls run up to 3 minutes &middot; daily minutes are limited &middot; it will never text you</p>
+      </div>
+
+      <div class="hero-cta reveal" style="transition-delay:280ms">
+        <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-hero">Start your free trial</a>
+        <p class="hero-price-line"><strong>$320/mo</strong> &mdash; a full-time receptionist runs $3,000+.</p>
+      </div>
+
+      <!-- The recorded-call transcript. Hidden until the real recording
+           (Jay's, per R3) lands at /audio/demo-call.json + .mp3 — no
+           placeholder content, ever. The typing animation is driven by
+           the real audio's real cue times. -->
+      <div class="transcript" id="transcript" aria-label="A real recorded call to the demo shop">
+        <div class="transcript-head">
+          <span class="transcript-title">A real call to the demo line</span>
+          <button class="transcript-play" id="transcriptPlay" type="button">&#9654;&nbsp; Play the call</button>
+        </div>
+        <div class="transcript-lines" id="transcriptLines"></div>
+        <p class="transcript-note">Recorded on this demo line. Unedited. The voice is the product.</p>
+        <audio id="transcriptAudio" preload="none"></audio>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sticky mini-CTA: only after the hero scrolls out -->
+  <div class="mini-cta" id="miniCta" aria-hidden="true">
+    <a class="mini-number" href="tel:+13322494333">(332) 249-4333</a>
+    <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-brass">Free trial</a>
+  </div>
+
+  <script>
+    (function () {
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      // Entrance reveals — staggered via per-element transition-delay.
+      var reveals = document.querySelectorAll('.reveal');
+      if (reduced) {
+        reveals.forEach(function (el) { el.classList.add('is-in'); });
+      } else {
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            reveals.forEach(function (el) { el.classList.add('is-in'); });
+          });
+        });
+      }
+
+      // Sticky mini-CTA: shown only once the hero is out of view.
+      var hero = document.getElementById('hero');
+      var mini = document.getElementById('miniCta');
+      if ('IntersectionObserver' in window) {
+        new IntersectionObserver(function (entries) {
+          var out = !entries[0].isIntersecting;
+          mini.classList.toggle('is-shown', out);
+          mini.setAttribute('aria-hidden', String(!out));
+        }, { threshold: 0 }).observe(hero);
+      }
+
+      // Transcript rig: renders ONLY if the real recording exists.
+      // /audio/demo-call.json shape:
+      //   { "audio": "/audio/demo-call.mp3",
+      //     "cues": [{ "t": 0.0, "who": "ai"|"caller", "text": "..." }] }
+      var panel = document.getElementById('transcript');
+      var linesEl = document.getElementById('transcriptLines');
+      var audio = document.getElementById('transcriptAudio');
+      var playBtn = document.getElementById('transcriptPlay');
+
+      fetch('/audio/demo-call.json').then(function (r) {
+        if (!r.ok) throw new Error('no recording yet');
+        return r.json();
+      }).then(function (data) {
+        if (!data || !data.audio || !Array.isArray(data.cues) || !data.cues.length) return;
+        audio.src = data.audio;
+        data.cues.forEach(function (cue) {
+          var line = document.createElement('div');
+          line.className = 't-line ' + (cue.who === 'ai' ? 'ai' : 'caller');
+          var who = document.createElement('span');
+          who.className = 't-who';
+          who.textContent = cue.who === 'ai' ? 'Northside AI' : 'Caller';
+          var text = document.createElement('p');
+          text.className = 't-text';
+          text.textContent = cue.text;
+          line.appendChild(who); line.appendChild(text);
+          linesEl.appendChild(line);
+        });
+        panel.classList.add('is-ready');
+
+        var lineEls = linesEl.querySelectorAll('.t-line');
+        if (reduced) { lineEls.forEach(function (el) { el.classList.add('is-shown'); }); }
+
+        var raf = null;
+        function sync() {
+          var t = audio.currentTime;
+          data.cues.forEach(function (cue, i) {
+            if (t >= cue.t) lineEls[i].classList.add('is-shown');
+          });
+          if (!audio.paused && !audio.ended) raf = requestAnimationFrame(sync);
+        }
+        playBtn.addEventListener('click', function () {
+          if (audio.paused) {
+            audio.play();
+            playBtn.innerHTML = '&#10074;&#10074;&nbsp; Pause';
+            if (!reduced) raf = requestAnimationFrame(sync);
+          } else {
+            audio.pause();
+            playBtn.innerHTML = '&#9654;&nbsp; Play the call';
+            if (raf) cancelAnimationFrame(raf);
+          }
+        });
+        audio.addEventListener('ended', function () {
+          playBtn.innerHTML = '&#8635;&nbsp; Play it again';
+          lineEls.forEach(function (el) { el.classList.add('is-shown'); });
+        });
+      }).catch(function () { /* recording not published yet — panel stays absent */ });
+    })();
+  </script>
+</body>
+</html>

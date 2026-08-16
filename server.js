@@ -464,6 +464,10 @@ app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public
 // customers here (optionally with ?business=<name>); the required consent
 // checkbox gates submission and POST /api/sms-opt-in records it.
 app.get('/sms-opt-in', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-opt-in.html')));
+// LP2: the landing rebuild grows section-by-section at this UNLISTED
+// preview route (noindex meta on the page). It replaces / when the full
+// page is built and Jay rules the flip (R1).
+app.get('/lp-preview', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing-next.html')));
 app.get('/sms-terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-terms.html')));
 app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
 app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
@@ -7703,6 +7707,31 @@ app.post('/api/voice/transcription', validateTwilioSignature, async (req, res) =
 //
 // Whitelisted as unauthenticated at /api/* around server.js:2775 alongside
 // the other Twilio-called routes.
+// LP2a: demo-line daily minutes ceiling. The landing page's demo number
+// (Northside Barbers, is_demo=TRUE) is budget-capped at ~$100/mo (R2
+// ruling): at ~$0.09/min all-in, 35 min/day * 30 days ~= 1,050 min ~= $95.
+// Truth source is Twilio's own call log for the demo number (bills = truth,
+// no new tables); cached 60s so a burst of calls costs one API read.
+const DEMO_DAILY_MINUTES_CAP = 35;
+let _demoMinutesCache = { number: null, atMs: 0, minutes: 0 };
+async function demoLineOverDailyCap(demoNumber) {
+  try {
+    if (_demoMinutesCache.number === demoNumber && Date.now() - _demoMinutesCache.atMs < 60 * 1000) {
+      return _demoMinutesCache.minutes >= DEMO_DAILY_MINUTES_CAP;
+    }
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const calls = await twilioClient.calls.list({ to: demoNumber, startTimeAfter: dayStart, limit: 400 });
+    const seconds = calls.reduce((sum, c) => sum + (parseInt(c.duration, 10) || 0), 0);
+    _demoMinutesCache = { number: demoNumber, atMs: Date.now(), minutes: seconds / 60 };
+    return _demoMinutesCache.minutes >= DEMO_DAILY_MINUTES_CAP;
+  } catch (err) {
+    // Fail-open for ONE call's worth of risk (3-min max), fail-loud in logs.
+    console.error('[voice/relay-incoming] demo cap check failed (allowing call):', err.message);
+    return false;
+  }
+}
+
 app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) => {
   const to = req.body && req.body.To;
 
@@ -7742,6 +7771,18 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
       '<?xml version="1.0" encoding="UTF-8"?>\n' +
       '<Response>\n' +
       '  <Say>Sorry, this number is not set up yet. Please try again later.</Say>\n' +
+      '  <Hangup/>\n' +
+      '</Response>'
+    );
+    return;
+  }
+
+  // LP2a: demo line — decline politely once today's demo minutes are spent.
+  if (workspace.is_demo && await demoLineOverDailyCap(to)) {
+    res.type('text/xml').send(
+      '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<Response>\n' +
+      '  <Say>Thanks for calling the Modern Management demo line! Today\'s demo minutes are all used up. Please call back tomorrow, or visit modern management app dot com to start a free trial.</Say>\n' +
       '  <Hangup/>\n' +
       '</Response>'
     );
@@ -11402,6 +11443,10 @@ wss.on('connection', (ws, req) => {
   // FD3-CP2: once-per-call guards for the voice safety fallbacks.
   let emergencyAlerted = false;
   let callbackTaskCreated = false;
+  // LP2a: demo-call timers (3-min max, R2 ruling). Set at setup for
+  // is_demo workspaces, cleared on close.
+  let demoWrapTimer = null;
+  let demoEndTimer = null;
 
   // Strip Markdown/formatting characters so Twilio's TTS doesn't read them
   // aloud (e.g. ** would otherwise be spoken as "asterisk asterisk"). Only
@@ -11461,6 +11506,19 @@ wss.on('connection', (ws, req) => {
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
+        // LP2a: demo calls end politely at ~3 minutes (R2 ruling). At
+        // 2:52 the AI wraps up; 8s later the session ends ({type:'end'}
+        // per the ConversationRelay protocol — no TwiML follows <Connect>,
+        // so Twilio hangs up).
+        if (workspace && workspace.is_demo) {
+          demoWrapTimer = setTimeout(() => {
+            sendText("This demo call is wrapping up — thanks for trying it! To get a receptionist like me for your own business, visit modern management app dot com. Bye for now!");
+            demoEndTimer = setTimeout(() => {
+              try { ws.send(JSON.stringify({ type: 'end' })); } catch (err) { /* socket already gone */ }
+              try { ws.close(); } catch (err) { /* already gone */ }
+            }, 8000);
+          }, 172000);
+        }
         // FD3-CP1: open the per-call transcript row immediately so even
         // a call dropped mid-sentence has its turns on record.
         if (workspace) {
@@ -11575,6 +11633,9 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', (code, reason) => {
     console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
+    // LP2a: a demo call that ends early must not fire stale timers.
+    if (demoWrapTimer) { clearTimeout(demoWrapTimer); demoWrapTimer = null; }
+    if (demoEndTimer) { clearTimeout(demoEndTimer); demoEndTimer = null; }
     // FD3-CP1: hangup — stamp the transcript (already persisted per
     // turn) and end the conversation. closeConversationThread is
     // idempotent, so close+error double-fires end it exactly once.
