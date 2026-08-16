@@ -71,6 +71,7 @@ const verticals = require('./lib/verticals');
 // handled=false, the existing emergency-detection / auto-reply paths
 // fire as before.
 const appointmentEngine = require('./lib/appointment-engine');
+const smsConsent = require('./lib/sms-consent');
 const voiceTranscript = require('./lib/voice-transcript');
 
 // Session D3: subscription lifecycle event processors. Handle
@@ -7341,6 +7342,40 @@ app.post('/api/sms/incoming', validateTwilioSignature, async (req, res) => {
     return;
   }
   const userId = route.owner_user_id;
+
+  // A2P/TCPA opt-out: STOP/START/HELP are keyword COMMANDS, not
+  // conversation. Handle them at OUR layer BEFORE the AI engine ever sees
+  // them — the AI must never "reply" to STOP, and the opt-out must be
+  // recorded (per workspace, per number) so the send path suppresses
+  // future messages. Strict liability: this is a law. (Twilio Advanced
+  // Opt-Out on the Messaging Service is the carrier-level backstop.)
+  const optKind = smsConsent.classifyOptKeyword(body);
+  if (optKind) {
+    const kw = body.trim().toUpperCase().slice(0, 40);
+    try {
+      if (optKind === 'stop') await smsConsent.recordOptOut(pool, route.workspace_id, from, kw);
+      else if (optKind === 'start') await smsConsent.recordOptIn(pool, route.workspace_id, from, kw);
+    } catch (err) { console.error('[sms/incoming] opt-consent record failed:', err.message); }
+    // Audit the inbound keyword in the owner's inbox (best-effort).
+    pool.query(
+      'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+      [userId, from, `SMS from ${from}`, 'sms', body, 'new', 'inbox', from, 'inbound', 'customer']
+    ).catch(() => {});
+    // Reply with the declared copy (best-effort; Twilio may also reply —
+    // if it blocks a send to an opted-out number, the catch swallows it).
+    try {
+      const wr = (await pool.query('SELECT business_name, twilio_phone_number FROM workspaces WHERE id = $1', [route.workspace_id])).rows[0] || {};
+      // Reply FROM the workspace's own number — the one the STOP was sent
+      // TO (`to`). No platform fallback (SP4b): the opt-out confirmation
+      // must come from the number the customer already knows.
+      const fromNum = wr.twilio_phone_number || to;
+      const replyBody = optKind === 'stop' ? smsConsent.stopReply(wr.business_name)
+        : optKind === 'start' ? smsConsent.startReply(wr.business_name)
+        : smsConsent.helpReply(wr.business_name);
+      if (fromNum && twilioClient) await twilioClient.messages.create({ from: fromNum, to: from, body: replyBody });
+    } catch (err) { console.error('[sms/incoming] opt-consent reply failed:', err.message); }
+    return; // short-circuit — the AI / auto-reply paths never see a keyword
+  }
 
   const { rows } = await pool.query(
     'INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
