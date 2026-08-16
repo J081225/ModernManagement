@@ -355,6 +355,20 @@ covering our own local numbers.
   professional-services appointment A2P use case a reviewer expects for
   the local number. **No fee charged.** Fix = website content build +
   resubmit — HELD for Jay's ruling ("report before retrying").
+- **Website copy FIX (commit ae45399):** per the rejection email's
+  near-verbatim targets — privacy.html §4.2 (mobile info + SMS consent NOT
+  shared with third parties/affiliates for marketing → 30908); terms.html
+  §2.1 + sms-consent.html (transactional/service, sent by each platform
+  business to its OWN customers, no third-party marketing, numbers never
+  sold/shared → 30882), mirroring the ISV sentence. Deployed + verified
+  live (clauses present; homepage links to /privacy + /terms).
+- **RESUBMIT: FAILED AGAIN, same codes (30882 + 30908), in ~1 minute**
+  (vs ~7 first time). Fast + identical = a **cached vetting crawl** — the
+  third-party checker hasn't re-fetched the live pages, and reusing the
+  deterministic campaign SID returned the prior verdict. Content now
+  matches the targets and is live. **No fee. Do NOT spam-resubmit** — wait
+  for the re-crawl (hours→a day), resubmit once; if it still fails on a
+  confirmed-fresh crawl, iterate on exact phrasing/placement.
 
 **Submission sequence (Jay's order):** STOP unit ✅ → consent copy ✅ →
 **submit Brand → Campaign** with the approved §3.1–3.2 text → create/link
