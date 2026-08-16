@@ -88,6 +88,17 @@ const ANTI = plans.ANTI_LIST; // [{ flag, label }]
       JSON.stringify({ receptionist, spanish, payments, report, allLive }));
   }
 
+  // ---- PC6b: the DB constraint admits the live plan id ----
+  {
+    // Found live (LP2a): workspaces_plan_check still listed only retired
+    // tiers, so plan='professional' was REJECTED by the DB — signups and
+    // the demo workspace both would fail. Migration 073 extends it; this
+    // pins that the migration exists and includes 'professional'.
+    const mig = fs.readFileSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '073_plan_check_professional.sql'), 'utf8');
+    const ok = /workspaces_plan_check/.test(mig) && /'professional'::text/.test(mig) && /'trial'::text/.test(mig);
+    check('PC6b: migration 073 re-declares workspaces_plan_check to admit the live plan id (professional) alongside trial + legacy ids', ok);
+  }
+
   // ---- PC6: the collapse actually holds in plans.js ----
   {
     const onePlan = plans.VALID_PLAN_IDS.length === 2
