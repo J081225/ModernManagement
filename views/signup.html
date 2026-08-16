@@ -289,25 +289,14 @@
           </label>
         </div>
 
-        <!-- E11: PS plan cards. Hidden by default; shown when SIGNUP_VERTICAL === 'professional-services'.
-             Monthly-only in v1 (annual billing deferred). All three tiers include a 7-day free trial. -->
+        <!-- PS: ONE plan, everything included (2026-08-16 collapse). Monthly
+             or annual via the toggle above. The retired Starter/Pro/Premium
+             cards sold nonexistent features — see lib/plans.js ANTI_LIST. -->
         <div id="ps-plans" style="display:none;">
-          <label class="plan-card" data-plan="starter" onclick="selectPlan('starter')">
-            <input type="radio" name="plan" value="starter" />
-            <span class="plan-name">Starter</span> &nbsp; <span class="plan-price">$149/mo</span>
-            <div class="plan-meta">50 customers, 150 appointments/mo, 25 services. 7-day free trial.</div>
-          </label>
-
-          <label class="plan-card" data-plan="pro" onclick="selectPlan('pro')">
-            <input type="radio" name="plan" value="pro" />
-            <span class="plan-name">Pro</span> &nbsp; <span class="plan-price">$295/mo</span>
-            <div class="plan-meta">Unlimited customers, 600 appointments/mo, unlimited services, automatic reminders, vendor messaging. 7-day free trial.</div>
-          </label>
-
-          <label class="plan-card" data-plan="premium" onclick="selectPlan('premium')">
-            <input type="radio" name="plan" value="premium" />
-            <span class="plan-name">Premium</span> &nbsp; <span class="plan-price">$375/mo</span>
-            <div class="plan-meta">Unlimited everything, multi-staff scheduling, branded SMS sender ID, 1-on-1 founder onboarding. 7-day free trial.</div>
+          <label class="plan-card selected" data-plan="professional" onclick="selectPlan('professional')">
+            <input type="radio" name="plan" value="professional" />
+            <span class="plan-name">Modern Management</span> &nbsp; <span class="plan-price" id="price-ps">$320/mo</span>
+            <div class="plan-meta">Your whole front desk — a 24/7 AI phone receptionist, English &amp; Spanish, honest card payments and books. Everything included, no caps. 7-day free trial.</div>
           </label>
         </div>
 
@@ -371,11 +360,14 @@
         if (psFields) psFields.style.display = '';
         if (pmPlans)  pmPlans.style.display  = 'none';
         if (psPlans)  psPlans.style.display  = '';
-        // PS is monthly-only in v1 — hide the toggle entirely.
-        if (pmBillingToggle) pmBillingToggle.style.display = 'none';
+        // PS now has monthly + annual (2026-08-16 collapse). Keep the toggle.
+        if (pmBillingToggle) pmBillingToggle.style.display = '';
+        // One plan — preselect it and set the price for the current cadence.
+        selectPlan('professional');
+        setBilling(getDraft().billing || 'monthly', /*skipPersist=*/true);
         // Update the pricing subhead with PS-flavored copy.
         const sub = document.getElementById('plan-suggestion');
-        if (sub) sub.textContent = 'Step 4 of 4 — try free for 7 days. Cancel anytime during the trial.';
+        if (sub) sub.textContent = 'Step 4 of 4 — one plan, everything included. Try free for 7 days.';
       }
     });
 
@@ -649,8 +641,8 @@
           area_code:        draft.area_code || '',
           area_code_backup: draft.area_code_backup || '',
           alert_phone:      draft.alert_phone || '',
-          billing:          IS_PS ? 'monthly' : (draft.billing || 'monthly'),
-          plan:             draft.plan,
+          billing:          draft.billing || 'monthly',
+          plan:             IS_PS ? 'professional' : draft.plan,
           // E1: vertical chosen on /signup/vertical and passed via
           // ?vertical=... query string. Defaults to property-management.
           vertical:         SIGNUP_VERTICAL,
@@ -722,15 +714,8 @@
       if (!el) return;
       const d = getDraft();
       if (IS_PS) {
-        // E11: PS recommendation by appointments/month.
-        //   <100 → Starter, 100-500 → Pro, 500+ → Premium.
-        const apm = d.appointments_per_month;
-        if (!Number.isFinite(apm)) return;
-        let plan;
-        if (apm < 100)       plan = 'Starter';
-        else if (apm <= 500) plan = 'Pro';
-        else                 plan = 'Premium';
-        el.textContent = 'Step 4 of 4 — based on your appointment volume, ' + plan + ' is recommended. 7-day free trial on every tier.';
+        // One plan — nothing to recommend; everything is included.
+        el.textContent = 'Step 4 of 4 — one plan, everything included. Try free for 7 days.';
       } else {
         // PM recommendation by unit count — unchanged.
         const u = d.units;
@@ -745,7 +730,13 @@
     function setBilling(mode, skipPersist) {
       document.getElementById('bill-monthly').classList.toggle('active', mode === 'monthly');
       document.getElementById('bill-annual').classList.toggle('active', mode === 'annual');
-      if (mode === 'monthly') {
+      if (IS_PS) {
+        // One plan: monthly $320 or annual $3,200 (2 months free).
+        const psPrice = document.getElementById('price-ps');
+        if (psPrice) psPrice.innerHTML = mode === 'annual'
+          ? '$3,200/yr <span class="savings-tag">2 months free</span>'
+          : '$320/mo';
+      } else if (mode === 'monthly') {
         document.getElementById('price-solo').innerHTML       = '$79/mo';
         document.getElementById('price-team').innerHTML       = '$149/mo';
         document.getElementById('price-enterprise').innerHTML = '$299/mo';

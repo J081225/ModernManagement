@@ -379,7 +379,7 @@
     <p class="hero-attribution">&mdash; Sarah, salon owner</p>
     <p class="hero-sub">Modern Management is an AI assistant for service businesses that live on bookings. Appointments, customer messages, inventory, vendor coordination, and the daily admin &mdash; all handled by an AI that knows your business. You teach it once. It runs the operations and surfaces what's working, so you can focus on the work that pays.</p>
     <div class="hero-ctas">
-      <a href="/signup?vertical=professional-services&plan=starter" class="btn-primary">Start free trial &rarr;</a>
+      <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-primary">Start free trial &rarr;</a>
       <a href="#pricing" class="btn-secondary">See pricing</a>
     </div>
   </section>
@@ -473,106 +473,73 @@
   </section>
 
   <!-- Pricing -->
+  <!-- ============================================================
+       PRICING (2026-08-16 ruling — LOCKED). ONE plan. The old
+       Starter/Pro/Premium ladder is RETIRED (it sold features that
+       don't exist — see the anti-list in lib/plans.js).
+       CENSUS LAW: the "All live today" list holds ONLY live features.
+       Two claims are GATED and kept as flip-ready comments below:
+         - SMS "texts back" — flip in when the A2P campaign is APPROVED.
+         - additional languages — flip in when text is claimable
+           (native-speaker review passed), worded text-only & honest.
+       Do NOT add either to the live list until then. Pinned by
+       scripts/test-pricing-claims.js.
+       ============================================================ -->
   <section class="section" id="pricing">
     <div class="section-label">Pricing</div>
-    <h2 class="section-title">Pick your plan.</h2>
-    <p class="section-sub">Try free for 7 days. Cancel anytime during the trial.</p>
+    <h2 class="section-title">One price. Your whole front desk.</h2>
+    <p class="section-sub">A full-time receptionist runs $3,000&ndash;$4,000 a month. This is $320 &mdash; everything included, with no per-call, per-conversation, or per-appointment caps.</p>
 
     <div class="pricing-grid">
+      <div class="pricing-card featured" style="max-width:460px;flex-basis:460px;">
+        <div class="popular-badge">Everything included</div>
+        <div class="plan-name">Modern Management</div>
+        <div class="plan-price">$320<span class="period">/month</span></div>
+        <div style="color:#94a3b8;font-size:0.95em;margin:4px 0 2px;">or <strong style="color:#f5e6d3;">$3,200/year</strong> &mdash; 2 months free</div>
+        <div class="plan-trial">Start with a 7-day free trial</div>
 
-      <!-- Starter -->
-      <div class="pricing-card">
-        <div class="plan-name">Starter</div>
-        <div class="plan-price">$149<span class="period">/month</span></div>
-        <div class="plan-trial">7-day free trial</div>
+        <div style="font-size:0.74em;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:#94a3b8;margin:8px 0 12px;">All live today</div>
         <ul class="plan-features">
-          <li>50 customers</li>
-          <li>150 appointments/month</li>
-          <li>150 AI booking conversations/month</li>
-          <li>25 services on menu</li>
-          <li>50 products &amp; inventory items</li>
-          <li>25 KB knowledge base</li>
-          <li>10 reports/month</li>
-          <li>AI auto-respond to customers</li>
-          <li>Dedicated business phone number</li>
-          <li class="muted">Automatic appointment reminders</li>
-          <li class="muted">Vendor messaging</li>
-          <li class="muted">Custom appointment fields</li>
-          <li class="muted">Multi-staff scheduling</li>
-          <li class="muted">Branded SMS sender ID</li>
-          <li class="muted">Priority response queue</li>
-          <li class="muted">Premium AI setup (1-on-1 onboarding)</li>
-          <li class="muted">Dedicated success manager</li>
+          <li>A 24/7 AI phone receptionist &mdash; answers every call, books appointments, answers questions, takes messages</li>
+          <li>Speaks English &amp; Spanish</li>
+          <li>Takes payment, honestly &mdash; a secure card link (Square or Stripe), receipts, and real refunds; no surprise fees</li>
+          <li>Your books, done for you &mdash; every sale, deposit, and refund in one honest transaction report</li>
+          <li>Calendar, contacts, tasks, and a knowledge base your AI actually uses</li>
+          <!-- GATED — SMS. A2P campaign in review. Flip in (uncomment) ONLY when the campaign is APPROVED:
+          <li>Texts back, too &mdash; handles SMS conversations start to finish</li>
+          -->
+          <!-- GATED — more languages. Flip in ONLY when text is claimable (native-speaker review passed), worded text-only and honestly:
+          <li>&hellip; and more languages, as they pass native-speaker review</li>
+          -->
         </ul>
-        <a href="/signup?vertical=professional-services&plan=starter" class="btn-plan">Start free trial &rarr;</a>
-      </div>
 
-      <!-- Pro (featured) -->
-      <div class="pricing-card featured">
-        <div class="popular-badge">Most Popular</div>
-        <div class="plan-name">Pro</div>
-        <div class="plan-price">$295<span class="period">/month</span></div>
-        <div class="plan-trial">7-day free trial</div>
-        <ul class="plan-features">
-          <li>Unlimited customers</li>
-          <li>600 appointments/month</li>
-          <li>800 AI booking conversations/month</li>
-          <li>Unlimited services</li>
-          <li>250 products &amp; inventory items</li>
-          <li>Unlimited knowledge base</li>
-          <li>50 reports/month</li>
-          <li>AI auto-respond to customers</li>
-          <li>Dedicated business phone number</li>
-          <li>Automatic appointment reminders</li>
-          <li>Vendor messaging</li>
-          <li>Custom appointment fields</li>
-          <li class="muted">Multi-staff scheduling</li>
-          <li class="muted">Branded SMS sender ID</li>
-          <li class="muted">Priority response queue</li>
-          <li class="muted">Premium AI setup (1-on-1 onboarding)</li>
-          <li class="muted">Dedicated success manager</li>
-        </ul>
-        <a href="/signup?vertical=professional-services&plan=pro" class="btn-plan">Start free trial &rarr;</a>
+        <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-plan">Start free trial &rarr;</a>
+        <a href="/signup?vertical=professional-services&plan=professional&billing=annual" class="btn-plan-secondary">Pay yearly &mdash; get 2 months free</a>
       </div>
-
-      <!-- Premium -->
-      <div class="pricing-card">
-        <div class="plan-name">Premium</div>
-        <div class="plan-price">$375<span class="period">/month</span></div>
-        <div class="plan-trial">7-day free trial (annual commitment)</div>
-        <ul class="plan-features">
-          <li>Unlimited customers</li>
-          <li>Unlimited appointments</li>
-          <li>Unlimited AI conversations</li>
-          <li>Unlimited services</li>
-          <li>Unlimited products &amp; inventory</li>
-          <li>Unlimited knowledge base</li>
-          <li>Unlimited reports</li>
-          <li>AI auto-respond to customers</li>
-          <li>Dedicated business phone number</li>
-          <li>Automatic appointment reminders</li>
-          <li>Vendor messaging</li>
-          <li>Custom appointment fields</li>
-          <li>Multi-staff scheduling</li>
-          <li>Branded SMS sender ID</li>
-          <li>Priority response queue</li>
-          <li>Premium AI setup (1-on-1 onboarding)</li>
-          <li>Dedicated success manager</li>
-        </ul>
-        <a href="/signup?vertical=professional-services&plan=premium" class="btn-plan">Start free trial &rarr;</a>
-        <a href="https://cal.com/jay-modernmanagement" class="btn-plan-secondary">Book a 15-min demo with the founder</a>
-        <p class="annual-note">Annual commitment required &mdash; billed monthly.</p>
-      </div>
-
     </div>
 
-    <p class="pricing-note">Annual billing available &mdash; save 15%. Premium tier is annual-only after the trial.</p>
+    <!-- Founding offer — stated plainly (the trade is on the page). -->
+    <div style="max-width:640px;margin:34px auto 0;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.35);border-radius:14px;padding:24px 28px;">
+      <div style="color:#d4af37;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;font-size:0.78em;margin-bottom:8px;">Founding customers</div>
+      <p style="color:#e2e8f0;font-size:0.96em;line-height:1.6;margin:0;">
+        The first 10&ndash;15 salons get <strong style="color:#f5e6d3;">$160/month, locked for 12 months.</strong>
+        In exchange: a short testimonial, permission to use call recordings, and a monthly feedback call.
+        Help us build it &mdash; keep the price forever.
+      </p>
+    </div>
+
+    <p class="pricing-note">
+      Replace your front desk for a fraction of the cost. Cancel anytime during the 7-day trial.<br>
+      <span style="font-size:0.9em;color:#7c8798;">
+        Fair use: about 1,000 AI-handled voice minutes a month (~250 calls) are included. We'll never cut you off mid-call &mdash; if you consistently run well beyond that, we'll reach out to find a plan that fits. <strong style="color:#94a3b8;">We'll never bill you for overages you didn't agree to &mdash; no surprise invoices.</strong>
+      </span>
+    </p>
   </section>
 
   <!-- Final CTA -->
   <section class="final-cta">
     <h2>Ready to stop running your business from your phone at 11pm?</h2>
-    <a href="/signup?vertical=professional-services&plan=starter" class="btn-primary">Start your 7-day free trial &rarr;</a>
+    <a href="/signup?vertical=professional-services&plan=professional&billing=monthly" class="btn-primary">Start your 7-day free trial &rarr;</a>
   </section>
 
   <!-- Footer -->

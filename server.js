@@ -2359,28 +2359,33 @@ const SIGNUP_PRICE_LOOKUP_KEYS = [
   'additional_user_monthly',
 ];
 
-// Session E11: Professional Services Stripe price resolution. PM uses
-// lookup_keys (above) because that's the convention from Phase B; PS
-// uses env vars per the E11 setup checklist where Jay copies price IDs
-// straight out of the Stripe dashboard. Two architectures live side-by-
-// side — PM behavior is preserved unchanged, PS gets a parallel path.
-function getPSStripePriceId(plan) {
+// Professional Services Stripe price resolution. PM uses lookup_keys
+// (above) from Phase B; PS uses env vars where Jay copies price IDs straight
+// out of the Stripe dashboard. Two architectures live side-by-side — PM is
+// preserved unchanged, PS has a parallel path.
+//
+// 2026-08-16 pricing collapse: ONE plan, resolved by BILLING cadence, not by
+// tier. monthly = $320, annual = $3,200 (2 months free), founding = $160/mo
+// (a gated cohort — see the signup validation; NOT self-serve). Create the
+// three prices in Stripe (test mode now, live at Stripe live-mode) and set
+// the env vars — see docs/pricing-stripe-setup.md.
+function getPSStripePriceId(billing) {
   const map = {
-    starter: process.env.STRIPE_PRICE_PS_STARTER_MONTHLY,
-    pro:     process.env.STRIPE_PRICE_PS_PRO_MONTHLY,
-    premium: process.env.STRIPE_PRICE_PS_PREMIUM_MONTHLY,
+    monthly:  process.env.STRIPE_PRICE_PS_MONTHLY,
+    annual:   process.env.STRIPE_PRICE_PS_ANNUAL,
+    founding: process.env.STRIPE_PRICE_PS_FOUNDING,
   };
-  return map[plan] || null;
+  return map[billing] || null;
 }
 
-// Startup warning if any PS price env var is missing. Doesn't fail
-// startup (PM signup still works), but PS signup will return a clear
-// "pricing not configured" error until the env vars land.
+// Startup warning if any PS price env var is missing. Doesn't fail startup
+// (PM signup still works), but PS signup returns a clear "pricing not
+// configured" error until the env vars land.
 (function _checkPSPriceEnvVars() {
-  const missing = ['STRIPE_PRICE_PS_STARTER_MONTHLY', 'STRIPE_PRICE_PS_PRO_MONTHLY', 'STRIPE_PRICE_PS_PREMIUM_MONTHLY']
+  const missing = ['STRIPE_PRICE_PS_MONTHLY', 'STRIPE_PRICE_PS_ANNUAL', 'STRIPE_PRICE_PS_FOUNDING']
     .filter(k => !process.env[k]);
   if (missing.length) {
-    console.warn('[startup] Professional Services Stripe price env vars missing: ' + missing.join(', ') + '. PS signups will fail with "pricing not configured" until these are set in .env.');
+    console.warn('[startup] Professional Services Stripe price env vars missing: ' + missing.join(', ') + '. PS signups will fail with "pricing not configured" until these are set in .env (see docs/pricing-stripe-setup.md).');
   }
 })();
 let _signupPriceCache = null;
@@ -2469,11 +2474,15 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   if (area_code_backup && !/^[0-9]{3}$/.test(area_code_backup)) return res.status(400).json({ error: 'Backup area code must be exactly 3 digits' });
   if (alert_phone && !/^\+1[0-9]{10}$/.test(alert_phone))   return res.status(400).json({ error: 'Alert phone must be +1 followed by 10 digits' });
 
-  // E11: vertical-aware plan + billing validation. PS is monthly-only in v1;
-  // PM keeps its monthly/annual + solo/team/enterprise constraint.
+  // Vertical-aware plan + billing validation. PS is now ONE plan with
+  // monthly OR annual self-serve billing (2026-08-16 collapse; annual
+  // re-opened). Founding ($160) is a GATED cohort — never accepted from the
+  // public signup form, so no one can self-select the discounted price.
+  // Legacy tier ids (starter/pro/premium) are still accepted transitionally
+  // (the old landing links) and all normalize to the one plan below.
   if (isPS) {
-    if (billing !== 'monthly') return res.status(400).json({ error: 'Professional Services plans are monthly-only in v1' });
-    if (!['starter', 'pro', 'premium'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
+    if (!['monthly', 'annual'].includes(billing)) return res.status(400).json({ error: 'Invalid billing cadence' });
+    if (!['professional', 'starter', 'pro', 'premium'].includes(plan)) return res.status(400).json({ error: 'Invalid plan' });
   } else {
     if (!['monthly', 'annual'].includes(billing))             return res.status(400).json({ error: 'Invalid billing cadence' });
     if (!['solo', 'team', 'enterprise'].includes(plan))       return res.status(400).json({ error: 'Invalid plan' });
@@ -2507,11 +2516,14 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   // keeps its existing lookup_key-based resolution unchanged. If a PS
   // env var is missing, surface a clear "pricing not configured" error
   // rather than failing back to a PM price.
+  // PS collapse: the stored plan is always the single 'professional' plan,
+  // regardless of which (possibly legacy) plan id the form posted.
+  const storedPlan = isPS ? 'professional' : plan;
   let price_id;
   if (isPS) {
-    price_id = getPSStripePriceId(plan);
+    price_id = getPSStripePriceId(billing);
     if (!price_id) {
-      console.error('[signup-checkout] PS price not configured for plan=' + plan);
+      console.error('[signup-checkout] PS price not configured for billing=' + billing);
       return res.status(500).json({ error: 'Professional Services pricing is not configured. Please contact support.' });
     }
   } else {
@@ -2541,8 +2553,8 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
         appointments_per_month: isPS ? appointments_per_month : null,
         // Shared:
         area_code, area_code_backup, alert_phone,
-        billing: isPS ? 'monthly' : billing,
-        plan,
+        billing,
+        plan: storedPlan,
         vertical: verticalSlug,
         password_hash,
       })]
@@ -2566,8 +2578,7 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   const cancel_url  = `${proto}://${host}/signup/canceled?draft_id=${draft_id}`;
 
   // Session D3: optional 7-day trial gating. PM: opt-in (Solo only).
-  // E11: PS — all three tiers (Starter / Pro / Premium) get a 7-day
-  // free trial automatically per the launch design.
+  // PS — the one plan gets a 7-day free trial automatically.
   const wantsTrial = req.body && (req.body.trial === true || req.body.trial === 'true');
   const shouldApplyTrial = isPS
     ? true
@@ -3364,7 +3375,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     if (!planInfo) {
       return res.status(404).json({ error: 'workspace_not_found' });
     }
-    const planName = planInfo.plan || 'team';
+    const planName = planInfo.plan || plans.DEFAULT_PLAN_ID;
     const planConfig = plans.getPlan(planName);
 
     const aiCommandsToday = await usage.getAICommandCountToday(pool, {
