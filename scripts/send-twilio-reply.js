@@ -1,6 +1,14 @@
 // scripts/send-twilio-reply.js — DISPATCH VERSION (Jay's ruling,
 // ticket confirmed). Headers and body verbatim from Jay. Still
 // requires --to AND --send; preview otherwise.
+//
+// SUPERSEDED 2026-08-16 (annotation, not deletion): this was the reply
+// to Twilio support ticket #28847766 about the REJECTED Primary Customer
+// Profile BU93940826a7eaa1d353df389e1204e09c. That ticket is SOLVED and
+// the profile was replaced by the APPROVED business profile
+// BU2df49f5a9c04a3518c975764d1b8ffea. The old SID below is historical —
+// nothing in the app binds to it. Kept as a record of the resolution;
+// do not re-run. See docs/a2p-registration-plan.md.
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const sgMail = require('@sendgrid/mail');

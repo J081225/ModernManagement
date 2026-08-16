@@ -99,6 +99,17 @@ function makeDb() {
       promo && service && promoGuard && optOutSkip, JSON.stringify({ promo, service, promoGuard, optOutSkip }));
   }
 
+  // ---- OC6: opt-in consent disclosure on the contact-intake form ----
+  {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+    const hasConsent = app.includes('id="cPhoneConsent"')
+      && /agreed to receive appointment[\s\S]{0,120}reply <strong>STOP<\/strong>/i.test(app);
+    // it sits with the phone field in the contact modal
+    const nearPhone = /id="cPhone"[\s\S]{0,300}id="cPhoneConsent"/.test(app);
+    check('OC6: the contact-intake form carries the A2P opt-in disclosure next to the phone field (consent attested; customers can reply STOP)',
+      hasConsent && nearPhone, JSON.stringify({ hasConsent, nearPhone }));
+  }
+
   console.log(`${pass}/${pass + fail} — sms-consent gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
