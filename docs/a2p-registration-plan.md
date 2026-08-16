@@ -308,3 +308,25 @@ Messaging Service (§6) → attach the local number.
 
 _No A2P Brand/Campaign submitted. Ready for Jay's final eyes + Console
 confirmation (item 1)._
+
+---
+
+## 6. Messaging Service — CREATED (ruling 2)
+
+Created via the Twilio API 2026-08-16:
+
+- **Service SID:** `MGc58146677dd937feb0dcf98aca497f31`
+- **Friendly name:** "Modern Management A2P (transactional)"
+- **`use_inbound_webhook_on_number = true`** — the service DEFERS inbound
+  to each number's own webhook, so **ws17's `/api/sms/incoming` routing
+  is unchanged** (this is what keeps live inbound working).
+- **Attached number:** `+16469177820` (ws17, R2 Labs) —
+  `PN342fccc19fae1d316aa7cf1b710559af`. Verified on the service.
+- **Advanced Opt-Out:** a new Messaging Service defaults to opt-out
+  management ON (STOP/UNSTOP/HELP handled at Twilio's edge). Jay to
+  confirm it's enabled in Console; our in-app STOP layer (§3.4) is the
+  belt-and-suspenders regardless.
+
+**At submission:** link the approved **A2P Campaign** to this Messaging
+Service; only then do carrier sends deliver. Future local workspace
+numbers attach to this same service (toll-free numbers do NOT — §5 item 2).
