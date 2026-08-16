@@ -382,6 +382,38 @@ covering our own local numbers.
   Twilio support for a manual re-vet: draft ready at
   [docs/a2p-support-ticket.md](a2p-support-ticket.md) (one paste, fill
   the account SID).**
+- **✅ ROOT CAUSE — Danny @ Twilio (2026-08-16). The "cached vetting
+  crawl / SID-carries-the-verdict" theory above is WRONG and RETIRED.**
+  The real cause: **the campaign form's dedicated Privacy Policy URL field
+  and Terms & Conditions URL field were EMPTY.** The links were only in
+  the description / message_flow narrative; the automated vetter reads the
+  dedicated URL *fields*, found them blank, and rejected 30908 (privacy) +
+  30882 (terms) INSTANTLY — every time. The instant, identical failures
+  were the empty-field rejection, not a cache. (Every earlier "fix" —
+  editing page content, a fresh Messaging Service, embedding URLs in the
+  narrative — failed instantly because none of it touched the empty URL
+  FIELDS.) The Twilio **Usa2p compliance API exposes no field for these
+  URLs**, which is exactly why they were blank on the API-driven submits →
+  **the fix is set them on the Console campaign form.** Danny will
+  **EXPEDITE** once fixed and requires **visual proof of opt-in** (a
+  screenshot of the consent checkbox screen the end user sees).
+  **The fix (do NOT create a new campaign — reuse QE2c6890…):** see the
+  field spec in [docs/a2p/resubmission-field-spec.md](a2p/resubmission-field-spec.md).
+  Memory: [[a2p-campaign-url-fields]] (supersedes the retired cache memory).
+- **✅ CONSENT SURFACES BUILT (2026-08-16, this session):**
+  - **Public end-user opt-in form** — real, working, gating:
+    [`/sms-opt-in`](../public/sms-opt-in.html) (route + `POST /api/sms-opt-in`
+    + migration 071 `sms_consents`). Danny's verbatim template is the
+    required, unchecked-by-default consent checkbox; the submit button is
+    disabled until it's checked, and each opt-in is recorded (wording +
+    date + number). This is the screen Danny screenshots.
+  - **Owner contact-intake** — the earlier disclosure LINE is now a real
+    gating checkbox (Danny's template) that blocks saving a NEW contact
+    with a phone until the owner confirms consent ([views/app.html](../views/app.html),
+    `#cPhoneConsentBox` gates `submitContactModal`).
+  - **sms-consent.html** reconciled: its mockup now points to the live
+    `/sms-opt-in` form (census law — no fake form claimed as the real one).
+  - **Capture guide** for the screenshots: [docs/a2p/screenshot-capture-guide.md](a2p/screenshot-capture-guide.md).
 
 **Submission sequence (Jay's order):** STOP unit ✅ → consent copy ✅ →
 **submit Brand → Campaign** with the approved §3.1–3.2 text → create/link

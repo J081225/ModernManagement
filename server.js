@@ -460,6 +460,10 @@ app.get('/styleguide', requireAuthPage, (req, res) => {
 
 // --- Marketing sub-pages ---
 app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-consent.html')));
+// A2P: the real, functional end-user opt-in form. A business links its
+// customers here (optionally with ?business=<name>); the required consent
+// checkbox gates submission and POST /api/sms-opt-in records it.
+app.get('/sms-opt-in', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-opt-in.html')));
 app.get('/sms-terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-terms.html')));
 app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
 app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
@@ -477,6 +481,43 @@ app.get('/features/tasks', (_req, res) => res.sendFile(path.join(__dirname, 'pub
 app.get('/features/reports', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'reports.html')));
 app.get('/features/calendar', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'calendar.html')));
 app.get('/features/knowledge-base', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'features', 'knowledge-base.html')));
+
+// A2P consent capture — records a public end-user SMS opt-in. Public (a
+// customer opts in before any account exists). The consent boolean must be
+// true (the form gates the button on the checkbox; this is the server-side
+// backstop) and the exact wording agreed to is stored for proof. Appends to
+// sms_consents (migration 071); never touches anything financial.
+app.post('/api/sms-opt-in', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const full_name = String(b.full_name || '').trim();
+    const phone = String(b.phone || '').trim();
+    const business_name = String(b.business_name || '').trim().slice(0, 200) || null;
+    const consent_text = String(b.consent_text || '').trim().slice(0, 2000);
+    const digits = phone.replace(/\D/g, '');
+
+    // Server-side gate: consent must be affirmatively true, and the core
+    // fields must be present/plausible. Mirrors the form's client gate so a
+    // record can never exist without the checkbox having been agreed to.
+    if (b.consent !== true) return res.status(400).json({ error: 'consent_required' });
+    if (full_name.length < 2) return res.status(400).json({ error: 'name_required' });
+    if (digits.length < 10) return res.status(400).json({ error: 'phone_invalid' });
+    if (!consent_text) return res.status(400).json({ error: 'consent_text_required' });
+
+    const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim().slice(0, 100);
+    const ua = String(req.headers['user-agent'] || '').slice(0, 400);
+
+    await pool.query(
+      `INSERT INTO sms_consents (business_name, full_name, phone, consent_text, source, ip, user_agent)
+       VALUES ($1, $2, $3, $4, 'public_opt_in_form', $5, $6)`,
+      [business_name, full_name.slice(0, 200), phone.slice(0, 40), consent_text, ip, ua]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/sms-opt-in failed:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
 
 // --- Database setup & migrations ---
 // Safe migration helper — logs errors but never crashes the server

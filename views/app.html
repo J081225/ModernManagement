@@ -8678,6 +8678,8 @@
         document.getElementById('cLeaseStart').value = '';
         document.getElementById('cLeaseEnd').value = '';
         document.getElementById('cMonthlyRent').value = '';
+        const _consentBox = document.getElementById('cPhoneConsentBox');
+        if (_consentBox) _consentBox.checked = false;
         toggleLeaseFields();
         document.getElementById('contactModal').style.display = 'flex';
         setTimeout(() => document.getElementById('cName').focus(), 50);
@@ -8728,6 +8730,14 @@
         const name = document.getElementById('cName').value.trim();
         if (!name) { alert('Please enter a name.'); return; }
         const type = document.getElementById('cType').value;
+        // A2P/TCPA: a NEW contact with a phone requires the affirmative
+        // SMS-consent check before it can be saved (the real gate).
+        const _cPhone = document.getElementById('cPhone').value.trim();
+        const _cConsent = document.getElementById('cPhoneConsentBox');
+        if (!_editingContactId && _cPhone && _cConsent && !_cConsent.checked) {
+          alert('Please confirm the customer consented to SMS before saving their phone number.');
+          return;
+        }
         const payload = {
           name, type,
           email: document.getElementById('cEmail').value.trim(),
@@ -15765,12 +15775,13 @@
           <input id="cPhone" type="tel" placeholder="(555) 000-0000" />
         </div>
       </div>
-      <!-- A2P/TCPA opt-in disclosure (ruling 5): the owner attests
-           consent at the point a customer number is collected. Customers
-           can always reply STOP. -->
-      <p id="cPhoneConsent" style="margin:6px 2px 0;font-size:0.78em;color:var(--text-muted);line-height:1.4;">
-        Only add a customer who agreed to receive appointment &amp; account texts. They can reply <strong>STOP</strong> anytime to opt out; msg &amp; data rates may apply.
-      </p>
+      <!-- A2P consent (Danny @ Twilio template). A NEW contact with a
+           phone can't be saved until the owner confirms the customer
+           consented — a real gate, not just a disclosure. -->
+      <label id="cPhoneConsent" style="display:flex;gap:8px;align-items:flex-start;margin:8px 2px 0;font-size:0.78em;color:var(--text-muted);line-height:1.45;cursor:pointer;">
+        <input type="checkbox" id="cPhoneConsentBox" style="margin-top:2px;flex-shrink:0;">
+        <span>The customer agreed to receive SMS about appointment reminders, confirmations, service replies, verification codes, and payment requests/receipts from your business via Modern Management. To unsubscribe, reply STOP. Need assistance? Reply HELP. Msg &amp; data rates may apply. See our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.</span>
+      </label>
 
       <!-- Unit dropdown (chunk 6a) — replaces the freeform unit text
            input. Populated from the inventory caches at modal-open time

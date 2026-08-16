@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text message sign-up — Modern Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      line-height: 1.6;
+      padding: 48px 20px;
+    }
+    .wrap { max-width: 560px; margin: 0 auto; }
+    .logo-row {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px; justify-content: center;
+    }
+    .logo-badge {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+      border-radius: 10px; display: flex; align-items: center;
+      justify-content: center; font-weight: 800; color: #fff; font-size: 0.9em;
+    }
+    .logo-text h1 { font-size: 1.05em; font-weight: 700; color: #fff; }
+    .logo-text p { font-size: 0.78em; color: rgba(255,255,255,0.45); margin-top: 1px; }
+
+    .card {
+      background: #ffffff; color: #111827;
+      border: 1px solid #d1d5db; border-radius: 14px;
+      padding: 32px 30px 28px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+    }
+    .card-title { font-size: 1.35em; font-weight: 800; color: #111827; margin-bottom: 6px; letter-spacing: -0.3px; }
+    .card-sub { font-size: 0.92em; color: #6b7280; margin-bottom: 24px; }
+
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 0.82em; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .field label .req { color: #dc2626; font-weight: 700; margin-left: 2px; }
+    .field input[type="text"], .field input[type="tel"] {
+      width: 100%; height: 44px; padding: 0 13px;
+      border: 1px solid #9ca3af; border-radius: 8px;
+      font-size: 0.95em; font-family: inherit; color: #111827; background: #fff;
+    }
+    .field input:focus { outline: none; border-color: #ff6b6b; box-shadow: 0 0 0 3px rgba(255,107,107,0.15); }
+
+    .consent-box {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 16px 16px; margin: 20px 0 8px;
+      border: 2px solid #111827; border-radius: 10px; background: #fef3f2;
+    }
+    .consent-box input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px; cursor: pointer; accent-color: #ff6b6b; }
+    .consent-text { font-size: 0.9em; line-height: 1.55; color: #111827; }
+    .consent-text strong { color: #ff6b6b; font-weight: 700; }
+    .consent-text a { color: #d1405a; font-weight: 600; text-decoration: underline; }
+    .required-note { font-size: 0.78em; color: #dc2626; font-weight: 600; margin: 8px 2px 0; }
+
+    .submit-btn {
+      width: 100%; margin-top: 22px; height: 50px;
+      background: linear-gradient(135deg, #ff6b6b, #ff8e53); color: #fff;
+      font-size: 1em; font-weight: 700; font-family: inherit;
+      border: none; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 6px 18px rgba(255,107,107,0.35);
+      transition: opacity .15s, filter .15s;
+    }
+    .submit-btn:disabled { cursor: not-allowed; opacity: 0.45; box-shadow: none; filter: grayscale(0.3); }
+
+    .fineprint { font-size: 0.78em; color: #6b7280; margin-top: 16px; line-height: 1.55; }
+    .fineprint a { color: #6b7280; text-decoration: underline; }
+
+    .success {
+      display: none; text-align: center; padding: 20px 10px 8px;
+    }
+    .success .check {
+      width: 56px; height: 56px; margin: 0 auto 14px;
+      background: #ecfdf5; border: 2px solid #10b981; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #10b981; font-size: 1.6em; font-weight: 800;
+    }
+    .success h2 { font-size: 1.25em; color: #111827; margin-bottom: 8px; }
+    .success p { font-size: 0.92em; color: #6b7280; }
+    .err-msg { display: none; color: #dc2626; font-size: 0.85em; font-weight: 600; margin-top: 12px; text-align: center; }
+
+    .footer { margin-top: 28px; text-align: center; font-size: 0.8em; color: rgba(255,255,255,0.4); line-height: 1.6; }
+    .footer a { color: rgba(255,255,255,0.55); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo-row">
+      <div class="logo-badge">MM</div>
+      <div class="logo-text">
+        <h1>Modern Management</h1>
+        <p>SMS sign-up</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <!-- FORM -->
+      <div id="formView">
+        <div class="card-title">Get text updates from <span id="bizTitle">your business</span></div>
+        <div class="card-sub">Appointment reminders, confirmations, and replies — straight to your phone.</div>
+
+        <div class="field">
+          <label for="biz">Business</label>
+          <input type="text" id="biz" placeholder="Business name" autocomplete="organization" />
+        </div>
+        <div class="field">
+          <label for="fullName">Your name <span class="req">*</span></label>
+          <input type="text" id="fullName" placeholder="First and last name" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="phone">Mobile number <span class="req">*</span></label>
+          <input type="tel" id="phone" placeholder="(555) 123-4567" autocomplete="tel" inputmode="tel" />
+        </div>
+
+        <!-- Consent gate — Danny (Twilio) verbatim template. Unchecked by
+             default; the button below cannot submit until it is checked. -->
+        <div class="consent-box">
+          <input type="checkbox" id="consent" aria-label="I agree to receive SMS messages" />
+          <div class="consent-text" id="consentText">
+            By checking this box, you agree to receive SMS notifications about appointment reminders, confirmations, service replies, verification codes, and payment requests/receipts from <strong id="bizInline">your business</strong> via Modern Management. To Unsubscribe, reply STOP. Need Assistance? Reply HELP. Msg&amp;Data Rates may apply. See our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.
+          </div>
+        </div>
+        <p class="required-note">Required — you must check this box to sign up. It is never pre-checked.</p>
+
+        <button type="button" id="submitBtn" class="submit-btn" disabled>Sign me up for texts</button>
+        <div class="err-msg" id="errMsg">Something went wrong — please try again.</div>
+
+        <p class="fineprint">
+          Consent is not a condition of any purchase. Message frequency varies. You can reply
+          <strong>STOP</strong> at any time to cancel or <strong>HELP</strong> for help. See the full
+          <a href="/sms-consent" target="_blank" rel="noopener">SMS program terms</a>.
+        </p>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="success" id="successView">
+        <div class="check">&#10003;</div>
+        <h2>You're signed up</h2>
+        <p>You'll start getting text updates from <span id="bizSuccess">your business</span>. Reply <strong>STOP</strong> anytime to cancel.</p>
+      </div>
+    </div>
+
+    <div class="footer">
+      &copy; 2026 R2 LABS LLC · Modern Management ·
+      <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/sms-consent">SMS Consent</a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var bizParam = (params.get('business') || params.get('biz') || '').trim();
+
+      var bizInput = document.getElementById('biz');
+      var bizTitle = document.getElementById('bizTitle');
+      var bizInline = document.getElementById('bizInline');
+      var bizSuccess = document.getElementById('bizSuccess');
+      var fullName = document.getElementById('fullName');
+      var phone = document.getElementById('phone');
+      var consent = document.getElementById('consent');
+      var submitBtn = document.getElementById('submitBtn');
+      var errMsg = document.getElementById('errMsg');
+
+      if (bizParam) bizInput.value = bizParam;
+
+      function bizLabel() {
+        var v = (bizInput.value || '').trim();
+        return v || 'your business';
+      }
+      function syncBizLabels() {
+        var label = bizLabel();
+        bizTitle.textContent = label;
+        bizInline.textContent = label;
+      }
+      function digits(s) { return (s || '').replace(/\D/g, ''); }
+      function valid() {
+        return fullName.value.trim().length >= 2 &&
+               digits(phone.value).length >= 10 &&
+               consent.checked;
+      }
+      function refresh() {
+        syncBizLabels();
+        submitBtn.disabled = !valid();
+      }
+
+      bizInput.addEventListener('input', refresh);
+      fullName.addEventListener('input', refresh);
+      phone.addEventListener('input', refresh);
+      consent.addEventListener('change', refresh);
+      refresh();
+
+      submitBtn.addEventListener('click', async function () {
+        if (!valid()) return;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing you up…';
+        errMsg.style.display = 'none';
+        // The exact wording the user agreed to (business name resolved).
+        var consentText = document.getElementById('consentText').innerText.trim();
+        try {
+          var resp = await fetch('/api/sms-opt-in', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              business_name: bizLabel() === 'your business' ? '' : bizInput.value.trim(),
+              full_name: fullName.value.trim(),
+              phone: phone.value.trim(),
+              consent: true,
+              consent_text: consentText
+            })
+          });
+          if (!resp.ok) throw new Error('bad status ' + resp.status);
+          bizSuccess.textContent = bizLabel();
+          document.getElementById('formView').style.display = 'none';
+          document.getElementById('successView').style.display = 'block';
+        } catch (e) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign me up for texts';
+          errMsg.style.display = 'block';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
