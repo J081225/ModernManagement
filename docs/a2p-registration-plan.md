@@ -313,15 +313,33 @@ covering our own local numbers.
    `+1 855…` and ws3's `+1 855…` need Toll-Free Verification, a distinct
    Twilio flow from A2P. Tracked as its own small item; not part of this
    A2P submission.
-3. **Fees at submission (ruling 6) — record here for the pricing session:**
+3. **Fees at submission (ruling 6) — recorded:**
 
-   | Item | Est. | Actual (fill at submit) |
+   | Item | Est. | Actual (2026-08-16) |
    |---|---|---|
-   | Brand registration (one-time) | ~$4 | |
-   | External vetting (Low-Volume: skipped) | $0 | |
-   | Campaign — Low-Volume Mixed (monthly) | ~$1.50–2 | |
-   | One-time campaign vetting (if any) | ~$15? | |
-   | Carrier pass-through (monthly + per-msg) | varies | |
+   | Brand registration (one-time) | ~$4 | **$4.50** (balance $17.54 → $13.04) |
+   | External vetting (Low-Volume: skipped) | $0 | $0 (STANDARD, sec-vet skipped) |
+   | Campaign — Low-Volume Mixed (monthly) | ~$1.50–2 | **$0 at submission** (bills on approval/monthly) |
+   | One-time campaign vetting | ~$15? | $0 (LOW_VOLUME: no post-approval vetting) |
+   | Carrier pass-through (monthly + per-msg) | varies | TBD (post-approval) |
+
+## SUBMISSION RECEIPTS (2026-08-16)
+
+- **A2P Brand:** `BNadd0ca7348529df7d25b2eed981f8e28` — **APPROVED**
+  (identity VERIFIED), type STANDARD ("Low Volume Standard" / "Private
+  corporation"), off `BU2df49…`, A2P bundle `BU31f6c8952f6b378aee9afd4420910010`
+  (created by the Console wizard — the prereq that was missing), notify
+  `jayhorton87@gmail.com`. Fee **$4.50**.
+- **A2P Campaign:** `QE2c6890da8086d771620e9b13fadeba0b` — **IN_PROGRESS**,
+  use case `LOW_VOLUME` (Low Volume Mixed), linked to Messaging Service
+  `MGc58146677dd937feb0dcf98aca497f31`, embedded links = yes, embedded
+  phone = yes. Description + message flow + 5 samples = the §3.1/§3.2/§3.3
+  text. **Opt-out keyword overrides omitted** — the Messaging Service's
+  Advanced Opt-Out is the declared handling (a first attempt with custom
+  `OptInKeywords` was rejected by Twilio: "Opt In Keywords must contain
+  either alphanumeric or accented characters"; the retry without them
+  succeeded). Sample-5 URL used a representative `…/pay/EXAMPLE` in place
+  of the doc's `…` placeholder. No fee at submission.
 
 **Submission sequence (Jay's order):** STOP unit ✅ → consent copy ✅ →
 **submit Brand → Campaign** with the approved §3.1–3.2 text → create/link
