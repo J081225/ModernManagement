@@ -369,6 +369,19 @@ covering our own local numbers.
   matches the targets and is live. **No fee. Do NOT spam-resubmit** — wait
   for the re-crawl (hours→a day), resubmit once; if it still fails on a
   confirmed-fresh crawl, iterate on exact phrasing/placement.
+- **UN-CACHEABLE ATTEMPT (2026-08-16, Jay ruled go-tonight, commit d607f12):**
+  new **/sms-terms** page (blunt transactional/no-sharing statement,
+  never crawled before), linked from privacy/terms/homepage; "Last
+  updated: Aug 16, 2026" on privacy + terms (fresh signal); moved the 646
+  to a FRESH Messaging Service **MG5422d67b5fda2f0caa797880a988c00e**;
+  resubmitted with the policy URLs (/sms-terms, /privacy, /terms)
+  EMBEDDED in the description + message_flow. **Result: FAILED again in
+  ~30s, same codes [30882, 30908].** The campaign SID is BRAND-derived
+  (still QE2c6890… on the new MS), so the automated vet returns the
+  STORED verdict for that SID — it is not re-crawling. → **Escalate to
+  Twilio support for a manual re-vet: draft ready at
+  [docs/a2p-support-ticket.md](a2p-support-ticket.md) (one paste, fill
+  the account SID).**
 
 **Submission sequence (Jay's order):** STOP unit ✅ → consent copy ✅ →
 **submit Brand → Campaign** with the approved §3.1–3.2 text → create/link
