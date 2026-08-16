@@ -38,11 +38,11 @@ surface and the visual proof:
 > their number and must actively check an unchecked-by-default consent box
 > (worded exactly as our program terms) before the form can be submitted;
 > consent is not a condition of any purchase. Visual proof of the opt-in
-> screen: <PASTE DRIVE SCREENSHOT LINK HERE>.
+> screen: https://drive.google.com/drive/folders/1kw3ltam0b4VpI1FNfpf5K2fc4SYdrGh9?usp=drive_link
 
-`<PASTE DRIVE SCREENSHOT LINK HERE>` = the "Anyone with link can view" Drive
-link for `screenshot-1-end-user-opt-in.png` (from the capture guide). **This
-placeholder is the submit gate — fill it first.**
+Drive link is IN (folder, anyone-with-link Viewer; contains the blank
+`/sms-opt-in` form + the owner contact-intake modal). **Gate cleared — ready
+to submit.**
 
 ---
 

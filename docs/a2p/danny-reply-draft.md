@@ -1,7 +1,7 @@
 # Reply to Danny (Twilio) — draft
 
-Send **after** the campaign is resubmitted with the URL fields set and the
-screenshot link in. Fill the two `<…>` placeholders. Keep it short.
+Send **after** the campaign is resubmitted with the URL fields set. The
+screenshot link is filled in below. Keep it short.
 
 ---
 
@@ -24,9 +24,10 @@ campaign, no new one) with the fields populated:
 is at **https://modernmanagementapp.com/sms-opt-in** — the customer enters
 their number and must actively check an unchecked-by-default consent box
 (worded to match our program terms, with STOP/HELP and the policy links)
-before the form will submit. Screenshot here:
+before the form will submit. Screenshots here (anyone with the link can
+view) — the blank opt-in screen and our owner contact-intake form:
 
-**<PASTE DRIVE SCREENSHOT LINK — "anyone with link can view">**
+https://drive.google.com/drive/folders/1kw3ltam0b4VpI1FNfpf5K2fc4SYdrGh9?usp=drive_link
 
 If everything looks right, I'd be grateful if you could **expedite the
 re-vet** as you offered. Happy to provide anything else you need.
