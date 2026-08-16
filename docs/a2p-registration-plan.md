@@ -340,6 +340,21 @@ covering our own local numbers.
   either alphanumeric or accented characters"; the retry without them
   succeeded). Sample-5 URL used a representative `…/pay/EXAMPLE` in place
   of the doc's `…` placeholder. No fee at submission.
+- **Campaign REVIEW RESULT (2026-08-16): FAILED** — carrier vetting
+  rejected on WEBSITE grounds (verbatim):
+  - `30882` — "rejected due to Terms and Conditions issues"
+    (`TERMS_AND_CONDITIONS_URL`).
+  - `30908` — "rejected because a compliant privacy policy can not be
+    verified" (`PRIVACY_POLICY_URL`).
+  Registered site: `https://modernmanagementapp.com/`. Pages exist
+  (`/privacy`, `/terms`, `/sms-consent`) but: (a) `privacy.html` has NO
+  explicit "we do not sell/share mobile or SMS opt-in data with third
+  parties for marketing" clause (CTIA requirement); (b) `terms.html` has
+  no compliant SMS-program-terms section; (c) `sms-consent.html`
+  describes a PROPERTY-MANAGEMENT toll-free program, not the
+  professional-services appointment A2P use case a reviewer expects for
+  the local number. **No fee charged.** Fix = website content build +
+  resubmit — HELD for Jay's ruling ("report before retrying").
 
 **Submission sequence (Jay's order):** STOP unit ✅ → consent copy ✅ →
 **submit Brand → Campaign** with the approved §3.1–3.2 text → create/link
