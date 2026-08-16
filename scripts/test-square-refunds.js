@@ -159,6 +159,19 @@ function makeLedgerDb(refunds, txns) {
       recordOnly && noRefundType && stateIsolated, JSON.stringify({ recordOnly, noRefundType, stateIsolated }));
   }
 
+  // ---- SR9: exactly ONE refund banner per processor (live-test fix) ----
+  {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+    const hasRecordBanner = app.includes('id="txRefundRecordBanner"');
+    // the record-only banner is HIDDEN for Square; the Square banner is
+    // SHOWN only for Square — opposite toggles, so never both at once.
+    const recordHiddenForSquare = app.includes("document.getElementById('txRefundRecordBanner').style.display = sq ? 'none' : ''");
+    const squareShownForSquare = app.includes("document.getElementById('txRefundSquareBanner').style.display = sq ? '' : 'none'");
+    check('SR9: exactly ONE refund banner per processor — the record-only "does not move money" banner hides for a Square-paid txn (money-moving) and shows for Stripe/cash; the Square banner is the mirror (per-processor truth, no double banner)',
+      hasRecordBanner && recordHiddenForSquare && squareShownForSquare,
+      JSON.stringify({ hasRecordBanner, recordHiddenForSquare, squareShownForSquare }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-refunds gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();

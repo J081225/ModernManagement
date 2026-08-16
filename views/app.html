@@ -4557,10 +4557,13 @@
       <div class="modal" style="max-width:480px;">
         <h3 style="margin:0 0 8px;color:var(--text-primary);">Issue refund</h3>
         <div id="txRefundContext" style="color:var(--text-muted);font-size:0.85em;margin-bottom:14px;"></div>
-        <!-- TR2 (G2 honesty): recording is not moving money. The real
-             Stripe refund flow is a deferred backlog item; until it
-             lands, this surface must not overclaim. -->
-        <div class="mm-banner mm-banner-warning" style="margin-bottom:14px;font-size:0.85em;">
+        <!-- TR2 (G2 honesty): recording is not moving money. This
+             record-only banner is the truth for Stripe/cash workspaces
+             (Stripe real refunds are deferred). For a SQUARE-paid
+             transaction the refund DOES move money, so this banner is
+             hidden and the Square money-moving banner below shows
+             instead — per-processor truth, exactly one banner. -->
+        <div id="txRefundRecordBanner" class="mm-banner mm-banner-warning" style="margin-bottom:14px;font-size:0.85em;">
           This records the refund in your books — it does not move money.
           For payments made by card, also process the refund in your
           Stripe dashboard; for cash, hand it back directly.
@@ -13772,11 +13775,13 @@
           `Refunding transaction #${_openTx.id} — ${_openTx.customer_display_name}. Remaining unrefunded: ${_txFormatCents(remaining)}.`;
         document.getElementById('txRefundAmount').value = (remaining / 100).toFixed(2);
         document.getElementById('txRefundReason').value = '';
-        // SQ5: for a Square-paid transaction show the money-moving banner
-        // + the re-auth password; hide both otherwise (record-only).
+        // SQ5: exactly ONE banner, matching the active path. Square-paid →
+        // money-moving banner + re-auth; Stripe/cash → the record-only
+        // banner. Never both (the live-test defect).
         const sq = !!(_openTx && _openTx._squarePaid);
         document.getElementById('txRefundSquareBanner').style.display = sq ? '' : 'none';
         document.getElementById('txRefundReauth').style.display = sq ? '' : 'none';
+        document.getElementById('txRefundRecordBanner').style.display = sq ? 'none' : '';
         const pwEl = document.getElementById('txRefundPassword');
         if (pwEl) pwEl.value = '';
         document.getElementById('txRefundConfirmBtn').dataset.txid = txId;
