@@ -460,6 +460,7 @@ app.get('/styleguide', requireAuthPage, (req, res) => {
 
 // --- Marketing sub-pages ---
 app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-consent.html')));
+app.get('/sms-terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-terms.html')));
 app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
 app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
 app.get('/terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));
