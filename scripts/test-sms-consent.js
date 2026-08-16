@@ -86,6 +86,19 @@ function makeDb() {
       engGate && prGate, JSON.stringify({ engGate, prGate }));
   }
 
+  // ---- OC5: send_broadcast is service-only (promo guard) + opt-out-aware ----
+  {
+    const promo = ['20% off all services this week!', 'Flash sale — book now', 'Special offer for you', 'Subscribe now to save $10']
+      .every((m) => consent.looksPromotional(m) === true);
+    const service = ['The salon will be closed Monday for repairs.', 'Your appointment tomorrow is confirmed.', 'We are running 15 minutes behind today.']
+      .every((m) => consent.looksPromotional(m) === false);
+    const bc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'tools', 'send_broadcast.js'), 'utf8');
+    const promoGuard = bc.includes('looksPromotional(body)') && /return \{\s*success: false,[\s\S]{0,200}separate messaging campaign/.test(bc);
+    const optOutSkip = bc.includes("await isOptedOut(ctx.db, ctx.workspace.id, r.phone)") && bc.includes('optedOutSkipped++');
+    check('OC5: send_broadcast refuses promotional content (service notices only — marketing = separate campaign) and skips opted-out numbers; looksPromotional flags offers/sales but not closures/confirmations',
+      promo && service && promoGuard && optOutSkip, JSON.stringify({ promo, service, promoGuard, optOutSkip }));
+  }
+
   console.log(`${pass}/${pass + fail} — sms-consent gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
