@@ -313,6 +313,52 @@
       .who-chips .chip { padding: 8px 14px; font-size: 0.86rem; }
     }
 
+    /* ── Section 3: THE MISSED-CALL MATH — one huge honest number ── */
+    .math {
+      border-top: 1px solid var(--hairline);
+      padding: 84px 20px 92px;
+      text-align: center;
+    }
+    .math-setup {
+      font-size: var(--step-1);
+      color: var(--cream-64);
+      max-width: 34ch; margin: 0 auto 10px;
+      text-wrap: balance;
+    }
+    .math-number {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 144;
+      font-weight: 430;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(4.2rem, 15vw, 8.5rem);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--cream);
+      margin: 6px auto 10px;
+    }
+    .math-after {
+      font-size: var(--step-1);
+      color: var(--cream-64);
+      margin-bottom: 30px;
+    }
+    .math-assumption {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--cream-40);
+      max-width: 52ch; margin: 0 auto 34px;
+      line-height: 1.7;
+    }
+    .math-kicker {
+      font-size: var(--step-1);
+      color: var(--cream);
+      font-variant-numeric: tabular-nums;
+      text-wrap: balance;
+      max-width: 36ch; margin: 0 auto;
+    }
+    @media (max-width: 480px) {
+      .math { padding: 60px 16px 68px; }
+    }
+
     /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
     .mini-cta {
       position: fixed; left: 50%; bottom: 18px; z-index: 90;
@@ -434,6 +480,19 @@
         <li class="chip reveal-scroll" style="transition-delay:242ms">Cleaners</li>
       </ul>
       <h2 class="who-closer reveal-scroll" id="whoCloser" style="transition-delay:120ms">If it&rsquo;s booked by appointment, she answers it.</h2>
+    </section>
+
+    <!-- Section 3: THE MISSED-CALL MATH — pure arithmetic from the demo
+         shop's real menu (Skin Fade, $45 — seeded on ws21). No external
+         statistics: the assumption is cited and the reader is invited to
+         re-run it with their own prices. -->
+    <section class="math" aria-labelledby="mathNumber">
+      <p class="section-eyebrow reveal-scroll">The missed-call math</p>
+      <p class="math-setup reveal-scroll" style="transition-delay:60ms">Miss one booking a day &mdash; a $45 skin fade, say &mdash; and</p>
+      <div class="math-number reveal-scroll" id="mathNumber" style="transition-delay:140ms">$1,170</div>
+      <p class="math-after reveal-scroll" style="transition-delay:220ms">walks out the door every month.</p>
+      <p class="math-assumption reveal-scroll" style="transition-delay:280ms">The math, honestly: $45 &times; 26 working days. No industry statistics &mdash; just arithmetic. Run it with your own prices.</p>
+      <p class="math-kicker reveal-scroll" style="transition-delay:300ms">The receptionist who catches every one of them costs <strong>$320 a month.</strong></p>
     </section>
   </main>
 

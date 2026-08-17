@@ -127,22 +127,33 @@ PS-focused page (one killer page, no chooser). PM demotes to a nav/footer
 link with an "in development" badge. `/professional-services` 301s or
 mirrors to `/`.
 
-**SECTION ORDER — updated 2026-08-16 per Jay's two content additions
-(WHO IT'S FOR strip + EVERYTHING SHE DOES grid). This supersedes the
-original table; the LP2+ design brief's build-order rules still apply
-(one section per commit, browser-reviewed).**
+**POSITIONING RULING (Jay, 2026-08-16): the receptionist is the DOOR, not
+the house.** The product is an AI running the whole business — front desk,
+calendar, inbox, payments, books, reports, assistant on every screen. The
+hero stays (proof-in-five-seconds); THE REVEAL (new section 4) turns the
+corner from phone tool to whole system; the pricing headline widens to
+"One price. Your whole business, run by one AI." (hero eyebrow keeps
+"AI receptionist…" — that's the demo's promise); sub-copy may say "front
+desk and back office." How-she-works sharpens into ONE FLOW (phone →
+calendar → inbox → books). The three real-UI clips FOLD INTO the reveal
+as its proofs (static real screenshot until Jay's captures land, then
+motion) — the reveal is the story, the grid is the inventory.
+
+**SECTION ORDER — updated 2026-08-16 (positioning ruling + the two
+content additions). Supersedes prior tables; the LP2+ design brief's
+build rules still apply (one section per commit, browser-reviewed).**
 
 | # | Section | Content |
 |---|---|---|
 | 0 | Nav | Forest glass blur, brass CTA "Start free trial" — SHIPPED (LP2) |
 | 1 | **HERO — the working demo** | SHIPPED (LP2): live demo line (332) 249-4333, transcript rig dark until the real recording lands |
 | 2 | **WHO IT'S FOR strip** (added) | Profession chips, forest/brass, labels-not-links, 2-second scannable, clean mobile wrap: Salons · Barbers · Makeup artists · Pet groomers · Physical therapists · Personal trainers · Massage therapists · Estheticians · Nail techs · Tutors · Photographers · Cleaners. Closer: "If it's booked by appointment, she answers it." |
-| 3 | The missed-call math | One huge Fraunces number — what a missed booking costs a salon per month, assumption cited honestly. Fear-handler bones kept, type elevated |
-| 4 | Three real-UI sequences | Booking→calendar · Payments→PAID (Stripe test, honest caveat) · Spanish thread. Screen-recorded, device-frame cards, captioned, no mockups |
-| 5 | How she works | 3 cards MAX: answers/books · learns your menu + policies · hands you the books. One claim + one proof each |
+| 3 | The missed-call math | One huge Fraunces number — a missed booking's monthly cost, pure arithmetic from the demo shop's real menu (assumption cited honestly, NO external stats). Fear-handler bones live in §7 |
+| 4 | **THE REVEAL** (added — positioning ruling) | "She's not just answering the phone. She's running the desk." Real product tour, one system not a feature list, each room with REAL screenshot proof (clips fold in when captured): Calendar (bookings land live) · Inbox (calls/texts/emails/voicemails in one place — texts caveat: inbound today, outbound pending carrier) · Payments (links/receipts/refunds) · Books (transaction report + expenses + budget) · Reports (week-ahead briefing) · The Assistant (on every screen — say it, she does it) |
+| 5 | How she works | ONE FLOW, 3 cards sharpened: phone → calendar → inbox → books. One claim + one proof each |
 | 6 | **EVERYTHING SHE DOES grid** (added) | Comprehensive LIVE-features grid, one honest sentence each: 24/7 answering & booking · English + Spanish · calendar booking with real services/prices · knowledge base + approval controls · honest payments (Stripe/Square links, receipts, real refunds; Venmo/Zelle info, manual confirm — VERIFIED live, lib/direct-payments) · transaction report (printable/exportable) · the on-every-screen assistant · narrative reports (activity, customers, week ahead) · contacts/tasks/calendar · dedicated business number · security posture (password-gated changes, verified contacts, change alerts). Gated items (SMS, more languages) STAY OUT — they are the honesty section's job. Cards carry a real screenshot or transcript fragment as proof where one exists; no decorative icons standing in for proof |
 | 7 | **The honest section** (cream paper inversion) | "What she doesn't do yet" — gated items truthfully (texting: pending carrier approval; more languages: coming) + REAL approval-queue screenshot + fair-dealing lines |
-| 8 | **Pricing — the keystone, as-is** | f59dd30 copy/structure verbatim; shell restyled to new tokens only; `test-pricing-claims.js` must stay green |
+| 8 | **Pricing — the keystone** | f59dd30 numbers/structure verbatim; ONE ruled headline change (2026-08-16): "One price. Your whole business, run by one AI."; shell restyled to new tokens; `test-pricing-claims.js` must stay green |
 | 9 | Founding offer | Its own moment; the $160 trade plain-spoken; earned-testimonial promise |
 | 10 | Footer | R2 LABS LLC, legal links, PM "under construction — join the waitlist" badge + waitlist form (replaces PM signup, R6) |
 
