@@ -127,18 +127,24 @@ PS-focused page (one killer page, no chooser). PM demotes to a nav/footer
 link with an "in development" badge. `/professional-services` 301s or
 mirrors to `/`.
 
+**SECTION ORDER — updated 2026-08-16 per Jay's two content additions
+(WHO IT'S FOR strip + EVERYTHING SHE DOES grid). This supersedes the
+original table; the LP2+ design brief's build-order rules still apply
+(one section per commit, browser-reviewed).**
+
 | # | Section | Content |
 |---|---|---|
-| 0 | Nav | Forest glass blur, brass CTA "Start free trial" |
-| 1 | **HERO — the working demo** | H1 (e.g. "Your phone, answered. Forever."), the recorded-call player with live-typing transcript, and the demo-line card: **"Don't take our word for it — call the demo salon right now: (xxx) xxx-xxxx. An AI answers. Try to book something."** Sub-line: "You're hearing the actual product, not an actor." |
-| 2 | Proof strip | 24/7 · answers in ~2 rings · English & Español · you approve everything |
-| 3 | "What happens when a customer calls" | 3 beats with real transcript fragments: answers → checks the real calendar → books it |
-| 4 | Feature blocks 01–05 (real-UI motion, §4) | Booking→calendar · Payments→PAID (honest caveat) · Reports · Spanish thread · Teach-it knowledge base |
-| 5 | **The honest section** (cream paper inversion) | Evolved fear-handler + REAL approval-queue screenshot + fair-dealing lines |
-| 6 | **Pricing — the keystone, as-is** | f59dd30 copy/structure verbatim; shell restyled to new tokens only; `test-pricing-claims.js` must stay green |
-| 7 | Founding customers band | The $160 offer + the earned-testimonial promise |
-| 8 | Honest FAQ | Includes "Can it text customers?" → "Built and in carrier review — voice is live today" (turns the SMS gate into a trust asset) |
-| 9 | Final CTA + footer | PM "under construction" side door lives here + nav |
+| 0 | Nav | Forest glass blur, brass CTA "Start free trial" — SHIPPED (LP2) |
+| 1 | **HERO — the working demo** | SHIPPED (LP2): live demo line (332) 249-4333, transcript rig dark until the real recording lands |
+| 2 | **WHO IT'S FOR strip** (added) | Profession chips, forest/brass, labels-not-links, 2-second scannable, clean mobile wrap: Salons · Barbers · Makeup artists · Pet groomers · Physical therapists · Personal trainers · Massage therapists · Estheticians · Nail techs · Tutors · Photographers · Cleaners. Closer: "If it's booked by appointment, she answers it." |
+| 3 | The missed-call math | One huge Fraunces number — what a missed booking costs a salon per month, assumption cited honestly. Fear-handler bones kept, type elevated |
+| 4 | Three real-UI sequences | Booking→calendar · Payments→PAID (Stripe test, honest caveat) · Spanish thread. Screen-recorded, device-frame cards, captioned, no mockups |
+| 5 | How she works | 3 cards MAX: answers/books · learns your menu + policies · hands you the books. One claim + one proof each |
+| 6 | **EVERYTHING SHE DOES grid** (added) | Comprehensive LIVE-features grid, one honest sentence each: 24/7 answering & booking · English + Spanish · calendar booking with real services/prices · knowledge base + approval controls · honest payments (Stripe/Square links, receipts, real refunds; Venmo/Zelle info, manual confirm — VERIFIED live, lib/direct-payments) · transaction report (printable/exportable) · the on-every-screen assistant · narrative reports (activity, customers, week ahead) · contacts/tasks/calendar · dedicated business number · security posture (password-gated changes, verified contacts, change alerts). Gated items (SMS, more languages) STAY OUT — they are the honesty section's job. Cards carry a real screenshot or transcript fragment as proof where one exists; no decorative icons standing in for proof |
+| 7 | **The honest section** (cream paper inversion) | "What she doesn't do yet" — gated items truthfully (texting: pending carrier approval; more languages: coming) + REAL approval-queue screenshot + fair-dealing lines |
+| 8 | **Pricing — the keystone, as-is** | f59dd30 copy/structure verbatim; shell restyled to new tokens only; `test-pricing-claims.js` must stay green |
+| 9 | Founding offer | Its own moment; the $160 trade plain-spoken; earned-testimonial promise |
+| 10 | Footer | R2 LABS LLC, legal links, PM "under construction — join the waitlist" badge + waitlist form (replaces PM signup, R6) |
 
 ### The live demo line (rulings R2/R3)
 - **Mechanics:** a dedicated **demo workspace** ("the demo salon" — clearly

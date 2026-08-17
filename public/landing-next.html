@@ -266,6 +266,53 @@
       font-family: var(--font-mono);
     }
 
+    /* ── Section 2: WHO IT'S FOR — chips, labels not links ── */
+    .who {
+      border-top: 1px solid var(--hairline);
+      padding: 72px 20px 80px;
+      text-align: center;
+    }
+    .section-eyebrow {
+      font-size: 0.78rem; font-weight: 600;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--brass);
+      margin-bottom: 30px;
+    }
+    .who-chips {
+      list-style: none;
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 10px;
+      max-width: 720px;
+      margin: 0 auto 42px;
+    }
+    .who-chips .chip {
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 0.92rem; font-weight: 500;
+      color: var(--cream-64);
+      white-space: nowrap;
+      /* Labels, not links: no hover states, no pointer. */
+    }
+    .who-closer {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 60;
+      font-weight: 420;
+      font-size: var(--step-2);
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--cream);
+      text-wrap: balance;
+      max-width: 24ch;
+      margin: 0 auto;
+    }
+    @media (max-width: 480px) {
+      .who { padding: 54px 16px 60px; }
+      .who-chips { gap: 8px; }
+      .who-chips .chip { padding: 8px 14px; font-size: 0.86rem; }
+    }
+
     /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
     .mini-cta {
       position: fixed; left: 50%; bottom: 18px; z-index: 90;
@@ -288,17 +335,19 @@
     }
     .mini-cta .btn-brass { padding: 8px 16px; font-size: 0.85rem; }
 
-    /* ── Entrance reveals: transform+opacity only, staggered ≤300ms ── */
-    .reveal {
+    /* ── Entrance reveals: transform+opacity only, staggered ≤300ms.
+         .reveal fires on load (hero, above the fold); .reveal-scroll
+         fires when scrolled into view (every section below). ── */
+    .reveal, .reveal-scroll {
       opacity: 0;
       transform: translateY(14px);
       transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
     }
-    .reveal.is-in { opacity: 1; transform: none; }
+    .reveal.is-in, .reveal-scroll.is-in { opacity: 1; transform: none; }
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .reveal { opacity: 1; transform: none; transition: none; }
+      .reveal, .reveal-scroll { opacity: 1; transform: none; transition: none; }
       .mini-cta { transition: none; }
       .btn-brass, .btn-hero, .demo-number { transition: none; }
       /* Transcript: no typing — the full conversation shows statically. */
@@ -366,6 +415,27 @@
         <audio id="transcriptAudio" preload="none"></audio>
       </div>
     </section>
+
+    <!-- Section 2: WHO IT'S FOR — chips are labels, not links (brief:
+         scannable in 2 seconds, clean mobile wrap). -->
+    <section class="who" aria-labelledby="whoCloser">
+      <p class="section-eyebrow reveal-scroll">Who it&rsquo;s for</p>
+      <ul class="who-chips" role="list">
+        <li class="chip reveal-scroll" style="transition-delay:0ms">Salons</li>
+        <li class="chip reveal-scroll" style="transition-delay:22ms">Barbers</li>
+        <li class="chip reveal-scroll" style="transition-delay:44ms">Makeup artists</li>
+        <li class="chip reveal-scroll" style="transition-delay:66ms">Pet groomers</li>
+        <li class="chip reveal-scroll" style="transition-delay:88ms">Physical therapists</li>
+        <li class="chip reveal-scroll" style="transition-delay:110ms">Personal trainers</li>
+        <li class="chip reveal-scroll" style="transition-delay:132ms">Massage therapists</li>
+        <li class="chip reveal-scroll" style="transition-delay:154ms">Estheticians</li>
+        <li class="chip reveal-scroll" style="transition-delay:176ms">Nail techs</li>
+        <li class="chip reveal-scroll" style="transition-delay:198ms">Tutors</li>
+        <li class="chip reveal-scroll" style="transition-delay:220ms">Photographers</li>
+        <li class="chip reveal-scroll" style="transition-delay:242ms">Cleaners</li>
+      </ul>
+      <h2 class="who-closer reveal-scroll" id="whoCloser" style="transition-delay:120ms">If it&rsquo;s booked by appointment, she answers it.</h2>
+    </section>
   </main>
 
   <!-- Sticky mini-CTA: only after the hero scrolls out -->
@@ -388,6 +458,22 @@
             reveals.forEach(function (el) { el.classList.add('is-in'); });
           });
         });
+      }
+
+      // Scroll reveals for below-fold sections — once-only, threshold 0.2.
+      var scrollReveals = document.querySelectorAll('.reveal-scroll');
+      if (reduced || !('IntersectionObserver' in window)) {
+        scrollReveals.forEach(function (el) { el.classList.add('is-in'); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('is-in');
+              io.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.2 });
+        scrollReveals.forEach(function (el) { io.observe(el); });
       }
 
       // Sticky mini-CTA: shown only once the hero is out of view.
