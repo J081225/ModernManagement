@@ -24,26 +24,50 @@ const plans = require('../lib/plans');
 const pageRaw = fs.readFileSync(path.join(__dirname, '..', 'public', 'landing-next.html'), 'utf8');
 // Active copy = what renders. Strip HTML comments (flip-ready lines live there).
 const page = pageRaw.replace(/<!--[\s\S]*?-->/g, '');
+// The honesty section (id="honesty") is the ONE place absent features may
+// be NAMED — as things she does NOT do. LC1/LC2 run on the page MINUS that
+// section; LC10 holds the section itself to truthful "doesn't do" framing.
+const honestMatch = page.match(/<section class="honest"[\s\S]*?<\/section>/);
+const honest = honestMatch ? honestMatch[0] : '';
+const pageNoHonest = honest ? page.replace(honest, '') : page;
 const engine = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
 
 const DEMO_NUMBER_TEL = 'tel:+13322494333';
 
 (async () => {
-  // ---- LC1: anti-list features never appear in active copy ----
+  // ---- LC1: anti-list features never appear as claims (honesty section
+  // exempt — naming them as NOT built is its whole job) ----
   {
-    const hits = plans.ANTI_LIST.filter((a) => page.includes(a.label)).map((a) => a.label);
-    check('LC1: none of the 5 nonexistent features (anti-list) appear in active landing copy',
+    const hits = plans.ANTI_LIST.filter((a) => pageNoHonest.includes(a.label)).map((a) => a.label);
+    check('LC1: none of the 5 nonexistent features (anti-list) appear in active landing copy outside the honesty section',
       hits.length === 0, JSON.stringify(hits));
   }
 
-  // ---- LC2: gated claims stay out — SMS texting + Arabic ----
+  // ---- LC2: gated claims stay out — SMS texting + Arabic (honesty
+  // section exempt for the same reason) ----
   {
     // The page may say the demo "will never text you" (a true negative);
     // what it may NOT do is CLAIM texting as a feature.
-    const smsClaim = /texts back|handles SMS|text conversations|by text/i.test(page);
-    const arabic = /Arabic/i.test(page);
-    check('LC2: no SMS-as-feature claim (A2P pending) and no Arabic claim in active copy',
+    const smsClaim = /texts back|handles SMS|text conversations|by text/i.test(pageNoHonest);
+    const arabic = /Arabic/i.test(pageNoHonest);
+    check('LC2: no SMS-as-feature claim (A2P pending) and no Arabic claim in active copy outside the honesty section',
       !smsClaim && !arabic, JSON.stringify({ smsClaim, arabic }));
+  }
+
+  // ---- LC10: the honesty section exists and stays TRUTHFUL — every item
+  // framed as not-yet, each with a "Flips when true" note. A rewrite that
+  // turns a doesn't-do item into a feature claim fails here. ----
+  {
+    const exists = honest.length > 0 && /What she doesn&rsquo;t do yet|What she doesn't do yet/.test(honest);
+    const items = (honest.match(/class="honest-item/g) || []).length;
+    const flips = (honest.match(/Flips when true/g) || []).length;
+    const texting = /carrier review|pending carrier/i.test(honest);
+    const languages = /native.speaker/i.test(honest);
+    const reminders = /Not built yet/.test(honest);
+    const multiStaff = /One owner per business/i.test(honest);
+    check('LC10: the honesty section exists with 4 truthfully-framed items (carrier review, native-speaker gate, "Not built yet" reminders, one-owner multi-staff), each carrying a "Flips when true" note',
+      exists && items === 4 && flips === 4 && texting && languages && reminders && multiStaff,
+      JSON.stringify({ exists, items, flips, texting, languages, reminders, multiStaff }));
   }
 
   // ---- LC3: no fabricated testimonials ----

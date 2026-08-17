@@ -512,6 +512,58 @@
       .inv-grid { grid-template-columns: 1fr; }
     }
 
+    /* ── Section 7: THE HONESTY SECTION — the cream inversion. The one
+       place absent features are NAMED (LC10 enforces truthful framing;
+       LC1/LC2 exempt this section by design). Emerald deliberately does
+       NOT appear here: nothing in this section is a live/true state. ── */
+    .honest {
+      background: var(--cream);
+      color: var(--ink);
+      padding: 88px 20px 96px;
+    }
+    .honest-wrap { max-width: 680px; margin: 0 auto; }
+    .honest .section-eyebrow { color: var(--forest-700); }
+    .honest-title {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 96;
+      font-weight: 420;
+      font-size: var(--step-3);
+      line-height: 1.1;
+      color: var(--ink);
+      text-wrap: balance;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .honest-frame {
+      font-size: var(--step-0);
+      color: rgba(19,42,32,0.72);
+      text-align: center;
+      max-width: 46ch; margin: 0 auto 46px;
+      text-wrap: balance;
+    }
+    .honest-item {
+      border-top: 1px solid rgba(19,42,32,0.14);
+      padding: 24px 0 22px;
+    }
+    .h-name { font-size: 1.02rem; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+    .h-text { font-size: 0.95rem; line-height: 1.65; color: rgba(19,42,32,0.78); }
+    .h-flip {
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem; letter-spacing: 0.04em;
+      color: rgba(19,42,32,0.55);
+    }
+    .h-flip strong { color: rgba(19,42,32,0.75); font-weight: 600; }
+    .honest-close {
+      border-top: 1px solid rgba(19,42,32,0.14);
+      padding-top: 26px;
+      font-size: var(--step-0);
+      color: var(--ink);
+      text-align: center;
+      text-wrap: balance;
+    }
+    @media (max-width: 540px) { .honest { padding: 64px 16px 72px; } }
+
     /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
     .mini-cta {
       position: fixed; left: 50%; bottom: 18px; z-index: 90;
@@ -774,6 +826,40 @@
           <p class="inv-name">Security that acts like it</p>
           <p class="inv-text">Password-gated changes, verified contact edits, and alerts when anything important moves.</p>
         </div>
+      </div>
+    </section>
+
+    <!-- Section 7: THE HONESTY SECTION — the cream inversion. Framed as a
+         feature: the reason every other claim on this page can be
+         trusted. The ONLY place absent features are named (LC10). -->
+    <section class="honest" id="honesty" aria-labelledby="honestTitle">
+      <div class="honest-wrap">
+        <p class="section-eyebrow reveal-scroll" style="text-align:center;">The honest section</p>
+        <h2 class="honest-title reveal-scroll" id="honestTitle" style="transition-delay:60ms">What she doesn&rsquo;t do yet.</h2>
+        <p class="honest-frame reveal-scroll" style="transition-delay:120ms">Most software hides this list. We print it &mdash; it&rsquo;s the reason you can trust everything else on this page.</p>
+
+        <div class="honest-item reveal-scroll">
+          <p class="h-name">Texting back</p>
+          <p class="h-text">Your customers&rsquo; texts arrive in the inbox today &mdash; but she doesn&rsquo;t reply by text yet. Our messaging campaign is in carrier review.</p>
+          <p class="h-flip"><strong>Flips when true:</strong> the moment carriers approve, texting joins the inventory above.</p>
+        </div>
+        <div class="honest-item reveal-scroll" style="transition-delay:60ms">
+          <p class="h-name">More languages</p>
+          <p class="h-text">English and Spanish are live. Nothing else ships until a native speaker verifies it end to end &mdash; no half-translated experience, ever.</p>
+          <p class="h-flip"><strong>Flips when true:</strong> each language appears here the day it passes native-speaker review.</p>
+        </div>
+        <div class="honest-item reveal-scroll" style="transition-delay:120ms">
+          <p class="h-name">Automatic reminders</p>
+          <p class="h-text">Not built yet. Plenty of tools list this one anyway; we don&rsquo;t. Today she confirms the booking live on the call &mdash; scheduled reminder texts come after the messaging campaign clears and the feature actually ships.</p>
+          <p class="h-flip"><strong>Flips when true:</strong> built, tested, shipped &mdash; then listed. Not before.</p>
+        </div>
+        <div class="honest-item reveal-scroll" style="transition-delay:180ms">
+          <p class="h-name">Multi-staff scheduling</p>
+          <p class="h-text">One owner per business today. If you run chairs or a team, the calendar is still one calendar.</p>
+          <p class="h-flip"><strong>Flips when true:</strong> multi-user ships as a free upgrade &mdash; it will be announced, not implied.</p>
+        </div>
+
+        <p class="honest-close reveal-scroll" style="transition-delay:120ms">Everything else on this page is live right now. That&rsquo;s the deal: <strong>if it&rsquo;s listed, it works. If it&rsquo;s coming, it&rsquo;s here.</strong></p>
       </div>
     </section>
   </main>
