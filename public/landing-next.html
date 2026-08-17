@@ -704,6 +704,85 @@
       .founding { padding-bottom: 68px; }
     }
 
+    /* ── Section 10: FOOTER — legal, PM waitlist (replaces PM signup, R6) ── */
+    footer.site {
+      border-top: 1px solid var(--hairline);
+      padding: 64px 20px 40px;
+    }
+    .foot-wrap { max-width: 1060px; margin: 0 auto; }
+    .foot-grid {
+      display: grid; grid-template-columns: 1.2fr 1fr 1.2fr; gap: 40px;
+      margin-bottom: 44px;
+    }
+    .foot-brand-name {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 600; margin-bottom: 10px;
+    }
+    .foot-tag { font-size: 0.88rem; color: var(--cream-64); line-height: 1.6; max-width: 30ch; }
+    .foot-col-label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--cream-40);
+      margin-bottom: 14px;
+    }
+    .foot-links-col a {
+      display: block;
+      color: var(--cream-64); text-decoration: none;
+      font-size: 0.9rem; padding: 4px 0;
+      transition: color 0.2s var(--ease-out);
+    }
+    .foot-links-col a:hover { color: var(--cream); }
+    .pm-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--cream-40);
+      border: 1px dashed rgba(244,239,230,0.22);
+      border-radius: 6px;
+      padding: 4px 9px;
+      margin-bottom: 12px;
+    }
+    .pm-text { font-size: 0.88rem; color: var(--cream-64); line-height: 1.6; margin-bottom: 14px; }
+    .pm-form { display: flex; gap: 8px; }
+    .pm-form input[type="email"] {
+      flex: 1; min-width: 0;
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 9px;
+      padding: 11px 13px;
+      font-family: var(--font-text); font-size: 0.9rem;
+      color: var(--cream);
+    }
+    .pm-form input[type="email"]::placeholder { color: var(--cream-40); }
+    .pm-form button {
+      background: transparent; color: var(--cream-64);
+      border: 1px solid var(--hairline);
+      border-radius: 9px;
+      font-family: var(--font-text); font-weight: 600; font-size: 0.88rem;
+      padding: 11px 16px; cursor: pointer;
+      transition: color 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+      white-space: nowrap;
+    }
+    .pm-form button:hover { color: var(--cream); border-color: rgba(244,239,230,0.3); }
+    .pm-done {
+      display: none;
+      font-family: var(--font-mono);
+      font-size: 0.8rem; color: var(--emerald); /* live/true: you're on it */
+      margin-top: 10px;
+    }
+    .pm-err { display: none; font-size: 0.8rem; color: #d08c8c; margin-top: 10px; }
+    .foot-legal {
+      border-top: 1px solid var(--hairline);
+      padding-top: 26px;
+      text-align: center;
+      font-size: 0.8rem; color: var(--cream-40);
+      line-height: 1.7;
+    }
+    @media (max-width: 860px) {
+      .foot-grid { grid-template-columns: 1fr; gap: 32px; }
+    }
+
     /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
     .mini-cta {
       position: fixed; left: 50%; bottom: 18px; z-index: 90;
@@ -1057,6 +1136,40 @@
     </section>
   </main>
 
+  <!-- Section 10: FOOTER — R2 LABS LLC, legal, and the PM waitlist
+       (the R6 replacement for PM signup). -->
+  <footer class="site">
+    <div class="foot-wrap">
+      <div class="foot-grid">
+        <div>
+          <div class="foot-brand-name"><span class="nav-mark" aria-hidden="true">M</span> Modern Management</div>
+          <p class="foot-tag">An AI receptionist for businesses that take bookings &mdash; front desk and back office, one price.</p>
+        </div>
+        <nav class="foot-links-col" aria-label="Legal and account">
+          <p class="foot-col-label">Company</p>
+          <a href="/login">Sign in</a>
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/sms-terms">SMS Program Terms</a>
+          <a href="/sms-consent">SMS Consent</a>
+          <a href="/security">Security</a>
+        </nav>
+        <div>
+          <p class="foot-col-label">Property management</p>
+          <span class="pm-badge">Under construction</span>
+          <p class="pm-text">Property management &mdash; under construction. Join the waitlist and we&rsquo;ll write when it&rsquo;s ready.</p>
+          <form class="pm-form" id="pmForm" novalidate>
+            <input type="email" id="pmEmail" placeholder="you@example.com" autocomplete="email" aria-label="Email for the property-management waitlist" required />
+            <button type="submit">Join the waitlist</button>
+          </form>
+          <p class="pm-done" id="pmDone">You&rsquo;re on the list &mdash; we&rsquo;ll be in touch.</p>
+          <p class="pm-err" id="pmErr">That email didn&rsquo;t look right &mdash; try again?</p>
+        </div>
+      </div>
+      <p class="foot-legal">&copy; 2026 R2 LABS LLC &middot; Modern Management is a product of R2 LABS LLC, New York, NY.</p>
+    </div>
+  </footer>
+
   <!-- Sticky mini-CTA: only after the hero scrolls out -->
   <div class="mini-cta" id="miniCta" aria-hidden="true">
     <a class="mini-number" href="tel:+13322494333">(332) 249-4333</a>
@@ -1162,6 +1275,33 @@
           lineEls.forEach(function (el) { el.classList.add('is-shown'); });
         });
       }).catch(function () { /* recording not published yet — panel stays absent */ });
+
+      // PM waitlist (footer) — posts to the real endpoint; idempotent
+      // server-side, so a resubmit reads as success.
+      var pmForm = document.getElementById('pmForm');
+      if (pmForm) {
+        pmForm.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          var email = document.getElementById('pmEmail').value.trim();
+          var done = document.getElementById('pmDone');
+          var err = document.getElementById('pmErr');
+          done.style.display = 'none'; err.style.display = 'none';
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.style.display = 'block'; return; }
+          try {
+            var r = await fetch('/api/pm-waitlist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: email })
+            });
+            if (!r.ok) throw new Error('bad status');
+            pmForm.style.display = 'none';
+            done.style.display = 'block';
+          } catch (ex) {
+            err.textContent = 'Something went wrong — please try again.';
+            err.style.display = 'block';
+          }
+        });
+      }
     })();
   </script>
 </body>

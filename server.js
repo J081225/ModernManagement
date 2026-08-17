@@ -523,6 +523,30 @@ app.post('/api/sms-opt-in', async (req, res) => {
   }
 });
 
+// LP section 10 / R6: the PM waitlist — the landing footer's "under
+// construction" form. Public; idempotent per email (unique lower(email)
+// index, ON CONFLICT DO NOTHING); always returns ok on valid input so
+// resubmits read as success.
+app.post('/api/pm-waitlist', async (req, res) => {
+  try {
+    const email = String((req.body || {}).email || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      return res.status(400).json({ error: 'email_invalid' });
+    }
+    const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim().slice(0, 100);
+    const ua = String(req.headers['user-agent'] || '').slice(0, 400);
+    await pool.query(
+      `INSERT INTO pm_waitlist (email, ip, user_agent) VALUES ($1, $2, $3)
+       ON CONFLICT ((LOWER(email))) DO NOTHING`,
+      [email, ip, ua]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /api/pm-waitlist failed:', err.message);
+    return res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // --- Database setup & migrations ---
 // Safe migration helper — logs errors but never crashes the server
 async function migrate(sql, label) {
