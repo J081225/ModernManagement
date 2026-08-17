@@ -82,6 +82,25 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
       claim && mechanism, JSON.stringify({ claim, mechanism }));
   }
 
+  // ---- LC8: "salons & barbershops" is RETIRED site-wide (2026-08-16
+  // ruling: the audience is "businesses that take bookings"). Scans every
+  // public + views HTML file, not just the new landing. ----
+  {
+    const dirs = [path.join(__dirname, '..', 'public'), path.join(__dirname, '..', 'views')];
+    const phrase = /salons\s*(?:&amp;|&|and)\s*barbershops|barbershops\s*(?:&amp;|&|and)\s*salons/i;
+    const hits = [];
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(p);
+        else if (entry.name.endsWith('.html') && phrase.test(fs.readFileSync(p, 'utf8'))) hits.push(entry.name);
+      }
+    };
+    dirs.forEach(walk);
+    check('LC8: the retired "salons & barbershops" phrase appears in NO public/views HTML (audience is "businesses that take bookings")',
+      hits.length === 0, JSON.stringify(hits));
+  }
+
   // ---- LC7: headline discipline — h1 is 8 words or fewer ----
   {
     const m = page.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
