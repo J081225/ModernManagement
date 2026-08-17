@@ -101,6 +101,24 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
       hits.length === 0, JSON.stringify(hits));
   }
 
+  // ---- LC9: proof frames are REAL captures or the honest empty state —
+  // never a mock, stock image, or hand-built UI standing in as real
+  // (sequencing ruling 2026-08-16). Every .proof-frame must hold either
+  // an <img> from /img/product/ (the real-capture folder) or the literal
+  // honest empty line; and ANY <img> on the page must come from
+  // /img/product/. ----
+  {
+    const frames = pageRaw.split('class="proof-frame"').length - 1;
+    const empties = (pageRaw.match(/Real screenshot arriving/g) || []).length;
+    const productImgs = (pageRaw.match(/<img[^>]+src="\/img\/product\//g) || []).length;
+    const allImgs = (pageRaw.match(/<img/g) || []).length;
+    const framesHonest = frames > 0 && (empties + productImgs) >= frames;
+    const noForeignImgs = allImgs === productImgs;
+    check('LC9: every proof frame is a real /img/product/ capture or the honest "Real screenshot arriving" empty state, and no other <img> exists on the page',
+      framesHonest && noForeignImgs,
+      JSON.stringify({ frames, empties, productImgs, allImgs }));
+  }
+
   // ---- LC7: headline discipline — h1 is 8 words or fewer ----
   {
     const m = page.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);

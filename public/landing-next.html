@@ -359,6 +359,159 @@
       .math { padding: 60px 16px 68px; }
     }
 
+    /* ── Section 4: THE REVEAL — six rooms, one system ── */
+    .rooms {
+      border-top: 1px solid var(--hairline);
+      padding: 84px 20px 92px;
+      max-width: 1060px; margin: 0 auto;
+    }
+    .rooms-head { text-align: center; margin-bottom: 52px; }
+    .rooms-title {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 96;
+      font-weight: 400;
+      font-size: var(--step-3);
+      line-height: 1.12;
+      letter-spacing: -0.012em;
+      color: var(--cream);
+      text-wrap: balance;
+      max-width: 24ch; margin: 0 auto 18px;
+    }
+    .rooms-intro {
+      font-size: var(--step-0);
+      color: var(--cream-64);
+      max-width: 52ch; margin: 0 auto;
+      text-wrap: balance;
+    }
+    .rooms-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    }
+    .room {
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 16px;
+      padding: 22px 22px 20px;
+      transition: transform 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+    }
+    .room:hover { transform: translateY(-3px) scale(1.01); border-color: rgba(201,169,106,0.35); }
+    .room-label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--cream-40);
+      margin-bottom: 8px;
+    }
+    .room-claim {
+      font-size: 0.95rem; line-height: 1.6;
+      color: var(--cream);
+      margin-bottom: 16px;
+    }
+    .room-claim .caveat { color: var(--cream-64); }
+    /* The proof frame: sized for Jay's real captures (16:10). Until a
+       capture lands it shows the honest empty state — dashed border says
+       "unfinished" out loud. NEVER a mock, stock image, or hand-built UI. */
+    .proof-frame {
+      aspect-ratio: 16 / 10;
+      border: 1px dashed rgba(244,239,230,0.18);
+      border-radius: 10px;
+      display: grid; place-items: center;
+      padding: 14px;
+      overflow: hidden;
+    }
+    .proof-frame img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
+    .proof-empty {
+      font-family: var(--font-mono);
+      font-size: 0.74rem; line-height: 1.7;
+      color: var(--cream-40);
+      text-align: center;
+      max-width: 30ch;
+    }
+
+    /* ── Section 5: HOW SHE WORKS — one flow ── */
+    .flow {
+      border-top: 1px solid var(--hairline);
+      padding: 84px 20px 92px;
+      max-width: 1060px; margin: 0 auto;
+      text-align: center;
+    }
+    .flow-title {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 96;
+      font-weight: 400;
+      font-size: var(--step-3);
+      line-height: 1.12;
+      color: var(--cream);
+      text-wrap: balance;
+      max-width: 26ch; margin: 0 auto 52px;
+    }
+    .flow-steps {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+      text-align: left;
+    }
+    .flow-step { border-top: 1px solid var(--hairline); padding-top: 18px; }
+    .flow-num {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 40;
+      font-weight: 430;
+      font-variant-numeric: tabular-nums;
+      font-size: var(--step-2);
+      color: var(--brass);
+      line-height: 1;
+      display: block; margin-bottom: 10px;
+    }
+    .flow-name {
+      font-family: var(--font-mono);
+      font-size: 0.74rem; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--cream-40);
+      margin-bottom: 8px;
+    }
+    .flow-text { font-size: 0.92rem; line-height: 1.6; color: var(--cream-64); }
+
+    /* ── Section 6: EVERYTHING SHE DOES — the inventory ── */
+    .inv {
+      border-top: 1px solid var(--hairline);
+      padding: 84px 20px 92px;
+      max-width: 1060px; margin: 0 auto;
+    }
+    .inv-head { text-align: center; margin-bottom: 48px; }
+    .inv-title {
+      font-family: var(--font-display);
+      font-variation-settings: 'opsz' 96;
+      font-weight: 400;
+      font-size: var(--step-3);
+      color: var(--cream);
+      margin-bottom: 12px;
+    }
+    .inv-sub { font-size: var(--step-0); color: var(--cream-64); }
+    .inv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .inv-card {
+      background: var(--forest-900);
+      border: 1px solid var(--hairline);
+      border-radius: 14px;
+      padding: 18px 18px 16px;
+    }
+    .inv-name { font-size: 0.95rem; font-weight: 600; color: var(--cream); margin-bottom: 6px; }
+    .inv-text { font-size: 0.88rem; line-height: 1.6; color: var(--cream-64); }
+    .inv-proof {
+      margin-top: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.74rem; line-height: 1.6;
+      color: var(--emerald); /* live/true: real data from the live demo shop */
+      font-variant-numeric: tabular-nums;
+    }
+
+    @media (max-width: 860px) {
+      .rooms-grid { grid-template-columns: 1fr; }
+      .flow-steps { grid-template-columns: 1fr 1fr; }
+      .inv-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 540px) {
+      .rooms, .flow, .inv { padding: 60px 16px 68px; }
+      .flow-steps { grid-template-columns: 1fr; }
+      .inv-grid { grid-template-columns: 1fr; }
+    }
+
     /* ── Sticky mini-CTA — appears only after the hero scrolls out ── */
     .mini-cta {
       position: fixed; left: 50%; bottom: 18px; z-index: 90;
@@ -493,6 +646,135 @@
       <p class="math-after reveal-scroll" style="transition-delay:220ms">walks out the door every month.</p>
       <p class="math-assumption reveal-scroll" style="transition-delay:280ms">The math, honestly: $45 &times; 26 working days. No industry statistics &mdash; just arithmetic. Run it with your own prices.</p>
       <p class="math-kicker reveal-scroll" style="transition-delay:300ms">The receptionist who catches every one of them costs <strong>$320 a month.</strong></p>
+    </section>
+
+    <!-- Section 4: THE REVEAL — the door opens. Six rooms, one system.
+         Proof frames are sized for Jay's real captures (16:10) and show
+         the honest empty state until each lands. Never a mock. -->
+    <section class="rooms" aria-labelledby="roomsTitle">
+      <div class="rooms-head">
+        <p class="section-eyebrow reveal-scroll">One system</p>
+        <h2 class="rooms-title reveal-scroll" id="roomsTitle" style="transition-delay:60ms">She&rsquo;s not just answering the phone. She&rsquo;s running the desk.</h2>
+        <p class="rooms-intro reveal-scroll" style="transition-delay:120ms">The call is the door. Behind it, one system runs the whole day &mdash; every room below is the same login, the same brain.</p>
+      </div>
+      <div class="rooms-grid">
+        <div class="room reveal-scroll" style="transition-delay:0ms">
+          <p class="room-label">Calendar</p>
+          <p class="room-claim">The appointment she takes on the phone lands on your calendar before the caller hangs up &mdash; checked against your real hours, services, and existing bookings.</p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+        <div class="room reveal-scroll" style="transition-delay:60ms">
+          <p class="room-label">Inbox</p>
+          <p class="room-claim">Calls, voicemails, and emails &mdash; one thread per customer. <span class="caveat">Inbound texts arrive today; texting back is pending carrier approval &mdash; see the honest section below.</span></p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+        <div class="room reveal-scroll" style="transition-delay:120ms">
+          <p class="room-label">Payments</p>
+          <p class="room-claim">A secure card link &mdash; Stripe or Square &mdash; receipts, real refunds, and Venmo/Zelle details you confirm manually.</p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+        <div class="room reveal-scroll" style="transition-delay:180ms">
+          <p class="room-label">Books</p>
+          <p class="room-claim">Every sale, deposit, refund, and expense in one honest transaction report &mdash; print it or export it. Budgets live in the same room.</p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+        <div class="room reveal-scroll" style="transition-delay:240ms">
+          <p class="room-label">Reports</p>
+          <p class="room-claim">Ask for the week ahead, the month&rsquo;s activity, or a customer&rsquo;s story &mdash; she writes it in words, not dashboards.</p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+        <div class="room reveal-scroll" style="transition-delay:300ms">
+          <p class="room-label">The Assistant</p>
+          <p class="room-claim">She rides every screen. Say it &mdash; &ldquo;book Maria Friday at 3&rdquo; &mdash; and she does it. Anything sensitive waits for your tap.</p>
+          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: HOW SHE WORKS — one flow, four stops. -->
+    <section class="flow" aria-labelledby="flowTitle">
+      <p class="section-eyebrow reveal-scroll">How she works</p>
+      <h2 class="flow-title reveal-scroll" id="flowTitle" style="transition-delay:60ms">One call becomes a booking, a thread, and a ledger line.</h2>
+      <div class="flow-steps">
+        <div class="flow-step reveal-scroll" style="transition-delay:0ms">
+          <span class="flow-num">01</span>
+          <p class="flow-name">The phone</p>
+          <p class="flow-text">She answers, quotes your real menu, and finds a time that works.</p>
+        </div>
+        <div class="flow-step reveal-scroll" style="transition-delay:70ms">
+          <span class="flow-num">02</span>
+          <p class="flow-name">The calendar</p>
+          <p class="flow-text">The booking lands, conflict-checked, before the caller hangs up.</p>
+        </div>
+        <div class="flow-step reveal-scroll" style="transition-delay:140ms">
+          <span class="flow-num">03</span>
+          <p class="flow-name">The inbox</p>
+          <p class="flow-text">The whole exchange is logged to that customer&rsquo;s thread &mdash; nothing lives in your head.</p>
+        </div>
+        <div class="flow-step reveal-scroll" style="transition-delay:210ms">
+          <span class="flow-num">04</span>
+          <p class="flow-name">The books</p>
+          <p class="flow-text">When money moves, it&rsquo;s receipted and on the report &mdash; one ledger, printable.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 6: EVERYTHING SHE DOES — the inventory. The reveal is the
+         story; this is the list. Live features only; gated items (SMS,
+         more languages) belong to the honesty section, not here. -->
+    <section class="inv" aria-labelledby="invTitle">
+      <div class="inv-head">
+        <p class="section-eyebrow reveal-scroll">The inventory</p>
+        <h2 class="inv-title reveal-scroll" id="invTitle" style="transition-delay:60ms">Everything she does.</h2>
+        <p class="inv-sub reveal-scroll" style="transition-delay:120ms">The reveal was the story. This is the list &mdash; all of it live today.</p>
+      </div>
+      <div class="inv-grid">
+        <div class="inv-card reveal-scroll" style="transition-delay:0ms">
+          <p class="inv-name">24/7 answering &amp; booking</p>
+          <p class="inv-text">Every call answered, day or night &mdash; booked straight onto your calendar.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:25ms">
+          <p class="inv-name">English + Spanish</p>
+          <p class="inv-text">She answers in English or Spanish &mdash; you set the language your customers speak.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:50ms">
+          <p class="inv-name">Real services, real prices</p>
+          <p class="inv-text">She quotes your actual menu &mdash; services, prices, durations &mdash; and books inside your actual hours.</p>
+          <p class="inv-proof">On the demo line now: Skin Fade $45 &middot; Cut + Beard $50 &mdash; she quotes it live.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:75ms">
+          <p class="inv-name">Knowledge base + approvals</p>
+          <p class="inv-text">Teach her your policies in plain English. Anything sensitive waits for your tap.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:100ms">
+          <p class="inv-name">Honest payments</p>
+          <p class="inv-text">Card links by Stripe or Square, receipts, real refunds &mdash; and Venmo/Zelle details with manual confirm.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:125ms">
+          <p class="inv-name">The transaction report</p>
+          <p class="inv-text">Every dollar in one honest report &mdash; print it or export it as CSV.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:150ms">
+          <p class="inv-name">The on-every-screen assistant</p>
+          <p class="inv-text">The command bar rides every screen &mdash; say it, she does it.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:175ms">
+          <p class="inv-name">Narrative reports</p>
+          <p class="inv-text">Activity, customers, the week ahead &mdash; written as words, not dashboards.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:200ms">
+          <p class="inv-name">Contacts, tasks, calendar</p>
+          <p class="inv-text">The whole front office in one place &mdash; and she works from the same one you see.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:225ms">
+          <p class="inv-name">A dedicated business number</p>
+          <p class="inv-text">Your own local number, provisioned at signup. Calls and inbound texts arrive there.</p>
+        </div>
+        <div class="inv-card reveal-scroll" style="transition-delay:250ms">
+          <p class="inv-name">Security that acts like it</p>
+          <p class="inv-text">Password-gated changes, verified contact edits, and alerts when anything important moves.</p>
+        </div>
+      </div>
     </section>
   </main>
 
