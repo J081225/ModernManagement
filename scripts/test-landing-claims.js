@@ -106,12 +106,14 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
       claim && mechanism, JSON.stringify({ claim, mechanism }));
   }
 
-  // ---- LC8: "salons & barbershops" is RETIRED site-wide (2026-08-16
-  // ruling: the audience is "businesses that take bookings"). Scans every
-  // public + views HTML file, not just the new landing. ----
+  // ---- LC8: salon-narrowed audience language is RETIRED site-wide
+  // (2026-08-16 rulings: the audience is "businesses that take
+  // bookings"). Bans both the "salons & barbershops" phrase AND the
+  // salon-narrowed founding line ("first 10–15 salons") in every
+  // public + views HTML file. ----
   {
     const dirs = [path.join(__dirname, '..', 'public'), path.join(__dirname, '..', 'views')];
-    const phrase = /salons\s*(?:&amp;|&|and)\s*barbershops|barbershops\s*(?:&amp;|&|and)\s*salons/i;
+    const phrase = /salons\s*(?:&amp;|&|and)\s*barbershops|barbershops\s*(?:&amp;|&|and)\s*salons|10\s*(?:&ndash;|–|-)\s*15 salons/i;
     const hits = [];
     const walk = (dir) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -121,7 +123,7 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
       }
     };
     dirs.forEach(walk);
-    check('LC8: the retired "salons & barbershops" phrase appears in NO public/views HTML (audience is "businesses that take bookings")',
+    check('LC8: salon-narrowed language is retired in ALL public/views HTML — no "salons & barbershops", no "first 10–15 salons" (founding audience is businesses)',
       hits.length === 0, JSON.stringify(hits));
   }
 
