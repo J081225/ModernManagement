@@ -270,8 +270,13 @@ app.use(session({
   }
 }));
 
-// Serve public static files (landing, login, signup pages)
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve public static files (landing, login, signup pages).
+// index:false (R1 flip): express.static mounts BEFORE the page routes and
+// its default index option served public/index.html for "/" — silently
+// shadowing the "/" route. Invisible while the route sent the same file;
+// the flip exposed it (/ kept serving the old chooser while every routed
+// path updated). The route — with its auth redirect — must own "/".
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const upload = multer({ storage: multer.memoryStorage() });
 
