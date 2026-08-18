@@ -426,6 +426,38 @@
       text-align: center;
       max-width: 30ch;
     }
+    /* Reports frame ruling: TWO images, request → result. Side by side on
+       desktop, stacked on mobile; each slot holds a real capture or the
+       honest empty. Slot labels tell the story order. */
+    .proof-frame.duo {
+      aspect-ratio: auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      padding: 10px;
+    }
+    .duo-slot {
+      border: 1px dashed rgba(244,239,230,0.18);
+      border-radius: 8px;
+      display: grid; place-items: center;
+      padding: 12px;
+      min-height: 150px;
+    }
+    .duo-slot img { width: 100%; height: auto; border-radius: 6px; display: block; }
+    .duo-label {
+      font-family: var(--font-mono);
+      font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--cream-40);
+      display: block; margin-bottom: 8px;
+    }
+    /* Caption under a filled frame — lands with the real capture. */
+    .proof-caption {
+      font-family: var(--font-mono);
+      font-size: 0.72rem; line-height: 1.6;
+      color: var(--cream-40);
+      margin-top: 10px;
+    }
+    @media (max-width: 640px) {
+      .proof-frame.duo { grid-template-columns: 1fr; }
+    }
 
     /* ── Section 5: HOW SHE WORKS — one flow ── */
     .flow {
@@ -931,7 +963,7 @@
       <div class="rooms-grid">
         <div class="room reveal-scroll" style="transition-delay:0ms">
           <p class="room-label">Calendar</p>
-          <p class="room-claim">The appointment she takes on the phone lands on your calendar before the caller hangs up &mdash; checked against your real hours, services, and existing bookings.</p>
+          <p class="room-claim">The appointment she takes on the phone lands on your calendar before the caller hangs up &mdash; checked against your real hours, services, existing bookings, <strong>and your blocked-off time.</strong> Tell her you&rsquo;re away two weeks; nobody books into them.</p>
           <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
         </div>
         <div class="room reveal-scroll" style="transition-delay:60ms">
@@ -952,7 +984,22 @@
         <div class="room reveal-scroll" style="transition-delay:240ms">
           <p class="room-label">Reports</p>
           <p class="room-claim">Ask for the week ahead, the month&rsquo;s activity, or a customer&rsquo;s story &mdash; she writes it in words, not dashboards.</p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <!-- Ruling: the reports frame is a DUO — the plain-English ask,
+               then the report it produced. Request → result. -->
+          <div class="proof-frame duo">
+            <div class="duo-slot">
+              <div>
+                <span class="duo-label">01 &mdash; the ask</span>
+                <p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p>
+              </div>
+            </div>
+            <div class="duo-slot">
+              <div>
+                <span class="duo-label">02 &mdash; the report</span>
+                <p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="room reveal-scroll" style="transition-delay:300ms">
           <p class="room-label">The Assistant</p>

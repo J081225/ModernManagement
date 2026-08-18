@@ -134,15 +134,23 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
   // honest empty line; and ANY <img> on the page must come from
   // /img/product/. ----
   {
-    const frames = pageRaw.split('class="proof-frame"').length - 1;
+    // Frames counted by class prefix so the two-image reports frame
+    // ("proof-frame duo" — request → result, per the captures ruling)
+    // counts too. SLOTS are the honesty unit: a plain frame is one slot,
+    // a duo frame is two — every slot holds a real /img/product/ capture
+    // or the honest empty line.
+    const frames = (pageRaw.match(/class="proof-frame[^"]*"/g) || []).length;
+    const duoSlots = (pageRaw.match(/class="duo-slot"/g) || []).length;
+    const plainFrames = (pageRaw.match(/class="proof-frame"/g) || []).length;
+    const slots = plainFrames + duoSlots;
     const empties = (pageRaw.match(/Real screenshot arriving/g) || []).length;
     const productImgs = (pageRaw.match(/<img[^>]+src="\/img\/product\//g) || []).length;
     const allImgs = (pageRaw.match(/<img/g) || []).length;
-    const framesHonest = frames > 0 && (empties + productImgs) >= frames;
+    const slotsHonest = frames === 6 && slots >= frames && (empties + productImgs) >= slots;
     const noForeignImgs = allImgs === productImgs;
-    check('LC9: every proof frame is a real /img/product/ capture or the honest "Real screenshot arriving" empty state, and no other <img> exists on the page',
-      framesHonest && noForeignImgs,
-      JSON.stringify({ frames, empties, productImgs, allImgs }));
+    check('LC9: all 6 proof frames (incl. the two-slot reports duo) hold a real /img/product/ capture or the honest empty state per slot, and no other <img> exists on the page',
+      slotsHonest && noForeignImgs,
+      JSON.stringify({ frames, slots, empties, productImgs, allImgs }));
   }
 
   // ---- LC7: headline discipline — h1 is 8 words or fewer ----
