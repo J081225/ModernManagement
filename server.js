@@ -383,24 +383,22 @@ async function getWorkspaceId(req) {
 
 // --- Page routes ---
 
-// Session E2.5: parent landing (multi-vertical chooser). Replaces the old
-// PM-focused landing.html at /. The previous file is preserved at
-// /landing-legacy for reference but is no longer linked from anywhere
-// public-facing; it can be removed in a future cleanup.
+// R1 FLIP: / is the rebuilt PS-flagship landing (landing-next.html) — the
+// LP arc's ten-section page. The old multi-vertical chooser is preserved
+// unrouted at public/index.html (same pattern as /landing-legacy).
 app.get('/', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'landing-next.html'));
 });
 
 // Session E2.5: vertical-specific landing pages.
+// R5: PM stays reachable (badged under-construction; signup killed — R6).
 app.get('/property-management', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
   res.sendFile(path.join(__dirname, 'public', 'property-management.html'));
 });
-app.get('/professional-services', (req, res) => {
-  if (req.session && req.session.authenticated) return res.redirect('/workspace');
-  res.sendFile(path.join(__dirname, 'public', 'professional-services.html'));
-});
+// R1 flip: the PS page IS the homepage now — one page, one story.
+app.get('/professional-services', (_req, res) => res.redirect(301, '/'));
 
 // Session E2.5: legacy single-vertical landing kept reachable for reference.
 // Not linked from any public surface. Safe to remove in a future cleanup.
@@ -413,20 +411,26 @@ app.get('/login', (req, res) => {
 });
 app.get('/signup', (req, res) => {
   if (req.session && req.session.authenticated) return res.redirect('/workspace');
+  // R6 (flip): PM signups are PAUSED — the waitlist replaces them. A PM
+  // vertical lands on the homepage waitlist; a missing/unknown vertical
+  // normalizes to professional-services (params preserved) so every
+  // legacy link still reaches a working form.
+  const v = String(req.query.vertical || '');
+  if (v === 'property-management') return res.redirect('/#pm-waitlist');
+  if (v !== 'professional-services') {
+    const q = new URLSearchParams(req.query);
+    q.set('vertical', 'professional-services');
+    return res.redirect('/signup?' + q.toString());
+  }
   // Phase B B1: serves the multi-screen signup form from views/.
   // (The legacy single-screen public/signup.html + its POST /api/signup
   // backend were both retired in AD8.)
   res.sendFile(path.join(__dirname, 'views', 'signup.html'));
 });
 
-// Session E1: vertical-selection page. New customers can land here to
-// pick their vertical (Property Management or Professional Services)
-// before continuing to /signup. The signup form itself reads the
-// chosen slug from ?vertical=... in the URL.
-app.get('/signup/vertical', (req, res) => {
-  if (req.session && req.session.authenticated) return res.redirect('/workspace');
-  res.sendFile(path.join(__dirname, 'views', 'signup-vertical.html'));
-});
+// Session E1 → R1 flip: the vertical chooser is retired (one vertical
+// sells today; PM is waitlist-only). Kept as a redirect so old links work.
+app.get('/signup/vertical', (_req, res) => res.redirect('/signup?vertical=professional-services'));
 
 // Phase B B2: Stripe Checkout success-redirect destination. Stripe
 // appends ?session_id={CHECKOUT_SESSION_ID}&draft_id=<id> to this
@@ -464,10 +468,10 @@ app.get('/sms-consent', (_req, res) => res.sendFile(path.join(__dirname, 'public
 // customers here (optionally with ?business=<name>); the required consent
 // checkbox gates submission and POST /api/sms-opt-in records it.
 app.get('/sms-opt-in', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-opt-in.html')));
-// LP2: the landing rebuild grows section-by-section at this UNLISTED
-// preview route (noindex meta on the page). It replaces / when the full
-// page is built and Jay rules the flip (R1).
-app.get('/lp-preview', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'landing-next.html')));
+// LP2→R1 flip: the preview route served the rebuild while it grew; the
+// page now lives at /. Redirect so old review links keep working and no
+// duplicate URL serves the homepage.
+app.get('/lp-preview', (_req, res) => res.redirect(301, '/'));
 app.get('/sms-terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-terms.html')));
 app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
 app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
@@ -2473,6 +2477,14 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   // so legacy callers without this field continue working.
   const verticalSlug    = verticals.validateVertical(String(body.vertical || ''));
   const isPS = verticalSlug === 'professional-services';
+
+  // R6 (flip): PM signup is KILLED — waitlist only. This is also the
+  // structural close on the found-live bug where a PM signup would pay a
+  // retired tier price ($79-$299) but resolve to the $320 Professional
+  // plan config. No non-PS checkout session can be created.
+  if (!isPS) {
+    return res.status(400).json({ error: 'Property Management signups are paused while we finish that side. Join the waitlist on the homepage and we’ll write when it’s ready.' });
+  }
 
   // Server-side re-validation (mirrors client regexes in views/signup.html).
   // Shared validations first.
