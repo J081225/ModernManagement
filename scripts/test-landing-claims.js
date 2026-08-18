@@ -140,8 +140,9 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
     // a duo frame is two — every slot holds a real /img/product/ capture
     // or the honest empty line.
     const frames = (pageRaw.match(/class="proof-frame[^"]*"/g) || []).length;
-    const duoSlots = (pageRaw.match(/class="duo-slot"/g) || []).length;
-    const plainFrames = (pageRaw.match(/class="proof-frame"/g) || []).length;
+    const duoFrames = (pageRaw.match(/class="proof-frame duo[^"]*"/g) || []).length;
+    const duoSlots = (pageRaw.match(/class="duo-slot[^"]*"/g) || []).length;
+    const plainFrames = frames - duoFrames;
     const slots = plainFrames + duoSlots;
     const empties = (pageRaw.match(/Real screenshot arriving/g) || []).length;
     const productImgs = (pageRaw.match(/<img[^>]+src="\/img\/product\//g) || []).length;

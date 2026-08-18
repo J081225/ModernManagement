@@ -455,6 +455,13 @@
       color: var(--cream-40);
       margin-top: 10px;
     }
+    /* A FILLED frame: the dashed "unfinished" border becomes a solid
+       hairline the moment a real capture sits inside. */
+    .proof-frame.filled { border: 1px solid var(--hairline); padding: 8px; }
+    .proof-frame.filled img { border-radius: 8px; }
+    /* Portrait captures (the assistant chat) letterbox instead of crop. */
+    .proof-frame.filled img.contain { object-fit: contain; }
+    .duo-slot.filled { border-style: solid; padding: 8px; }
     @media (max-width: 640px) {
       .proof-frame.duo { grid-template-columns: 1fr; }
     }
@@ -964,22 +971,26 @@
         <div class="room reveal-scroll" style="transition-delay:0ms">
           <p class="room-label">Calendar</p>
           <p class="room-claim">The appointment she takes on the phone lands on your calendar before the caller hangs up &mdash; checked against your real hours, services, existing bookings, <strong>and your blocked-off time.</strong> Tell her you&rsquo;re away two weeks; nobody books into them.</p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <div class="proof-frame filled"><img src="/img/product/calendar.png" alt="The real calendar: August 2026 month view with booked events and Time-off blocks running August 10 through 23." loading="lazy" decoding="async" /></div>
+          <p class="proof-caption">August, live: bookings and blocked time, both honored &mdash; she won&rsquo;t book into either.</p>
         </div>
         <div class="room reveal-scroll" style="transition-delay:60ms">
           <p class="room-label">Inbox</p>
           <p class="room-claim">Calls, voicemails, and emails &mdash; one thread per customer. <span class="caveat">Inbound texts arrive today; texting back is pending carrier approval &mdash; see the honest section below.</span></p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <div class="proof-frame filled"><img src="/img/product/inbox.png" alt="The real inbox: caller threads on the left; an open voice conversation on the right with the AI replying in Spanish and a Take over button." loading="lazy" decoding="async" /></div>
+          <p class="proof-caption">A real call thread &mdash; this one in Spanish. Take over anytime.</p>
         </div>
         <div class="room reveal-scroll" style="transition-delay:120ms">
           <p class="room-label">Payments</p>
           <p class="room-claim">A secure card link &mdash; Stripe or Square &mdash; receipts, real refunds, and Venmo/Zelle details you confirm manually.</p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <div class="proof-frame filled"><img src="/img/product/payments.png" alt="The How-you-get-paid card: Stripe connected, Square active with a Switch to Stripe button, and Venmo and Zelle fields labeled confirm manually." loading="lazy" decoding="async" /></div>
+          <p class="proof-caption">Stripe and Square connected; one active. Venmo &amp; Zelle: manual confirm, honestly labeled.</p>
         </div>
         <div class="room reveal-scroll" style="transition-delay:180ms">
           <p class="room-label">Books</p>
           <p class="room-claim">Every sale, deposit, refund, and expense in one honest transaction report &mdash; print it or export it. Budgets live in the same room.</p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <div class="proof-frame filled"><img src="/img/product/books.png" alt="The transactions list: a real paid $45 haircut row dated August 15, with Export CSV and New transaction buttons, and the expenses ledger below." loading="lazy" decoding="async" /></div>
+          <p class="proof-caption">Every row real. Printable, exportable.</p>
         </div>
         <div class="room reveal-scroll" style="transition-delay:240ms">
           <p class="room-label">Reports</p>
@@ -987,24 +998,26 @@
           <!-- Ruling: the reports frame is a DUO — the plain-English ask,
                then the report it produced. Request → result. -->
           <div class="proof-frame duo">
-            <div class="duo-slot">
+            <div class="duo-slot filled">
               <div>
                 <span class="duo-label">01 &mdash; the ask</span>
-                <p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p>
+                <img src="/img/product/reports-request.png" alt="The New Report modal: a plain-English request to maximize profit based on past activity, type auto-detect, last 30 days." loading="lazy" decoding="async" />
               </div>
             </div>
-            <div class="duo-slot">
+            <div class="duo-slot filled">
               <div>
                 <span class="duo-label">02 &mdash; the report</span>
-                <p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p>
+                <img src="/img/product/reports-result.png" alt="The generated Productivity report: Unanswered Leads Going Cold — two unanswered calls from the same number, with the action to call back immediately." loading="lazy" decoding="async" />
               </div>
             </div>
           </div>
+          <p class="proof-caption">You ask in plain English. She answers in a report.</p>
         </div>
         <div class="room reveal-scroll" style="transition-delay:300ms">
           <p class="room-label">The Assistant</p>
           <p class="room-claim">She rides every screen. Say it &mdash; &ldquo;book Maria Friday at 3&rdquo; &mdash; and she does it. Anything sensitive waits for your tap.</p>
-          <div class="proof-frame"><p class="proof-empty">Real screenshot arriving &mdash; captured from the live product. Never a mock.</p></div>
+          <div class="proof-frame filled"><img class="contain" src="/img/product/assistant.png" alt="The assistant chat: 'Add a product called Blue hair dye for $15' and 'Block off the next two weeks' — both done, each reply labeled with the tool that did the work." loading="lazy" decoding="async" /></div>
+          <p class="proof-caption">Say it, she does it &mdash; and logs which tool did the work.</p>
         </div>
       </div>
     </section>
