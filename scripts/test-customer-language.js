@@ -147,7 +147,12 @@ function check(name, ok, detail) {
     // greeting and session until the spike proves Arabic STT.
     const { voiceLanguageFor, VOICE_READY } = require(path.join(__dirname, '..', 'lib', 'customer-strings'));
     const greetingViaModule = block.includes("voiceString(vlang, 'voice_greeting', { businessName: bizName })");
-    const gated = block.includes('const vlang = voiceLanguageFor(lang);')
+    // LANG unit 2 evolved the gate: sendRelayConnect is the single tail
+    // and EVERY path into it routes through voiceLanguageFor — the
+    // single-language direct connect, the menu's voice-choice filter
+    // (fixed-point test), and the no-digit fallback in relay-menu.
+    const gated = block.includes('sendRelayConnect(req, res, workspace, voiceLanguageFor(primary))')
+      && block.includes('voiceChoices = orderedLangs.filter((l) => voiceLanguageFor(l) === l)')
       && block.includes(`vlang === 'es' ? ' language="es-US"' : ''`);
     const twimlCarries = block.includes("welcomeGreeting=\"' + greeting + '\"' + langAttr");
     const mapping = voiceLanguageFor('es') === 'es' && voiceLanguageFor('en') === 'en'
