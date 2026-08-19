@@ -132,3 +132,21 @@ dialectal transcription. Pass bar: ≥70% intent-preserving on dialect
 lines → "press 3 for Arabic" becomes a real voice path; fail → Arabic
 voice stays off, text remains Dearborn's offer.
 Variant C staged (/api/voice/spike-c-incoming, nova-2 + multi), unpointed.
+
+### Variant B — fixed ar, Levantine speaker — 2026-08-19 — **PASS (83–100%)**
+Calls CA2a9e…(35s warm-up, redialed) + CA81eb…(76s, the six-line run).
+All 13 utterances ar (fixed). The run: greeting ✔ · Saturday booking
+"بدئج احجز موعد قصة شعر يوم الثبات الصبح إذا في مجال" (السبت→الثبات:
+partially-usable, day slot garbled but recoverable) · color price
+"أداش سعر صبغة الشعار عندكم؟" ✔ · code-switched same-time line
+"بعمل أبويمنت لبكرة بس سيم تايم مثل المرة الماضية اذا ممكن" ✔ PERFECT
+(multi rendered this "Ja, chicken last year sorry") · noise line ✔
+(split, minor dup) · rushed parking line ✔. Score: 5/6 intent-preserving
++ 1 partially-usable = 83% strict, ≥70% bar → **PASS. "Press 3 for
+Arabic" is ruled a real voice path (declared language, no detection).**
+Endpointing: dramatically better than multi — zero dropped utterances in
+the run, one benign split, 5–12s finalization (multi: whole-utterance
+drops + 24–29s dead gaps). Warm-up call showed two early cuts (بدي اح /
+بدي أحلى) before she settled — note for the tester script: start
+speaking a beat after the greeting. Number restored to baseline
+/spike-incoming post-cell.
