@@ -98,7 +98,10 @@ function check(name, ok, detail) {
   {
     const pr = fs.readFileSync(path.join(__dirname, '..', 'lib', 'payment-requests.js'), 'utf8');
     const rc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'receipts.js'), 'utf8');
-    const prOk = pr.includes("customerString(workspace.customer_language || 'en', 'payment_link_sms'")
+    // LANG unit 3: the link SMS follows the CONVERSATION's language
+    // (thread stamp via lib/conversation-language), primary fallback.
+    const prOk = pr.includes("customerString(_linkLang || 'en', 'payment_link_sms'")
+      && pr.includes(".conversationLanguage(pool, workspace, customerPhone, null)")
       && !pr.includes('secure ${label} link');
     const rcOk = rc.includes("customerString(lang, 'receipt_sms'")
       && rc.includes("'receipt_email_subject'")
