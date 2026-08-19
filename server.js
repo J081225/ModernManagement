@@ -4102,7 +4102,7 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 app.use('/api', (req, res, next) => {
   // '/voice/spike-incoming' is the TEMPORARY autodetect-spike line
   // (signature-validated like every Twilio route); remove with the spike.
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/spike-incoming', '/billing/webhook', '/square/webhook'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/relay-menu', '/voice/spike-incoming', '/billing/webhook', '/square/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -7764,6 +7764,63 @@ app.post('/api/voice/transcription', validateTwilioSignature, async (req, res) =
 //
 // Whitelisted as unauthenticated at /api/* around server.js:2775 alongside
 // the other Twilio-called routes.
+// LANG unit 2: DTMF-pinned session languages. relay-menu records the
+// caller's keypress choice per CallSid; the WS setup handler consumes it
+// (once) and overrides the workspace primary for THAT call only. Entries
+// self-prune after 15 minutes (a call that never opened its socket).
+const _relayLangPins = new Map();
+function _pinRelayLang(callSid, lang) {
+  if (!callSid) return;
+  const now = Date.now();
+  for (const [k, v] of _relayLangPins) { if (now - v.atMs > 15 * 60 * 1000) _relayLangPins.delete(k); }
+  _relayLangPins.set(callSid, { lang, atMs: now });
+}
+
+// LANG unit 2: the shared tail of the relay flow — token mint (FD3-CP4)
+// + the <Connect><ConversationRelay> TwiML in the given VOICE language.
+// Single-language workspaces call this directly (byte-identical to the
+// pre-menu TwiML); the keypress menu path calls it after the choice.
+async function sendRelayConnect(req, res, workspace, vlang) {
+  const escapeXmlAttr = (s) => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  let relayToken = workspace.voice_relay_token;
+  if (!relayToken) {
+    relayToken = crypto.randomBytes(24).toString('hex');
+    try {
+      await pool.query(
+        'UPDATE workspaces SET voice_relay_token = $1 WHERE id = $2 AND voice_relay_token IS NULL',
+        [relayToken, workspace.id]
+      );
+      const { rows } = await pool.query('SELECT voice_relay_token FROM workspaces WHERE id = $1', [workspace.id]);
+      relayToken = (rows[0] && rows[0].voice_relay_token) || relayToken;
+    } catch (err) {
+      console.error('[voice/relay] token mint failed:', err.message);
+      res.type('text/xml').send(
+        '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<Response>\n' +
+        '  <Say>Sorry, we are having trouble connecting your call. Please try again shortly.</Say>\n' +
+        '  <Hangup/>\n' +
+        '</Response>'
+      );
+      return;
+    }
+  }
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/v2/' + relayToken;
+  const { customerString: voiceString } = require('./lib/customer-strings');
+  const bizName = (workspace && workspace.business_name) || 'our salon';
+  const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
+  const langAttr = vlang === 'es' ? ' language="es-US"' : '';
+  res.type('text/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<Response>\n' +
+    '  <Connect>\n' +
+    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '"' + langAttr + ' />\n' +
+    '  </Connect>\n' +
+    '</Response>'
+  );
+}
+
 // LP2a: demo-line daily minutes ceiling. The landing page's demo number
 // (Northside Barbers, is_demo=TRUE) is budget-capped at ~$100/mo (R2
 // ruling): at ~$0.09/min all-in, 35 min/day * 30 days ~= 1,050 min ~= $95.
@@ -7846,63 +7903,74 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
     return;
   }
 
-  // FD3-CP4: per-workspace socket token, minted lazily on first use and
-  // reused thereafter. 24 random bytes (48 hex chars) — unguessable; the
-  // upgrade handler below validates it before any WebSocket exists.
-  let relayToken = workspace.voice_relay_token;
-  if (!relayToken) {
-    relayToken = crypto.randomBytes(24).toString('hex');
-    try {
-      await pool.query(
-        'UPDATE workspaces SET voice_relay_token = $1 WHERE id = $2 AND voice_relay_token IS NULL',
-        [relayToken, workspace.id]
-      );
-      // Concurrent first calls: whoever's UPDATE landed wins — re-read.
-      const { rows } = await pool.query('SELECT voice_relay_token FROM workspaces WHERE id = $1', [workspace.id]);
-      relayToken = (rows[0] && rows[0].voice_relay_token) || relayToken;
-    } catch (err) {
-      console.error('[voice/relay-incoming] token mint failed:', err.message);
-      res.type('text/xml').send(
-        '<?xml version="1.0" encoding="UTF-8"?>\n' +
-        '<Response>\n' +
-        '  <Say>Sorry, we are having trouble connecting your call. Please try again shortly.</Say>\n' +
-        '  <Hangup/>\n' +
-        '</Response>'
-      );
-      return;
-    }
+  // LANG unit 2: multi-language workspaces get a keypress menu FIRST —
+  // bilingual BY CONSTRUCTION (each option spoken in its own language:
+  // "para español, oprima el dos"). One voice-ready enabled language =
+  // NO menu — the call goes straight to the relay exactly as before
+  // (sendRelayConnect emits the pre-menu TwiML byte-identically). DTMF
+  // pins the SESSION language via /api/voice/relay-menu. Phase 3
+  // (auto-detect) drops in here as an upgrade over the menu.
+  const { voiceLanguageFor } = require('./lib/customer-strings');
+  const primary = (workspace && workspace.customer_language) || 'en';
+  const enabledSet = (workspace.enabled_languages && workspace.enabled_languages.length)
+    ? workspace.enabled_languages : [primary];
+  // A language is voice-ready iff voiceLanguageFor returns it unchanged
+  // (ar stays text-only until the spike proves Arabic STT — ST7a).
+  const orderedLangs = [primary, ...enabledSet.filter((l) => l !== primary)];
+  const voiceChoices = orderedLangs.filter((l) => voiceLanguageFor(l) === l);
+  if (voiceChoices.length <= 1) {
+    return sendRelayConnect(req, res, workspace, voiceLanguageFor(primary));
   }
-
-  // ConversationRelay requires wss:// for the media stream regardless of the
-  // request's own protocol. On Render this is served on the same port as
-  // HTTP; local dev over http:// would still need a tunneled wss:// URL.
-  // /v2/<token> is the versioned authenticated path (FD3-CP4); the bare
-  // legacy path survives only inside the post-boot grace window below.
-  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/v2/' + relayToken;
-  // ST5b: the greeting comes from the declared-variants module in the
-  // workspace's customer language, and the session's STT+TTS language
-  // rides the same setting. Spanish uses es-US with Twilio's DEFAULT
-  // voice for the language (the ruled shape — no premium providers);
-  // English emits no language attribute at all, so existing workspaces
-  // keep byte-identical TwiML.
-  const lang = (workspace && workspace.customer_language) || 'en';
-  const { customerString: voiceString, voiceLanguageFor } = require('./lib/customer-strings');
-  // ST7a: the VOICE language is gated separately from the text
-  // language (VOICE_READY). An ar workspace keeps the ENGLISH
-  // greeting and session — an Arabic greeting without proven Arabic
-  // STT would promise comprehension the pipeline can't deliver.
-  const vlang = voiceLanguageFor(lang);
-  const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
-  const langAttr = vlang === 'es' ? ' language="es-US"' : '';
-
+  const base = 'https://' + req.headers.host;
+  const sayLine = (l, digit) => l === 'es'
+    ? '    <Say language="es-US">Para español, oprima el ' + ['uno', 'dos', 'tres'][digit - 1] + '.</Say>'
+    : '    <Say>For English, press ' + digit + '.</Say>';
+  const says = voiceChoices.map((l, i) => sayLine(l, i + 1)).join('\n');
   res.type('text/xml').send(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<Response>\n' +
-    '  <Connect>\n' +
-    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '"' + langAttr + ' />\n' +
-    '  </Connect>\n' +
+    '  <Gather numDigits="1" timeout="5" action="' + base + '/api/voice/relay-menu" method="POST">\n' +
+    says + '\n' +
+    '  </Gather>\n' +
+    // No keypress: fall through to the menu route with no Digits — it
+    // connects in the primary language, so silence never strands a call.
+    '  <Redirect method="POST">' + base + '/api/voice/relay-menu</Redirect>\n' +
     '</Response>'
   );
+});
+
+// LANG unit 2: the keypress menu's action. Maps the digit back to the
+// same voice-choice list relay-incoming offered, pins the session
+// language for the WS handler, and connects the relay. No/invalid digit
+// = the workspace primary (the call always connects).
+app.post('/api/voice/relay-menu', validateTwilioSignature, async (req, res) => {
+  const to = req.body && req.body.To;
+  let workspace = null;
+  try {
+    const route = await lookupWorkspaceByTwilioNumber(to);
+    if (route) {
+      const { rows } = await pool.query('SELECT * FROM workspaces WHERE id = $1 LIMIT 1', [route.workspace_id]);
+      workspace = rows[0] || null;
+    }
+  } catch (err) {
+    console.error('[voice/relay-menu] workspace lookup failed:', err.message);
+  }
+  if (!workspace) {
+    res.type('text/xml').send(
+      '<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Say>Sorry, this number is not set up yet. Please try again later.</Say>\n  <Hangup/>\n</Response>'
+    );
+    return;
+  }
+  const { voiceLanguageFor } = require('./lib/customer-strings');
+  const primary = workspace.customer_language || 'en';
+  const enabledSet = (workspace.enabled_languages && workspace.enabled_languages.length)
+    ? workspace.enabled_languages : [primary];
+  const orderedLangs = [primary, ...enabledSet.filter((l) => l !== primary)];
+  const voiceChoices = orderedLangs.filter((l) => voiceLanguageFor(l) === l);
+  const digit = parseInt(req.body && req.body.Digits, 10);
+  const pinned = (digit >= 1 && voiceChoices[digit - 1]) ? voiceChoices[digit - 1] : voiceLanguageFor(primary);
+  _pinRelayLang(req.body && req.body.CallSid, pinned);
+  return sendRelayConnect(req, res, workspace, pinned);
 });
 
 // ============================================================
@@ -11560,6 +11628,20 @@ wss.on('connection', (ws, req) => {
           console.error('[twilio-relay] setup workspace mismatch: token=' + req._relayWorkspaceId + ' to-number=' + workspace.id + ' — closing');
           try { ws.close(); } catch (closeErr) { /* already gone */ }
           return;
+        }
+        // LANG unit 2: a DTMF-pinned session language overrides the
+        // workspace primary for THIS call — the engine's language block,
+        // canned strings, everything downstream follows the caller's
+        // choice. Consumed once; _session_language marks the override so
+        // unit 3 can stamp it onto the conversation thread.
+        if (workspace && callSid && _relayLangPins.has(callSid)) {
+          const pin = _relayLangPins.get(callSid);
+          _relayLangPins.delete(callSid);
+          if (pin && pin.lang && pin.lang !== workspace.customer_language) {
+            workspace = { ...workspace, customer_language: pin.lang, _session_language: pin.lang };
+          } else if (pin && pin.lang) {
+            workspace = { ...workspace, _session_language: pin.lang };
+          }
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
