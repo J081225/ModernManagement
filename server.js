@@ -4102,7 +4102,7 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 app.use('/api', (req, res, next) => {
   // '/voice/spike-incoming' is the TEMPORARY autodetect-spike line
   // (signature-validated like every Twilio route); remove with the spike.
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/relay-menu', '/voice/spike-incoming', '/billing/webhook', '/square/webhook'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/relay-menu', '/voice/spike-incoming', '/voice/spike-b-incoming', '/voice/spike-c-incoming', '/billing/webhook', '/square/webhook'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });
@@ -7987,6 +7987,37 @@ app.post('/api/voice/relay-menu', validateTwilioSignature, async (req, res) => {
 const SPIKE_RELAY_TOKEN = crypto
   .createHmac('sha256', process.env.TWILIO_AUTH_TOKEN || 'spike')
   .update('spike-autodetect-relay').digest('hex').slice(0, 48);
+
+// SPIKE VARIANT B (ruled 2026-08-19): transcriptionLanguage="ar" FIXED —
+// no detection. Tests whether dialectal Arabic TRANSCRIPTION is usable
+// when the language is DECLARED (the keypress-menu world). Separate
+// labeled cell: rows distinguish by call SID + the voiceUrl swap window.
+// Baseline /spike-incoming below is UNTOUCHED. B pass bar: >=70%
+// intent-preserving on dialect lines -> "press 3 for Arabic" becomes a
+// real voice path; fail -> Arabic voice stays honestly off, text remains.
+app.post('/api/voice/spike-b-incoming', validateTwilioSignature, (req, res) => {
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/spike/' + SPIKE_RELAY_TOKEN;
+  res.type('text/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Connect>\n' +
+    '    <ConversationRelay url="' + wsUrl + '"' +
+    ' welcomeGreeting="This is the Modern Management Arabic test line, variant B. After the sound of my voice, please read your first scripted line, then pause."' +
+    ' transcriptionProvider="Deepgram" speechModel="nova-3-general" transcriptionLanguage="ar" />\n' +
+    '  </Connect>\n</Response>'
+  );
+});
+
+// SPIKE VARIANT C (staged, cheap secondary): nova-2 + multi — is nova-3's
+// multi the weak point? Not pointed at any number until ruled.
+app.post('/api/voice/spike-c-incoming', validateTwilioSignature, (req, res) => {
+  const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/spike/' + SPIKE_RELAY_TOKEN;
+  res.type('text/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Connect>\n' +
+    '    <ConversationRelay url="' + wsUrl + '"' +
+    ' welcomeGreeting="This is the Modern Management language test line, variant C. After the sound of my voice, please read your first scripted line, then pause."' +
+    ' transcriptionProvider="Deepgram" speechModel="nova-2-general" transcriptionLanguage="multi" />\n' +
+    '  </Connect>\n</Response>'
+  );
+});
 
 app.post('/api/voice/spike-incoming', validateTwilioSignature, (req, res) => {
   const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/spike/' + SPIKE_RELAY_TOKEN;

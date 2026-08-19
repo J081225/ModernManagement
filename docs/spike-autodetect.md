@@ -101,3 +101,34 @@ and the spike table records exactly why.
 
 Teardown when ruled: release +13136318389, remove the spike route +
 whitelist entry + wss branch, drop spike_transcripts (066).
+
+---
+
+## RESULTS REGISTER (durable)
+
+### English baseline — 2026-08-19, call CAdaab71… — PASS
+Pipe proven end-to-end. 8/8 utterances detected en; 7 intent-preserving,
+1 partially-usable (onset clip), 0 garbage.
+
+### Arabic (Levantine, Jay-confirmed) multi auto-detect — 2026-08-19 — **FAILED (spike RESULT, not a deferral)**
+Calls CA83c8…(29s), CAefe5…(2s hangup), CA6564…(48s), CAba3e…(107s).
+**0/10 utterances detected ar** (9 en, 1 es); transcripts romanized
+through an English lens. Grades: 0 intent-preserving / 2 partially-usable
+("Marhaba, with the isa al iza hand kun Mawaid fadiyeh" ≈ مرحبا إذا عندكن
+مواعيد فاضية; "same time middle el marra el madiel") / 8 garbage
+("Marjada." · "But the esophageal mawahed" · "Marja Bakis con g o 1
+Marrabeto Selfi con" · "But the issue is now end." · "The" · "Ja, chicken
+last year sorry," · "Lehwen vet pus el but was the" · "Kiev"(es)).
+Secondary: endpointing mismatch (mid-sentence cuts + never-finalized
+utterances = low-confidence drops; no webhook/TwiML errors).
+**RULING: Phase-3 auto-detect for Arabic is OFF THE TABLE on current
+providers. Re-entry requires re-running this rig (3 speakers/dialect) on
+any new provider before anything ships. The Phase-1 keypress menu is the
+architecture (customer-declared, un-mishearable) — not a stopgap.**
+
+### Variant B — transcriptionLanguage="ar" FIXED (no detection) — OPEN
+Route /api/voice/spike-b-incoming (nova-3, ar). Tests DECLARED-language
+dialectal transcription. Pass bar: ≥70% intent-preserving on dialect
+lines → "press 3 for Arabic" becomes a real voice path; fail → Arabic
+voice stays off, text remains Dearborn's offer.
+Variant C staged (/api/voice/spike-c-incoming, nova-2 + multi), unpointed.
