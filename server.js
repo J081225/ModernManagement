@@ -11804,6 +11804,16 @@ wss.on('connection', (ws, req) => {
           }
         }
         sendText(spoken);
+        // B3 (AI-scope): the engine's off-topic close ends the call
+        // politely — the line is spoken, then the session ends. Reuses
+        // the cap's end-timer slot so close-vs-cap can't double-fire.
+        if (result && result.close_conversation) {
+          if (demoEndTimer) clearTimeout(demoEndTimer);
+          demoEndTimer = setTimeout(() => {
+            try { ws.send(JSON.stringify({ type: 'end' })); } catch (err) { /* gone */ }
+            try { ws.close(); } catch (err) { /* gone */ }
+          }, 10000);
+        }
         // FD3-CP1: persist what was actually said back.
         try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'AI', spoken); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
         return;

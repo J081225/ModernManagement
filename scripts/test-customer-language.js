@@ -159,7 +159,10 @@ function check(name, ok, detail) {
     // (fixed-point test), and the no-digit fallback in relay-menu.
     const gated = block.includes('sendRelayConnect(req, res, workspace, voiceLanguageFor(primary))')
       && block.includes('voiceChoices = orderedLangs.filter((l) => voiceLanguageFor(l) === l)')
-      && block.includes(`vlang === 'es' ? ' language="es-US"' : ''`);
+      && block.includes(`vlang === 'es' ? ' language="es-US"'`)
+      // Dark Arabic path: fixed transcription (the Variant-B shape),
+      // reachable only via VOICE_READY's ARABIC_VOICE_ENABLED flip.
+      && block.includes(`vlang === 'ar' ? ' language="ar" transcriptionProvider="Deepgram" speechModel="nova-3-general" transcriptionLanguage="ar"'`);
     const twimlCarries = block.includes("welcomeGreeting=\"' + greeting + '\"' + langAttr");
     const mapping = voiceLanguageFor('es') === 'es' && voiceLanguageFor('en') === 'en'
       && voiceLanguageFor('ar') === 'en' && voiceLanguageFor(undefined) === 'en'
