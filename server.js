@@ -11683,18 +11683,25 @@ wss.on('connection', (ws, req) => {
         }
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
-        // LP2a: demo calls end politely at ~3 minutes (R2 ruling). At
-        // 2:52 the AI wraps up; 8s later the session ends ({type:'end'}
-        // per the ConversationRelay protocol — no TwiML follows <Connect>,
-        // so Twilio hangs up).
-        if (workspace && workspace.is_demo) {
+        // LP2a + B1 (AI-scope hardening): EVERY relay call is capped.
+        // Demo lines wrap at 2:52 (R2 ruling); business lines wrap at
+        // ~9:40 (580s — the free-therapist guard: a booking call never
+        // needs ten minutes). The wrap line is spoken BEFORE cutoff; 8s
+        // later the session ends ({type:'end'} — no TwiML follows
+        // <Connect>, so Twilio hangs up). Every cap firing is LOGGED.
+        if (workspace) {
+          const capMs = workspace.is_demo ? 172000 : 580000;
+          const wrapLine = workspace.is_demo
+            ? "This demo call is wrapping up — thanks for trying it! To get a receptionist like me for your own business, visit modern management app dot com. Bye for now!"
+            : "I'm so sorry — I have to wrap up our call now. If there's anything else you need, call or text us anytime and I'll pick it right up. Thanks so much for calling!";
           demoWrapTimer = setTimeout(() => {
-            sendText("This demo call is wrapping up — thanks for trying it! To get a receptionist like me for your own business, visit modern management app dot com. Bye for now!");
+            console.log('[twilio-relay] CAP fired (' + (workspace.is_demo ? 'demo/172s' : 'business/580s') + ') callSid=' + (callSid || 'unknown') + ' ws=' + workspace.id);
+            sendText(wrapLine);
             demoEndTimer = setTimeout(() => {
               try { ws.send(JSON.stringify({ type: 'end' })); } catch (err) { /* socket already gone */ }
               try { ws.close(); } catch (err) { /* already gone */ }
             }, 8000);
-          }, 172000);
+          }, capMs);
         }
         // FD3-CP1: open the per-call transcript row immediately so even
         // a call dropped mid-sentence has its turns on record.
