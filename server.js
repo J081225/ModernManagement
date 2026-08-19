@@ -998,14 +998,21 @@ app.get('/api/workspace/customer-language', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
     if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
-    const r = await pool.query('SELECT customer_language FROM workspaces WHERE id = $1', [workspaceId]);
-    res.json({ customer_language: (r.rows[0] && r.rows[0].customer_language) || 'en' });
+    const r = await pool.query('SELECT customer_language, enabled_languages FROM workspaces WHERE id = $1', [workspaceId]);
+    const row = r.rows[0] || {};
+    res.json({
+      customer_language: row.customer_language || 'en',
+      enabled_languages: (row.enabled_languages && row.enabled_languages.length) ? row.enabled_languages : [row.customer_language || 'en'],
+    });
   } catch (err) {
     console.error('[GET /api/workspace/customer-language]', err.message);
     res.status(500).json({ error: 'Could not load the language' });
   }
 });
 
+// Phase 1 (Track B): PRIMARY + enabled set, saved atomically. Legacy
+// callers that send only customer_language keep working — the set
+// becomes exactly the primary (yesterday's semantics).
 app.patch('/api/workspace/customer-language', requireAuth, async (req, res) => {
   try {
     const workspaceId = await getWorkspaceId(req);
@@ -1014,8 +1021,17 @@ app.patch('/api/workspace/customer-language', requireAuth, async (req, res) => {
     if (!CUSTOMER_LANGUAGES.includes(lang)) {
       return res.status(400).json({ error: 'Supported languages: en (English), es (Español), ar (العربية)' });
     }
-    await pool.query('UPDATE workspaces SET customer_language = $1 WHERE id = $2', [lang, workspaceId]);
-    res.json({ ok: true, customer_language: lang });
+    let enabled = req.body && req.body.enabled_languages;
+    if (!Array.isArray(enabled) || !enabled.length) enabled = [lang];
+    enabled = [...new Set(enabled.map((l) => String(l).trim()))];
+    if (!enabled.every((l) => CUSTOMER_LANGUAGES.includes(l))) {
+      return res.status(400).json({ error: 'Supported languages: en (English), es (Español), ar (العربية)' });
+    }
+    if (!enabled.includes(lang)) {
+      return res.status(400).json({ error: 'The primary language must be one of the enabled languages.' });
+    }
+    await pool.query('UPDATE workspaces SET customer_language = $1, enabled_languages = $2 WHERE id = $3', [lang, enabled, workspaceId]);
+    res.json({ ok: true, customer_language: lang, enabled_languages: enabled });
   } catch (err) {
     console.error('[PATCH /api/workspace/customer-language]', err.message);
     res.status(500).json({ error: 'Could not save the language' });
