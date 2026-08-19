@@ -122,7 +122,7 @@ function check(name, ok, detail) {
     const rows = ['en', 'es', 'ar'].every((l) =>
       app.includes('id="mbLangOn_' + l + '"') && app.includes('id="mbLangStar_' + l + '"'));
     const exactlyThree = (app.match(/id="mbLangOn_/g) || []).length === 3
-      && (app.match(/name="mbLangPrimary"/g) || []).length === 3;
+      && (app.match(/<input type="radio" name="mbLangPrimary"/g) || []).length === 3;
     const rowTruth = /voice \+ text/.test(app)
       && /text only; voice answers in English until Arabic passes native-speaker review/.test(app);
     const primaryGuard = app.includes('Star a primary language first.')
