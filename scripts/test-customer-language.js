@@ -115,20 +115,23 @@ function check(name, ok, detail) {
   // ---- CL6: the setting UI — per-channel truth on the control ----
   {
     const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
-    const control = app.includes('id="mbCustomerLanguage"')
-      && /value="en">English \(default\)/.test(app) && app.includes('Espa&ntilde;ol')
-      && app.includes('value="ar"');
-    const exactlyThree = (app.match(/id="mbCustomerLanguage"[\s\S]{0,800}?<\/select>/) || [''])[0].split('<option').length - 1 === 3;
-    // CL6 [evolved ST7a]: the truth is PER LANGUAGE — es claims both
-    // channels; ar claims text only ("Phone calls: English for now")
-    // until the ST7b spike proves Arabic STT.
-    const truthFn = /_langTruth[\s\S]{0,400}lang === 'ar'[\s\S]{0,400}Phone calls: English for now/.test(app)
-      && app.includes('Texts and phone calls: your assistant greets and replies in this language');
-    const applied = app.includes('_applyLangTruth(sel.value)');
-    const wired = app.includes('loadCustomerLanguage();') && app.includes('mbSaveCustomerLanguage');
-    check('CL6 [evolved ST7a]: the control offers EXACTLY the three ruled languages with PER-LANGUAGE channel truth — es claims both channels, ar honestly claims text only until the voice spike — applied on load and on change',
-      control && exactlyThree && truthFn && applied && wired,
-      JSON.stringify({ control, exactlyThree, truthFn, applied, wired }));
+    // CL6 [evolved again — LANG Phase1 unit 4]: the control is now
+    // toggles + a primary star. Exactly the three ruled languages, each
+    // row carrying its OWN channel truth (ar = text only until the voice
+    // spike), a star per row, and the primary-stays-enabled guard.
+    const rows = ['en', 'es', 'ar'].every((l) =>
+      app.includes('id="mbLangOn_' + l + '"') && app.includes('id="mbLangStar_' + l + '"'));
+    const exactlyThree = (app.match(/id="mbLangOn_/g) || []).length === 3
+      && (app.match(/name="mbLangPrimary"/g) || []).length === 3;
+    const rowTruth = /voice \+ text/.test(app)
+      && /text only; voice answers in English until Arabic passes native-speaker review/.test(app);
+    const primaryGuard = app.includes('Star a primary language first.')
+      && app.includes('At least one language must stay on.');
+    const wired = app.includes('loadCustomerLanguage();') && app.includes('mbSaveCustomerLanguage')
+      && app.includes('enabled_languages: enabled');
+    check('CL6 [LANG unit 4]: the control is toggles + primary star — exactly three ruled languages, per-ROW channel truth (ar text-only until the voice spike), primary-stays-enabled guard, saving primary+set together',
+      rows && exactlyThree && rowTruth && primaryGuard && wired,
+      JSON.stringify({ rows, exactlyThree, rowTruth, primaryGuard, wired }));
   }
 
   // ---- CL7: date localization ----

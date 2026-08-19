@@ -3993,18 +3993,33 @@
                          voice arrives with ST5b — the copy says so and
                          changes only when voice actually ships. -->
                     <div>
-                      <label for="mbCustomerLanguage" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer language</label>
-                      <!-- ST7a: the per-channel truth is PER LANGUAGE now —
-                           es claims both channels; ar claims text only until
-                           the ST7b voice spike proves Arabic STT. The line
-                           is set by _langTruth() on load and change. -->
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;" id="mbCustomerLanguageTruth">Texts and phone calls: your assistant greets and replies in this language, and follows the customer if they switch languages.</span>
-                      <select id="mbCustomerLanguage" onchange="mbSaveCustomerLanguage()"
-                        style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
-                        <option value="en">English (default)</option>
-                        <option value="es">Espa&ntilde;ol</option>
-                        <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577; (Arabic)</option>
-                      </select>
+                      <label style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer languages</label>
+                      <!-- LANG Phase1 unit 4: toggles + primary star, with
+                           PER-CHANNEL truth on each row (ST7a discipline —
+                           ar claims text only until the voice spike proves
+                           Arabic STT). Two+ voice languages enabled = the
+                           callers' keypress menu, and the copy says so. -->
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:10px;line-height:1.5;" id="mbCustomerLanguageTruth">Turn on the languages your customers speak and star the primary. With more than one voice language on, callers get a quick keypress menu (&ldquo;para espa&ntilde;ol, oprima el dos&rdquo;) and each conversation keeps its own language.</span>
+                      <div id="mbLangRows" style="display:flex;flex-direction:column;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
+                          <input type="checkbox" id="mbLangOn_en" onchange="mbSaveCustomerLanguage()">
+                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">English <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_en" value="en" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make English the primary language">
+                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
+                          <input type="checkbox" id="mbLangOn_es" onchange="mbSaveCustomerLanguage()">
+                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">Espa&ntilde;ol <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_es" value="es" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make Spanish the primary language">
+                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
+                          <input type="checkbox" id="mbLangOn_ar" onchange="mbSaveCustomerLanguage()">
+                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577; (Arabic) <span style="font-size:0.85em;color:var(--text-muted);">&mdash; text only; voice answers in English until Arabic passes native-speaker review</span></span>
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_ar" value="ar" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make Arabic the primary language">
+                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                        </label>
+                      </div>
                       <div id="mbCustomerLanguageStatus" style="font-size:0.8em;color:var(--text-muted);min-height:1em;margin-top:6px;"></div>
                     </div>
                   </div>
@@ -14320,49 +14335,75 @@
         }
       }
 
-      // ---------- ST5a: customer language ----------
-      // ST7a: per-channel truth, PER LANGUAGE. Arabic claims text only
-      // until the voice spike proves Arabic STT — the control never
-      // promises a channel the pipeline can't deliver.
-      function _langTruth(lang) {
-        if (lang === 'ar') {
-          return 'Texts and receipts: your assistant reads and replies in Arabic, and follows the customer if they switch languages. Phone calls: English for now.';
-        }
-        return 'Texts and phone calls: your assistant greets and replies in this language, and follows the customer if they switch languages.';
+      // ---------- ST5a → LANG Phase1: customer languages ----------
+      // ST7a's per-channel truth now lives ON EACH ROW of the control
+      // (ar's row says text-only in the markup itself — the control
+      // never promises a channel the pipeline can't deliver).
+      // LANG Phase1 unit 4: toggles + primary star (replaces the single
+      // select). The primary must stay enabled — starring an off language
+      // turns it on; unchecking the primary is blocked with a message.
+      const MB_LANGS = ['en', 'es', 'ar'];
+      function _mbLangState() {
+        const enabled = MB_LANGS.filter((l) => {
+          const el = document.getElementById('mbLangOn_' + l);
+          return el && el.checked;
+        });
+        const starEl = document.querySelector('input[name="mbLangPrimary"]:checked');
+        return { enabled, primary: starEl ? starEl.value : null };
       }
-      function _applyLangTruth(lang) {
-        const truth = document.getElementById('mbCustomerLanguageTruth');
-        if (truth) truth.textContent = _langTruth(lang);
+      function _mbLangApply(primary, enabled) {
+        MB_LANGS.forEach((l) => {
+          const on = document.getElementById('mbLangOn_' + l);
+          const star = document.getElementById('mbLangStar_' + l);
+          if (on) on.checked = enabled.includes(l);
+          if (star) star.checked = (l === primary);
+        });
       }
       async function loadCustomerLanguage() {
-        const sel = document.getElementById('mbCustomerLanguage');
-        if (!sel) return;
+        if (!document.getElementById('mbLangOn_en')) return;
         try {
           const r = await fetch('/api/workspace/customer-language', { credentials: 'include' });
-          if (r.ok) sel.value = (await r.json()).customer_language || 'en';
-        } catch (e) { /* select keeps its default */ }
-        _applyLangTruth(sel.value);
+          if (r.ok) {
+            const d = await r.json();
+            _mbLangApply(d.customer_language || 'en',
+              (d.enabled_languages && d.enabled_languages.length) ? d.enabled_languages : [d.customer_language || 'en']);
+          }
+        } catch (e) { /* controls keep their defaults */ }
       }
       async function mbSaveCustomerLanguage() {
-        const sel = document.getElementById('mbCustomerLanguage');
         const status = document.getElementById('mbCustomerLanguageStatus');
-        if (!sel) return;
+        let { enabled, primary } = _mbLangState();
+        if (!primary) { if (status) status.textContent = 'Star a primary language first.'; return; }
+        // Starring an off language turns it on (the star implies enabled).
+        if (!enabled.includes(primary)) {
+          const on = document.getElementById('mbLangOn_' + primary);
+          if (on) on.checked = true;
+          enabled = _mbLangState().enabled;
+        }
+        if (!enabled.length) { if (status) status.textContent = 'At least one language must stay on.'; return; }
         if (status) status.textContent = 'Saving…';
         try {
           const r = await fetch('/api/workspace/customer-language', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ customer_language: sel.value }),
+            body: JSON.stringify({ customer_language: primary, enabled_languages: enabled }),
           });
           const data = await r.json().catch(() => ({}));
-          if (!r.ok) { if (status) status.textContent = data.error || 'Could not save.'; return; }
-          _applyLangTruth(sel.value);
-          if (status) status.textContent = sel.value === 'es'
-            ? 'Guardado — su asistente ahora escribe a los clientes en español.'
-            : sel.value === 'ar'
-              ? 'تم الحفظ — مساعدتكم الآن تراسل العملاء بالعربية.'
-              : 'Saved — your assistant texts customers in English.';
+          if (!r.ok) {
+            if (status) status.textContent = data.error || 'Could not save.';
+            await loadCustomerLanguage(); // resync controls to stored truth
+            return;
+          }
+          _mbLangApply(data.customer_language, data.enabled_languages);
+          const voiceCount = data.enabled_languages.filter((l) => l !== 'ar').length;
+          if (status) status.textContent = voiceCount > 1
+            ? 'Saved — callers now get the language menu; each conversation keeps its own language.'
+            : (data.customer_language === 'es'
+              ? 'Guardado — su asistente atiende a los clientes en español.'
+              : data.customer_language === 'ar'
+                ? 'تم الحفظ — مساعدتكم تراسل العملاء بالعربية (المكالمات بالإنجليزية حالياً).'
+                : 'Saved — your assistant serves customers in English.');
         } catch (err) {
           if (status) status.textContent = 'Network error — not saved.';
         }
