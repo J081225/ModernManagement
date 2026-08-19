@@ -443,3 +443,11 @@ Created via the Twilio API 2026-08-16:
 **At submission:** link the approved **A2P Campaign** to this Messaging
 Service; only then do carrier sends deliver. Future local workspace
 numbers attach to this same service (toll-free numbers do NOT — §5 item 2).
+
+- **ROUND 3 RESUBMITTED (2026-08-19, via Console by Jay):** description
+  rewritten self-contained under the 1024 cap (who sends/receives/why,
+  both opt-in paths, Drive proof link, STOP/HELP, no-marketing), opt-in
+  keywords START/UNSTOP + confirmation message populated, URL fields
+  verified. Daniela asked to expedite. Round-2 codes 30908/30882 CLEARED
+  by the URL-field fix; round-3 targets 30909/30886. Status polled at
+  resubmission (see session log); check on every session until verdict.
