@@ -6514,6 +6514,12 @@ ${units && units.length ? units.map(u => {
     : `You are an AI command center assistant for a property management app called Modern Management.
 You help property managers get things done by taking action within the app.`;
 
+  // B4 (AI-scope): the owner-assistant scope contract. Generous on
+  // ANYTHING business-related; one friendly redirect for clearly
+  // personal/unrelated asks — never a lecture, never a second refusal
+  // ritual if they push back with a business angle.
+  const scopeContract = `\n\nScope: be generous with anything that could help this business — drafting customer messages, business advice, marketing ideas, pricing thoughts, platform help are ALL in scope. But you are this business's assistant, not a general-purpose AI: for clearly personal or unrelated requests (essays, homework, vacation planning, coding help), give ONE friendly sentence explaining you're the business assistant and redirect to what you can do — warm, brief, never scolding.`;
+
   // System prompt is reused across every turn of the agentic loop below.
   // Pulled out of the anthropic.messages.create() call so each iteration
   // sends the same instructions — Claude stays capable of calling tools
@@ -6549,7 +6555,7 @@ You help property managers get things done by taking action within the app.`;
   // voice. Recency now works for the truth instead of against it.
   const _timeAnchor = require('./lib/time-helpers').promptTimeAnchor(_workspaceRow);
 
-  const systemPrompt = `${businessFraming}
+  const systemPrompt = `${businessFraming}${scopeContract}
 
 ${contextSummary}
 
@@ -8975,6 +8981,15 @@ app.post('/api/reports', requireAuth, async (req, res) => {
 
     let { title, type, prompt, content, data_snapshot, parameters } = body;
     type = type || 'general';
+
+    // B4 (AI-scope): the premium-model cost guard — generation only;
+    // saving pre-written content (Mode B) is not model spend.
+    if (prompt && !content) {
+      const { reportCapExceeded, REPORT_CAP_MESSAGE } = require('./lib/report-cap');
+      if (await reportCapExceeded(pool, workspaceId)) {
+        return res.status(429).json({ error: REPORT_CAP_MESSAGE });
+      }
+    }
 
     // Mode A: prompt-only — generate content via AI
     if (prompt && !content) {
