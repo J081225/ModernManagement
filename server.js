@@ -6942,6 +6942,14 @@ const AUTOREPLY_EMERGENCY_KEYWORDS = [
   'hurt', 'injured', 'bleeding', 'unconscious', 'dead', 'body', 'overdose',
   // Severity markers
   '911', 'asap urgent', 'life threatening',
+  // B2 (AI-scope hardening): human crisis — self-harm and violence
+  // intent. Multi-word phrases keep the word-boundary discipline (the
+  // "Cancel my 2pm" lesson: no bare fragments that ride inside normal
+  // booking talk). These route the message to the owner-alert path on
+  // every channel; Sarah's reply stays minimal and kind (engine rule).
+  'suicide', 'suicidal', 'kill myself', 'end my life', 'want to die',
+  'hurt myself', 'harm myself', 'self-harm', 'self harm',
+  'kill you', 'kill him', 'kill her', 'hurt you',
 ];
 
 function _escapeRegexChars(s) {
