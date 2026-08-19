@@ -7810,7 +7810,12 @@ async function sendRelayConnect(req, res, workspace, vlang) {
   const { customerString: voiceString } = require('./lib/customer-strings');
   const bizName = (workspace && workspace.business_name) || 'our salon';
   const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
-  const langAttr = vlang === 'es' ? ' language="es-US"' : '';
+  // ar = the Variant-B shape verbatim: FIXED transcription language, no
+  // detection anywhere (the spike's ruled result). Reaching here with
+  // 'ar' requires ARABIC_VOICE_ENABLED (dark flag in customer-strings).
+  const langAttr = vlang === 'es' ? ' language="es-US"'
+    : vlang === 'ar' ? ' language="ar" transcriptionProvider="Deepgram" speechModel="nova-3-general" transcriptionLanguage="ar"'
+    : '';
   res.type('text/xml').send(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<Response>\n' +
@@ -7924,7 +7929,9 @@ app.post('/api/voice/relay-incoming', validateTwilioSignature, async (req, res) 
   const base = 'https://' + req.headers.host;
   const sayLine = (l, digit) => l === 'es'
     ? '    <Say language="es-US">Para español, oprima el ' + ['uno', 'dos', 'tres'][digit - 1] + '.</Say>'
-    : '    <Say>For English, press ' + digit + '.</Say>';
+    : l === 'ar'
+      ? '    <Say language="arb">للعربية، اضغط ' + ['واحد', 'اثنين', 'ثلاثة'][digit - 1] + '.</Say>'
+      : '    <Say>For English, press ' + digit + '.</Say>';
   const says = voiceChoices.map((l, i) => sayLine(l, i + 1)).join('\n');
   res.type('text/xml').send(
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
