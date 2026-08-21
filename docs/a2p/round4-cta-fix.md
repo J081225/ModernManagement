@@ -20,10 +20,10 @@ opt-in as they see it. Two suspects:
   business_name = '' — the default is presentational, never recorded
   as consent FOR Northside.
 
-## Revised campaign description (996 chars — fits the 1024 cap; paste
-## verbatim WHEN the hold lifts)
+## Revised campaign description (1015 chars, MEASURED — fits the 1024
+## cap; paste verbatim WHEN the hold lifts)
 
-Modern Management (R2 LABS LLC) is a scheduling platform for appointment-based service businesses (salons, barbershops, similar). WHO SENDS: each business using the platform texts its OWN customers; the sender identity is that business (e.g. "Bella's Salon" in our samples); we operate the platform on its behalf. WHO RECEIVES: only that business's own customers, with prior consent. WHY: transactional only — appointment reminders/confirmations, customer-service replies, verification codes, payment links/receipts. No marketing. OPT-IN: (1) live web form at https://modernmanagementapp.com/sms-opt-in — publicly viewable, no login required — the customer must check an unchecked-by-default box carrying the full consent text with STOP/HELP and Msg&Data rates; consent is not a condition of purchase and each opt-in is recorded (wording, date, number); (2) in-app owner intake blocks saving a customer's number until the same consent box is confirmed; (3) customers who text first receive replies. Reply STOP to unsubscribe, HELP for help. Terms: https://modernmanagementapp.com/sms-terms
+Modern Management (R2 LABS LLC) is a scheduling platform for appointment-based service businesses (salons, barbershops). WHO SENDS: each business texts its OWN customers; the sender identity is that business (e.g. "Bella's Salon"); we operate the platform on its behalf. WHO RECEIVES: only that business's own customers, with prior consent. WHY: transactional only — appointment reminders/confirmations, service replies, verification codes, payment links/receipts. No marketing. OPT-IN: (1) live web form at https://modernmanagementapp.com/sms-opt-in — publicly viewable, no login required — the customer must check an unchecked-by-default box with the full consent text, STOP/HELP and Msg&Data rates; consent is not a condition of purchase; each opt-in is recorded (wording, date, number). (2) In-app owner intake blocks saving a number until the same consent box is confirmed. (3) Customers who text first receive replies. Reply STOP to unsubscribe, HELP for help. Terms: https://modernmanagementapp.com/sms-terms
 
 (If the field still has room after paste, append: " Opt-in screenshots:
 <Drive link>" — ONLY once S1 is cleared or the link is replaced with a
