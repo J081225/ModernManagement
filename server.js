@@ -11637,6 +11637,9 @@ wss.on('connection', (ws, req) => {
   // LP2a: demo-call timers (3-min max, R2 ruling). Set at setup for
   // is_demo workspaces, cleared on close.
   let demoWrapTimer = null;
+  // B1 refinement: the business two-stage check-in ("anything else about
+  // your appointment?") fires at ~8:40, one minute before the wrap.
+  let capCheckInTimer = null;
   let demoEndTimer = null;
 
   // Strip Markdown/formatting characters so Twilio's TTS doesn't read them
@@ -11712,18 +11715,32 @@ wss.on('connection', (ws, req) => {
         const bizName = (workspace && workspace.business_name) || '(unknown business)';
         console.log('[twilio-relay] setup callSid=' + (callSid || 'unknown') + ' business=' + bizName + ' from=' + (callerPhone || '?'));
         // LP2a + B1 (AI-scope hardening): EVERY relay call is capped.
-        // Demo lines wrap at 2:52 (R2 ruling); business lines wrap at
-        // ~9:40 (580s — the free-therapist guard: a booking call never
-        // needs ten minutes). The wrap line is spoken BEFORE cutoff; 8s
-        // later the session ends ({type:'end'} — no TwiML follows
-        // <Connect>, so Twilio hangs up). Every cap firing is LOGGED.
+        // Demo lines: single-stage wrap at 2:52 (R2 ruling — unchanged).
+        // Business lines (B1 refinement, Jay's ruled wording): TWO-stage —
+        // a check-in at ~8:40 ("was there anything else about your
+        // appointment?", the conversation continues normally so the
+        // caller's answer is heard), then the final goodbye at 9:40 with
+        // {type:'end'} 8s later. Every cap firing is logged AND stamped
+        // onto the call record (transcript) as a System turn.
         if (workspace) {
-          const capMs = workspace.is_demo ? 172000 : 580000;
-          const wrapLine = workspace.is_demo
+          const isDemo = !!workspace.is_demo;
+          if (!isDemo) {
+            capCheckInTimer = setTimeout(() => {
+              sendText("I want to make sure I'm not keeping you — was there anything else about your appointment?");
+            }, 520000);
+          }
+          const capMs = isDemo ? 172000 : 580000;
+          const wrapLine = isDemo
             ? "This demo call is wrapping up — thanks for trying it! To get a receptionist like me for your own business, visit modern management app dot com. Bye for now!"
             : "I'm so sorry — I have to wrap up our call now. If there's anything else you need, call or text us anytime and I'll pick it right up. Thanks so much for calling!";
           demoWrapTimer = setTimeout(() => {
-            console.log('[twilio-relay] CAP fired (' + (workspace.is_demo ? 'demo/172s' : 'business/580s') + ') callSid=' + (callSid || 'unknown') + ' ws=' + workspace.id);
+            console.log('[twilio-relay] CAP fired (' + (isDemo ? 'demo/172s' : 'business/580s') + ') callSid=' + (callSid || 'unknown') + ' ws=' + workspace.id);
+            // B1: the cap marker lives on the CALL RECORD, not just logs.
+            if (transcriptId) {
+              voiceTranscript.appendCallTurn(pool, transcriptId, 'System',
+                '[Call reached the ' + (isDemo ? '3-minute demo' : '10-minute') + ' limit and was wrapped up.]'
+              ).catch((err) => console.error('[twilio-relay] cap marker write failed:', err.message));
+            }
             sendText(wrapLine);
             demoEndTimer = setTimeout(() => {
               try { ws.send(JSON.stringify({ type: 'end' })); } catch (err) { /* socket already gone */ }
@@ -11857,6 +11874,7 @@ wss.on('connection', (ws, req) => {
     console.log('[twilio-relay] close callSid=' + (callSid || 'unknown') + ' code=' + code + ' reason=' + (reason ? reason.toString() : ''));
     // LP2a: a demo call that ends early must not fire stale timers.
     if (demoWrapTimer) { clearTimeout(demoWrapTimer); demoWrapTimer = null; }
+    if (capCheckInTimer) { clearTimeout(capCheckInTimer); capCheckInTimer = null; }
     if (demoEndTimer) { clearTimeout(demoEndTimer); demoEndTimer = null; }
     // FD3-CP1: hangup — stamp the transcript (already persisted per
     // turn) and end the conversation. closeConversationThread is

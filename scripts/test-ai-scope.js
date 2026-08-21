@@ -19,15 +19,34 @@ const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
 
 (async () => {
-  // ---- AS1 (B1): every relay call is capped, not just the demo ----
+  // ---- AS1 (B1): every relay call is capped, not just the demo.
+  // B1 refinement (Jay's ruled wording): business calls are TWO-stage —
+  // the 520s check-in question, then the 580s wrap + end — and the cap
+  // stamps the CALL RECORD, not just the console. ----
   {
-    const capTernary = srv.includes("const capMs = workspace.is_demo ? 172000 : 580000;");
+    const capTernary = srv.includes("const capMs = isDemo ? 172000 : 580000;");
+    const checkIn = srv.includes("I want to make sure I'm not keeping you — was there anything else about your appointment?")
+      && srv.includes('}, 520000);');
     const businessWrap = srv.includes("I'm so sorry — I have to wrap up our call now.");
-    const logged = /CAP fired \(' \+ \(workspace\.is_demo \? 'demo\/172s' : 'business\/580s'\)/.test(srv);
+    const logged = /CAP fired \(' \+ \(isDemo \? 'demo\/172s' : 'business\/580s'\)/.test(srv);
+    const onRecord = /appendCallTurn\(pool, transcriptId, 'System',[\s\S]{0,120}limit and was wrapped up/.test(srv);
     const ends = srv.includes("ws.send(JSON.stringify({ type: 'end' }))");
-    check('AS1 [B1]: every relay call carries a cap (demo 172s / business 580s), a graceful business wrap line, a logged CAP marker, and the {type:end} cutoff',
-      capTernary && businessWrap && logged && ends,
-      JSON.stringify({ capTernary, businessWrap, logged, ends }));
+    const timerHygiene = srv.includes('let capCheckInTimer = null;')
+      && srv.includes('if (capCheckInTimer) { clearTimeout(capCheckInTimer); capCheckInTimer = null; }');
+    check('AS1 [B1]: every relay call is capped (demo 172s / business 580s); business gets the ruled 520s check-in THEN the wrap; the cap stamps the call record as a System turn; timers cleared on close',
+      capTernary && checkIn && businessWrap && logged && onRecord && ends && timerHygiene,
+      JSON.stringify({ capTernary, checkIn, businessWrap, logged, onRecord, ends, timerHygiene }));
+  }
+
+  // ---- AS1b (B5): the demo line's existing caps are UNCHANGED ----
+  {
+    const demoWrap = srv.includes("This demo call is wrapping up — thanks for trying it!");
+    const demo172 = srv.includes('172000');
+    const dailyCeiling = srv.includes('const DEMO_DAILY_MINUTES_CAP = 35;');
+    const noCheckInForDemo = /if \(!isDemo\) \{\s*\n\s*capCheckInTimer = setTimeout/.test(srv);
+    check('AS1b [B5]: demo caps unchanged — 172s single-stage wrap with the demo line, 35-min daily ceiling, and the new check-in stage explicitly excludes demo calls',
+      demoWrap && demo172 && dailyCeiling && noCheckInForDemo,
+      JSON.stringify({ demoWrap, demo172, dailyCeiling, noCheckInForDemo }));
   }
 
   // ---- AS2 (B2): crisis keywords — behavior-tested with the REAL regex ----
@@ -106,6 +125,34 @@ const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engin
     check('AS7 [B4]: report generations capped at 10/workspace/day at BOTH sites (endpoint 429 + tool refusal), honest message, generation-only (saving content uncapped)',
       capRight && endpointWired && toolWired && generationOnly,
       JSON.stringify({ capRight, endpointWired, toolWired, generationOnly }));
+  }
+
+  // ---- AS8 (B5): crisis coverage per channel — the four call sites +
+  // a channel-shaped fixture through the REAL rebuilt regex for each ----
+  {
+    // Site pins: 3× rows[0].text (SMS :~7572, email :~7330, voicemail
+    // :~7727 with re-alert dedup), 1× utterance (relay voice FD3-CP2),
+    // 1× display recompute — all feeding the ONE shared gate.
+    const rowSites = (srv.match(/detectEmergency\(rows\[0\]\.text\)/g) || []).length;
+    const voiceSite = srv.includes('detectEmergency(utterance)');
+    const displaySite = srv.includes('msg.emergency_keywords = detectEmergency(msg.text)');
+    // Channel-shaped fixtures through the regex rebuilt from source.
+    const m = srv.match(/AUTOREPLY_EMERGENCY_KEYWORDS = \[([\s\S]*?)\];/);
+    let kws = [];
+    try { kws = eval('[' + m[1] + ']'); } catch (e) { /* fails below */ }
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp('\\b(' + kws.map(esc).join('|') + ')\\b', 'gi');
+    const hits = (t) => (String(t).match(re) || []).length > 0;
+    const fixtures = {
+      sms: hits("I don't want to be here anymore, I want to end my life"),
+      email: hits('I have been thinking about suicide and I need someone to talk to'),
+      voicemail: hits('he said he would kill her if she ever came back to the shop'),
+      voice: hits("I'm going to hurt myself after this appointment, I mean it"),
+    };
+    const allChannels = Object.values(fixtures).every(Boolean);
+    check('AS8 [B5]: all four channel call sites feed the one gate (3× rows[0].text + relay utterance + display recompute) and a channel-shaped crisis fixture alerts on each',
+      rowSites === 3 && voiceSite && displaySite && allChannels,
+      JSON.stringify({ rowSites, voiceSite, displaySite, fixtures }));
   }
 
   console.log(`${pass}/${pass + fail} — ai-scope gate ${fail ? 'FAILED' : 'PASSED'}`);
