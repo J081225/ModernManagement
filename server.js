@@ -478,6 +478,11 @@ app.get('/sms-opt-in', (_req, res) => res.sendFile(path.join(__dirname, 'public'
 // duplicate URL serves the homepage.
 app.get('/lp-preview', (_req, res) => res.redirect(301, '/'));
 app.get('/sms-terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'sms-terms.html')));
+// A2P round 4: the reviewer-facing proof page — plain HTML, zero JS,
+// self-hosted images, no login. Replaces the Drive folder as the CTA
+// proof target (a public Drive folder still renders as a JS app an
+// automated verifier may not crawl).
+app.get('/a2p-proof', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'a2p-proof.html')));
 app.get('/how-it-works', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'how-it-works.html')));
 app.get('/why-ai', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'why-ai.html')));
 app.get('/terms', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'terms.html')));

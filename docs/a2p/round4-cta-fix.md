@@ -20,14 +20,23 @@ opt-in as they see it. Two suspects:
   business_name = '' — the default is presentational, never recorded
   as consent FOR Northside.
 
-## Revised campaign description (1015 chars, MEASURED — fits the 1024
+## S1 RESOLVED BY EVIDENCE + SUPERSEDED (2026-08-21)
+
+Drive's own ACL read: the folder is `type: anyone, role: reader` —
+genuinely public, no sign-in wall. BUT a public Drive folder still
+renders as a JavaScript app, which an AUTOMATED CTA verifier may not
+crawl — so the Drive link is retired as proof regardless. **The proof
+now lives on OUR domain: https://modernmanagementapp.com/a2p-proof** —
+plain HTML, zero JS, both screenshots self-hosted at
+/img/a2p/opt-in-form.png + /img/a2p/owner-intake.png (pulled from the
+Drive folder, visually verified: the Bella's Salon opt-in form with
+unchecked box + disabled button, and the owner Add Contact gate).
+Nothing a reviewer lands on requires a login or a script.
+
+## Revised campaign description (1004 chars, MEASURED — fits the 1024
 ## cap; paste verbatim WHEN the hold lifts)
 
-Modern Management (R2 LABS LLC) is a scheduling platform for appointment-based service businesses (salons, barbershops). WHO SENDS: each business texts its OWN customers; the sender identity is that business (e.g. "Bella's Salon"); we operate the platform on its behalf. WHO RECEIVES: only that business's own customers, with prior consent. WHY: transactional only — appointment reminders/confirmations, service replies, verification codes, payment links/receipts. No marketing. OPT-IN: (1) live web form at https://modernmanagementapp.com/sms-opt-in — publicly viewable, no login required — the customer must check an unchecked-by-default box with the full consent text, STOP/HELP and Msg&Data rates; consent is not a condition of purchase; each opt-in is recorded (wording, date, number). (2) In-app owner intake blocks saving a number until the same consent box is confirmed. (3) Customers who text first receive replies. Reply STOP to unsubscribe, HELP for help. Terms: https://modernmanagementapp.com/sms-terms
-
-(If the field still has room after paste, append: " Opt-in screenshots:
-<Drive link>" — ONLY once S1 is cleared or the link is replaced with a
-public one.)
+Modern Management (R2 LABS LLC) is a scheduling platform for appointment-based businesses (salons, barbershops). WHO SENDS: each business texts its OWN customers; sender identity is that business (e.g. Bella's Salon); we operate the platform on its behalf. WHO RECEIVES: only that business's own customers, with prior consent. WHY: transactional only — appointment reminders/confirmations, service replies, verification codes, payment links/receipts. No marketing. OPT-IN: (1) live web form at https://modernmanagementapp.com/sms-opt-in — publicly viewable, no login — the customer must check an unchecked-by-default box with the full consent text, STOP/HELP and Msg&Data rates; not a condition of purchase; each opt-in recorded (wording, date, number). (2) In-app owner intake blocks saving a number until the same consent box is confirmed. (3) Customers who text first receive replies. Reply STOP to unsubscribe, HELP for help. Opt-in proof (public, no login): https://modernmanagementapp.com/a2p-proof
 
 ## HOLD
 Do NOT resubmit until (a) Daniela answers, or (b) the incognito test
