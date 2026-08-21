@@ -101,8 +101,9 @@
     <div class="card">
       <!-- FORM -->
       <div id="formView">
-        <div class="card-title">Get text updates from <span id="bizTitle">your business</span></div>
+        <div class="card-title">Get text updates from <span id="bizTitle">Northside Barbers</span></div>
         <div class="card-sub">Appointment reminders, confirmations, and replies — straight to your phone.</div>
+        <p id="demoCaption" style="display:none;font-size:0.78rem;color:#6b7280;margin:-6px 0 18px;line-height:1.5;">Shown for our demo business, Northside Barbers &mdash; each business on Modern Management has this same form carrying its own name.</p>
 
         <div class="field">
           <label for="biz">Business</label>
@@ -122,7 +123,7 @@
         <div class="consent-box">
           <input type="checkbox" id="consent" aria-label="I agree to receive SMS messages" />
           <div class="consent-text" id="consentText">
-            By checking this box, you agree to receive SMS notifications about appointment reminders, confirmations, service replies, verification codes, and payment requests/receipts from <strong id="bizInline">your business</strong> via Modern Management. To Unsubscribe, reply STOP. Need Assistance? Reply HELP. Msg&amp;Data Rates may apply. See our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.
+            By checking this box, you agree to receive SMS notifications about appointment reminders, confirmations, service replies, verification codes, and payment requests/receipts from <strong id="bizInline">Northside Barbers</strong> via Modern Management. To Unsubscribe, reply STOP. Need Assistance? Reply HELP. Msg&amp;Data Rates may apply. See our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="/terms" target="_blank" rel="noopener">Terms of Use</a>.
           </div>
         </div>
         <p class="required-note">Required — you must check this box to sign up. It is never pre-checked.</p>
@@ -141,7 +142,7 @@
       <div class="success" id="successView">
         <div class="check">&#10003;</div>
         <h2>You're signed up</h2>
-        <p>You'll start getting text updates from <span id="bizSuccess">your business</span>. Reply <strong>STOP</strong> anytime to cancel.</p>
+        <p>You'll start getting text updates from <span id="bizSuccess">Northside Barbers</span>. Reply <strong>STOP</strong> anytime to cancel.</p>
       </div>
     </div>
 
@@ -166,11 +167,24 @@
       var submitBtn = document.getElementById('submitBtn');
       var errMsg = document.getElementById('errMsg');
 
-      if (bizParam) bizInput.value = bizParam;
+      // A2P round 4: the bare page (no ?business= param) must present as
+      // FULLY REAL to a reviewer — it defaults to our demo business,
+      // Northside Barbers, with an honest caption, and never shows
+      // placeholder-ish wording. Consent records from the bare page still
+      // store business_name = '' (the default is presentational — we
+      // never record consent as if it were FOR Northside).
+      var DEMO_DEFAULT = 'Northside Barbers';
+      if (bizParam) {
+        bizInput.value = bizParam;
+      } else {
+        bizInput.value = DEMO_DEFAULT;
+        var cap = document.getElementById('demoCaption');
+        if (cap) cap.style.display = 'block';
+      }
 
       function bizLabel() {
         var v = (bizInput.value || '').trim();
-        return v || 'your business';
+        return v || DEMO_DEFAULT;
       }
       function syncBizLabels() {
         var label = bizLabel();
@@ -206,7 +220,10 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              business_name: bizLabel() === 'your business' ? '' : bizInput.value.trim(),
+              // The bare page's Northside default is PRESENTATIONAL — a
+              // consent record never claims it was for the demo shop
+              // unless a caller genuinely typed/linked it.
+              business_name: (!bizParam && bizInput.value.trim() === DEMO_DEFAULT) ? '' : bizInput.value.trim(),
               full_name: fullName.value.trim(),
               phone: phone.value.trim(),
               consent: true,

@@ -451,3 +451,14 @@ numbers attach to this same service (toll-free numbers do NOT — §5 item 2).
   verified. Daniela asked to expedite. Round-2 codes 30908/30882 CLEARED
   by the URL-field fix; round-3 targets 30909/30886. Status polled at
   resubmission (see session log); check on every session until verdict.
+
+- **ROUND 4 (2026-08-20): REJECTED — new code class: CTA verification
+  ("issues verifying the Call to Action"); all earlier codes stayed
+  cleared. Suspects: (S1) Drive proof link possibly sign-in-walled (Jay
+  incognito-testing); (S2) bare /sms-opt-in presented "your business"
+  placeholder wording. S2 FIXED + deployed: bare page defaults to the
+  demo shop with an honest caption, no placeholder wording anywhere a
+  reviewer lands; consent records keep business_name='' for the bare
+  page. Revised ≤1024-char description (adds "publicly viewable, no
+  login required") staged in docs/a2p/round4-cta-fix.md. RESUBMISSION
+  HELD until Daniela answers or the Drive test convicts S1.
