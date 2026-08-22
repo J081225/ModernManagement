@@ -11821,6 +11821,17 @@ wss.on('connection', (ws, req) => {
           sendgrid: sgMail,
           env: process.env,
           logger: console,
+          // LS: mid-call SPOKEN language switch. The switch_language tool
+          // calls this after its own gates pass: (1) tell ConversationRelay
+          // to switch STT+TTS for the rest of the session, (2) override
+          // the closure workspace exactly as the DTMF pin does, so every
+          // later turn — engine language block, canned strings — runs in
+          // the new language. The tool re-stamps the thread itself.
+          onLanguageSwitch: async (lang, relayCode) => {
+            ws.send(JSON.stringify({ type: 'language', ttsLanguage: relayCode, transcriptionLanguage: relayCode }));
+            workspace = { ...workspace, customer_language: lang, _session_language: lang };
+            console.log('[twilio-relay] LANGUAGE SWITCH -> ' + lang + ' (' + relayCode + ') callSid=' + (callSid || 'unknown') + ' ws=' + workspace.id);
+          },
         });
         if (result && result.thread_id) lastThreadId = result.thread_id;
 
