@@ -2150,8 +2150,13 @@ app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async 
   }
 
   try {
+    // One email may belong to SEVERAL accounts (found live 2026-08-22:
+    // jayhorton87@gmail.com is on both `admin` #1 and `jayhorton87` #14 —
+    // the old LIMIT 1 silently reset the WRONG account and the owner was
+    // locked out of the one he meant). Now EVERY matching account gets
+    // its own token, and ONE email lists each link by username.
     const { rows } = await pool.query(
-      'SELECT id, username, email FROM users WHERE LOWER(email) = $1 LIMIT 1',
+      'SELECT id, username, email FROM users WHERE LOWER(email) = $1 ORDER BY id',
       [email]
     );
 
@@ -2160,43 +2165,46 @@ app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async 
       return res.json(genericResponse);
     }
 
-    const user = rows[0];
-
-    // Generate a 32-byte random token (URL-safe hex). AD8 (d): the raw
-    // token rides the email link exactly as before; the ROW stores only
-    // its sha256 (credentials.hashToken), so a DB read yields no usable
-    // link. The AD5/AD3 hashed-at-rest pattern, now applied to the one
-    // token type that predated it.
-    const token = crypto.randomBytes(32).toString('hex');
-
-    await pool.query(
-      `INSERT INTO password_reset_tokens (token, user_id) VALUES ($1, $2)`,
-      [credentials.hashToken(token), user.id]
-    );
-
+    // Generate a 32-byte random token per account (URL-safe hex). AD8
+    // (d): the raw token rides the email link; the ROW stores only its
+    // sha256 (credentials.hashToken), so a DB read yields no usable link.
     const baseUrl = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
-    const resetUrl = baseUrl + '/reset-password?token=' + encodeURIComponent(token);
+    const links = [];
+    for (const user of rows) {
+      const token = crypto.randomBytes(32).toString('hex');
+      await pool.query(
+        `INSERT INTO password_reset_tokens (token, user_id) VALUES ($1, $2)`,
+        [credentials.hashToken(token), user.id]
+      );
+      links.push({ username: user.username, url: baseUrl + '/reset-password?token=' + encodeURIComponent(token) });
+    }
+    const multi = links.length > 1;
+    const toEmail = rows[0].email;
+    const greetName = multi ? 'there' : links[0].username;
+    const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     // Send the email. Failure here is logged but doesn't change the
     // response — we don't want to surface email-system errors to the
     // user (also enumeration-vector adjacent).
     try {
       await sgMail.send({
-        to: user.email,
+        to: toEmail,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
         replyTo: process.env.SENDGRID_FROM_EMAIL,
         subject: 'Reset your Modern Management password',
         text: [
-          'Hi ' + user.username + ',',
+          'Hi ' + greetName + ',',
           '',
-          'You (or someone using your email address) requested a password reset for your Modern Management account.',
+          multi
+            ? 'You (or someone using your email address) requested a password reset. This email address is on ' + links.length + ' Modern Management accounts — each has its own link below. Use the one for the account you want to reset:'
+            : 'You (or someone using your email address) requested a password reset for your Modern Management account.',
           '',
-          'To set a new password, click the link below within the next hour:',
-          resetUrl,
+          multi ? '' : 'To set a new password, click the link below within the next hour:',
+          ...links.map((l) => (multi ? 'Account "' + l.username + '": ' : '') + l.url),
           '',
           'If you did not request this, you can safely ignore this email — your password will stay the same.',
           '',
-          'For your security, this link will expire in 1 hour and can only be used once.',
+          'For your security, each link expires in 1 hour and can only be used once.',
           '',
           'Modern Management',
         ].join('\n'),
@@ -2207,19 +2215,24 @@ app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async 
           '<div style="max-width:540px;margin:0 auto;padding:24px 16px;">',
           '<div style="background:white;border-radius:12px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,0.04);">',
           '<h1 style="margin:0 0 8px;font-size:1.4em;color:#2d3748;">Reset your password</h1>',
-          '<p style="color:#475569;font-size:0.95em;line-height:1.6;">Hi ' + user.username + ', you (or someone using your email) requested a password reset for your Modern Management account.</p>',
-          '<div style="text-align:center;margin:28px 0;">',
-          '<a href="' + resetUrl + '" style="display:inline-block;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;text-decoration:none;padding:13px 28px;border-radius:9px;font-weight:700;">Set a new password</a>',
-          '</div>',
-          '<p style="color:#64748b;font-size:0.85em;line-height:1.5;">This link expires in 1 hour and can only be used once.</p>',
+          multi
+            ? '<p style="color:#475569;font-size:0.95em;line-height:1.6;">Hi there, you (or someone using your email) requested a password reset. <strong>This email address is on ' + links.length + ' accounts</strong> — each has its own button below. Use the one for the account you want to reset.</p>'
+            : '<p style="color:#475569;font-size:0.95em;line-height:1.6;">Hi ' + esc(links[0].username) + ', you (or someone using your email) requested a password reset for your Modern Management account.</p>',
+          ...links.map((l) =>
+            '<div style="text-align:center;margin:22px 0;">' +
+            (multi ? '<div style="font-size:0.82em;color:#64748b;margin-bottom:8px;">Account <strong style="color:#2d3748;">' + esc(l.username) + '</strong></div>' : '') +
+            '<a href="' + l.url + '" style="display:inline-block;background:linear-gradient(135deg,#ff6b6b,#ff8e53);color:white;text-decoration:none;padding:13px 28px;border-radius:9px;font-weight:700;">' + (multi ? 'Reset password for ' + esc(l.username) : 'Set a new password') + '</a>' +
+            '</div>'),
+          '<p style="color:#64748b;font-size:0.85em;line-height:1.5;">Each link expires in 1 hour and can only be used once.</p>',
           '<p style="color:#64748b;font-size:0.85em;line-height:1.5;">If you did not request this, you can safely ignore this email — your password will stay the same.</p>',
-          '<p style="color:#94a3b8;font-size:0.78em;margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;">If the button does not work, copy and paste this URL into your browser:<br><span style="word-break:break-all;">' + resetUrl + '</span></p>',
+          '<p style="color:#94a3b8;font-size:0.78em;margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0;">If a button does not work, copy and paste its URL into your browser:<br>' +
+            links.map((l) => (multi ? esc(l.username) + ': ' : '') + '<span style="word-break:break-all;">' + l.url + '</span>').join('<br>') + '</p>',
           '</div></div></body></html>',
         ].join(''),
       });
-      console.log('[password-reset] Email sent to', user.email);
+      console.log('[password-reset] Email sent to', toEmail, '(' + links.length + ' account' + (multi ? 's' : '') + ')');
     } catch (emailErr) {
-      console.error('[password-reset] Email send failed for', user.email, ':', emailErr.message);
+      console.error('[password-reset] Email send failed for', toEmail, ':', emailErr.message);
     }
 
     res.json(genericResponse);

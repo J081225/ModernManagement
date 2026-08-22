@@ -104,7 +104,11 @@ function makeDb(users, sessions) {
   };
 }
 
-const RESET_LOOKUP_SQL = 'SELECT id, username, email FROM users WHERE LOWER(email) = $1 LIMIT 1';
+// 2026-08-22: LIMIT 1 -> ORDER BY id — a shared email resets EVERY
+// matching account (the LIMIT 1 silently reset the wrong one; see D7 in
+// test-reset-token-hashing). The guard's intent is unchanged: the reset
+// lookup must reference NO pending-email columns.
+const RESET_LOOKUP_SQL = 'SELECT id, username, email FROM users WHERE LOWER(email) = $1 ORDER BY id';
 
 (async () => {
   const HASH = await bcrypt.hash('correct-horse-9', ROUNDS);

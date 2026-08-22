@@ -110,6 +110,26 @@ function makeTokenTable() {
       'reset URL builder');
   }
 
+  // ---- D7 (2026-08-22): a shared email resets EVERY matching account ----
+  // Found live: jayhorton87@gmail.com sits on both `admin` #1 and
+  // `jayhorton87` #14; the old `LIMIT 1` silently reset the WRONG one and
+  // locked the owner out of the account he meant. The lookup must return
+  // all matches in stable order, mint a token PER account, and the single
+  // email must label each link by username.
+  {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const handler = src.slice(src.indexOf("app.post('/api/auth/request-password-reset'"), src.indexOf("app.get('/api/auth/check-reset-token'"));
+    const noLimitOne = !/LOWER\(email\) = \$1 LIMIT 1/.test(handler);
+    const allMatches = handler.includes("WHERE LOWER(email) = $1 ORDER BY id");
+    const tokenPerAccount = /for \(const user of rows\) \{[\s\S]{0,400}INSERT INTO password_reset_tokens/.test(handler);
+    const labeled = handler.includes("'Account \"' + l.username + '\": '")
+      && handler.includes("'Reset password for ' + esc(l.username)");
+    const multiWording = handler.includes('This email address is on ');
+    check('D7: the reset lookup returns ALL accounts on the email (no LIMIT 1, stable ORDER BY id), mints a token per account, and the one email labels each link by username',
+      noLimitOne && allMatches && tokenPerAccount && labeled && multiWording,
+      JSON.stringify({ noLimitOne, allMatches, tokenPerAccount, labeled, multiWording }));
+  }
+
   console.log(`${pass}/${pass + fail} — reset-token-hashing suite ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
