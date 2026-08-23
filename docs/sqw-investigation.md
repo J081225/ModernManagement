@@ -270,6 +270,28 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   books automatically — or with one tap, your choice." LC11 updated
   (both rungs earned-verbatim; "charge in person" remains the one
   unearned rung, gated on the R10 device test). SQW6–7 build proceeds.
+- **SQW6+7 `373dd4d` ✓ (built; live test = the R10 device test):**
+  charge-in-person endpoint (balance-only, receipt-grade Ref, 15-min
+  HMAC state, both platform URLs built server-side, honest 503 when
+  `SQUARE_APP_ID` is unset), public state-verified `/api/square/
+  pos-return` storing the POS id belt (082), the Charge-in-person
+  button (mobile handoff + iOS App-Store fallback; desktop honest card
+  with copy-ready Ref), and lane 2's ref-match running BEFORE
+  auto-record (exact-balance guard; payment row through the seam; paid
+  ratchet; `recorded_via='ref_match'`; `+ref:sale#N` in the log). Pins
+  SW14/SW15.
+  **Before the device test, two Jay-side setup steps:** (1) set
+  `SQUARE_APP_ID` on Render (production app id); (2) enable the Point
+  of Sale API on our Square application + register the web callback URL
+  `https://modernmanagementapp.com/api/square/pos-return` (iOS AND
+  Android sections) in the Developer Dashboard.
+  **The R10 device test (earns the final rung + settles both VERIFY
+  flags):** create the free real merchant "MM Test Counter", install
+  Square POS, connect that merchant to a test workspace, create an
+  unpaid ~$1 sale in MM, tap Charge in person on the phone → POS opens
+  pre-filled → tap the ~$1 → return page says "Payment taken" → the
+  sale flips paid via ref-match with zero manual recording → refund it
+  through MM (SQ5). Also confirms transaction_id ≡ order id.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
