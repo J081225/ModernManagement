@@ -186,8 +186,25 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   Jay records tray row 2 ($12.34) from Finances → expected: a paid
   `walk_in` transaction + a completed `square` payment row, tray row
   `recorded`/`one_tap`, the sale visible in Ledger/TR/CSV. That test
-  earns rung 1 ("with one tap"). Next: SQW4 refund correlation, SQW5
-  auto-record toggle.
+  earns rung 1 ("with one tap").
+- **SQW3 LIVE TEST PASSED (2026-08-23, Jay):** tray row 2 → **walk_in
+  transaction #8** (paid, 1234¢ in full, "Walk-in / Card sale (Square)")
+  + **payment row #5** (`processor='square'`, `processor_ref` = the
+  Square order id, `square_payment_id` kept, completed) + tray row
+  `recorded/one_tap`; Money In reflects it ($57.34); the real-only
+  transaction-report composer (shared by the report and CSV export)
+  includes #8. **RUNG 1 EARNED — "Square counter taps show up in your
+  books with one tap" is live on the landing; LC11 is now a real ladder
+  (earned verbatim / unearned absent).**
+- **SQW4 `360b8d4` ✓** — merchant-side refunds: `no_refund_row` →
+  correlate by `payment_id` → a recorded walk-in gets a `square_refunds`
+  row (`initiated_by='square'`, migration 080, capped at what remains)
+  and the EXISTING core settles it; an unrecorded tray row is marked
+  `refunded`; unknown payments untouched. **LIVE TEST PENDING: Jay
+  refunds sale #8 from the sandbox dashboard** → expected: refund row
+  `completed` + `initiated_by='square'`, record-only child transaction,
+  parent #8 `refunded` with `amount_refunded_cents = 1234`, delivery log
+  `refund_settled`. Next: SQW5 auto-record toggle (rung 2).
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
