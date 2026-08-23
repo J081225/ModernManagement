@@ -178,6 +178,16 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   test) → "charge in person from the app" (post device test).
 - **Order of work:** SQW1 proof log → Jay's sandbox Virtual Terminal
   sale (the evidence gate) → SQW2–5 → launch side SQW6–7 → SQW8 optional.
+- **PROGRESS:** SQW1 `89ca382` ✓ · evidence gate ✓ (§2.1b) · SQW2
+  `5fe5daf` ✓ (tray table + lane 2) · **SQW3 `fea40ca` ✓** (delivery
+  log `square_webhook_events` (079) + Counter payments tray + one-tap
+  record through the seam + dismiss; forgery guard refined; LC11 claims
+  ladder pinned, no rung earned yet). **Live test of SQW3 pending:**
+  Jay records tray row 2 ($12.34) from Finances → expected: a paid
+  `walk_in` transaction + a completed `square` payment row, tray row
+  `recorded`/`one_tap`, the sale visible in Ledger/TR/CSV. That test
+  earns rung 1 ("with one tap"). Next: SQW4 refund correlation, SQW5
+  auto-record toggle.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
