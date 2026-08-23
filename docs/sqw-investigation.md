@@ -228,9 +228,25 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   accidental second charge was never actually fired. (Also: the 1:06pm
   sale predates the SQW3 delivery-log deploy ~17:15Z, so it correctly
   has no log row — the log's first-ever rows are these refund events.)
-- **CATCH SIDE COMPLETE (SQW1–4 shipped + live-tested).** Next: SQW5
-  auto-record toggle (default OFF, wired+pinned) → its live test earns
-  rung 2 ("automatically"). Then launch side SQW6–7.
+- **CATCH SIDE COMPLETE (SQW1–4 shipped + live-tested).**
+- **SQW5 `c3aa2e9` ✓ (ruling R3, no fake control):** migration 081
+  `square_auto_record_walkins DEFAULT FALSE`; the record core extracted
+  to `lib/square-walkins.recordTrayRowAsSale` — ONE implementation
+  shared by the one-tap endpoint (adapter, no SQL of its own) and lane
+  2's auto path (`via='auto'`, attributed to the owner; failure leaves
+  the row one-tappable, logs `auto_failed`; delivery-log reason carries
+  `auto:sale#N`). Toggle lives on the "How you get paid" card
+  (discoverable with an empty tray), never pre-checked, reflects stored
+  truth, resyncs on failure; tray marks auto rows "(auto)". Pins SW12
+  (shared core + both call sites), SW13 (default-off at every layer);
+  SW10/SR11 no-books invariants rescoped to recorder/correlator.
+  **LIVE TEST PENDING (earns rung 2 "automatically"):** Jay flips the
+  toggle ON in How you get paid, fires one Virtual Terminal sale →
+  expected: tray row `recorded/auto` with NO tap, an ordinary paid
+  walk_in transaction + completed square payment row, delivery-log
+  `tray_recorded` with `auto:sale#N`, Money In reflects it. Then LC11
+  rung 2 flips in the same commit as this test's record. Then launch
+  side SQW6–7.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
