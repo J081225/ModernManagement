@@ -200,11 +200,37 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   correlate by `payment_id` → a recorded walk-in gets a `square_refunds`
   row (`initiated_by='square'`, migration 080, capped at what remains)
   and the EXISTING core settles it; an unrecorded tray row is marked
-  `refunded`; unknown payments untouched. **LIVE TEST PENDING: Jay
-  refunds sale #8 from the sandbox dashboard** → expected: refund row
-  `completed` + `initiated_by='square'`, record-only child transaction,
-  parent #8 `refunded` with `amount_refunded_cents = 1234`, delivery log
-  `refund_settled`. Next: SQW5 auto-record toggle (rung 2).
+  `refunded`; unknown payments untouched.
+- **SQW4 LIVE TEST PASSED (2026-08-23, refund via API Explorer — the
+  sandbox seller dashboard exposes no refund UI, so the Refunds API is
+  the real merchant-side scenario anyway).** Chain verbatim:
+  `square_refunds` row 2 — `initiated_by='square'`, 1234¢, `completed`,
+  `transaction_id=8`, `refund_child_transaction_id=9`,
+  `created_by_user_id` NULL; **child #9** source `refund`, total −1234¢,
+  parent 8; **parent #8** → `refunded`, `amount_refunded_cents=1234`
+  (ratcheted once); **isolation intact** — `transaction_payments` for
+  #8/#9 is still only the one completed payment row #5, zero refund rows.
+  Two findings worth keeping:
+  1. **Idempotency held under a genuine double-delivery.** Square sent
+     `refund.updated` COMPLETED **twice** (delivery-log rows 3 & 4, both
+     `refund_settled`, distinct event ids so not a dedup — two real
+     events) — yet exactly ONE child (#9) and ONE ratchet. The SQ5
+     FOR-UPDATE core absorbed the second as a no-op.
+  2. **Recording an order CLAIMS it.** Refunding also re-emitted
+     `payment.updated` for the original payment (log row 2, outcome
+     `completed`) — because payment row #5 now carries
+     `processor_ref = order id`, it matched LANE 1 (idempotent no-op),
+     so it did NOT re-appear in the tray. A recorded walk-in can never
+     double-tray.
+- **The "1:06pm duplicate" did not happen.** The tray holds exactly ONE
+  row (id 2, the recorded #8); there is no tray row 3 and no second
+  payment in the delivery log. Like the earlier "silent sales," the
+  accidental second charge was never actually fired. (Also: the 1:06pm
+  sale predates the SQW3 delivery-log deploy ~17:15Z, so it correctly
+  has no log row — the log's first-ever rows are these refund events.)
+- **CATCH SIDE COMPLETE (SQW1–4 shipped + live-tested).** Next: SQW5
+  auto-record toggle (default OFF, wired+pinned) → its live test earns
+  rung 2 ("automatically"). Then launch side SQW6–7.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
