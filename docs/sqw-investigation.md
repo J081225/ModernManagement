@@ -247,6 +247,20 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   `tray_recorded` with `auto:sale#N`, Money In reflects it. Then LC11
   rung 2 flips in the same commit as this test's record. Then launch
   side SQW6–7.
+- **FIRST ATTEMPT (2026-08-23 18:37, $23.45 → sale #10): NOT an auto
+  pass — rung 2 HELD.** The sale entered the books correctly, but three
+  independent provenance markers all say **one_tap**: tray row 4
+  `recorded_via='one_tap'`, transaction #10's note reads "Recorded from
+  Counter payments" (the auto path writes "Auto-recorded"), and the
+  delivery-log reason is bare `no_ledger_row` (the auto path appends
+  `+auto:sale#N`). Root cause confirmed in the DB: **the toggle is
+  still FALSE** — it was never saved ON. Likeliest mechanics: Jay's app
+  tab predated the 18:20 SQW5 deploy, so the toggle didn't exist in his
+  DOM; the "Recorded as sale #10" status line in his screenshot is the
+  one-tap button's own success message. The claims ladder did its job:
+  no rung without its evidence. Retest: hard-refresh → toggle ON (wait
+  for the "On —" confirmation) → fresh VT sale → expect `recorded/auto`
+  with zero taps.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==
