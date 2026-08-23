@@ -3046,21 +3046,30 @@ app.post('/api/square/webhook', async (req, res) => {
     // A bad/absent signature is either a misconfiguration or a forgery.
     // 400, logged, nothing touched. No detail leaks to the caller.
     console.error('[square-webhook] signature check failed:', v.reason);
+    // SQW3: even a rejected delivery leaves a row (no event id — the body
+    // is untrusted and unparsed).
+    squareWebhookLog.logSquareWebhookEvent(pool, { outcome: 'bad_signature', reason: v.reason, httpStatus: 400 });
     return res.status(400).send('bad signature');
   }
   // Respond 200 fast; process after. Square retries on non-2xx, and the
   // completion is idempotent, so a crash mid-process is safe to retry.
   res.sendStatus(200);
+  // SQW3: the delivery log — one row per delivery, at whatever outcome
+  // this handler reaches. Fail-open; never touches the money path.
+  let _evt = { eventId: null, eventType: null, merchantId: null, objectId: null };
+  const logOutcome = (outcome, reason) => squareWebhookLog.logSquareWebhookEvent(pool, { ..._evt, outcome, reason });
   try {
     const event = JSON.parse(v.body);
     const type = event && event.type;
+    _evt = { eventId: event && event.event_id || null, eventType: type || null, merchantId: event && event.merchant_id || null, objectId: null };
     // SQ5: refund.created/updated settles a Square money-moving refund.
     // Signature already verified at the edge; the three-way merchant +
     // amount + currency check runs inside processSquareRefundCompleted,
     // which is idempotent against redelivery.
     if (type === 'refund.created' || type === 'refund.updated') {
       const refund = event.data && event.data.object && event.data.object.refund;
-      if (!refund || refund.status !== 'COMPLETED') return; // settle only on COMPLETED
+      _evt.objectId = refund && refund.id || null;
+      if (!refund || refund.status !== 'COMPLETED') { await logOutcome('ignored_status', refund && refund.status); return; } // settle only on COMPLETED
       const rr = await paymentLedger.processSquareRefundCompleted(pool, {
         refundId: refund.id,
         merchantId: event.merchant_id,
@@ -3070,11 +3079,13 @@ app.post('/api/square/webhook', async (req, res) => {
       if (!rr.ok && rr.reason && rr.reason.endsWith('_mismatch')) {
         console.error('[square-webhook] refund REFUSED (' + rr.reason + ') for refund ' + refund.id);
       }
+      await logOutcome(rr.ok ? 'refund_settled' : 'refund_refused', rr.ok ? null : rr.reason);
       return;
     }
-    if (type !== 'payment.updated' && type !== 'payment.created') return;
+    if (type !== 'payment.updated' && type !== 'payment.created') { await logOutcome('ignored_type', type); return; }
     const payment = event.data && event.data.object && event.data.object.payment;
-    if (!payment || payment.status !== 'COMPLETED') return; // only settle on COMPLETED
+    _evt.objectId = payment && payment.id || null;
+    if (!payment || payment.status !== 'COMPLETED') { await logOutcome('ignored_status', payment && payment.status); return; } // only settle on COMPLETED
     const result = await paymentLedger.processSquarePaymentCompleted(pool, {
       orderId: payment.order_id,
       merchantId: event.merchant_id,
@@ -3125,13 +3136,136 @@ app.post('/api/square/webhook', async (req, res) => {
             ourAppId: process.env.SQUARE_APP_ID || null, logger: console,
           });
           if (!lane2.ok) console.error('[square-walkins] not recorded (' + lane2.reason + ') for payment ' + payment.id);
+          await logOutcome(lane2.ok ? (lane2.duplicate ? 'tray_duplicate' : 'tray_recorded') : 'tray_refused', lane2.ok ? result.reason : lane2.reason);
         } catch (err) {
           console.error('[square-walkins] recorder error (payment ' + payment.id + '):', err.message);
+          await logOutcome('error', 'lane2: ' + err.message);
         }
+      } else {
+        await logOutcome('refused', result.reason);
       }
+    } else {
+      await logOutcome('completed', null);
     }
   } catch (err) {
     console.error('[square-webhook] processing error:', err.message);
+    await logOutcome('error', err.message);
+  }
+});
+
+// ============================================================
+// SQW3: the "Counter payments" tray — Square payments the ledger refused
+// (not our orders) that lane 2 parked in square_unmatched_payments.
+// Record = the owner's one tap turns a tray row into an ORDINARY paid
+// transaction + completed payment row through the normal seam
+// (processor='square', processor_ref, square_payment_id). Dismiss keeps
+// the row (audit trail) with a reason. Both are idempotent and FOR
+// UPDATE-locked on the tray row; neither can touch a pending link
+// payment (they never read transaction_payments by processor_ref).
+// ============================================================
+app.get('/api/finances/counter-payments', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const { rows } = await pool.query(
+      `SELECT id, square_payment_id, square_order_id, amount_cents, tip_cents, total_cents, currency,
+              source_type, entry_method, card_brand, last_4, square_product, device_name,
+              receipt_number, receipt_url, note, paid_at, status, dismiss_reason, transaction_id, recorded_via
+         FROM square_unmatched_payments
+        WHERE workspace_id = $1 AND status IN ('unrecorded', 'recorded')
+          AND paid_at > NOW() - INTERVAL '60 days'
+        ORDER BY paid_at DESC LIMIT 100`,
+      [workspaceId]
+    );
+    res.json({ rows });
+  } catch (err) {
+    console.error('[GET /api/finances/counter-payments]', err.message);
+    res.status(500).json({ error: 'Could not load counter payments' });
+  }
+});
+
+app.post('/api/finances/counter-payments/:id/record', requireAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) { client.release(); return res.status(500).json({ error: 'No workspace for user' }); }
+    const trayId = parseInt(req.params.id, 10);
+    const body = req.body || {};
+    const customerName = String(body.customer_display_name || '').trim().slice(0, 120) || 'Walk-in';
+    const serviceLabel = String(body.service_label || '').trim().slice(0, 120) || 'Card sale (Square)';
+    const contactId = Number.isInteger(body.contact_id) ? body.contact_id : null;
+
+    await client.query('BEGIN');
+    const t = await client.query(
+      `SELECT * FROM square_unmatched_payments WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
+      [trayId, workspaceId]
+    );
+    const tray = t.rows[0];
+    if (!tray) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Not found' }); }
+    if (tray.status === 'recorded') { await client.query('COMMIT'); client.release(); return res.json({ ok: true, already: true, transaction_id: tray.transaction_id }); }
+    if (tray.status !== 'unrecorded') { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'This payment is ' + tray.status + ' and cannot be recorded.' }); }
+
+    const lineItems = [{ title: serviceLabel, quantity: 1, unit_price_cents: tray.amount_cents, total_cents: tray.amount_cents }];
+    const tx = await client.query(
+      `INSERT INTO transactions
+         (workspace_id, contact_id, customer_display_name, line_items,
+          subtotal_cents, tax_cents, tip_cents, discount_cents, total_cents,
+          amount_paid_cents, payment_method, status, source,
+          notes_internal, created_by_user_id, payment_received_at)
+       VALUES ($1,$2,$3,$4::jsonb,$5,0,$6,0,$7,$7,'card','paid','walk_in',$8,$9,$10)
+       RETURNING id`,
+      [workspaceId, contactId, customerName, JSON.stringify(lineItems),
+        tray.amount_cents, tray.tip_cents || 0, tray.total_cents,
+        'Recorded from Counter payments — Square ' + (tray.card_brand || 'card') + (tray.last_4 ? ' ' + tray.last_4 : '') + (tray.receipt_number ? ', receipt ' + tray.receipt_number : ''),
+        req.session.userId, tray.paid_at]
+    );
+    const transactionId = tx.rows[0].id;
+    // The SAME seam every link payment lands through.
+    await client.query(
+      `INSERT INTO transaction_payments
+         (workspace_id, transaction_id, amount_cents, payment_type, payment_method,
+          processor, processor_ref, status, notes, created_by_user_id, square_payment_id)
+       VALUES ($1, $2, $3, 'payment', 'square', 'square', $4, 'completed', $5, $6, $7)`,
+      [workspaceId, transactionId, tray.total_cents,
+        tray.square_order_id || tray.square_payment_id,
+        'Counter payment (' + (tray.square_product || 'Square') + '/' + (tray.entry_method || '?') + ')',
+        req.session.userId, tray.square_payment_id]
+    );
+    await client.query(
+      `UPDATE square_unmatched_payments
+          SET status = 'recorded', transaction_id = $1, recorded_by_user_id = $2, recorded_via = 'one_tap', updated_at = NOW()
+        WHERE id = $3`,
+      [transactionId, req.session.userId, trayId]
+    );
+    await client.query('COMMIT');
+    client.release();
+    res.json({ ok: true, transaction_id: transactionId });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
+    client.release();
+    console.error('[POST /api/finances/counter-payments/:id/record]', err.message);
+    res.status(500).json({ error: 'Could not record this payment' });
+  }
+});
+
+app.post('/api/finances/counter-payments/:id/dismiss', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const trayId = parseInt(req.params.id, 10);
+    const reason = String((req.body || {}).reason || '').trim().slice(0, 200) || 'dismissed';
+    const r = await pool.query(
+      `UPDATE square_unmatched_payments
+          SET status = 'dismissed', dismiss_reason = $1, updated_at = NOW()
+        WHERE id = $2 AND workspace_id = $3 AND status = 'unrecorded'
+        RETURNING id`,
+      [reason, trayId, workspaceId]
+    );
+    if (!r.rows.length) return res.status(409).json({ error: 'Only an unrecorded payment can be dismissed.' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[POST /api/finances/counter-payments/:id/dismiss]', err.message);
+    res.status(500).json({ error: 'Could not dismiss this payment' });
   }
 });
 
@@ -7061,6 +7195,8 @@ const { customerSmsFrom } = require('./lib/workspace-readiness');
 // SQW2: lane 2 of the Square webhook — unmatched merchant payments
 // (counter taps) into the isolated tray. Never touches revenue tables.
 const squareWalkins = require('./lib/square-walkins');
+// SQW3: the webhook delivery log — every delivery leaves a row.
+const squareWebhookLog = require('./lib/square-webhook-log');
 // AD8 (f): mail-outage streak monitor. Configured just below with the
 // escalation that files an owner task — a channel that survives the
 // very outage it reports (DB, not email).

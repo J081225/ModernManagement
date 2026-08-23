@@ -3442,6 +3442,21 @@
                  list, filterable; totals from the same feeds the
                  summary composes. The focused transactions/expenses
                  cards below remain for their richer per-side detail. -->
+            <!-- SQW3: Counter payments — Square payments taken on the
+                 reader / dashboard that aren't one of our links. Shown
+                 only when rows exist. One tap records an ordinary paid
+                 transaction through the normal seam; Ignore keeps the row
+                 with a reason. No fake tap UI — the merchant takes the
+                 payment on Square; this is where it lands. -->
+            <div class="mm-card" id="finCounterCard" style="margin-top:14px;display:none;">
+              <div class="mm-card-header">
+                <div class="mm-card-title">Counter payments</div>
+                <div class="card-head-subtitle">Square payments taken on your reader or dashboard that aren&rsquo;t linked to a sale yet. Record them into your books with one tap.</div>
+              </div>
+              <div id="finCounterRows" style="display:flex;flex-direction:column;gap:8px;"></div>
+              <div id="finCounterStatus" style="font-size:0.82em;color:var(--text-muted);min-height:1em;margin-top:8px;"></div>
+            </div>
+
             <div class="mm-card" id="finLedgerCard" style="margin-top:14px;">
               <div class="mm-card-header">
                 <div class="mm-card-title">Ledger</div>
@@ -12443,6 +12458,8 @@
 
         const isPS = vertical === 'professional-services';
         document.getElementById('transactionsCard').style.display = isPS ? '' : 'none';
+        // SQW3: the Counter payments tray (PS + Square only; hides itself when empty).
+        if (isPS) loadCounterPayments();
         document.getElementById('financesRentCard').style.display = isPS ? 'none' : '';
         document.getElementById('financesVerticalTag').textContent =
           isPS ? '· Professional Services' : '· Property Management';
@@ -12966,6 +12983,94 @@
         if (cat && cat.value) params.set('category', cat.value);
         if (src && src.value) params.set('source', src.value);
         return params;
+      }
+
+      // ---------- SQW3: Counter payments tray ----------
+      // Rows come from /api/finances/counter-payments (lane 2's tray).
+      // The card hides itself when there is nothing to show — no empty
+      // tray nagging an owner who never takes counter payments.
+      function _counterHow(r) {
+        const m = String(r.entry_method || '').toUpperCase();
+        if (m === 'CONTACTLESS') return 'Tap';
+        if (m === 'EMV') return 'Chip';
+        if (m === 'SWIPED') return 'Swipe';
+        if (m === 'KEYED') return 'Keyed';
+        if (String(r.source_type || '').toUpperCase() === 'CASH') return 'Cash';
+        return r.square_product ? String(r.square_product).replace(/_/g, ' ').toLowerCase() : 'Square';
+      }
+      async function loadCounterPayments() {
+        const card = document.getElementById('finCounterCard');
+        const list = document.getElementById('finCounterRows');
+        if (!card || !list) return;
+        try {
+          const r = await fetch('/api/finances/counter-payments', { credentials: 'include' });
+          if (!r.ok) { card.style.display = 'none'; return; }
+          const { rows } = await r.json();
+          const open = (rows || []).filter((x) => x.status === 'unrecorded');
+          const recent = (rows || []).filter((x) => x.status === 'recorded').slice(0, 3);
+          if (!open.length && !recent.length) { card.style.display = 'none'; return; }
+          card.style.display = '';
+          const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+          list.innerHTML = open.map((x) => (
+            '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;">' +
+              '<div style="flex:1;min-width:220px;">' +
+                '<div style="font-weight:600;color:var(--text-primary);">' + esc(formatCents(x.total_cents)) +
+                  (x.tip_cents ? ' <span style="font-weight:400;color:var(--text-muted);font-size:0.85em;">(incl. ' + esc(formatCents(x.tip_cents)) + ' tip)</span>' : '') + '</div>' +
+                '<div style="font-size:0.84em;color:var(--text-muted);">' + esc(_counterHow(x)) +
+                  (x.card_brand ? ' · ' + esc(x.card_brand) + (x.last_4 ? ' ' + esc(x.last_4) : '') : '') +
+                  ' · ' + esc(new Date(x.paid_at).toLocaleString()) +
+                  (x.receipt_url ? ' · <a href="' + esc(x.receipt_url) + '" target="_blank" rel="noopener" style="color:var(--text-secondary);">receipt</a>' : '') +
+                '</div>' +
+              '</div>' +
+              '<input type="text" id="ctrName' + x.id + '" placeholder="Customer (optional)" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-surface);color:var(--text-primary);font-family:inherit;font-size:0.85em;width:150px;" />' +
+              '<input type="text" id="ctrService' + x.id + '" placeholder="Service (optional)" style="padding:7px 10px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-surface);color:var(--text-primary);font-family:inherit;font-size:0.85em;width:150px;" />' +
+              '<button class="mm-btn mm-btn-primary mm-btn-sm" onclick="recordCounterPayment(' + x.id + ')">Record as walk-in sale</button>' +
+              '<button class="mm-btn mm-btn-secondary mm-btn-sm" onclick="dismissCounterPayment(' + x.id + ')">Ignore</button>' +
+            '</div>'
+          )).join('') + (recent.length ? (
+            '<div style="font-size:0.8em;color:var(--text-muted);margin-top:4px;">Recently recorded: ' +
+              recent.map((x) => esc(formatCents(x.total_cents)) + ' → sale #' + esc(x.transaction_id)).join(' · ') + '</div>'
+          ) : '');
+        } catch (e) {
+          card.style.display = 'none';
+        }
+      }
+      async function recordCounterPayment(id) {
+        const status = document.getElementById('finCounterStatus');
+        const name = (document.getElementById('ctrName' + id) || {}).value || '';
+        const service = (document.getElementById('ctrService' + id) || {}).value || '';
+        if (status) status.textContent = 'Recording…';
+        try {
+          const r = await fetch('/api/finances/counter-payments/' + id + '/record', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ customer_display_name: name.trim(), service_label: service.trim() }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { if (status) status.textContent = d.error || 'Could not record.'; return; }
+          if (status) status.textContent = 'Recorded as sale #' + d.transaction_id + ' — it is in your books now.';
+          loadCounterPayments();
+          if (typeof loadLedger === 'function') loadLedger();
+          if (typeof loadFinancesSummary === 'function') loadFinancesSummary();
+        } catch (e) {
+          if (status) status.textContent = 'Network error — not recorded.';
+        }
+      }
+      async function dismissCounterPayment(id) {
+        const status = document.getElementById('finCounterStatus');
+        const reason = window.prompt('Why ignore this payment? (e.g. personal, test, duplicate)', 'test') || '';
+        if (!reason) return;
+        try {
+          const r = await fetch('/api/finances/counter-payments/' + id + '/dismiss', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ reason }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { if (status) status.textContent = d.error || 'Could not ignore.'; return; }
+          if (status) status.textContent = 'Ignored (kept on record).';
+          loadCounterPayments();
+        } catch (e) {
+          if (status) status.textContent = 'Network error.';
+        }
       }
 
       async function loadLedger() {

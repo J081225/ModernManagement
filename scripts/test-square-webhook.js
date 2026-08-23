@@ -104,7 +104,9 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
     const onlyCompleted = srv.includes("payment.status !== 'COMPLETED'");
     const whitelisted = srv.includes("'/square/webhook']");
     const badSig400 = /const v = verifySquareSignature\(req\);\s*\n\s*if \(!v\.ok\)/.test(srv)
-      && /if \(!v\.ok\) \{[\s\S]{0,240}res\.status\(400\)/.test(srv);
+      // SQW3 widened the window: the bad-signature branch now also writes
+      // the delivery-log row (no event id, fail-open) before the 400.
+      && /if \(!v\.ok\) \{[\s\S]{0,480}res\.status\(400\)/.test(srv);
     check('SW7: the webhook is raw-body mounted + whitelisted, verifies an HMAC-SHA256 signature (timing-safe) before anything, only settles on COMPLETED, and 400s a bad/absent signature',
       raw && sig && onlyCompleted && whitelisted && badSig400,
       JSON.stringify({ raw, sig, onlyCompleted, whitelisted, badSig400 }));
@@ -174,6 +176,45 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
       forged.reason === 'ours_but_unmatched' && unknown.reason === 'merchant_unknown' && ambiguous.reason === 'merchant_ambiguous'
         && dup.ok === true && dup.duplicate === true && mismatch.reason === 'not_lane2' && wired && noRevenueTouch,
       JSON.stringify({ forged: forged.reason, unknown: unknown.reason, ambiguous: ambiguous.reason, dup, mismatch: mismatch.reason, wired, noRevenueTouch }));
+  }
+
+  // ---- SW11 (SQW3): the delivery log — every outcome leaves a row ----
+  {
+    const { logSquareWebhookEvent } = require(path.join(__dirname, '..', 'lib', 'square-webhook-log'));
+    const calls = [];
+    const fakePool = { query: async (sql, params) => { calls.push({ sql, params }); return { rows: [] }; } };
+    await logSquareWebhookEvent(fakePool, { eventId: 'EVT1', eventType: 'payment.updated', merchantId: 'M', objectId: 'PAY1', outcome: 'tray_recorded', reason: 'no_ledger_row' });
+    await logSquareWebhookEvent(fakePool, { outcome: 'bad_signature', reason: 'no_signature', httpStatus: 400 });
+    const upsert = calls[0] && /ON CONFLICT \(square_event_id\)[\s\S]{0,80}attempts = square_webhook_events\.attempts \+ 1/.test(calls[0].sql) && calls[0].params[0] === 'EVT1';
+    const nullEvent = calls[1] && /VALUES \(NULL,/.test(calls[1].sql) && calls[1].params[3] === 'bad_signature' && calls[1].params[5] === 400;
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const hook = srv.slice(srv.indexOf("app.post('/api/square/webhook'"), srv.indexOf("app.get('/api/finances/counter-payments'"));
+    const outcomes = ['bad_signature', 'ignored_status', 'refund_settled', 'refund_refused', 'ignored_type', "'completed'", "'refused'", 'tray_recorded', 'tray_duplicate', 'tray_refused', "'error'"]
+      .every((o) => hook.includes(o));
+    const failOpen = fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-webhook-log.js'), 'utf8').includes("money path unaffected");
+    const migration = fs.existsSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '079_square_webhook_events.sql'));
+    check('SW11 [SQW3]: the delivery log upserts by Square event id (redelivery = attempts+1), logs bad signatures with no event id, covers every handler outcome, fails open, migration 079 exists',
+      upsert && nullEvent && outcomes && failOpen && migration, JSON.stringify({ upsert, nullEvent, outcomes, failOpen, migration }));
+  }
+
+  // ---- SW12 (SQW3): one-tap record goes through the SAME seam; dismiss keeps the row ----
+  {
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const rec = srv.slice(srv.indexOf("app.post('/api/finances/counter-payments/:id/record'"), srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'"));
+    const locked = /FROM square_unmatched_payments WHERE id = \$1 AND workspace_id = \$2 FOR UPDATE/.test(rec);
+    const idempotent = rec.includes("if (tray.status === 'recorded')") && rec.includes('already: true');
+    const walkIn = /INSERT INTO transactions[\s\S]{0,600}'card','paid','walk_in'/.test(rec);
+    const seam = /INSERT INTO transaction_payments[\s\S]{0,400}'payment', 'square', 'square', \$4, 'completed'/.test(rec)
+      && rec.includes('tray.square_order_id || tray.square_payment_id') && rec.includes('tray.square_payment_id]');
+    const marks = rec.includes("recorded_via = 'one_tap'");
+    const neverPending = !/processor_ref = \$1/.test(rec); // never reads a pending link row
+    const dis = srv.slice(srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'"), srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'") + 1500);
+    const dismissKeeps = /SET status = 'dismissed', dismiss_reason = \$1/.test(dis) && /AND status = 'unrecorded'/.test(dis) && !/DELETE FROM square_unmatched_payments/.test(dis);
+    const ui = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+    const tray = ui.includes('id="finCounterCard"') && ui.includes('Record as walk-in sale') && ui.includes('function loadCounterPayments') && ui.includes('if (isPS) loadCounterPayments();');
+    check('SW12 [SQW3]: one-tap record is FOR UPDATE-locked + idempotent, writes an ordinary paid walk_in transaction + a completed square payment row through the seam (processor_ref = order id, square_payment_id kept), never reads pending link rows; dismiss keeps the row; the Finances tray exists and loads for PS',
+      locked && idempotent && walkIn && seam && marks && neverPending && dismissKeeps && tray,
+      JSON.stringify({ locked, idempotent, walkIn, seam, marks, neverPending, dismissKeeps, tray }));
   }
 
   console.log(`${pass}/${pass + fail} — square-webhook gate ${fail ? 'FAILED' : 'PASSED'}`);

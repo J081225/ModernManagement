@@ -136,7 +136,12 @@ function makeLedgerDb(refunds, txns) {
 
   // ---- SR7: webhook handles refund.* + captures payment_id ----
   {
-    const wh = srv.slice(srv.indexOf("app.post('/api/square/webhook'"), srv.indexOf("app.post('/api/square/webhook'") + 3200);
+    // SQW3: the handler grew past a fixed 3200-char window (twice now) —
+    // slice to the next route instead, so handler growth can't evict
+    // the anchors this row pins.
+    const whStart = srv.indexOf("app.post('/api/square/webhook'");
+    const whEnd = srv.indexOf("app.get('/api/finances/counter-payments'", whStart);
+    const wh = srv.slice(whStart, whEnd > whStart ? whEnd : whStart + 6000);
     const refundEvents = /type === 'refund\.created' \|\| type === 'refund\.updated'/.test(wh) && wh.includes('processSquareRefundCompleted');
     const capturesPaymentId = wh.includes('paymentId: payment.id'); // unique to the webhook's payment path
     check('SR7: the Square webhook settles refund.created/updated via processSquareRefundCompleted (COMPLETED only) and captures payment.id at payment completion',

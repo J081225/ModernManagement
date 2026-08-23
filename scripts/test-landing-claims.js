@@ -154,6 +154,21 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
       JSON.stringify({ frames, slots, empties, productImgs, allImgs }));
   }
 
+  // ---- LC11 (SQ-W claims ladder, R11): counter-payment claims are
+  // EARNED rung by rung — "with one tap" (post-SQW3 live test),
+  // "automatically" (post auto-record live test), "charge in person from
+  // the app" (post device test). Until a rung is earned the landing makes
+  // NO counter-payment claim at all. To flip a rung: add its exact
+  // sentence to ALLOWED_RUNGS here in the same commit as the live-test
+  // record in docs/sqw-investigation.md. ----
+  {
+    const ALLOWED_RUNGS = []; // none earned yet
+    const claim = /counter (tap|payment)s?|taps? show up in your books|charge in person/i.test(pageNoHonest);
+    const allowedPresent = ALLOWED_RUNGS.every((s) => page.includes(s));
+    check('LC11 [SQ-W R11]: no counter-payment claim on the landing until its rung is earned (none earned yet); earned rungs must appear verbatim',
+      (!claim || ALLOWED_RUNGS.length > 0) && allowedPresent, JSON.stringify({ claim, earned: ALLOWED_RUNGS.length }));
+  }
+
   // ---- LC7: headline discipline — h1 is 8 words or fewer ----
   {
     const m = page.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);

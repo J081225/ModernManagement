@@ -128,6 +128,39 @@ Terminal sale; the log line becomes the documented real payload.
    table, not even a log line. SQW1 replaces this with a structured
    discriminator log for EVERY refused COMPLETED payment (pinned SW8).
 
+### 2.1b THE REAL PAYLOAD (evidence gate passed 2026-08-23 17:06 UTC)
+Jay's sandbox Virtual Terminal sale ($12.34, keyed Mastercard 5105…5100,
+no note, no customer) landed in the tray as row 2 — **lane 2 recorded it
+end to end.** Verbatim discriminators:
+- `refusal_reason: no_ledger_row` — a VT sale **does** carry an
+  `order_id` (`mRXPQxo2ghy6cLBkNLA3pVoSdd4F`); "unmatched" = not ours.
+- `square_product: VIRTUAL_TERMINAL`, `entry_method: KEYED`,
+  `source_type: CARD`, merchant `MLGP6ZBSG119Q`, location `LZE0M794KWKKC`.
+- **Populated:** `card_brand MASTERCARD`, `last_4 5100`, `receipt_number
+  VIN5` (first 4 of the payment id), `receipt_url`, `card_type CREDIT`,
+  `team_member_id`/`employee_id` (who took it), `risk_evaluation`,
+  `statement_description`. **Absent:** `device_details` (dashboard sale
+  → `device_name` null), `tip_money` (→ 0), `note`, `customer_id`.
+- **Guard refinement (real-payload finding):** `application_details.
+  application_id` was `sandbox-sq0idb-…` — an app-format id on a
+  dashboard sale (the sandbox test account is owned by our app). The
+  forgery guard passed only because Render's `SQUARE_APP_ID` differs.
+  Refined in SQW3: forgery = our app id **AND** `square_product ===
+  'ECOMMERCE_API'` (our Checkout path). A POS / Terminal / VT sale
+  stamped with our app id is legitimate.
+- The earlier "two silent sales" were never fired (Charge not pressed)
+  — no defect; the evidence gate held honestly.
+
+### 2.1c ANNOUNCE-FIRST — `square_webhook_events` (pre-approved on principle; SQW3's first change)
+Every Square webhook delivery leaves a row, so "did it arrive?" is a DB
+query, never a Render-log ask: `id`, `square_event_id` (UNIQUE —
+redelivery increments `attempts`), `event_type`, `merchant_id`,
+`object_id` (payment/refund id), `outcome` (`completed` | `refused` |
+`tray_recorded` | `tray_duplicate` | `refund_settled` | `ignored_type`
+| `ignored_status` | `bad_signature` | `error`), `reason`, `http_status`,
+`received_at`, `attempts`. No raw body (the tray keeps the payment
+object; refunds keep theirs); bad-signature rows carry no event id.
+
 ### 2.1a RULINGS RECORD (2026-08-23)
 - **Catch side R1–R7: proceed** (Jay: "then SQW2–5"). R2's table is
   announced in §3.5 and will be created in SQW2.
