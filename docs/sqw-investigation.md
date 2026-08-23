@@ -262,3 +262,174 @@ SQW4 merchant-side refund correlation → SQW5 auto-record toggle (wired
 + pinned, same commit) → suite rows per rule → live test on ws17's
 sandbox (tap → tray → record → appears in Finances/TR/CSV → Square-side
 refund → child transaction).
+
+---
+
+## 6. The LAUNCH side — "Charge in person" from inside Modern Management
+
+(Investigation addition, 2026-08-23. Sequenced AFTER SQW1–5: the catch
+side must exist before a launched charge has anywhere to land. Facts are
+from Square's Point of Sale API reference; two items are flagged VERIFY
+because only a real device settles them.)
+
+### 6.1 Square Point of Sale API deep links (mobile web → Square POS app)
+
+Square's Point of Sale API has a **web flavor** for both platforms: a
+page in the merchant's mobile browser opens the installed Square POS app
+with the charge pre-filled, the merchant taps the reader, and POS
+redirects back to our URL.
+
+**iOS — custom URL scheme.** `square-commerce-v1://payment/create?data=<URL-encoded JSON>`:
+
+```
+{ "amount_money": { "amount": "4500", "currency_code": "USD" },
+  "callback_url": "https://modernmanagementapp.com/api/square/pos-return",
+  "client_id": "<our Square application id>",
+  "version": "1.3",
+  "notes": "Ref 123 · Skin fade · Northside Barbers",
+  "state": "<opaque string we mint — a signed, short-lived tx token>",
+  "options": { "supported_tender_types": ["CREDIT_CARD","CASH","OTHER","SQUARE_GIFT_CARD","CARD_ON_FILE"],
+               "auto_return": true, "clear_default_fees": true } }
+```
+
+Return: POS opens `callback_url?data=<URL-encoded JSON>` →
+`{ "status":"ok", "transaction_id":"…", "client_transaction_id":"…", "state":"<echoed>" }`
+or `{ "status":"error", "error_code":"…", "state":"<echoed>" }` (codes
+include `not_logged_in`, `payment_canceled`, `amount_invalid_format`,
+`unsupported_tender_type`, `invalid_client_id`).
+
+**Android — intent URL (from the browser):**
+
+```
+intent://#Intent;action=com.squareup.pos.action.CHARGE;package=com.squareup;
+  S.com.squareup.pos.WEB_CALLBACK_URI=https://modernmanagementapp.com/api/square/pos-return;
+  S.com.squareup.pos.CLIENT_ID=<app id>;S.com.squareup.pos.API_VERSION=v2.0;
+  i.com.squareup.pos.TOTAL_AMOUNT=4500;S.com.squareup.pos.CURRENCY_CODE=USD;
+  S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CASH;
+  S.com.squareup.pos.NOTE=Ref 123;S.com.squareup.pos.REQUEST_METADATA=<opaque>;
+  S.browser_fallback_url=https://modernmanagementapp.com/get-square-pos;end
+```
+
+Return: `WEB_CALLBACK_URI` with query params
+`com.squareup.pos.CLIENT_TRANSACTION_ID`, `com.squareup.pos.SERVER_TRANSACTION_ID`,
+`com.squareup.pos.REQUEST_METADATA` — or `com.squareup.pos.ERROR_CODE` +
+`ERROR_DESCRIPTION`.
+
+**What we can pre-fill (both):** amount (integer cents) + currency,
+allowed tender types, a **note** (printed on the receipt AND set on the
+resulting Payment object), an **opaque state/metadata string** (round-
+trips to OUR callback only), optional `location_id` / `customer_id`. We
+cannot attach our own order id — POS creates its own order; the link is
+made through the note and the returned transaction id (§6.2).
+
+**Not installed:**
+- Android: `S.browser_fallback_url` falls through automatically to a URL
+  we choose (Play Store listing or our "Get Square POS" page). Clean.
+- iOS: a custom scheme with no handler just fails in Safari ("cannot
+  open the page") — no automatic fallback exists. Standard pattern:
+  navigate, and if our page is still visible ~1.5s later, show the App
+  Store link + "Install Square POS, then tap Charge again." Honest,
+  well-trodden, slightly clunky; nothing better exists on iOS.
+- Either platform: POS must be **logged into the merchant account**
+  (`not_logged_in` otherwise). The charge screen opens with the amount
+  pre-filled; the merchant taps the reader exactly as today.
+
+**Developer prerequisites:** enable the Point of Sale API on our Square
+application (Developer Dashboard) and register the web callback URL(s).
+Same application as our OAuth app → same `client_id`.
+
+**⚠️ VERIFY (device proof step): sandbox support.** The Point of Sale
+API drives the real Square POS app logged into a real merchant; sandbox
+merchants cannot log into the production POS app. Expect the launch
+side's live test to require **production Square** — sequencing it
+behind the SQ6 production cutover, or a real test merchant. A real
+constraint, not a footnote.
+
+### 6.2 The match — honest "automatically," with real provenance
+
+Two identifiers survive the round trip, on two different paths:
+
+1. **The note → the webhook (server-side; the one that matters).** The
+   `notes`/`NOTE` we pre-fill lands on the resulting Payment object's
+   `note` field, which rides inside `payment.updated`. Lane 2 (§2.3)
+   parses `Ref <id>` from `payment.note`, verifies the event's merchant
+   owns transaction `<id>` AND the amount matches that transaction's
+   balance, then records it **against the originating transaction**
+   (`transaction_payments`: `processor='square'`, `processor_ref` = the
+   Square order id, `square_payment_id`, `status='completed'`) — the
+   same seam, now with provenance. This is the honest sense of
+   "automatically": the system knows what it's recording. Guards: a
+   note naming a transaction the merchant doesn't own, or an amount that
+   doesn't match, is NOT recorded against it — it falls into the
+   unmatched tray like any other tap, mismatch logged. Notes are
+   merchant-editable in POS before tapping; the amount check is what
+   stops a stray edit from mis-attributing money.
+2. **The returned transaction id → our callback (client-side; the
+   belt).** `/api/square/pos-return` receives `transaction_id` (iOS) /
+   `SERVER_TRANSACTION_ID` (Android) plus our echoed `state` /
+   `REQUEST_METADATA` — minted by us as a signed, short-lived token
+   naming the transaction, never a raw id. We store
+   `square_pos_transaction_id` on the transaction immediately, so if the
+   note was edited or stripped, the Square id still matches.
+   **⚠️ VERIFY:** the POS API's returned `transaction_id` is documented
+   as equivalent to the v2 **order id** — if so it equals
+   `payment.order_id` and becomes `processor_ref` directly. The device
+   proof step confirms this.
+
+Both paths converge on one rule: **record against the originating
+transaction only when merchant + amount + identifier all agree;
+otherwise it is a tray row.** The §2 three-way posture carries over
+unchanged.
+
+### 6.3 The desktop truth — no deep link exists
+
+A desktop browser cannot open the POS app. No fake tap UI, ever. Honest
+desktop behavior for "Charge in person" on a transaction:
+- Show the amount large and the line: **"Take it on your reader in the
+  Square app. It'll show up under Counter payments in a moment — record
+  it with one tap."** If the merchant types the shown `Ref <id>` into
+  the POS note before tapping, lane 2's note match (§6.2) records it
+  against this sale automatically — the card says so, reference shown
+  copy-ready.
+- **Square Terminal hardware (not the Reader) has a real server-driven
+  desktop path:** the Terminal API (`CreateTerminalCheckout` with
+  `reference_id` + `note`) pushes the amount to the device, the device
+  prompts the customer, and the resulting payment matches through the
+  checkout → order → `payment.order_id`. Its own small unit for Terminal
+  owners after the Reader path ships — same tray, same seam.
+- Mobile-web detection decides which UI renders: iOS/Android browser →
+  the deep-link button; everything else → the honest desktop card.
+
+### 6.4 Stripe Terminal reality check — why Square-first
+
+Stripe has **no consumer-app deep link**. Stripe Terminal is
+server-driven: smart readers (WisePOS E, S700) are driven via
+`POST /v1/terminal/readers/{id}/process_payment_intent`; Tap to Pay and
+the Reader M2 require Stripe's Terminal SDK inside a **native app of our
+own**. There is no Stripe "POS app" to hand a charge to, and the Stripe
+Dashboard mobile app exposes no documented launch API. So a Stripe
+"Charge in person" is either (a) a server-driven Terminal-hardware flow
+(the analogue of §6.3's Terminal path) or (b) a native Modern Management
+app — neither is a web deep link. Square-first because the merchant's
+own Square app + reader is the installed base and needs no native app
+from us; Stripe's catch side (§4) comes first, its launch side only with
+Terminal hardware or a native app.
+
+### 6.5 Sequencing + rulings (launch side)
+
+After SQW1–5 ship and the catch side is live-tested:
+- **SQW6** — "Charge in person" on the transaction screen: mobile-web
+  deep link (iOS scheme + Android intent with fallback), signed state
+  token, `/api/square/pos-return` storing the returned id, the honest
+  desktop card; Point of Sale API enabled on our Square app.
+- **SQW7** — lane-2 note/id match → record against the originating
+  transaction (guards per §6.2); tray provenance label "from Charge in
+  person."
+- **SQW8** — Terminal API desktop path (Terminal hardware owners).
+
+| # | Ruling | Recommendation |
+|---|---|---|
+| R8 | Build the launch side as SQW6–7 after SQW1–5, SQW8 optional? | Yes |
+| R9 | The note is printed on the customer's Square receipt — `Ref <id> · <business>` (friendly) vs `MM-TX-<id>` (terse)? | `Ref <id> · <business>`; the parser accepts both |
+| R10 | Launch-side live test needs production Square (the POS app can't log into a sandbox merchant) — sequence behind SQ6, or test earlier on a real merchant? | Behind SQ6 unless a real test merchant exists |
+| R11 | Census: "Charge in person from the app" is claimable only after the device test; until then the claim stays at the catch side ("with one tap"). | Agree |
