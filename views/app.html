@@ -3615,6 +3615,20 @@
                   <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;margin-left:92px;">Saved to your workspace. Adding it to payment requests and QR codes is coming — it isn't shown to customers yet.</div>
                 </div>
               </div>
+
+              <!-- SQW5 (R3): auto-record for Square counter payments.
+                   Default OFF (schema-level); the checkbox reflects the
+                   stored value only — never pre-checked in markup. -->
+              <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:18px;">
+                <div style="font-size:0.78em;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);margin-bottom:4px;">Counter payments</div>
+                <label style="display:flex;align-items:flex-start;gap:10px;margin-top:8px;cursor:pointer;">
+                  <input type="checkbox" id="sqAutoRecordToggle" onchange="saveSquareAutoRecord()" style="margin-top:3px;">
+                  <span style="font-size:0.88em;color:var(--text-primary);line-height:1.5;">Record Square counter payments automatically as walk-in sales<br>
+                    <span style="font-size:0.92em;color:var(--text-muted);">When a payment taken on your Square reader or dashboard isn't one of this app's payment links, it's added to your books immediately as a walk-in sale (customer "Walk-in") — you can edit the details afterward. When off, those payments wait under Counter payments on Finances for your one tap.</span>
+                  </span>
+                </label>
+                <div id="sqAutoRecordNote" style="font-size:0.8em;color:var(--text-muted);margin-top:6px;min-height:1em;"></div>
+              </div>
             </div>
 
             <!-- PS-only: Transactions section -->
@@ -12694,6 +12708,31 @@
         if (zIn && document.activeElement !== zIn) {
           zIn.value = ps.zelle_info || '';
         }
+        // SQW5: reflect the stored auto-record flag (default OFF).
+        const ar = document.getElementById('sqAutoRecordToggle');
+        if (ar) ar.checked = ps.square_auto_record_walkins === true;
+      }
+      // SQW5: save the auto-record toggle; on failure, resync to stored
+      // truth — the checkbox never lies about what the server will do.
+      async function saveSquareAutoRecord() {
+        const box = document.getElementById('sqAutoRecordToggle');
+        const note = document.getElementById('sqAutoRecordNote');
+        if (!box) return;
+        try {
+          const r = await fetch('/api/workspace/square-auto-record', {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ enabled: box.checked }),
+          });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) { box.checked = !box.checked; if (note) note.textContent = d.error || 'Could not save.'; return; }
+          if (window._planSummary) window._planSummary.square_auto_record_walkins = d.square_auto_record_walkins;
+          if (note) note.textContent = d.square_auto_record_walkins
+            ? 'On — counter payments will be recorded automatically as walk-in sales.'
+            : 'Off — counter payments wait for your one tap on Finances.';
+        } catch (e) {
+          box.checked = !box.checked;
+          if (note) note.textContent = 'Network error — not saved.';
+        }
       }
 
       // VZ item 1: persist the Venmo handle through the REAL endpoint —
@@ -13029,7 +13068,7 @@
             '</div>'
           )).join('') + (recent.length ? (
             '<div style="font-size:0.8em;color:var(--text-muted);margin-top:4px;">Recently recorded: ' +
-              recent.map((x) => esc(formatCents(x.total_cents)) + ' → sale #' + esc(x.transaction_id)).join(' · ') + '</div>'
+              recent.map((x) => esc(formatCents(x.total_cents)) + ' → sale #' + esc(x.transaction_id) + (x.recorded_via === 'auto' ? ' (auto)' : '')).join(' · ') + '</div>'
           ) : '');
         } catch (e) {
           card.style.display = 'none';

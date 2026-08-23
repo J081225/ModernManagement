@@ -3162,7 +3162,26 @@ app.post('/api/square/webhook', async (req, res) => {
             ourAppId: process.env.SQUARE_APP_ID || null, logger: console,
           });
           if (!lane2.ok) console.error('[square-walkins] not recorded (' + lane2.reason + ') for payment ' + payment.id);
-          await logOutcome(lane2.ok ? (lane2.duplicate ? 'tray_duplicate' : 'tray_recorded') : 'tray_refused', lane2.ok ? result.reason : lane2.reason);
+          // SQW5: auto-record — the workspace opted in, so the tray row
+          // goes straight through the SAME record core the one-tap
+          // button uses (via='auto', attributed to the owner). A failure
+          // leaves the row unrecorded for one-tap; never a second try
+          // here (idempotency belongs to the core).
+          let autoNote = result.reason;
+          if (lane2.ok && !lane2.duplicate && lane2.auto_record) {
+            const auto = await squareWalkins.recordTrayRowAsSale(pool, {
+              trayId: lane2.id, workspaceId: lane2.workspace_id,
+              userId: lane2.owner_user_id, via: 'auto',
+            });
+            if (auto.ok) {
+              console.log('[square-walkins] AUTO-RECORDED tray row ' + lane2.id + ' → sale #' + auto.transaction_id);
+              autoNote = result.reason + '+auto:sale#' + auto.transaction_id;
+            } else {
+              console.error('[square-walkins] auto-record failed (row stays one-tappable):', auto.error);
+              autoNote = result.reason + '+auto_failed';
+            }
+          }
+          await logOutcome(lane2.ok ? (lane2.duplicate ? 'tray_duplicate' : 'tray_recorded') : 'tray_refused', lane2.ok ? autoNote : lane2.reason);
         } catch (err) {
           console.error('[square-walkins] recorder error (payment ' + payment.id + '):', err.message);
           await logOutcome('error', 'lane2: ' + err.message);
@@ -3211,66 +3230,46 @@ app.get('/api/finances/counter-payments', requireAuth, async (req, res) => {
 });
 
 app.post('/api/finances/counter-payments/:id/record', requireAuth, async (req, res) => {
-  const client = await pool.connect();
   try {
     const workspaceId = await getWorkspaceId(req);
-    if (!workspaceId) { client.release(); return res.status(500).json({ error: 'No workspace for user' }); }
-    const trayId = parseInt(req.params.id, 10);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
     const body = req.body || {};
-    const customerName = String(body.customer_display_name || '').trim().slice(0, 120) || 'Walk-in';
-    const serviceLabel = String(body.service_label || '').trim().slice(0, 120) || 'Card sale (Square)';
-    const contactId = Number.isInteger(body.contact_id) ? body.contact_id : null;
-
-    await client.query('BEGIN');
-    const t = await client.query(
-      `SELECT * FROM square_unmatched_payments WHERE id = $1 AND workspace_id = $2 FOR UPDATE`,
-      [trayId, workspaceId]
-    );
-    const tray = t.rows[0];
-    if (!tray) { await client.query('ROLLBACK'); client.release(); return res.status(404).json({ error: 'Not found' }); }
-    if (tray.status === 'recorded') { await client.query('COMMIT'); client.release(); return res.json({ ok: true, already: true, transaction_id: tray.transaction_id }); }
-    if (tray.status !== 'unrecorded') { await client.query('ROLLBACK'); client.release(); return res.status(409).json({ error: 'This payment is ' + tray.status + ' and cannot be recorded.' }); }
-
-    const lineItems = [{ title: serviceLabel, quantity: 1, unit_price_cents: tray.amount_cents, total_cents: tray.amount_cents }];
-    const tx = await client.query(
-      `INSERT INTO transactions
-         (workspace_id, contact_id, customer_display_name, line_items,
-          subtotal_cents, tax_cents, tip_cents, discount_cents, total_cents,
-          amount_paid_cents, payment_method, status, source,
-          notes_internal, created_by_user_id, payment_received_at)
-       VALUES ($1,$2,$3,$4::jsonb,$5,0,$6,0,$7,$7,'card','paid','walk_in',$8,$9,$10)
-       RETURNING id`,
-      [workspaceId, contactId, customerName, JSON.stringify(lineItems),
-        tray.amount_cents, tray.tip_cents || 0, tray.total_cents,
-        'Recorded from Counter payments — Square ' + (tray.card_brand || 'card') + (tray.last_4 ? ' ' + tray.last_4 : '') + (tray.receipt_number ? ', receipt ' + tray.receipt_number : ''),
-        req.session.userId, tray.paid_at]
-    );
-    const transactionId = tx.rows[0].id;
-    // The SAME seam every link payment lands through.
-    await client.query(
-      `INSERT INTO transaction_payments
-         (workspace_id, transaction_id, amount_cents, payment_type, payment_method,
-          processor, processor_ref, status, notes, created_by_user_id, square_payment_id)
-       VALUES ($1, $2, $3, 'payment', 'square', 'square', $4, 'completed', $5, $6, $7)`,
-      [workspaceId, transactionId, tray.total_cents,
-        tray.square_order_id || tray.square_payment_id,
-        'Counter payment (' + (tray.square_product || 'Square') + '/' + (tray.entry_method || '?') + ')',
-        req.session.userId, tray.square_payment_id]
-    );
-    await client.query(
-      `UPDATE square_unmatched_payments
-          SET status = 'recorded', transaction_id = $1, recorded_by_user_id = $2, recorded_via = 'one_tap', updated_at = NOW()
-        WHERE id = $3`,
-      [transactionId, req.session.userId, trayId]
-    );
-    await client.query('COMMIT');
-    client.release();
-    res.json({ ok: true, transaction_id: transactionId });
+    // SQW5: the record core moved to lib/square-walkins.recordTrayRowAsSale
+    // — the ONE implementation the auto path shares. This endpoint is the
+    // one-tap adapter over it.
+    const r = await squareWalkins.recordTrayRowAsSale(pool, {
+      trayId: parseInt(req.params.id, 10),
+      workspaceId,
+      userId: req.session.userId,
+      via: 'one_tap',
+      customerName: body.customer_display_name,
+      serviceLabel: body.service_label,
+      contactId: Number.isInteger(body.contact_id) ? body.contact_id : null,
+    });
+    if (!r.ok) {
+      if (r.status === 500) console.error('[POST /api/finances/counter-payments/:id/record]', r.error);
+      return res.status(r.status || 500).json({ error: r.status === 500 ? 'Could not record this payment' : r.error });
+    }
+    res.json({ ok: true, already: r.already || undefined, transaction_id: r.transaction_id });
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (e) { /* ignore */ }
-    client.release();
     console.error('[POST /api/finances/counter-payments/:id/record]', err.message);
     res.status(500).json({ error: 'Could not record this payment' });
+  }
+});
+
+// SQW5 (ruling R3): the auto-record toggle. Not credential-class — it
+// changes how recorded money is BOOKKEPT, not where money flows — so a
+// plain authed PATCH. Default OFF lives in the schema (081).
+app.patch('/api/workspace/square-auto-record', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    const enabled = (req.body || {}).enabled === true;
+    await pool.query('UPDATE workspaces SET square_auto_record_walkins = $1 WHERE id = $2', [enabled, workspaceId]);
+    res.json({ ok: true, square_auto_record_walkins: enabled });
+  } catch (err) {
+    console.error('[PATCH /api/workspace/square-auto-record]', err.message);
+    res.status(500).json({ error: 'Could not save the setting' });
   }
 });
 
@@ -3713,6 +3712,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
     // pre-fill the inputs without a second fetch (nullable).
     let venmoHandle = null;
     let zelleInfo = null;
+    let squareAutoRecord = false;
     // CP1: the browser needs the workspace timezone to render calendar
     // times correctly (nullable — frontend falls back to browser tz).
     let workspaceTimezone = null;
@@ -3720,7 +3720,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       const wR = await pool.query(
         `SELECT vertical, inventory_tracking_enabled, timezone,
                 connect_status, connect_charges_enabled, connect_details_submitted,
-                payment_processor, square_status, venmo_handle, zelle_info
+                payment_processor, square_status, venmo_handle, zelle_info, square_auto_record_walkins
            FROM workspaces WHERE id = $1`,
         [workspaceId]
       );
@@ -3741,6 +3741,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
         // VZ item 1: nullable direct-payment handles for card pre-fill.
         venmoHandle = wR.rows[0].venmo_handle || null;
         zelleInfo = wR.rows[0].zelle_info || null;
+        squareAutoRecord = !!wR.rows[0].square_auto_record_walkins;
         // Send the EFFECTIVE timezone: wsTz maps a NULL column to the
         // same America/New_York default the server itself books with,
         // so browser rendering can never disagree with server writes.
@@ -3769,6 +3770,7 @@ app.get('/api/plan-summary', requireAuth, async (req, res) => {
       cards_ready: cardsReadyDerived,
       // VZ item 1: saved direct-payment handles (null when unset).
       venmo_handle: venmoHandle,
+      square_auto_record_walkins: squareAutoRecord,
       zelle_info: zelleInfo,
       workspace_timezone: workspaceTimezone,
       limits: planConfig.limits,

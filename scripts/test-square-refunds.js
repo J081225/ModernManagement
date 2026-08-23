@@ -206,7 +206,11 @@ function makeLedgerDb(refunds, txns) {
     const trayMark = trayP.calls.some((c) => /SET status = 'refunded'/.test(c.sql) && /AND status = 'unrecorded'/.test(c.sql));
     const unknown = await correlateMerchantSideRefund(mk(), { refund, merchantId: 'M1', logger: silent });
     const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8');
-    const neverTouchesBooks = !/INSERT INTO transactions|INSERT INTO transaction_payments|UPDATE transactions/.test(src);
+    // SQW5: the record core (recordTrayRowAsSale) lives in this lib and
+    // writes the books by design — the never-touches invariant scopes to
+    // the CORRELATOR alone (it hands settlement to the SQ5 core).
+    const correlatorSlice = src.slice(src.indexOf('async function correlateMerchantSideRefund'), src.indexOf('module.exports'));
+    const neverTouchesBooks = correlatorSlice.length > 0 && !/INSERT INTO transactions|INSERT INTO transaction_payments|UPDATE transactions\b/.test(correlatorSlice);
     const wired = /rr\.reason === 'no_refund_row'[\s\S]{0,400}correlateMerchantSideRefund[\s\S]{0,600}processSquareRefundCompleted/.test(fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'));
     const mig = fs.existsSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '080_square_refunds_initiated_by.sql'));
     check('SR11 [SQW4]: over-refund and merchant mismatch are refused; an UNRECORDED tray row is marked refunded (never income); an unknown payment is untouched; the correlator never writes the books itself; the webhook re-runs the core after correlation; migration 080 exists',

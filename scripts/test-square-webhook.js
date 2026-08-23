@@ -171,7 +171,12 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
     const mismatch = await recordUnmatchedSquarePayment(mkPool(), { payment: vtPayment, merchantId: 'MERCH1', reason: 'amount_mismatch', ourAppId: 'sq0idp-OURAPP', logger: silent });
     const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
     const wired = /result\.reason === 'no_order_id' \|\| result\.reason === 'no_ledger_row'[\s\S]{0,300}recordUnmatchedSquarePayment/.test(srv);
-    const noRevenueTouch = !/INSERT INTO transactions|INSERT INTO transaction_payments/.test(fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8'));
+    // SQW5 moved the record core INTO this lib (it legitimately writes
+    // the books) — the no-books invariant now scopes to the RECORDER
+    // alone: tray inserts only, never transactions/transaction_payments.
+    const libSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8');
+    const recorderSlice = libSrc.slice(libSrc.indexOf('async function recordUnmatchedSquarePayment'), libSrc.indexOf('async function recordTrayRowAsSale'));
+    const noRevenueTouch = recorderSlice.length > 0 && !/INSERT INTO transactions|INSERT INTO transaction_payments|UPDATE transactions\b/.test(recorderSlice);
     check('SW10 [SQW2]: lane 2 REFUSES a forged ours-but-unmatched event, an unknown or ambiguous merchant, treats redelivery as a duplicate no-op, never accepts *_mismatch reasons, is wired only behind no_order_id/no_ledger_row, and never writes transactions/transaction_payments',
       forged.reason === 'ours_but_unmatched' && unknown.reason === 'merchant_unknown' && ambiguous.reason === 'merchant_ambiguous'
         && dup.ok === true && dup.duplicate === true && mismatch.reason === 'not_lane2' && wired && noRevenueTouch,
@@ -197,24 +202,50 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
       upsert && nullEvent && outcomes && failOpen && migration, JSON.stringify({ upsert, nullEvent, outcomes, failOpen, migration }));
   }
 
-  // ---- SW12 (SQW3): one-tap record goes through the SAME seam; dismiss keeps the row ----
+  // ---- SW12 (SQW3→SQW5): ONE record core, shared by one-tap and auto ----
   {
     const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
-    const rec = srv.slice(srv.indexOf("app.post('/api/finances/counter-payments/:id/record'"), srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'"));
-    const locked = /FROM square_unmatched_payments WHERE id = \$1 AND workspace_id = \$2 FOR UPDATE/.test(rec);
-    const idempotent = rec.includes("if (tray.status === 'recorded')") && rec.includes('already: true');
-    const walkIn = /INSERT INTO transactions[\s\S]{0,600}'card','paid','walk_in'/.test(rec);
-    const seam = /INSERT INTO transaction_payments[\s\S]{0,400}'payment', 'square', 'square', \$4, 'completed'/.test(rec)
-      && rec.includes('tray.square_order_id || tray.square_payment_id') && rec.includes('tray.square_payment_id]');
-    const marks = rec.includes("recorded_via = 'one_tap'");
-    const neverPending = !/processor_ref = \$1/.test(rec); // never reads a pending link row
+    const lib = fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8');
+    // The core lives in the lib — FOR UPDATE, idempotent, walk_in + seam.
+    const core = lib.slice(lib.indexOf('async function recordTrayRowAsSale'));
+    const locked = /FROM square_unmatched_payments WHERE id = \$1 AND workspace_id = \$2 FOR UPDATE/.test(core);
+    const idempotent = core.includes("if (tray.status === 'recorded')") && core.includes('already: true');
+    const walkIn = /INSERT INTO transactions[\s\S]{0,700}'card','paid','walk_in'/.test(core);
+    const seam = /INSERT INTO transaction_payments[\s\S]{0,400}'payment', 'square', 'square', \$4, 'completed'/.test(core)
+      && core.includes('tray.square_order_id || tray.square_payment_id') && core.includes('tray.square_payment_id]');
+    const provenance = core.includes("via === 'auto' ? 'auto' : 'one_tap'");
+    const neverPending = !/processor_ref = \$1/.test(core);
+    // Both call sites use the SAME function with honest via markers.
+    const rec = srv.slice(srv.indexOf("app.post('/api/finances/counter-payments/:id/record'"), srv.indexOf("app.patch('/api/workspace/square-auto-record'"));
+    const oneTapAdapter = rec.includes('squareWalkins.recordTrayRowAsSale(pool') && rec.includes("via: 'one_tap'")
+      && !/INSERT INTO transactions/.test(rec); // the endpoint no longer has its own copy
+    const hook = srv.slice(srv.indexOf("app.post('/api/square/webhook'"), srv.indexOf("app.get('/api/finances/counter-payments'"));
+    const autoPath = /lane2\.ok && !lane2\.duplicate && lane2\.auto_record[\s\S]{0,300}recordTrayRowAsSale[\s\S]{0,200}via: 'auto'/.test(hook)
+      && hook.includes('auto_failed');
     const dis = srv.slice(srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'"), srv.indexOf("app.post('/api/finances/counter-payments/:id/dismiss'") + 1500);
     const dismissKeeps = /SET status = 'dismissed', dismiss_reason = \$1/.test(dis) && /AND status = 'unrecorded'/.test(dis) && !/DELETE FROM square_unmatched_payments/.test(dis);
     const ui = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
     const tray = ui.includes('id="finCounterCard"') && ui.includes('Record as walk-in sale') && ui.includes('function loadCounterPayments') && ui.includes('if (isPS) loadCounterPayments();');
-    check('SW12 [SQW3]: one-tap record is FOR UPDATE-locked + idempotent, writes an ordinary paid walk_in transaction + a completed square payment row through the seam (processor_ref = order id, square_payment_id kept), never reads pending link rows; dismiss keeps the row; the Finances tray exists and loads for PS',
-      locked && idempotent && walkIn && seam && marks && neverPending && dismissKeeps && tray,
-      JSON.stringify({ locked, idempotent, walkIn, seam, marks, neverPending, dismissKeeps, tray }));
+    check('SW12 [SQW3+SQW5]: ONE record core (lib) — FOR UPDATE, idempotent, walk_in + seam, honest via markers — with the endpoint as a one-tap adapter (no duplicate SQL) and the webhook auto path calling the SAME function; dismiss keeps the row; the tray UI loads for PS',
+      locked && idempotent && walkIn && seam && provenance && neverPending && oneTapAdapter && autoPath && dismissKeeps && tray,
+      JSON.stringify({ locked, idempotent, walkIn, seam, provenance, neverPending, oneTapAdapter, autoPath, dismissKeeps, tray }));
+  }
+
+  // ---- SW13 (SQW5): the auto-record toggle is honest — default OFF everywhere ----
+  {
+    const mig = fs.readFileSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '081_square_auto_record.sql'), 'utf8');
+    const schemaOff = mig.includes('square_auto_record_walkins BOOLEAN NOT NULL DEFAULT FALSE');
+    const ui = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
+    const notPrechecked = /id="sqAutoRecordToggle"(?![^>]*checked)/.test(ui) && !/id="sqAutoRecordToggle"[^>]*\schecked/.test(ui);
+    const reflectsStored = ui.includes("ar.checked = ps.square_auto_record_walkins === true;");
+    const failResync = /box\.checked = !box\.checked;[\s\S]{0,120}Could not save/.test(ui);
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const patchStrict = srv.includes("const enabled = (req.body || {}).enabled === true;");
+    const surfaced = srv.includes('square_auto_record_walkins: squareAutoRecord,');
+    const autoMarker = ui.includes("x.recorded_via === 'auto' ? ' (auto)' : ''");
+    check('SW13 [SQW5]: default OFF at the schema (081), the checkbox is never pre-checked and reflects stored truth only (resyncs on failure), the PATCH treats anything but true as false, the flag is surfaced on the summary, and auto-recorded rows are marked (auto) in the tray',
+      schemaOff && notPrechecked && reflectsStored && failResync && patchStrict && surfaced && autoMarker,
+      JSON.stringify({ schemaOff, notPrechecked, reflectsStored, failResync, patchStrict, surfaced, autoMarker }));
   }
 
   console.log(`${pass}/${pass + fail} — square-webhook gate ${fail ? 'FAILED' : 'PASSED'}`);
