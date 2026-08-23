@@ -261,6 +261,15 @@ object; refunds keep theirs); bad-signature rows carry no event id.
   no rung without its evidence. Retest: hard-refresh → toggle ON (wait
   for the "On —" confirmation) → fresh VT sale → expect `recorded/auto`
   with zero taps.
+- **RETEST PASSED — RUNG 2 EARNED (2026-08-23 18:47, $34.56 → sale
+  #11):** flag verified `true` at fire time; all three markers agree —
+  tray row 5 `recorded_via='auto'`, transaction #11 note "Auto-recorded
+  from Counter payments — Square MASTERCARD 5100, receipt xqHz",
+  delivery-log `tray_recorded` reason `no_ledger_row+auto:sale#11`.
+  Zero taps. Landing now reads "Square counter taps show up in your
+  books automatically — or with one tap, your choice." LC11 updated
+  (both rungs earned-verbatim; "charge in person" remains the one
+  unearned rung, gated on the R10 device test). SQW6–7 build proceeds.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==

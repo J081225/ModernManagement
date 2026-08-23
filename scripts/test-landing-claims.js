@@ -167,15 +167,21 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
     // patterns must be absent. Flip a rung by moving it to EARNED in the
     // same commit as its live-test record in docs/sqw-investigation.md.
     const RUNGS = {
-      one_tap:       { earned: true,  sentence: 'Square counter taps show up in your books with one tap.', premature: /counter taps? show up in your books/i },
-      automatically: { earned: false, sentence: null, premature: /counter (tap|payment)s?[^.]{0,80}automatic|books automatically/i },
+      one_tap:       { earned: true,  sentence: 'or with one tap', premature: /counter taps? show up in your books/i },
+      automatically: { earned: true,  sentence: 'show up in your books automatically', premature: null },
       charge_in_app: { earned: false, sentence: null, premature: /charge in person/i },
     };
     // rung 1 EARNED 2026-08-23: SQW3 live test — tray row 2 ($12.34 VT sale)
     // recorded as walk_in transaction #8 + completed square payment row,
     // visible in Finances (Money In), Ledger, TR, CSV.
+    // rung 2 EARNED 2026-08-23: SQW5 live test — $34.56 VT sale with the
+    // toggle verified true at fire time, ZERO taps: tray row 5
+    // recorded_via='auto', transaction #11 note "Auto-recorded from
+    // Counter payments", delivery-log reason no_ledger_row+auto:sale#11.
+    // (A first attempt was rejected as one_tap by these same markers —
+    // the ladder held until the evidence was real.)
     const earnedPresent = Object.values(RUNGS).filter((r) => r.earned).every((r) => page.includes(r.sentence));
-    const unearnedAbsent = Object.values(RUNGS).filter((r) => !r.earned).every((r) => !r.premature.test(pageNoHonest));
+    const unearnedAbsent = Object.values(RUNGS).filter((r) => !r.earned && r.premature).every((r) => !r.premature.test(pageNoHonest));
     check('LC11 [SQ-W R11 claims ladder]: earned rungs appear verbatim ("with one tap" — earned), unearned rungs ("automatically", "charge in person") are absent until their live tests pass',
       earnedPresent && unearnedAbsent, JSON.stringify({ earnedPresent, unearnedAbsent }));
   }
