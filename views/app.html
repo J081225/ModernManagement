@@ -13814,11 +13814,67 @@
           canRequestPayment
             ? `<button onclick="requestPaymentLink(${tx.id}, 'payment')" class="btn-secondary" style="font-size:0.85em;color:var(--success);border-color:var(--success);">Request payment</button>`
             : '',
+          // SQW6: Charge in person — Square-active workspaces only, on
+          // sales with a balance. Mobile opens Square POS pre-filled;
+          // desktop shows the honest card (no deep link exists there).
+          (window._planSummary && window._planSummary.payment_processor === 'square'
+            && ['unpaid', 'partially_paid', 'pending'].includes(tx.status)
+            && (tx.total_cents - (tx.amount_paid_cents || 0)) > 0)
+            ? `<button onclick="openChargeInPerson(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--success);border-color:var(--success);">Charge in person</button>`
+            : '',
           canVoid
             ? `<button onclick="voidFromDetail(${tx.id})" class="btn-secondary" style="font-size:0.85em;color:var(--danger);border-color:var(--danger);">Void</button>`
             : '',
           `<button onclick="closeTxDetailModal()" class="btn-primary" style="font-size:0.85em;">Close</button>`,
         ].filter(Boolean).join('');
+      }
+
+      // SQW6: "Charge in person" — the launch side. Mobile: hand the
+      // charge to the Square POS app (iOS scheme / Android intent, both
+      // built server-side with the signed state + Ref note). iOS has no
+      // automatic not-installed fallback, so if we're still visible
+      // ~1.6s after navigating, show the App Store link. Desktop: the
+      // honest card — no deep link exists, so we show the amount and
+      // the copy-ready Ref; the webhook's ref-match does the rest.
+      async function openChargeInPerson(txId) {
+        const box = document.getElementById('txDetailPaymentLink');
+        try {
+          const r = await fetch('/api/transactions/' + txId + '/charge-in-person', { credentials: 'include' });
+          const d = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            if (box) { box.style.display = ''; box.innerHTML = '<span style="color:var(--danger);font-size:0.88em;">' + (d.error || 'Could not prepare the charge.') + '</span>'; }
+            return;
+          }
+          const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+          const ua = navigator.userAgent || '';
+          const isIOS = /iPhone|iPad|iPod/i.test(ua);
+          const isAndroid = /Android/i.test(ua);
+          if (isAndroid) { window.location.href = d.android_url; return; }
+          if (isIOS) {
+            const t0 = Date.now();
+            window.location.href = d.ios_url;
+            setTimeout(() => {
+              if (Date.now() - t0 < 3000 && document.visibilityState === 'visible' && box) {
+                box.style.display = '';
+                box.innerHTML = '<div style="font-size:0.88em;line-height:1.6;">Square POS didn&rsquo;t open. <a href="https://apps.apple.com/app/id335393788" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;">Install Square Point of Sale</a>, then tap Charge in person again.</div>';
+              }
+            }, 1600);
+            return;
+          }
+          // Desktop: the honest card.
+          if (box) {
+            box.style.display = '';
+            box.innerHTML =
+              '<div style="font-size:1.25em;font-weight:800;color:var(--text-primary);margin-bottom:6px;">' + esc(formatCents(d.amount_cents)) + '</div>' +
+              '<div style="font-size:0.88em;color:var(--text-secondary);line-height:1.6;margin-bottom:10px;">Take it on your reader in the Square app. It&rsquo;ll land on this sale in your books automatically if the note carries the reference below &mdash; otherwise it shows under Counter payments for one tap.</div>' +
+              '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                '<code style="padding:6px 10px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:6px;font-size:0.9em;" id="cipRef' + txId + '">' + esc(d.ref) + '</code>' +
+                '<button class="btn-secondary" style="font-size:0.82em;" onclick="navigator.clipboard.writeText(document.getElementById(\'cipRef' + txId + '\').textContent).then(()=>{this.textContent=\'Copied\';})">Copy reference</button>' +
+              '</div>';
+          }
+        } catch (e) {
+          if (box) { box.style.display = ''; box.innerHTML = '<span style="color:var(--danger);font-size:0.88em;">Network error.</span>'; }
+        }
       }
 
       // E14 Step 6: prompt the owner for an amount, POST to the new

@@ -3162,13 +3162,31 @@ app.post('/api/square/webhook', async (req, res) => {
             ourAppId: process.env.SQUARE_APP_ID || null, logger: console,
           });
           if (!lane2.ok) console.error('[square-walkins] not recorded (' + lane2.reason + ') for payment ' + payment.id);
+          // SQW7: "Charge in person" ref-match runs FIRST — a launched
+          // charge carrying our Ref lands on its ORIGINATING transaction
+          // (real provenance beats the generic walk-in). Only when no
+          // ref matches does the auto-record path consider the row.
+          let autoNote = result.reason;
+          let refMatched = false;
+          if (lane2.ok && !lane2.duplicate) {
+            try {
+              const ref = await squareWalkins.matchAndRecordRefPayment(pool, {
+                trayId: lane2.id, workspaceId: lane2.workspace_id, payment, logger: console,
+              });
+              if (ref.ok) { refMatched = true; autoNote = result.reason + '+ref:sale#' + ref.transaction_id; }
+              else if (ref.reason !== 'no_ref' && ref.reason !== 'no_matching_transaction') {
+                console.error('[square-walkins] ref-match declined (' + ref.reason + ') — row stays in the tray');
+              }
+            } catch (err) {
+              console.error('[square-walkins] ref-match error (row stays in the tray):', err.message);
+            }
+          }
           // SQW5: auto-record — the workspace opted in, so the tray row
           // goes straight through the SAME record core the one-tap
           // button uses (via='auto', attributed to the owner). A failure
           // leaves the row unrecorded for one-tap; never a second try
           // here (idempotency belongs to the core).
-          let autoNote = result.reason;
-          if (lane2.ok && !lane2.duplicate && lane2.auto_record) {
+          if (lane2.ok && !lane2.duplicate && !refMatched && lane2.auto_record) {
             const auto = await squareWalkins.recordTrayRowAsSale(pool, {
               trayId: lane2.id, workspaceId: lane2.workspace_id,
               userId: lane2.owner_user_id, via: 'auto',
@@ -3254,6 +3272,138 @@ app.post('/api/finances/counter-payments/:id/record', requireAuth, async (req, r
   } catch (err) {
     console.error('[POST /api/finances/counter-payments/:id/record]', err.message);
     res.status(500).json({ error: 'Could not record this payment' });
+  }
+});
+
+// ============================================================
+// SQW6: "Charge in person" — the Square POS deep-link launcher + return.
+// The owner taps Charge on an unpaid sale; their phone opens the Square
+// POS app with the balance pre-filled and our reference in the note;
+// the resulting payment webhook ref-matches back to THIS transaction
+// (SQW7). Desktop gets the honest card (no deep link exists there).
+// LIVE-TEST GATE: ruling R10 — the real-device test ("MM Test Counter"
+// merchant, one ~$1 tap, refunded) is the earn condition for the
+// "charge in person" claim rung; nothing here is claimed until then.
+// ============================================================
+const POS_STATE_TTL_MS = 15 * 60 * 1000;
+function _mintPosState(txId) {
+  const exp = Date.now() + POS_STATE_TTL_MS;
+  const mac = crypto.createHmac('sha256', process.env.SESSION_SECRET).update(txId + '.' + exp).digest('hex');
+  return txId + '.' + exp + '.' + mac;
+}
+function _verifyPosState(state) {
+  const m = String(state || '').match(/^(\d+)\.(\d+)\.([0-9a-f]{64})$/);
+  if (!m) return null;
+  const [, txId, exp, mac] = m;
+  if (Number(exp) < Date.now()) return null;
+  const expect = crypto.createHmac('sha256', process.env.SESSION_SECRET).update(txId + '.' + exp).digest('hex');
+  try {
+    if (crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expect))) return parseInt(txId, 10);
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+app.get('/api/transactions/:id/charge-in-person', requireAuth, async (req, res) => {
+  try {
+    const workspaceId = await getWorkspaceId(req);
+    if (!workspaceId) return res.status(500).json({ error: 'No workspace for user' });
+    if (!process.env.SQUARE_APP_ID) {
+      return res.status(503).json({ error: 'Charge in person is not configured yet (Square application id missing).' });
+    }
+    const wR = await pool.query('SELECT business_name, name, square_status FROM workspaces WHERE id = $1', [workspaceId]);
+    if (!wR.rows[0] || wR.rows[0].square_status !== 'connected') {
+      return res.status(400).json({ error: 'Connect Square first — Charge in person runs on your Square reader.' });
+    }
+    const tR = await pool.query(
+      `SELECT id, total_cents, amount_paid_cents, status FROM transactions WHERE id = $1 AND workspace_id = $2`,
+      [parseInt(req.params.id, 10), workspaceId]
+    );
+    const tx = tR.rows[0];
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (!['unpaid', 'partially_paid', 'pending'].includes(tx.status)) {
+      return res.status(409).json({ error: 'Only an unpaid sale can be charged in person.' });
+    }
+    const balance = tx.total_cents - (tx.amount_paid_cents || 0);
+    if (!(balance > 0)) return res.status(409).json({ error: 'Nothing left to collect on this sale.' });
+
+    const biz = (wR.rows[0].business_name || wR.rows[0].name || 'our business').slice(0, 40);
+    const ref = 'Ref ' + tx.id + ' · ' + biz; // R9: customer-receipt-grade
+    const state = _mintPosState(tx.id);
+    const base = (process.env.PUBLIC_BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const callback = base + '/api/square/pos-return';
+    const tenders = ['CREDIT_CARD', 'CASH', 'OTHER', 'SQUARE_GIFT_CARD', 'CARD_ON_FILE'];
+
+    const iosData = {
+      amount_money: { amount: String(balance), currency_code: 'USD' },
+      callback_url: callback,
+      client_id: process.env.SQUARE_APP_ID,
+      version: '1.3',
+      notes: ref,
+      state,
+      options: { supported_tender_types: tenders, auto_return: true, clear_default_fees: true },
+    };
+    const ios_url = 'square-commerce-v1://payment/create?data=' + encodeURIComponent(JSON.stringify(iosData));
+    const android_url = 'intent://#Intent;action=com.squareup.pos.action.CHARGE;package=com.squareup;'
+      + 'S.com.squareup.pos.WEB_CALLBACK_URI=' + encodeURIComponent(callback) + ';'
+      + 'S.com.squareup.pos.CLIENT_ID=' + encodeURIComponent(process.env.SQUARE_APP_ID) + ';'
+      + 'S.com.squareup.pos.API_VERSION=v2.0;'
+      + 'i.com.squareup.pos.TOTAL_AMOUNT=' + balance + ';'
+      + 'S.com.squareup.pos.CURRENCY_CODE=USD;'
+      + 'S.com.squareup.pos.TENDER_TYPES=' + encodeURIComponent('com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER') + ';'
+      + 'S.com.squareup.pos.NOTE=' + encodeURIComponent(ref) + ';'
+      + 'S.com.squareup.pos.REQUEST_METADATA=' + encodeURIComponent(state) + ';'
+      + 'S.browser_fallback_url=' + encodeURIComponent('https://play.google.com/store/apps/details?id=com.squareup') + ';end';
+
+    res.json({ ok: true, transaction_id: tx.id, amount_cents: balance, ref, state, ios_url, android_url });
+  } catch (err) {
+    console.error('[GET /api/transactions/:id/charge-in-person]', err.message);
+    res.status(500).json({ error: 'Could not prepare the charge' });
+  }
+});
+
+// PUBLIC: Square POS redirects the merchant's phone browser here after
+// the charge (or cancellation). Auth is the SIGNED state token we
+// minted for this transaction (15-min TTL) — verified before anything
+// is stored. Stores Square's returned transaction id as the ref-match
+// belt (migration 082); the payment itself arrives via the webhook.
+app.get('/api/square/pos-return', async (req, res) => {
+  const page = (title, body) => res.type('html').send(
+    '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>' + title + '</title>'
+    + '<style>body{font-family:-apple-system,Segoe UI,sans-serif;background:#f8fafc;color:#2d3748;display:flex;align-items:center;justify-content:center;min-height:90vh;margin:0;padding:20px}div{max-width:420px;background:#fff;border-radius:12px;padding:30px;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center}a{color:#ff6b6b;font-weight:700;text-decoration:none}</style>'
+    + '</head><body><div><h2>' + title + '</h2><p>' + body + '</p><p><a href="/workspace">Back to Modern Management</a></p></div></body></html>'
+  );
+  try {
+    let state = null, posTxId = null, errorCode = null;
+    if (req.query.data) {
+      // iOS: ?data=<URL-encoded JSON>
+      try {
+        const d = JSON.parse(String(req.query.data));
+        state = d.state; posTxId = d.transaction_id || d.client_transaction_id || null;
+        if (d.status !== 'ok') errorCode = d.error_code || 'unknown_error';
+      } catch (e) { return page('Something went wrong', 'The response from Square could not be read.'); }
+    } else {
+      // Android: namespaced query params
+      state = req.query['com.squareup.pos.REQUEST_METADATA'] || null;
+      posTxId = req.query['com.squareup.pos.SERVER_TRANSACTION_ID'] || req.query['com.squareup.pos.CLIENT_TRANSACTION_ID'] || null;
+      errorCode = req.query['com.squareup.pos.ERROR_CODE'] || null;
+    }
+    const txId = _verifyPosState(state);
+    if (!txId) return page('Link expired', 'This charge link has expired or is invalid. Open the sale in Modern Management and tap Charge in person again.');
+    if (errorCode) {
+      console.error('[square/pos-return] POS returned error ' + errorCode + ' for tx #' + txId);
+      return page('Charge not completed', 'Square reported: ' + String(errorCode).replace(/_/g, ' ') + '. Nothing was recorded — you can try again from the sale.');
+    }
+    if (posTxId) {
+      await pool.query(
+        `UPDATE transactions SET square_pos_transaction_id = COALESCE(square_pos_transaction_id, $1), updated_at = NOW() WHERE id = $2`,
+        [String(posTxId).slice(0, 100), txId]
+      );
+      console.log('[square/pos-return] stored POS transaction id for tx #' + txId);
+    }
+    return page('Payment taken', 'Nice — Square took the payment. It will land on this sale in your books automatically within a moment.');
+  } catch (err) {
+    console.error('[GET /api/square/pos-return]', err.message);
+    return page('Something went wrong', 'The charge may still have completed on Square — check the sale in a moment.');
   }
 });
 
@@ -4327,7 +4477,7 @@ app.post('/api/payments/test', requireAuth, async (req, res) => {
 app.use('/api', (req, res, next) => {
   // '/voice/spike-incoming' is the TEMPORARY autodetect-spike line
   // (signature-validated like every Twilio route); remove with the spike.
-  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/relay-menu', '/voice/spike-incoming', '/voice/spike-b-incoming', '/voice/spike-c-incoming', '/billing/webhook', '/square/webhook'];
+  const open = ['/login', '/signup', '/sms/incoming', '/email/incoming', '/voice/incoming', '/voice/recording', '/voice/transcription', '/voice/relay-incoming', '/voice/relay-menu', '/voice/spike-incoming', '/voice/spike-b-incoming', '/voice/spike-c-incoming', '/billing/webhook', '/square/webhook', '/square/pos-return'];
   if (open.some(p => req.path === p)) return next();
   if (req.session && req.session.authenticated && req.session.userId) return next();
   res.status(401).json({ error: 'Unauthorized' });

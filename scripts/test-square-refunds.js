@@ -209,7 +209,12 @@ function makeLedgerDb(refunds, txns) {
     // SQW5: the record core (recordTrayRowAsSale) lives in this lib and
     // writes the books by design — the never-touches invariant scopes to
     // the CORRELATOR alone (it hands settlement to the SQ5 core).
-    const correlatorSlice = src.slice(src.indexOf('async function correlateMerchantSideRefund'), src.indexOf('module.exports'));
+    // SQW7 appended matchAndRecordRefPayment (which DOES write the books,
+    // by design) after the correlator — end the slice at the next
+    // function boundary, not at module.exports.
+    const corStart = src.indexOf('async function correlateMerchantSideRefund');
+    const corEndA = src.indexOf('function _refFromNote', corStart);
+    const correlatorSlice = src.slice(corStart, corEndA > corStart ? corEndA : src.indexOf('module.exports'));
     const neverTouchesBooks = correlatorSlice.length > 0 && !/INSERT INTO transactions|INSERT INTO transaction_payments|UPDATE transactions\b/.test(correlatorSlice);
     const wired = /rr\.reason === 'no_refund_row'[\s\S]{0,400}correlateMerchantSideRefund[\s\S]{0,600}processSquareRefundCompleted/.test(fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'));
     const mig = fs.existsSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '080_square_refunds_initiated_by.sql'));
