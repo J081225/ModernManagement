@@ -3070,12 +3070,38 @@ app.post('/api/square/webhook', async (req, res) => {
       const refund = event.data && event.data.object && event.data.object.refund;
       _evt.objectId = refund && refund.id || null;
       if (!refund || refund.status !== 'COMPLETED') { await logOutcome('ignored_status', refund && refund.status); return; } // settle only on COMPLETED
-      const rr = await paymentLedger.processSquareRefundCompleted(pool, {
+      let rr = await paymentLedger.processSquareRefundCompleted(pool, {
         refundId: refund.id,
         merchantId: event.merchant_id,
         amountCents: refund.amount_money && refund.amount_money.amount,
         currency: refund.amount_money && refund.amount_money.currency,
       });
+      // SQW4: no row = a refund WE didn't start. Correlate it by payment
+      // id to a recorded walk-in (create the row, then let the same core
+      // settle it) or to an unrecorded tray row (mark it refunded).
+      if (!rr.ok && rr.reason === 'no_refund_row') {
+        try {
+          const cor = await squareWalkins.correlateMerchantSideRefund(pool, { refund, merchantId: event.merchant_id, logger: console });
+          if (cor.ok && cor.path === 'walkin') {
+            rr = await paymentLedger.processSquareRefundCompleted(pool, {
+              refundId: refund.id,
+              merchantId: event.merchant_id,
+              amountCents: refund.amount_money && refund.amount_money.amount,
+              currency: refund.amount_money && refund.amount_money.currency,
+            });
+          } else if (cor.ok && cor.path === 'tray') {
+            await logOutcome('refund_settled', 'tray:refunded');
+            return;
+          } else {
+            await logOutcome('refund_refused', 'merchant-side: ' + cor.reason);
+            return;
+          }
+        } catch (err) {
+          console.error('[square-walkins] refund correlation error (refund ' + refund.id + '):', err.message);
+          await logOutcome('error', 'refund-correlate: ' + err.message);
+          return;
+        }
+      }
       if (!rr.ok && rr.reason && rr.reason.endsWith('_mismatch')) {
         console.error('[square-webhook] refund REFUSED (' + rr.reason + ') for refund ' + refund.id);
       }

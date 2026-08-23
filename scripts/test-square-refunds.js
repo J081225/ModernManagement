@@ -177,6 +177,43 @@ function makeLedgerDb(refunds, txns) {
       JSON.stringify({ hasRecordBanner, recordHiddenForSquare, squareShownForSquare }));
   }
 
+  // ---- SR10/SR11 (SQW4): merchant-side refunds of walk-ins ----
+  {
+    const { correlateMerchantSideRefund } = require(path.join(__dirname, '..', 'lib', 'square-walkins'));
+    const silent = { log: () => {}, error: () => {} };
+    const mk = ({ payments = [], trayUpdated = 0 } = {}) => {
+      const calls = [];
+      return { calls, query: async (sql, params) => {
+        calls.push({ sql, params });
+        if (/FROM transaction_payments tp/.test(sql)) return { rows: payments };
+        if (/UPDATE square_unmatched_payments/.test(sql)) return { rows: Array.from({ length: trayUpdated }, () => ({ id: 2, workspace_id: 17 })) };
+        return { rows: [] };
+      } };
+    };
+    const refund = { id: 'RF1', payment_id: 'PAY1', status: 'COMPLETED', amount_money: { amount: 1234, currency: 'USD' }, reason: 'Customer request' };
+    // (a) recorded walk-in → square_refunds row with initiated_by='square', amount = Square's, hands to the core
+    const a = mk({ payments: [{ id: 5, workspace_id: 17, transaction_id: 8, amount_cents: 1234, square_merchant_id: 'M1', amount_refunded_cents: 0 }] });
+    const ra = await correlateMerchantSideRefund(a, { refund, merchantId: 'M1', logger: silent });
+    const ins = a.calls.find((c) => /INSERT INTO square_refunds/.test(c.sql));
+    const rowShape = ins && /'pending', \$6, NULL, 'square'/.test(ins.sql) && ins.params[2] === 'RF1' && ins.params[3] === 'PAY1' && ins.params[4] === 1234 && ins.params[1] === 8;
+    check('SR10 [SQW4]: a COMPLETED refund Square issued on a RECORDED walk-in creates the square_refunds row (initiated_by=square, amount=Square\'s, owner NULL) for the existing completion core to settle',
+      ra.ok && ra.path === 'walkin' && ra.transaction_id === 8 && rowShape, JSON.stringify({ ra, rowShape }));
+    // guards: over-refund, merchant mismatch, unrecorded tray row → refunded, unknown payment → untouched
+    const over = await correlateMerchantSideRefund(mk({ payments: [{ id: 5, workspace_id: 17, transaction_id: 8, amount_cents: 1234, square_merchant_id: 'M1', amount_refunded_cents: 1000 }] }), { refund, merchantId: 'M1', logger: silent });
+    const wrongM = await correlateMerchantSideRefund(mk({ payments: [{ id: 5, workspace_id: 17, transaction_id: 8, amount_cents: 1234, square_merchant_id: 'M1', amount_refunded_cents: 0 }] }), { refund, merchantId: 'M2', logger: silent });
+    const trayP = mk({ trayUpdated: 1 });
+    const tray = await correlateMerchantSideRefund(trayP, { refund, merchantId: 'M1', logger: silent });
+    const trayMark = trayP.calls.some((c) => /SET status = 'refunded'/.test(c.sql) && /AND status = 'unrecorded'/.test(c.sql));
+    const unknown = await correlateMerchantSideRefund(mk(), { refund, merchantId: 'M1', logger: silent });
+    const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8');
+    const neverTouchesBooks = !/INSERT INTO transactions|INSERT INTO transaction_payments|UPDATE transactions/.test(src);
+    const wired = /rr\.reason === 'no_refund_row'[\s\S]{0,400}correlateMerchantSideRefund[\s\S]{0,600}processSquareRefundCompleted/.test(fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'));
+    const mig = fs.existsSync(path.join(__dirname, '..', 'migrations', 'phase1-additive', '080_square_refunds_initiated_by.sql'));
+    check('SR11 [SQW4]: over-refund and merchant mismatch are refused; an UNRECORDED tray row is marked refunded (never income); an unknown payment is untouched; the correlator never writes the books itself; the webhook re-runs the core after correlation; migration 080 exists',
+      over.reason === 'over_refund' && wrongM.reason === 'merchant_mismatch' && tray.ok && tray.path === 'tray' && trayMark && unknown.reason === 'payment_unknown' && neverTouchesBooks && wired && mig,
+      JSON.stringify({ over: over.reason, wrongM: wrongM.reason, tray: tray.path, trayMark, unknown: unknown.reason, neverTouchesBooks, wired, mig }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-refunds gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();

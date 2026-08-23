@@ -162,11 +162,22 @@ const DEMO_NUMBER_TEL = 'tel:+13322494333';
   // sentence to ALLOWED_RUNGS here in the same commit as the live-test
   // record in docs/sqw-investigation.md. ----
   {
-    const ALLOWED_RUNGS = []; // none earned yet
-    const claim = /counter (tap|payment)s?|taps? show up in your books|charge in person/i.test(pageNoHonest);
-    const allowedPresent = ALLOWED_RUNGS.every((s) => page.includes(s));
-    check('LC11 [SQ-W R11]: no counter-payment claim on the landing until its rung is earned (none earned yet); earned rungs must appear verbatim',
-      (!claim || ALLOWED_RUNGS.length > 0) && allowedPresent, JSON.stringify({ claim, earned: ALLOWED_RUNGS.length }));
+    // Each rung: the exact earned sentence + the pattern that would claim
+    // it prematurely. Earned rungs must appear verbatim; UNEARNED rung
+    // patterns must be absent. Flip a rung by moving it to EARNED in the
+    // same commit as its live-test record in docs/sqw-investigation.md.
+    const RUNGS = {
+      one_tap:       { earned: true,  sentence: 'Square counter taps show up in your books with one tap.', premature: /counter taps? show up in your books/i },
+      automatically: { earned: false, sentence: null, premature: /counter (tap|payment)s?[^.]{0,80}automatic|books automatically/i },
+      charge_in_app: { earned: false, sentence: null, premature: /charge in person/i },
+    };
+    // rung 1 EARNED 2026-08-23: SQW3 live test — tray row 2 ($12.34 VT sale)
+    // recorded as walk_in transaction #8 + completed square payment row,
+    // visible in Finances (Money In), Ledger, TR, CSV.
+    const earnedPresent = Object.values(RUNGS).filter((r) => r.earned).every((r) => page.includes(r.sentence));
+    const unearnedAbsent = Object.values(RUNGS).filter((r) => !r.earned).every((r) => !r.premature.test(pageNoHonest));
+    check('LC11 [SQ-W R11 claims ladder]: earned rungs appear verbatim ("with one tap" — earned), unearned rungs ("automatically", "charge in person") are absent until their live tests pass',
+      earnedPresent && unearnedAbsent, JSON.stringify({ earnedPresent, unearnedAbsent }));
   }
 
   // ---- LC7: headline discipline — h1 is 8 words or fewer ----
