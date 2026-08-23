@@ -121,8 +121,30 @@ Terminal sale; the log line becomes the documented real payload.
 3. [payment-ledger.js:330](../lib/payment-ledger.js#L330): no
    `transaction_payments` row with `processor='square' AND processor_ref =
    orderId` → `{ ok:false, reason:'no_ledger_row' }`.
-4. [server.js:3082-3084](../server.js#L3082): `console.error('completion
-   REFUSED (reason)…')`, respond 200. **No row, no table, no trace.**
+4. [server.js:3082-3084](../server.js#L3082): the route responds 200.
+   **CORRECTION (2026-08-23, exact-line read):** the refusal log fired
+   ONLY for `*_mismatch` reasons — `no_order_id` and `no_ledger_row`
+   (i.e. every counter tap) were **completely silent**. No row, no
+   table, not even a log line. SQW1 replaces this with a structured
+   discriminator log for EVERY refused COMPLETED payment (pinned SW8).
+
+### 2.1a RULINGS RECORD (2026-08-23)
+- **Catch side R1–R7: proceed** (Jay: "then SQW2–5"). R2's table is
+  announced in §3.5 and will be created in SQW2.
+- **Launch side R8–R11: APPROVED.** R9 note format = `Ref <id> · <business>`
+  (customer-receipt-grade). **R10 re-ruled:** the device test is NOT
+  sequenced behind SQ6 — when SQW6 is built, Jay creates a free real
+  Square merchant ("MM Test Counter") with the POS app, runs one real
+  ~$1 tap, immediately refunded via the SQ5 machinery; that proves deep
+  link + callback + note round-trip + auto-match, and VERIFIES the
+  `transaction_id ≡ v2 order id` claim (if confirmed → `processor_ref`
+  directly). Enabling the POS API + registering the callback URL on our
+  Square app is part of SQW6.
+- **R11 claims ladder, pinned with a census row per rung:**
+  "with one tap" (post-SQW3) → "automatically" (post auto-record live
+  test) → "charge in person from the app" (post device test).
+- **Order of work:** SQW1 proof log → Jay's sandbox Virtual Terminal
+  sale (the evidence gate) → SQW2–5 → launch side SQW6–7 → SQW8 optional.
 
 ### 2.2 What must NOT change
 The three-way check for link payments — signed event's merchant ==

@@ -3082,8 +3082,38 @@ app.post('/api/square/webhook', async (req, res) => {
       currency: payment.amount_money && payment.amount_money.currency,
       paymentId: payment.id, // SQ5: capture for later refunds
     });
-    if (!result.ok && result.reason && result.reason.endsWith('_mismatch')) {
-      console.error('[square-webhook] completion REFUSED (' + result.reason + ') for order ' + payment.order_id);
+    if (!result.ok) {
+      // SQW1 (proof log): EVERY refused COMPLETED payment is logged with
+      // its discriminator fields — previously only *_mismatch reasons
+      // logged, so a counter tap (no_order_id / no_ledger_row) vanished
+      // without a trace. This single line is the evidence gate for the
+      // walk-in lane: Jay's sandbox Virtual Terminal sale lands here and
+      // the real payload shape becomes the SQW2 spec.
+      const cd = payment.card_details || {};
+      const card = cd.card || {};
+      const app = payment.application_details || {};
+      const dev = payment.device_details || {};
+      console.error('[square-webhook] completion REFUSED (' + result.reason + ') ' + JSON.stringify({
+        payment_id: payment.id,
+        order_id: payment.order_id || null,
+        merchant_id: event.merchant_id || null,
+        location_id: payment.location_id || null,
+        status: payment.status,
+        amount: payment.amount_money && payment.amount_money.amount,
+        tip: payment.tip_money && payment.tip_money.amount,
+        total: payment.total_money && payment.total_money.amount,
+        currency: payment.amount_money && payment.amount_money.currency,
+        source_type: payment.source_type || null,
+        entry_method: cd.entry_method || null,
+        card_brand: card.card_brand || null,
+        last_4: card.last_4 || null,
+        square_product: app.square_product || null,
+        application_id: app.application_id || null,
+        device_name: dev.device_name || null,
+        receipt_number: payment.receipt_number || null,
+        note: payment.note || null,
+        created_at: payment.created_at || null,
+      }));
     }
   } catch (err) {
     console.error('[square-webhook] processing error:', err.message);

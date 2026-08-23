@@ -110,6 +110,22 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
       JSON.stringify({ raw, sig, onlyCompleted, whitelisted, badSig400 }));
   }
 
+  // ---- SW8 (SQW1): every refused COMPLETED payment logs its discriminator
+  // fields — not just *_mismatch. A counter tap (no_order_id /
+  // no_ledger_row) must leave a trace: the evidence gate for SQ-W. ----
+  {
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const hook = srv.slice(srv.indexOf("app.post('/api/square/webhook'"), srv.indexOf('// SQ3e: the explicit active-processor switch'));
+    // The PAYMENT block must log on any !result.ok — the refund block's
+    // own rr.reason *_mismatch guard (SQ5) is deliberately out of scope.
+    const firesOnAnyRefusal = hook.includes('if (!result.ok) {') && !/result\.reason\.endsWith\('_mismatch'\)/.test(hook);
+    const fields = ['payment_id', 'order_id', 'merchant_id', 'source_type', 'entry_method', 'card_brand', 'last_4', 'square_product', 'application_id', 'device_name', 'receipt_number', 'note', 'tip', 'total']
+      .every((f) => hook.includes(f + ':'));
+    const tagged = hook.includes("'[square-webhook] completion REFUSED (' + result.reason + ') ' + JSON.stringify({");
+    check('SW8 [SQW1]: EVERY refused COMPLETED payment (no_order_id / no_ledger_row / mismatches) logs a structured line with the discriminator fields (source_type, entry_method, square_product, application_id, device, brand/last4, note, tip/total)',
+      firesOnAnyRefusal && fields && tagged, JSON.stringify({ firesOnAnyRefusal, fields, tagged }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-webhook gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
