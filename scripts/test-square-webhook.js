@@ -126,6 +126,56 @@ const freshRow = () => [{ id: 1, workspace_id: 7, transaction_id: 1, amount_cent
       firesOnAnyRefusal && fields && tagged, JSON.stringify({ firesOnAnyRefusal, fields, tagged }));
   }
 
+  // ---- SW9/SW10 (SQW2): lane 2 — the unmatched-payment recorder ----
+  {
+    const { recordUnmatchedSquarePayment } = require(path.join(__dirname, '..', 'lib', 'square-walkins'));
+    const silent = { error: () => {}, log: () => {} };
+    const vtPayment = {
+      id: 'PAYvt1', order_id: 'ORDvt1', status: 'COMPLETED', location_id: 'LOC1',
+      amount_money: { amount: 1234, currency: 'USD' }, total_money: { amount: 1234, currency: 'USD' },
+      source_type: 'CARD', created_at: '2026-08-23T16:20:00Z', receipt_number: 'AbCd',
+      card_details: { entry_method: 'KEYED', card: { card_brand: 'MASTERCARD', last_4: '5100' } },
+      application_details: { square_product: 'VIRTUAL_TERMINAL', application_id: 'sq0idp-square-vt' },
+    };
+    const mkPool = ({ merchants = 1, conflict = false } = {}) => {
+      const calls = [];
+      return {
+        calls,
+        query: async (sql, params) => {
+          calls.push({ sql, params });
+          if (/FROM workspaces WHERE square_merchant_id/.test(sql)) return { rows: Array.from({ length: merchants }, (_, i) => ({ id: 17 + i })) };
+          if (/INSERT INTO square_unmatched_payments/.test(sql)) return { rows: conflict ? [] : [{ id: 1 }] };
+          return { rows: [] };
+        },
+      };
+    };
+    // records, with the discriminators + raw payload, attributed to the one connected workspace
+    const p1 = mkPool();
+    const r1 = await recordUnmatchedSquarePayment(p1, { payment: vtPayment, merchantId: 'MERCH1', reason: 'no_ledger_row', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const ins = p1.calls.find((c) => /INSERT INTO square_unmatched_payments/.test(c.sql));
+    const attributed = ins && ins.params[0] === 17 && ins.params[1] === 'PAYvt1' && ins.params[5] === 'no_ledger_row';
+    const discriminators = ins && ins.params[11] === 'KEYED' && ins.params[12] === 'MASTERCARD' && ins.params[13] === '5100' && ins.params[14] === 'VIRTUAL_TERMINAL';
+    const raw = ins && JSON.parse(ins.params[21]).id === 'PAYvt1';
+    const onConflict = ins && /ON CONFLICT \(square_payment_id\) DO NOTHING/.test(ins.sql);
+    check('SW9 [SQW2]: lane 2 records an unmatched COMPLETED payment into the isolated tray — attributed to the ONE connected workspace by merchant, discriminators + raw payload stored, idempotent ON CONFLICT',
+      r1.ok === true && attributed && discriminators && raw && onConflict,
+      JSON.stringify({ ok: r1.ok, attributed, discriminators, raw, onConflict }));
+
+    // refusals: our own app id on an unknown order (forgery), unknown merchant, ambiguous merchant, redelivery = duplicate no-op, mismatch reasons never enter lane 2
+    const forged = await recordUnmatchedSquarePayment(mkPool(), { payment: { ...vtPayment, application_details: { square_product: 'ECOMMERCE_API', application_id: 'sq0idp-OURAPP' } }, merchantId: 'MERCH1', reason: 'no_ledger_row', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const unknown = await recordUnmatchedSquarePayment(mkPool({ merchants: 0 }), { payment: vtPayment, merchantId: 'MERCHX', reason: 'no_ledger_row', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const ambiguous = await recordUnmatchedSquarePayment(mkPool({ merchants: 2 }), { payment: vtPayment, merchantId: 'MERCH1', reason: 'no_ledger_row', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const dup = await recordUnmatchedSquarePayment(mkPool({ conflict: true }), { payment: vtPayment, merchantId: 'MERCH1', reason: 'no_order_id', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const mismatch = await recordUnmatchedSquarePayment(mkPool(), { payment: vtPayment, merchantId: 'MERCH1', reason: 'amount_mismatch', ourAppId: 'sq0idp-OURAPP', logger: silent });
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const wired = /result\.reason === 'no_order_id' \|\| result\.reason === 'no_ledger_row'[\s\S]{0,300}recordUnmatchedSquarePayment/.test(srv);
+    const noRevenueTouch = !/INSERT INTO transactions|INSERT INTO transaction_payments/.test(fs.readFileSync(path.join(__dirname, '..', 'lib', 'square-walkins.js'), 'utf8'));
+    check('SW10 [SQW2]: lane 2 REFUSES a forged ours-but-unmatched event, an unknown or ambiguous merchant, treats redelivery as a duplicate no-op, never accepts *_mismatch reasons, is wired only behind no_order_id/no_ledger_row, and never writes transactions/transaction_payments',
+      forged.reason === 'ours_but_unmatched' && unknown.reason === 'merchant_unknown' && ambiguous.reason === 'merchant_ambiguous'
+        && dup.ok === true && dup.duplicate === true && mismatch.reason === 'not_lane2' && wired && noRevenueTouch,
+      JSON.stringify({ forged: forged.reason, unknown: unknown.reason, ambiguous: ambiguous.reason, dup, mismatch: mismatch.reason, wired, noRevenueTouch }));
+  }
+
   console.log(`${pass}/${pass + fail} — square-webhook gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();

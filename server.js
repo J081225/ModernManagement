@@ -3114,6 +3114,21 @@ app.post('/api/square/webhook', async (req, res) => {
         note: payment.note || null,
         created_at: payment.created_at || null,
       }));
+      // SQW2 — lane 2: a merchant payment that isn't one of our orders is
+      // RECORDED into the isolated tray (never into revenue) so the owner
+      // can record it with one tap. Mismatch reasons stay refusals-only:
+      // those ARE our orders with wrong money, and must not become walk-ins.
+      if (result.reason === 'no_order_id' || result.reason === 'no_ledger_row') {
+        try {
+          const lane2 = await squareWalkins.recordUnmatchedSquarePayment(pool, {
+            payment, merchantId: event.merchant_id, reason: result.reason,
+            ourAppId: process.env.SQUARE_APP_ID || null, logger: console,
+          });
+          if (!lane2.ok) console.error('[square-walkins] not recorded (' + lane2.reason + ') for payment ' + payment.id);
+        } catch (err) {
+          console.error('[square-walkins] recorder error (payment ' + payment.id + '):', err.message);
+        }
+      }
     }
   } catch (err) {
     console.error('[square-webhook] processing error:', err.message);
@@ -7043,6 +7058,9 @@ const credentials = require('./lib/credentials');
 const contactVerify = require('./lib/contact-verify');
 // SP4b: customer sends leave from the workspace's own number or hold.
 const { customerSmsFrom } = require('./lib/workspace-readiness');
+// SQW2: lane 2 of the Square webhook — unmatched merchant payments
+// (counter taps) into the isolated tray. Never touches revenue tables.
+const squareWalkins = require('./lib/square-walkins');
 // AD8 (f): mail-outage streak monitor. Configured just below with the
 // escalation that files an owner task — a channel that survives the
 // very outage it reports (DB, not email).
