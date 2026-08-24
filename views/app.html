@@ -1771,7 +1771,7 @@
          the fixed Command Center. 88px = 60px bar + 28px breathing room. */
       .page { padding-bottom: 88px; }
 
-      /* AP1: persistent assistant panel — right edge, every page.
+      /* AP1: persistent Manager panel — right edge, every page.
          Collapsed = the .cc-tab; open = 360px column, content
          compresses via body.assistant-open. */
       .command-center {
@@ -2349,16 +2349,16 @@
           </div>
 
           <!-- Section: AI Tools -->
-          <div class="section-label home-fade"><span class="dot"></span>AI Tools<span class="accent">your assistant</span></div>
+          <div class="section-label home-fade"><span class="dot"></span>AI Tools<span class="accent">your Manager</span></div>
 
           <!-- AP3: the panel is the front door. The old command bar is
-               retired; this card opens the assistant, focused. -->
+               retired; this card opens the Manager, focused. -->
           <div class="mm-card home-fade" style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:14px;">
               <div class="hero-avatar" style="width:46px;height:46px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.25em;flex-shrink:0;">&#129302;</div>
               <div style="flex:1;min-width:0;">
-                <div class="hero-title">Ask your assistant</div>
-                <div class="mm-input" role="button" tabindex="0" onclick="openAssistant()" onkeydown="if(event.key==='Enter')openAssistant()" style="margin-top:8px;cursor:text;color:var(--text-muted);user-select:none;">Ask your assistant anything&hellip;</div>
+                <div class="hero-title">Ask your Manager</div>
+                <div class="mm-input" role="button" tabindex="0" onclick="openAssistant()" onkeydown="if(event.key==='Enter')openAssistant()" style="margin-top:8px;cursor:text;color:var(--text-muted);user-select:none;">Ask your Manager anything&hellip;</div>
               </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
@@ -3138,7 +3138,7 @@
                   <span class="routing-pill-value" id="bizEmailValue" style="overflow-wrap:anywhere;">Loading...</span>
                   <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizEmailCopy" onclick="copyBizValue('bizEmailValue', this)" aria-label="Copy outbound email address" style="display:none;">Copy</button>
                 </span>
-                <span class="routing-pill-hint" id="bizEmailHint">Your AI assistant's email replies send from this address.</span>
+                <span class="routing-pill-hint" id="bizEmailHint">Your AI Manager's email replies send from this address.</span>
               </div>
               <!-- AD2 c3: the inbound alias. READ-ONLY — the address is
                    the routing key (lookupUserByEmailAlias); mail to a
@@ -3151,7 +3151,7 @@
                   <span class="routing-pill-value" id="bizAliasValue" style="font-family:'SFMono-Regular', Consolas, monospace;font-size:13px;overflow-wrap:anywhere;">Loading...</span>
                   <button class="mm-btn mm-btn-ghost mm-btn-sm" id="bizAliasCopy" onclick="copyBizValue('bizAliasValue', this)" aria-label="Copy inbound email address" style="display:none;">Copy</button>
                 </span>
-                <span class="routing-pill-hint">Customers can email this address — messages reach your inbox and your AI assistant. Forward your business email here.</span>
+                <span class="routing-pill-hint">Customers can email this address — messages reach your inbox and your AI Manager. Forward your business email here.</span>
               </div>
             </div>
           </div>
@@ -3796,13 +3796,13 @@
                 <div class="card-head-tile">&#127978;</div>
                 <div class="card-head-titles">
                   <div class="card-head-title">My Business</div>
-                  <div class="card-head-subtitle">Tell your assistant about your business so it can answer customers well and help you get more done.</div>
+                  <div class="card-head-subtitle">Tell your Manager about your business so it can answer customers well and help you get more done.</div>
                 </div>
               </div>
               <div class="card-head-rule"></div>
 
               <p style="color:var(--text-muted);font-size:0.92em;line-height:1.6;margin:0 0 22px;">
-                Welcome! The more your assistant knows about your business, the more helpful it becomes &mdash; answering customer questions, booking appointments, and giving you better guidance. Take a few minutes to tell it about your business below. You can update this anytime.
+                Welcome! The more your Manager knows about your business, the more helpful it becomes &mdash; answering customer questions, booking appointments, and giving you better guidance. Take a few minutes to tell it about your business below. You can update this anytime.
               </p>
 
               <div style="display:flex;flex-direction:column;gap:20px;">
@@ -3811,7 +3811,7 @@
                   <textarea id="mbDescription" rows="4"
                     placeholder="e.g. We're a men's barbershop specializing in classic cuts, beard trims, and hot towel shaves. Walk-ins welcome, but appointments preferred."
                     style="width:100%;box-sizing:border-box;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;line-height:1.5;resize:vertical;"></textarea>
-                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Tip: Be specific and detailed &mdash; describe what you offer, what makes you different, and anything you do NOT do (e.g. no perms, no kids under 3). The more nuance you include, the smarter your assistant becomes.</div>
+                  <div style="font-size:0.8em;color:var(--text-muted);margin-top:6px;line-height:1.5;">Tip: Be specific and detailed &mdash; describe what you offer, what makes you different, and anything you do NOT do (e.g. no perms, no kids under 3). The more nuance you include, the smarter your Manager becomes.</div>
                 </div>
 
                 <div>
@@ -3948,7 +3948,7 @@
               </div>
             </div>
 
-            <!-- How your assistant works — two real toggles that map to
+            <!-- How your Manager works — two real toggles that map to
                  workspaces.appointment_auto_respond (engine on/off) and
                  workspaces.appointment_auto_confirm (auto-confirm bookings).
                  ST10c: this is the PS conduct card — gated PS-only by
@@ -3959,8 +3959,8 @@
               <div class="card-head">
                 <div class="card-head-tile">&#129302;</div>
                 <div class="card-head-titles">
-                  <div class="card-head-title">How your assistant works</div>
-                  <div class="card-head-subtitle">Choose how much your assistant does on its own. You can change these anytime.</div>
+                  <div class="card-head-title">How your Manager works</div>
+                  <div class="card-head-subtitle">Choose how much your Manager does on its own. You can change these anytime.</div>
                 </div>
               </div>
               <div class="card-head-rule"></div>
@@ -3970,8 +3970,8 @@
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
                     <input type="checkbox" id="mbAutoRespond" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;" />
                     <span>
-                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant reply to customers on its own</span>
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, your assistant answers calls and texts and can book appointments. When OFF, incoming messages come to you to handle yourself and the assistant stays quiet.</span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my Manager reply to customers on its own</span>
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, your Manager answers calls and texts and can book appointments. When OFF, incoming messages come to you to handle yourself and the Manager stays quiet.</span>
                     </span>
                   </label>
                 </div>
@@ -3980,8 +3980,8 @@
                   <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;">
                     <input type="checkbox" id="mbAutoConfirm" style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;" />
                     <span>
-                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my assistant book appointments automatically</span>
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, the assistant confirms bookings right away and adds them to your calendar. When OFF, new bookings are held as "pending" for you to approve first. Many owners start with this OFF until they trust the assistant, then turn it on.</span>
+                      <span style="display:block;font-size:0.94em;font-weight:600;color:var(--text-primary);line-height:1.4;">Let my Manager book appointments automatically</span>
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-top:4px;line-height:1.55;">When ON, the Manager confirms bookings right away and adds them to your calendar. When OFF, new bookings are held as "pending" for you to approve first. Many owners start with this OFF until they trust the Manager, then turn it on.</span>
                     </span>
                   </label>
                 </div>
@@ -3996,7 +3996,7 @@
                   <div style="display:flex;flex-direction:column;gap:18px;">
                     <div>
                       <label for="mbTone" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Tone</label>
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">How your assistant sounds to customers.</span>
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">How your Manager sounds to customers.</span>
                       <select id="mbTone"
                         style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Warm &amp; friendly (default)</option>
@@ -4008,7 +4008,7 @@
 
                     <div>
                       <label for="mbSalesPosture" style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Sales approach</label>
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">Whether your assistant suggests extras.</span>
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:8px;line-height:1.5;">Whether your Manager suggests extras.</span>
                       <select id="mbSalesPosture"
                         style="width:100%;box-sizing:border-box;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;color:var(--text-primary);font-family:inherit;font-size:0.92em;cursor:pointer;">
                         <option value="">Helpful, not pushy (default)</option>
@@ -4093,7 +4093,7 @@
                 <label id="label-review" class="mode-card" style="display:flex;flex-direction:column;gap:6px;cursor:pointer;border:1px solid var(--border-strong);">
                   <div style="display:flex;align-items:center;gap:10px;">
                     <input type="radio" name="responseMode" id="requireReview" value="review" onchange="updateModeUI()" checked style="flex-shrink:0;accent-color:var(--accent);width:16px;height:16px;" />
-                    <span class="mode-card-title">Manager review</span>
+                    <span class="mode-card-title">Owner review</span>
                   </div>
                   <span class="mode-card-hint" style="padding-left:26px;">AI drafts every reply; nothing leaves until you approve. Recommended default.</span>
                 </label>
@@ -4130,9 +4130,9 @@
                  offering "act" would be a toggle that does nothing. -->
             <div class="mm-card" style="margin-top:20px;">
               <div class="mm-card-header">
-                <div class="mm-card-title">What your assistant may do on its own</div>
+                <div class="mm-card-title">What your Manager may do on its own</div>
               </div>
-              <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.55;">&ldquo;Act on its own&rdquo; happens right away. &ldquo;Ask me first&rdquo; sends it to you to approve before anything changes. &ldquo;Off&rdquo; means your assistant takes a message instead.</div>
+              <div style="font-size:0.85em;color:var(--text-muted);margin:-6px 0 18px;line-height:1.55;">&ldquo;Act on its own&rdquo; happens right away. &ldquo;Ask me first&rdquo; sends it to you to approve before anything changes. &ldquo;Off&rdquo; means your Manager takes a message instead.</div>
               <div style="display:flex;flex-direction:column;gap:20px;">
                 <div>
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -4270,7 +4270,7 @@
 
               <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;">
                 <p style="margin:0 0 10px;"><strong style="color:var(--text-primary);">Why reviews matter:</strong> When someone searches for a business like yours nearby, the ones with lots of recent, positive reviews show up first and win the customer. Reviews are one of the highest-impact, lowest-cost ways to grow. The best moment to ask is right after a happy customer has been served, while the good experience is fresh.</p>
-                <p style="margin:0;"><strong style="color:var(--text-primary);">One important rule:</strong> Google and Yelp do <strong>NOT</strong> allow you to offer any reward &mdash; a discount, a freebie, anything &mdash; in exchange for a review. This is called an "incentivized review," and it can get all of your reviews removed and your listing penalized. So the safe, effective approach is simply to <strong>ASK</strong> &mdash; "we'd love your feedback" &mdash; and share your review link. Add your links below and your assistant will have them ready to share when a customer wants to leave feedback.</p>
+                <p style="margin:0;"><strong style="color:var(--text-primary);">One important rule:</strong> Google and Yelp do <strong>NOT</strong> allow you to offer any reward &mdash; a discount, a freebie, anything &mdash; in exchange for a review. This is called an "incentivized review," and it can get all of your reviews removed and your listing penalized. So the safe, effective approach is simply to <strong>ASK</strong> &mdash; "we'd love your feedback" &mdash; and share your review link. Add your links below and your Manager will have them ready to share when a customer wants to leave feedback.</p>
               </div>
 
               <div style="display:flex;flex-direction:column;gap:16px;margin-bottom:22px;">
@@ -4292,7 +4292,7 @@
               </div>
 
               <div style="color:var(--text-secondary);font-size:0.88em;line-height:1.7;margin-bottom:22px;padding:14px 16px;background:var(--bg-sunken);border-left:2px solid var(--accent);border-radius:6px;">
-                <p style="margin:0;"><strong style="color:var(--text-primary);">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your assistant gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
+                <p style="margin:0;"><strong style="color:var(--text-primary);">Grow through referrals (coming soon):</strong> Word-of-mouth is how most small businesses grow, and referrals make it repeatable. Here's the safe way to do it &mdash; and this matters legally. There's a U.S. law (the TCPA) that makes it illegal to text people who never personally gave you permission, with penalties up to $1,500 per text. So your business must never text a stranger's number, even if a customer offers it. The safe design we're building for you works differently: after a customer pays, your Manager gives <strong>THEM</strong> a personal referral link. <strong>THEY</strong> share it with their own friends. When enough friends click or book, that customer earns a discount &mdash; and your business never texts anyone who didn't reach out first. This is a feature we're building carefully (with legal review before launch). For now, filling in your links above gets you ready for it.</p>
               </div>
 
               <div style="display:flex;align-items:center;gap:14px;">
@@ -4944,7 +4944,7 @@
       }
 
       // --- Post-action navigation ---
-      // AP3: fed by the assistant panel after tool runs (so
+      // AP3: fed by the Manager panel after tool runs (so
       // refreshPageData has already run and the target list is fresh).
       function handlePostActionNavigation(navigation) {
         if (!navigation || !navigation.page) return;
@@ -5688,7 +5688,7 @@
           if (data.outbound_email) {
             bizEmail.textContent = data.outbound_email;
             bizEmail.dataset.copy = data.outbound_email;
-            if (hint) hint.textContent = 'Replies you write send from your connected account. Your AI assistant replies from ' + data.platform_from + '.';
+            if (hint) hint.textContent = 'Replies you write send from your connected account. Your AI Manager replies from ' + data.platform_from + '.';
           } else {
             bizEmail.textContent = data.platform_from || '';
             if (data.platform_from) bizEmail.dataset.copy = data.platform_from;
@@ -6317,7 +6317,7 @@
           return;
         }
 
-        // desired === false (Manager Review). Two sub-cases:
+        // desired === false (Owner review). Two sub-cases:
         //   current === true  → revocation: PUT writes the
         //                       auto_reply_consent_revoked audit-log
         //                       entry and flips the bool.
@@ -9269,7 +9269,7 @@
         });
 
         // ST10c: the two My Business conduct cards are per-vertical.
-        // PS sees "How your assistant works" (appointment engine);
+        // PS sees "How your Manager works" (appointment engine);
         // PM sees "Automation settings" (email auto-reply). Neither
         // ever sees a control that doesn't govern its own AI — the
         // dead-toggle problem that made a PS owner stare at PM email
@@ -10358,7 +10358,7 @@
         update_task:            ['tasks', 'home', 'calendar'],
         escalate_appointment_to_owner: ['tasks', 'home'],
         // HN5: menu mutations were MISSING from this map entirely, so
-        // an assistant-added service or product never refreshed the
+        // a Manager-added service or product never refreshed the
         // grids that display it — the owner saw a success message over
         // an unchanged screen. Both surfaces render menu items: the
         // Services & Products page (page-menu) and My Business's
@@ -14462,7 +14462,7 @@
         }
       }
 
-      // ---------- My Business: How your assistant works ----------
+      // ---------- My Business: How your Manager works ----------
       // Two real toggles wired to the workspace's AI-behavior columns via
       // the /api/workspace/ai-settings endpoints. Load/save are separate
       // async fetches so a failure here doesn't block the other My Business
@@ -14603,7 +14603,7 @@
               ? 'Guardado — su asistente atiende a los clientes en español.'
               : data.customer_language === 'ar'
                 ? 'تم الحفظ — مساعدتكم تراسل العملاء بالعربية (المكالمات بالإنجليزية حالياً).'
-                : 'Saved — your assistant serves customers in English.');
+                : 'Saved — your Manager serves customers in English.');
         } catch (err) {
           if (status) status.textContent = 'Network error — not saved.';
         }
@@ -14654,23 +14654,23 @@
       // each row is copy for the CURRENT selection, updated on tap.
       const MB_AUTONOMY_COPY = {
         bookings: {
-          act: 'Your assistant books, reschedules, and cancels appointments on its own and lets you know.',
+          act: 'Your Manager books, reschedules, and cancels appointments on its own and lets you know.',
           approve: 'Every booking change waits for your OK before anything happens.',
-          off: 'Your assistant takes a message and leaves the scheduling to you.',
+          off: 'Your Manager takes a message and leaves the scheduling to you.',
         },
         contacts: {
-          act: 'Your assistant saves new customers and updates contact details on its own.',
+          act: 'Your Manager saves new customers and updates contact details on its own.',
           approve: 'Contact changes wait for your OK first.',
-          off: 'Your assistant passes contact requests along to you instead.',
+          off: 'Your Manager passes contact requests along to you instead.',
         },
         tasks: {
-          act: 'Your assistant adds to your task list when a customer needs something.',
+          act: 'Your Manager adds to your task list when a customer needs something.',
           approve: 'New tasks wait for your OK before they land on your list.',
-          off: 'Your assistant takes a message for you instead of adding tasks.',
+          off: 'Your Manager takes a message for you instead of adding tasks.',
         },
         payments: {
           approve: 'Refunds and payment requests always wait for your OK \u2014 money never moves on its own.',
-          off: 'Your assistant passes payment questions straight to you.',
+          off: 'Your Manager passes payment questions straight to you.',
         },
       };
       let _mbAutonomy = { bookings: 'act', contacts: 'act', tasks: 'act', payments: 'approve' };
@@ -15579,8 +15579,8 @@
         const isPS = vertical === 'professional-services';
         const prompts = isPS ? PS_QUICK_PROMPTS : PM_QUICK_PROMPTS;
         const intro = isPS
-          ? "I'm your AI assistant. Ask me anything about your business, or try one of these:"
-          : "I'm your AI assistant. Ask me anything about your portfolio, or try one of these:";
+          ? "I'm your automated manager. Ask me anything about your business, or try one of these:"
+          : "I'm your automated manager. Ask me anything about your portfolio, or try one of these:";
 
         const wrapEl = document.createElement('div');
         wrapEl.className = 'cc-welcome';
@@ -15916,7 +15916,7 @@
       <div id="ob-step-3" style="display:none;">
         <div style="font-size:2.8em;margin-bottom:14px;">&#127881;</div>
         <h3 style="font-size:1.3em;margin-bottom:10px;">You're all set! &#127881;</h3>
-        <p style="font-size:0.9em;color:var(--text-muted);margin-bottom:24px;line-height:1.65;">One last thing &mdash; the more your assistant knows about your business, the more it can do for you: answering customer questions, booking appointments, and giving you better guidance. Let's take a few minutes to add your services, hours, and how you work. You can always update it later.</p>
+        <p style="font-size:0.9em;color:var(--text-muted);margin-bottom:24px;line-height:1.65;">One last thing &mdash; the more your Manager knows about your business, the more it can do for you: answering customer questions, booking appointments, and giving you better guidance. Let's take a few minutes to add your services, hours, and how you work. You can always update it later.</p>
         <button class="btn-primary" onclick="finishOnboarding()" style="width:100%;">Set up my business &rarr;</button>
       </div>
     </div>
@@ -16495,11 +16495,11 @@
        input. Both PM and PS workspaces see it. -->
   <!-- AP1: collapsed-state tab (desktop: vertical mid-right; mobile:
        floating button bottom-right). -->
-  <button class="cc-tab" id="cc-tab" type="button" onclick="openAssistant()" aria-label="Open assistant (press /)"><span class="cc-tab-label">Assistant</span><span class="cc-tab-icon">&#10024;</span></button>
-  <div id="command-center" class="command-center" aria-label="AI assistant panel">
+  <button class="cc-tab" id="cc-tab" type="button" onclick="openAssistant()" aria-label="Open Manager (press /)"><span class="cc-tab-label">Manager</span><span class="cc-tab-icon">&#10024;</span></button>
+  <div id="command-center" class="command-center" aria-label="AI Manager panel">
     <div class="cc-head">
-      <span>Assistant</span>
-      <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="collapseAssistant()" aria-label="Close assistant" title="Close (Esc)">&times;</button>
+      <span>Manager</span>
+      <button class="mm-btn mm-btn-ghost mm-btn-sm" onclick="collapseAssistant()" aria-label="Close Manager" title="Close (Esc)">&times;</button>
     </div>
     <div class="cc-panel" id="cc-panel" role="log" aria-live="polite">
       <div class="cc-messages" id="cc-messages"></div>

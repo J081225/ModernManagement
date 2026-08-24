@@ -27,9 +27,9 @@ const worker = fs.readFileSync(path.join(__dirname, '..', 'lib', 'provisioning-w
       || /<\/span> Settings<\/a>/.test(app);
     const planCard = app.includes('Plan &amp; usage') || app.includes('Plan & usage');
     const reachCard = app.includes('How Modern Management reaches you');
-    const assistantCard = app.includes('How your assistant works');
+    const assistantCard = app.includes('How your Manager works');
     const myBusinessNav = app.includes('My Business</a>');
-    check('SC1: every surface the outbound copy names exists — the Settings nav entry, Plan & usage, "How Modern Management reaches you", My Business, "How your assistant works"',
+    check('SC1: every surface the outbound copy names exists — the Settings nav entry, Plan & usage, "How Modern Management reaches you", My Business, "How your Manager works"',
       navSettings && planCard && reachCard && assistantCard && myBusinessNav,
       JSON.stringify({ navSettings, planCard, reachCard, assistantCard, myBusinessNav }));
   }
@@ -39,10 +39,10 @@ const worker = fs.readFileSync(path.join(__dirname, '..', 'lib', 'provisioning-w
     const billing = (orch.match(/Manage billing in Settings under Plan &(amp;)? usage/g) || []).length === 4;
     const alertPhone = orch.includes('Set your alert phone in Settings &rarr; &ldquo;How Modern Management reaches you&rdquo;')
       && orch.includes('Set your alert phone in Settings > "How Modern Management reaches you"');
-    const autoRespond = orch.includes('open My Business and turn on auto-respond under &ldquo;How your assistant works&rdquo;')
+    const autoRespond = orch.includes('open My Business and turn on auto-respond under &ldquo;How your Manager works&rdquo;')
       // the text variant lives in a double-quoted JS string, so the
       // source carries escaped quotes
-      && orch.includes('open My Business and turn on auto-respond under \\"How your assistant works\\"');
+      && orch.includes('open My Business and turn on auto-respond under \\"How your Manager works\\"');
     check('SC2: all four welcome-email variants direct billing to Settings/Plan & usage; the alert-phone pointer names the real card; auto-respond points at MY BUSINESS (the ST1 misdirection, corrected in both HTML and text variants)',
       billing && alertPhone && autoRespond,
       JSON.stringify({ billing, alertPhone, autoRespond }));
