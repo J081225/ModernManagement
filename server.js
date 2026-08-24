@@ -72,6 +72,7 @@ const verticals = require('./lib/verticals');
 // fire as before.
 const appointmentEngine = require('./lib/appointment-engine');
 const smsConsent = require('./lib/sms-consent');
+const { isReservedUsername } = require('./lib/reserved-usernames');
 const voiceTranscript = require('./lib/voice-transcript');
 
 // Session D3: subscription lifecycle event processors. Handle
@@ -2389,6 +2390,12 @@ app.get('/api/signup/check-username', signupCheckLimiter, async (req, res) => {
   if (!/^[a-z0-9_]{3,30}$/.test(username)) {
     return res.json({ available: false, reason: 'invalid_format' });
   }
+  // VE1: reserved names answer EXACTLY like taken ones — bare
+  // { available: false }, no reason field — so the reserved list is
+  // never advertised to a prober.
+  if (isReservedUsername(username)) {
+    return res.json({ available: false });
+  }
   try {
     const { rows } = await pool.query(
       'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
@@ -2565,6 +2572,14 @@ app.post('/api/signup/create-checkout-session', signupCheckoutLimiter, async (re
   } else {
     if (!['monthly', 'annual'].includes(billing))             return res.status(400).json({ error: 'Invalid billing cadence' });
     if (!['solo', 'team', 'enterprise'].includes(plan))       return res.status(400).json({ error: 'Invalid plan' });
+  }
+
+  // VE1: reserved usernames refuse with the SAME status + text as a
+  // collision — indistinguishable from taken, list never advertised.
+  // Applies to NEW signups only (existing 'admin' is grandfathered —
+  // this path never touches existing rows).
+  if (isReservedUsername(username)) {
+    return res.status(409).json({ error: 'That username is already taken' });
   }
 
   // Final uniqueness re-check (catches races since the form's blur check)
