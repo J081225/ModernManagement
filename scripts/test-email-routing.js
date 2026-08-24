@@ -90,6 +90,17 @@ function makeResolver({ aliases = {}, accounts = {} }) {
       fnIdx !== -1 && twoTier && lowercases, JSON.stringify({ twoTier, lowercases }));
   }
 
+  // ---- EM6b (VE2): the vanity format routes as-is through the replay ----
+  {
+    // The mint is <username>@modernmanagementapp.com (lowercase by the
+    // username regex). The router lowercases the wire address, so a
+    // "Display Name <Addr>" To with mixed case still matches.
+    const resolve = makeResolver({ aliases: { 'jayhorton87@modernmanagementapp.com': 14 } });
+    const r = await routeInbound('Jay Horton <Jayhorton87@ModernManagementApp.com>', resolve);
+    check('EM6b: a vanity <username>@modernmanagementapp.com address routes (case-insensitive, display-name form)',
+      r.userId === 14, JSON.stringify(r));
+  }
+
   // ---- EM7: source-pin — the fail-loud drop precedes any DB write ----
   {
     const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');

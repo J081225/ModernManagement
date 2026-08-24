@@ -1395,10 +1395,13 @@ async function initDB() {
     await pool.query(`UPDATE users SET payment_forward_token=$1 WHERE id=$2`, [token, u.id]);
   }
   const { rows: noAliasUsers } = await pool.query(
-    `SELECT id FROM users WHERE inbound_email_alias IS NULL OR inbound_email_alias=''`
+    `SELECT id, username FROM users WHERE inbound_email_alias IS NULL OR inbound_email_alias=''`
   );
   for (const u of noAliasUsers) {
-    const alias = `user-${generateForwardToken()}@inbound.modernmanagementapp.com`;
+    // VE2: username IS the address (same mint as signup). The old
+    // user-<token> inbound-subdomain format was NXDOMAIN — never mint
+    // it again (VA4 pins that no such literal reappears).
+    const alias = `${String(u.username).trim().toLowerCase()}@modernmanagementapp.com`;
     await pool.query(`UPDATE users SET inbound_email_alias=$1 WHERE id=$2`, [alias, u.id]);
   }
 
