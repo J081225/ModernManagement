@@ -12235,6 +12235,14 @@ wss.on('connection', (ws, req) => {
           sendgrid: sgMail,
           env: process.env,
           logger: console,
+          // SPEECH-GRADE: the model's pre-tool text becomes a natural
+          // latency bridge, spoken (and transcribed) immediately while
+          // the tools + compose pass run.
+          onSpeechSegment: (segment) => {
+            sendText(segment);
+            voiceTranscript.appendCallTurn(pool, transcriptId, 'AI', segment)
+              .catch((err) => console.error('[twilio-relay] bridge transcript append failed:', err.message));
+          },
           // LS: mid-call SPOKEN language switch. The switch_language tool
           // calls this after its own gates pass: (1) tell ConversationRelay
           // to switch STT+TTS for the rest of the session, (2) override
