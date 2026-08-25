@@ -188,7 +188,22 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env
   console.warn('[push] VAPID env vars missing — push disabled.');
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+// MAINT-1: the DB connection pins sslmode=verify-full EXPLICITLY —
+// encrypted AND identity-verified (CA + hostname), replacing the old
+// `ssl: { rejectUnauthorized: false }` which encrypted without
+// verifying who we were talking to. pg v8 treats 'require' as
+// verify-full but v9 will weaken it to libpq semantics; pinning now
+// removes the cliff. Verified against Neon before shipping.
+// DB_SSLMODE is the emergency override (e.g. a future host whose cert
+// chain breaks verify-full) — absent, verify-full always wins.
+function withSslMode(url, mode) {
+  if (!url) return url;
+  const m = mode || 'verify-full';
+  return /[?&]sslmode=/.test(url)
+    ? url.replace(/([?&]sslmode=)[^&]*/, '$1' + m)
+    : url + (url.includes('?') ? '&' : '?') + 'sslmode=' + m;
+}
+const pool = new Pool({ connectionString: withSslMode(process.env.DATABASE_URL, process.env.DB_SSLMODE) });
 
 const app = express();
 // Trust the first proxy hop (Render's load balancer) so req.ip
