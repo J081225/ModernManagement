@@ -109,5 +109,36 @@ check('MR7: the \'assistant\' role wire contract is intact (server history + pan
     && uas.includes('Manager settings updated:'));
 }
 
+// MR9 (unit 2) — marketing surfaces carry NEITHER "assistant" NOR
+// "receptionist", except the allowed human-role price anchors
+// ("a full-time receptionist runs $3-4k" — comparisons to the HUMAN
+// job, kept by the untouchables rule) and the assistant.png asset
+// filename (code identifier).
+{
+  const MARKETING = [
+    'public/index.html', 'public/landing-next.html',
+    'public/professional-services.html', 'public/property-management.html',
+    'public/why-ai.html', 'public/features/knowledge-base.html',
+    'views/signup.html',
+  ];
+  const ALLOWED = ['full-time receptionist runs', 'assistant.png'];
+  const offenders = {};
+  for (const f of MARKETING) {
+    let s = R(f);
+    for (const t of ALLOWED) s = s.split(t).join('');
+    const n = (s.match(/assistant|receptionist/gi) || []).length;
+    if (n) offenders[f] = n;
+  }
+  check('MR9: marketing surfaces have zero assistant/receptionist outside the human price anchors + asset filename',
+    Object.keys(offenders).length === 0, JSON.stringify(offenders));
+}
+
+// MR10 (unit 2) — the human price anchors themselves survive (claims
+// census: the comparison to a human receptionist's cost is a distinct
+// claim and must not be silently reworded).
+check('MR10: the three full-time-receptionist price anchors are intact',
+  (R('public/landing-next.html').match(/full-time receptionist runs/g) || []).length === 2
+  && (R('public/professional-services.html').match(/full-time receptionist runs/g) || []).length === 1);
+
 console.log(`${pass}/${pass + fail} — manager-rename gate ${fail ? 'FAILED' : 'PASSED'}`);
 process.exit(fail ? 1 : 0);

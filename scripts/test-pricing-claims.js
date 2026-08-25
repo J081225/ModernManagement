@@ -78,12 +78,12 @@ const ANTI = plans.ANTI_LIST; // [{ flag, label }]
 
   // ---- PC5: the real live headliners + the "All live today" label ----
   {
-    const receptionist = /AI phone receptionist/.test(landing);
+    const receptionist = /AI phone Manager/.test(landing);
     const spanish = /Spanish/.test(landing);
     const payments = /secure card link/.test(landing);
     const report = /transaction report/.test(landing);
     const allLive = /All live today/.test(landing);
-    check('PC5: landing lists the real live headliners (AI phone receptionist, Spanish, honest payments, transaction report) under an "All live today" label',
+    check('PC5: landing lists the real live headliners (AI phone Manager, Spanish, honest payments, transaction report) under an "All live today" label',
       receptionist && spanish && payments && report && allLive,
       JSON.stringify({ receptionist, spanish, payments, report, allLive }));
   }
