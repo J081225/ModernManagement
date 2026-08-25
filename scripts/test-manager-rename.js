@@ -140,5 +140,15 @@ check('MR10: the three full-time-receptionist price anchors are intact',
   (R('public/landing-next.html').match(/full-time receptionist runs/g) || []).length === 2
   && (R('public/professional-services.html').match(/full-time receptionist runs/g) || []).length === 1);
 
+// MR11 (unit 3, NARROW) — prompt self-descriptions where the model
+// speaks to a person: command center + resident-facing draft/SMS
+// prompts say AI Manager. The JSON-only task extractor and every
+// behavior-constraining role noun (B2 scope line, advisor prompts)
+// are intentionally NOT renamed — MR5 pins B2 verbatim.
+check('MR11: person-facing prompt self-descriptions say AI Manager (command center ×2, draft/SMS ×3); JSON task prompt untouched',
+  (serverSrc.match(/You are the AI Manager — the command center —/g) || []).length === 2
+  && (serverSrc.match(/You are a professional property management AI Manager\./g) || []).length === 3
+  && serverSrc.includes('You are a property management assistant that identifies follow-up tasks'));
+
 console.log(`${pass}/${pass + fail} — manager-rename gate ${fail ? 'FAILED' : 'PASSED'}`);
 process.exit(fail ? 1 : 0);

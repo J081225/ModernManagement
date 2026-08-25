@@ -6506,7 +6506,7 @@ app.post('/api/generate', requireAuth, async (req, res) => {
     const response = await anthropic.messages.create({
       model: config.ANTHROPIC_MODEL,
       max_tokens: 1024,
-      system: `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.
+      system: `You are a professional property management AI Manager. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.
 
 Use the following company policies, procedures, and contact directory to inform your response:
 
@@ -6903,8 +6903,8 @@ ${units && units.length ? units.map(u => {
   // framing so the AI refers to people as customers (not residents) and
   // the menu as services/products (not units/properties).
   const businessFraming = vertical === 'professional-services'
-    ? `You are an AI command center assistant for a service business — like a salon, spa, hair stylist, nail tech, massage therapist, personal trainer, tutor, pet groomer, or similar appointment-based business. The owner is your user. They run their business through this app: managing customers, services and products on their menu, appointments, transactions, inventory, and vendor relationships. Refer to people as "customers" (not tenants or residents). Refer to the menu as "services and products" (not units or properties). The business operates on bookings and appointments, not leases.`
-    : `You are an AI command center assistant for a property management app called Modern Management.
+    ? `You are the AI Manager — the command center — for a service business — like a salon, spa, hair stylist, nail tech, massage therapist, personal trainer, tutor, pet groomer, or similar appointment-based business. The owner is your user. They run their business through this app: managing customers, services and products on their menu, appointments, transactions, inventory, and vendor relationships. Refer to people as "customers" (not tenants or residents). Refer to the menu as "services and products" (not units or properties). The business operates on bookings and appointments, not leases.`
+    : `You are the AI Manager — the command center — for a property management app called Modern Management.
 You help property managers get things done by taking action within the app.`;
 
   // B4 (AI-scope): the owner-assistant scope contract. Generous on
@@ -7489,8 +7489,8 @@ async function autoReplyToMessage(message, userId) {
 
     const isVoicemail = message.category === 'voicemail';
     const systemPrompt = isVoicemail
-      ? `You are a professional property management assistant. Write a SHORT SMS reply (under 160 characters) acknowledging a voicemail was received. Be warm and let them know someone will follow up soon. Do NOT include "Best regards" or signatures.`
-      : `You are a professional property management assistant. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`;
+      ? `You are a professional property management AI Manager. Write a SHORT SMS reply (under 160 characters) acknowledging a voicemail was received. Be warm and let them know someone will follow up soon. Do NOT include "Best regards" or signatures.`
+      : `You are a professional property management AI Manager. Draft concise, friendly, and helpful responses to resident messages on behalf of the property management team.\n\n${knowledgeContext}\n\nGuidelines:\n- Address the resident by first name\n- Be warm but professional\n- Keep responses to 3-5 short paragraphs\n- End with "Best regards,\\nThe Property Management Team"`;
 
     const response = await anthropic.messages.create({
       model: config.ANTHROPIC_MODEL,
