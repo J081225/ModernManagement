@@ -166,19 +166,33 @@ const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engin
     const voiceP = buildSystemPrompt({ ...base, channel: 'voice' });
     const smsP = buildSystemPrompt({ ...base, channel: 'sms' });
     const emailP = buildSystemPrompt({ ...base, channel: 'email' });
-    const NEVER_ECHO = 'NEVER repeat, name, or paraphrase the suspicious interpretation';
+    const NEVER_ECHO = 'NEVER name, repeat, or paraphrase an out-of-domain interpretation';
+    const ABSOLUTE = 'NEVER conclude the caller wants something outside this business\'s services';
     const FIRST = "I'm sorry — could you repeat that?";
     const SECOND = "I may be getting what you're saying confused — if you could speak a little more clearly, that would help.";
-    check('MH1: the VOICE prompt carries the mishear section — never-echo rule + both clarification lines + the ask-rather-than-guess tiebreak',
-      voiceP.includes('## Voice transcription') && voiceP.includes(NEVER_ECHO)
+    check('MH1 [R1 STRICT-DOMAIN]: voice prompt carries the absolute rule, never-echo, both clarification lines, the never-say-we-dont-do-X rule, and the gin-and-tonic FORBIDDEN/CORRECT example pair',
+      voiceP.includes('## Voice transcription — strict domain')
+      && voiceP.includes(ABSOLUTE) && voiceP.includes(NEVER_ECHO)
+      && voiceP.includes('NEVER say "we don\'t do X" or "we don\'t serve X"')
       && voiceP.includes(FIRST) && voiceP.includes(SECOND)
+      && voiceP.includes('FORBIDDEN example — caller: "I\'d like a gin and tonic."')
       && voiceP.includes('ask to repeat rather than guess'));
-    check('MH2: SMS and EMAIL prompts carry NONE of the mishear rules (customer words there are exact)',
-      [smsP, emailP].every((p) => !p.includes('## Voice transcription') && !p.includes(NEVER_ECHO)
+    check('MH2: SMS and EMAIL prompts carry NONE of the strict-domain rules (customer words there are exact)',
+      [smsP, emailP].every((p) => !p.includes('strict domain') && !p.includes(ABSOLUTE)
         && !p.includes(FIRST) && !p.includes(SECOND)));
     const B2 = 'You are this business\'s receptionist — bookings, services, hours, prices, payments, and messages for the owner. You are not a general assistant, advisor, or counselor.';
-    check('MH3: the B2 scope line survives VERBATIM on every channel — plausible unoffered requests keep the honest scope answer',
-      voiceP.includes(B2) && smsP.includes(B2) && emailP.includes(B2));
+    check('MH3: the B2 scope line survives VERBATIM on every channel; voice keeps the honest scope answer ONLY for business-adjacent services',
+      voiceP.includes(B2) && smsP.includes(B2) && emailP.includes(B2)
+      && voiceP.includes('business-adjacent service you simply do not offer is DIFFERENT'));
+    // R2 + R3 (all channels): minimal-ask and the exact confirmation shape.
+    check('MH4 [R2 MINIMAL-ASK]: name+time+service books; at most ONE clarifying question; the rest goes to open_question (owner follow-up)',
+      [voiceP, smsP].every((p) => p.includes('ENOUGH to book')
+        && p.includes('at most ONE clarifying question per booking')
+        && p.includes('open_question')));
+    check('MH5 [R3 CONFIRMATION SCRIPT]: exactly one confirmation in the exact ruled shape, then book immediately, no process narration',
+      [voiceP, smsP].every((p) => p.includes('Confirm EXACTLY ONCE before booking')
+        && p.includes('"I\'m verifying you want [service] at [time] on [date] — correct?"')
+        && p.includes('Never narrate availability checks, tool use, or internal process')));
   }
 
   console.log(`${pass}/${pass + fail} — ai-scope gate ${fail ? 'FAILED' : 'PASSED'}`);

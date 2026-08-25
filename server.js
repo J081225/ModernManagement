@@ -5807,7 +5807,7 @@ app.patch('/api/appointments/:id', requireAuth, async (req, res) => {
     // Load the workspace's timezone (nullable → America/New_York default
     // via wsTz). Same time-helpers module the AI booking tools use.
     const wsR = await pool.query(
-      `SELECT id, timezone FROM workspaces WHERE id = $1`,
+      `SELECT id, timezone, business_name, twilio_phone_number, is_demo FROM workspaces WHERE id = $1`,
       [workspaceId]
     );
     const workspace = wsR.rows[0] || { id: workspaceId };
@@ -5826,6 +5826,17 @@ app.patch('/api/appointments/:id', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'quoted_price_cents must be a non-negative integer' });
       }
       updates.quoted_price_cents = qpc;
+    }
+
+    // R5b: the owner's approve/decline on a REQUESTED booking — the
+    // only status transition this endpoint accepts. The customer gets
+    // the outcome by text (consent-gated) below.
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      const target = String(body.status);
+      if (!['confirmed', 'canceled'].includes(target) || current.status !== 'requested') {
+        return res.status(400).json({ error: "status may only move requested -> confirmed or canceled here" });
+      }
+      updates.status = target;
     }
 
     // starts_at / duration_minutes / ends_at — mirror the tool's recompute.
@@ -5891,6 +5902,44 @@ app.patch('/api/appointments/:id', requireAuth, async (req, res) => {
         );
       } catch (syncErr) {
         console.error('[PATCH /api/appointments/:id] cal_event sync failed (appointment updated):', syncErr.message);
+      }
+    }
+
+    // R5b: text the customer the booking outcome. Transactional — it
+    // answers the customer's own request (the campaign's customer-
+    // initiated path). Gates, in order: a contact with a phone, the
+    // demo hard-block (demo lines never text), and the STOP
+    // suppression gate — like every send. From the workspace's OWN
+    // number only. Best-effort: the status change stands regardless.
+    if (updates.status && current.contact_id) {
+      try {
+        const cR = await pool.query('SELECT phone FROM contacts WHERE id = $1', [current.contact_id]);
+        const custPhone = cR.rows[0] && cR.rows[0].phone;
+        const fromNum = customerSmsFrom(workspace);
+        if (custPhone && fromNum && !workspace.is_demo) {
+          if (await smsConsent.isOptedOut(pool, workspaceId, custPhone)) {
+            console.log('[appointments] outcome text suppressed — customer opted out (ws ' + workspaceId + ')');
+          } else {
+            const tzn = wsTz(workspace);
+            const t = new Date(current.starts_at);
+            const timePart = t.toLocaleString('en-US', { timeZone: tzn, hour: 'numeric', minute: '2-digit', hour12: true });
+            const datePart = t.toLocaleString('en-US', { timeZone: tzn, weekday: 'long', month: 'long', day: 'numeric' });
+            const biz = workspace.business_name || 'The business';
+            const outcomeText = updates.status === 'confirmed'
+              ? `${biz}: your ${current.title} appointment for ${timePart} on ${datePart} is confirmed. Reply STOP to opt out.`
+              : `${biz}: unfortunately ${timePart} on ${datePart} didn't work out for your ${current.title} appointment. Call or text us anytime and we'll find you another time.`;
+            await twilioClient.messages.create({ from: fromNum, to: custPhone, body: outcomeText });
+            await pool.query(
+              `INSERT INTO messages (user_id, resident, subject, category, text, status, folder, phone, direction, sent_by)
+               VALUES ($1, $2, $3, 'sms', $4, 'sent', 'inbox', $5, 'outbound', 'system')`,
+              [req.session.userId, custPhone, 'SMS to ' + custPhone, outcomeText, custPhone]
+            );
+          }
+        } else if (updates.status && workspace.is_demo) {
+          console.log('[appointments] outcome text skipped — demo workspace never texts');
+        }
+      } catch (notifyErr) {
+        console.error('[appointments] outcome text failed (status change stands):', notifyErr.message);
       }
     }
 
@@ -9457,6 +9506,13 @@ async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
         ' has no number; outcome withheld for pending action ' + pending.id);
     }
     if (pending.customer_phone && notifyFrom) {
+      // R5c: the STOP suppression gate applies to outcome texts like
+      // every send (TCPA strict liability — found ungated in the
+      // demo-call audit).
+      if (await smsConsent.isOptedOut(pool, workspaceId, pending.customer_phone)) {
+        console.log('[pending-notify] outcome text suppressed — customer opted out (ws ' + workspaceId + ')');
+        return;
+      }
       await twilioClient.messages.create({
         from: notifyFrom,
         to: pending.customer_phone,

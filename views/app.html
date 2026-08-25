@@ -7769,7 +7769,36 @@
 
         document.getElementById('calEventDetailActions').innerHTML =
           '<button onclick="renderCalEventDetail(window._openCalEventData)" class="mm-btn mm-btn-ghost">Back</button>'
+          + (appt.status === 'requested'
+            ? '<button id="calApproveBtn" onclick="calAppointmentDecision(' + Number(appt.id) + ', \'confirmed\')" class="mm-btn mm-btn-primary">Confirm booking</button>'
+              + '<button id="calDeclineBtn" onclick="calAppointmentDecision(' + Number(appt.id) + ', \'canceled\')" class="mm-btn mm-btn-ghost">Decline</button>'
+            : '')
           + '<button id="calEditSaveBtn" onclick="calEventDetailSave(' + Number(event.id) + ',' + Number(appt.id) + ')" class="mm-btn mm-btn-primary">Save changes</button>';
+      }
+
+      // R5b: the owner's approve/decline on a requested booking — the
+      // server flips the status and texts the customer the outcome
+      // (consent-gated, from the workspace's own number).
+      async function calAppointmentDecision(appointmentId, status) {
+        _calModalBanner('');
+        try {
+          const r = await fetch('/api/appointments/' + encodeURIComponent(appointmentId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ status }),
+          });
+          if (!r.ok) {
+            const t = await r.json().catch(() => ({}));
+            throw new Error((t && t.error) || ('HTTP ' + r.status));
+          }
+          closeCalEventDetail();
+          if (typeof loadCalEvents === 'function') await loadCalEvents();
+          if (selectedDate && typeof renderDayDetail === 'function') renderDayDetail(selectedDate);
+        } catch (err) {
+          console.error('[calAppointmentDecision]', err);
+          _calModalBanner('Could not update the booking: ' + (err.message || err));
+        }
       }
 
       async function calEventDetailSave(calEventId, appointmentId) {

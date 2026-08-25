@@ -167,6 +167,80 @@ const INPUT = { customer_name: 'Test Caller', title: 'Classic Cut', starts_at: '
       && eng.includes('NEVER answer with one day as if it covered the range'));
   }
 
+  // BA6 (R5a) — Owner-review + CUSTOMER origin: the tool hands back
+  // the ruled caller-facing line, no process words; owner-origin keeps
+  // the owner shape.
+  {
+    const db = makeFakePg();
+    const ctx = makeCtx(db);
+    ctx.workspace = { ...ctx.workspace, appointment_auto_confirm: false };
+    const r = await tool.execute({ ...INPUT }, ctx);
+    const db2 = makeFakePg();
+    const ctx2 = makeCtx(db2);
+    ctx2.workspace = { ...ctx2.workspace, appointment_auto_confirm: false };
+    ctx2.origin = null; // owner-initiated (command bar)
+    const r2 = await tool.execute({ ...INPUT }, ctx2);
+    check('BA6: review-on customer booking says the ruled caller line (no pending/queue/approval-state words); owner booking keeps "Requested… Awaiting your confirmation."',
+      r.success === true && /I have you booked for Classic Cut at 12:00 PM on /.test(r.message)
+      && r.message.includes("it just needs the owner's approval, and you'll get a text confirmation as soon as it's confirmed")
+      && !/pending|queue|waiting on approval/i.test(r.message)
+      && r2.success === true && /Requested: Classic Cut/.test(r2.message) && /Awaiting your confirmation/.test(r2.message),
+      JSON.stringify({ r: r.message, r2: r2.message }));
+  }
+
+  // BA7 (R2) — open_question files a suggested owner follow-up task
+  // naming customer + gap.
+  {
+    const db = makeFakePg();
+    const captured = [];
+    const baseQuery = db.query;
+    db.query = async (sql, params) => {
+      if (/INSERT INTO tasks/.test(sql)) { captured.push({ sql, params }); return { rows: [] }; }
+      return baseQuery(sql, params);
+    };
+    const r = await tool.execute({ ...INPUT, open_question: 'fade length preference unknown' }, makeCtx(db));
+    check('BA7: open_question -> ONE suggested task naming the customer and the gap (booking stands)',
+      r.success === true && captured.length === 1
+      && /suggested/.test(captured[0].sql)
+      && /Follow up with Test Caller/.test(captured[0].params[1])
+      && /fade length preference unknown/.test(captured[0].params[3]),
+      JSON.stringify({ tasks: captured.length }));
+  }
+
+  // BA8 (R5b/R5c) — the approve/decline seam: guarded transition, both
+  // ruled outcome texts, consent + demo gates on the send.
+  {
+    const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    const guarded = srv.includes("if (!['confirmed', 'canceled'].includes(target) || current.status !== 'requested')");
+    const approvedText = srv.includes('appointment for ${timePart} on ${datePart} is confirmed. Reply STOP to opt out.');
+    const declinedText = srv.includes("didn't work out for your ${current.title} appointment. Call or text us anytime");
+    const consentGate = /smsConsent\.isOptedOut\(pool, workspaceId, custPhone\)/.test(srv);
+    const demoGate = srv.includes('outcome text skipped — demo workspace never texts');
+    const pendingGate = /smsConsent\.isOptedOut\(pool, workspaceId, pending\.customer_phone\)/.test(srv);
+    const uiSeam = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8').includes("calAppointmentDecision(' + Number(appt.id) + ', \\'confirmed\\')");
+    check('BA8: PATCH allows ONLY requested->confirmed|canceled; both ruled outcome texts; STOP gate on BOTH notify paths; demo hard-block; Confirm/Decline UI exists',
+      guarded && approvedText && declinedText && consentGate && demoGate && pendingGate && uiSeam,
+      JSON.stringify({ guarded, approvedText, declinedText, consentGate, demoGate, pendingGate, uiSeam }));
+  }
+
+  // BA9 (R4) — live data: ws21 autonomous; new-workspace default TRUE.
+  {
+    require('dotenv').config();
+    if (!process.env.DATABASE_URL) {
+      check('BA9: ws21 autonomous + column default true (DB read)', false, 'DATABASE_URL not set');
+    } else {
+      const { Pool } = require('pg');
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      try {
+        const ws = await pool.query('SELECT appointment_auto_confirm FROM workspaces WHERE id = 21');
+        const def = await pool.query("SELECT column_default FROM information_schema.columns WHERE table_name='workspaces' AND column_name='appointment_auto_confirm'");
+        check('BA9: ws21 autonomous + new-workspace default TRUE (DB read-back)',
+          ws.rows[0].appointment_auto_confirm === true && def.rows[0].column_default === 'true',
+          JSON.stringify({ ws21: ws.rows[0], def: def.rows[0] }));
+      } finally { await pool.end(); }
+    }
+  }
+
   console.log(`${pass}/${pass + fail} — booking-atomic gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })().catch((err) => { console.error('gate crashed:', err.stack || err.message); process.exit(1); });
