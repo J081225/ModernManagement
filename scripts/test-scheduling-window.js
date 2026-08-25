@@ -108,6 +108,39 @@ function localHM(iso) {
       r.success === false && /earlier than/.test(r.message), JSON.stringify(r));
   }
 
+  // DS8 (BK2b) — POINT query: window_start == window_end asks "is this
+  // exact start free?" — one slot back, exactly that start.
+  {
+    const r = await tool.execute({ target_date: DATE, duration_minutes: 30, window_start: '12:00', window_end: '12:00' }, ctxWith([]));
+    const starts = (r.data.slots || []).map((s) => localHM(s.starts_at));
+    check('DS8: point query 12:00 == 12:00 -> success, exactly one slot at 12:00 (no inverted-window error)',
+      r.success === true && JSON.stringify(starts) === JSON.stringify([720]),
+      JSON.stringify({ starts, message: r.message }));
+  }
+
+  // DS9 (BK2d) — window_end is EXCLUSIVE for starts: "before 3 PM"
+  // never offers a 3:00 start (the live-call defect).
+  {
+    const r = await tool.execute({ target_date: DATE, duration_minutes: 30, window_start: '09:00', window_end: '15:00' }, ctxWith([]));
+    const starts = (r.data.slots || []).map((s) => localHM(s.starts_at));
+    check('DS9: window 9:00-15:00 -> every start < 15:00 and the last open start (2:30 PM) is offered; 3:00 PM absent',
+      r.success === true && starts.length > 0 && starts.every((m) => m < 15 * 60) && starts[starts.length - 1] === 14 * 60 + 30,
+      JSON.stringify({ starts }));
+  }
+
+  // DS10 (BK2c) — RANGE: per-day slots for every day, none skipped;
+  // an over-cap range clamps to 7 days and says so.
+  {
+    const r = await tool.execute({ start_date: '2026-09-01', end_date: '2026-09-03', duration_minutes: 30 }, ctxWith([]));
+    const okDays = r.success === true && r.data.days && r.data.days.length === 3
+      && r.data.days.every((d) => d.slots.length > 0)
+      && ['2026-09-01', '2026-09-02', '2026-09-03'].every((d) => r.message.includes(d));
+    const big = await tool.execute({ start_date: '2026-09-01', end_date: '2026-09-30', duration_minutes: 30 }, ctxWith([]));
+    const clamped = big.success === true && big.data.days.length === 7 && /first 7 days/.test(big.message);
+    check('DS10: 3-day range returns per-day slots with every day named; 30-day ask clamps to 7 and says so',
+      okDays && clamped, JSON.stringify({ okDays, clamped, msg: r.message.slice(0, 120) }));
+  }
+
   console.log(`${pass}/${pass + fail} — scheduling-window gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })().catch((err) => { console.error('gate crashed:', err.stack || err.message); process.exit(1); });
