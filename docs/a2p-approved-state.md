@@ -45,6 +45,10 @@ These cannot send SMS under the approval today:
    to MG5422… as part of provisioning — worth a suite row when ruled.
 2. Demo texting (if ever) = attach +1332… first, then revisit the
    three structural is_demo SMS blocks.
-3. Toll-free verification status for the 855 is the remaining unknown;
-   the PM platform send paths ([[pm-platform-send-paths]] backlog)
-   depend on it, not on this campaign.
+3. ~~Toll-free verification status for the 855 is the remaining
+   unknown~~ **RESOLVED (read 2026-08-25): the 855's toll-free
+   verification is `TWILIO_APPROVED`** (verification HHda4168…,
+   rejection_reason null, since 2026-04-22). The six PM-era platform
+   send paths' compliance dependency is settled — their remaining gate
+   is the [[pm-platform-send-paths]] ruling itself, not carrier
+   status.
