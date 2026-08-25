@@ -94,9 +94,9 @@ function baseArgs(channel, extra) {
       aiResponse: { content: [{ type: 'tool_use', id: 'tu_2', name: 'sg_test_tool_fail', input: {} }] },
       composeSpeech: async () => { throw new Error('api down'); },
     }));
-    check('SP3: compose failure -> speech-grade fallback lines; raw tool message still never spoken (success + failure variants)',
-      /anything else I can help you with/.test(r.outbound_text)
-      && !/Booked:|Calendar updated|\d{4}-\d{2}-\d{2}/.test(r.outbound_text)
+    check('SP3: compose failure -> deterministic fallbacks; a READ tool never gets "that\'s all set"; raw tool message still never spoken',
+      /trouble reading that back/.test(r.outbound_text)
+      && !/all set|Booked:|Calendar updated|\d{4}-\d{2}-\d{2}/.test(r.outbound_text)
       && /hit a snag/.test(failTool.outbound_text),
       JSON.stringify({ ok: r.outbound_text, fail: failTool.outbound_text }));
   }
@@ -144,6 +144,67 @@ function baseArgs(channel, extra) {
     check('SP7: relay onSpeechSegment -> sendText(segment) + AI transcript append',
       idx > -1 && slice.includes('sendText(segment)')
       && slice.includes("appendCallTurn(pool, transcriptId, 'AI', segment)"));
+  }
+
+  // SP8 (URGENT fix) — the REAL _composeSpokenResult runs in the gate
+  // against a VALIDATING mock transport that rejects malformed
+  // payloads the way the real API does. This closes the exact gap
+  // that shipped the 100%-fallback outage (the real function never
+  // executed under test).
+  {
+    function validateAnthropicPayload(p) {
+      if (typeof p.system !== 'string' || !p.system.includes('Speak the result')) throw new Error('bad system');
+      if (!p.model || !p.max_tokens) throw new Error('missing model/max_tokens');
+      if (!Array.isArray(p.messages) || p.messages.length !== 3) throw new Error('bad messages length');
+      const [u1, a, u2] = p.messages;
+      if (u1.role !== 'user' || a.role !== 'assistant' || u2.role !== 'user') throw new Error('bad role order');
+      const toolUseIds = a.content.filter((b) => b.type === 'tool_use').map((b) => b.id);
+      const resultIds = u2.content.map((b) => {
+        if (b.type !== 'tool_result') throw new Error('non-tool_result block in the final user message');
+        return b.tool_use_id;
+      });
+      if (!toolUseIds.length || JSON.stringify([...toolUseIds].sort()) !== JSON.stringify([...resultIds].sort())) {
+        throw new Error('tool_use/tool_result id mismatch');
+      }
+    }
+    const mockClient = { messages: { create: async (p) => { validateAnthropicPayload(p); return { content: [{ type: 'text', text: 'Nine, one thirty, or five thirty — which works?' }] }; } } };
+    // End-to-end through executeAIResult with NO composeSpeech injection:
+    // the real compose path must run, on the real payload shape.
+    const r = await engine.executeAIResult(baseArgs('voice', {
+      anthropicClient: mockClient, systemPrompt: 'You are a test.',
+      onSpeechSegment: () => {},
+      tools: [{ name: 'sg_test_tool', description: 'x', input_schema: { type: 'object', properties: {} } }],
+    }));
+    let missingClientMsg = '';
+    try { await engine._composeSpokenResult({ anthropicClient: null, systemPrompt: '', tools: [], body: 'x', aiResponse: { content: [] }, toolResults: [] }); }
+    catch (e) { missingClientMsg = e.message; }
+    check('SP8: REAL compose path runs under test through a shape-validating transport; a missing client throws loudly (the outage class)',
+      r.outbound_text === 'Nine, one thirty, or five thirty — which works?'
+      && /anthropicClient required/.test(missingClientMsg),
+      JSON.stringify({ out: r.outbound_text, missingClientMsg }));
+  }
+
+  // SP9 (URGENT hardening) — deterministic formatters speak the ANSWER.
+  {
+    const { speakToolFallback } = require(path.join(__dirname, '..', 'lib', 'speech-fallbacks'));
+    const ws = { id: 21, timezone: 'America/New_York' };
+    const slots = [
+      { starts_at: '2026-09-01T13:00:00.000Z' }, // 9:00 AM ET
+      { starts_at: '2026-09-01T17:30:00.000Z' }, // 1:30 PM ET
+      { starts_at: '2026-09-01T21:30:00.000Z' }, // 5:30 PM ET
+    ];
+    const single = speakToolFallback([{ name: 'propose_appointment_times', success: true, data: { slots } }], ws, registry);
+    const range = speakToolFallback([{ name: 'propose_appointment_times', success: true, data: { days: [
+      { date: '2026-08-31', slots: [], closed: true },
+      { date: '2026-09-01', slots: [slots[0]], closed: false },
+    ] } }], ws, registry);
+    const booked = speakToolFallback([{ name: 'book_appointment', success: true, input: { title: 'Classic Cut', starts_at: '2026-09-03T21:30:00-00:00' }, message: 'Booked: whatever' }], ws, registry);
+    check('SP9: fallback formatters SPEAK the answer — slot times, closed days named, booked line from plain code; zero ISO dates or tool shapes',
+      /9:00 AM, 1:30 PM and 5:30 PM/.test(single) && /September 1/.test(single)
+      && /closed on Monday, August 31/.test(range) && /9:00 AM/.test(range)
+      && /You're booked for Classic Cut on Thursday, September 3 at 5:30 PM\./.test(booked)
+      && ![single, range, booked].some((s) => /\d{4}-\d{2}-\d{2}|Booked:|Calendar updated/.test(s)),
+      JSON.stringify({ single, range, booked }));
   }
 
   console.log(`${pass}/${pass + fail} — speech-grade gate ${fail ? 'FAILED' : 'PASSED'}`);
