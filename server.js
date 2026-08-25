@@ -7915,8 +7915,10 @@ app.post('/api/sms/incoming', validateTwilioSignature, async (req, res) => {
   if (optKind) {
     const kw = body.trim().toUpperCase().slice(0, 40);
     try {
-      if (optKind === 'stop') await smsConsent.recordOptOut(pool, route.workspace_id, from, kw);
-      else if (optKind === 'start') await smsConsent.recordOptIn(pool, route.workspace_id, from, kw);
+      if (optKind === 'stop') await smsConsent.recordOptOut(pool, route.workspace_id, from, kw, req.body.MessageSid);
+      else if (optKind === 'start') await smsConsent.recordOptIn(pool, route.workspace_id, from, kw, req.body.MessageSid);
+      // CONSENT-EVENTS: HELP is evidence too — append-only, no state.
+      else if (optKind === 'help') await smsConsent.recordHelpEvent(pool, route.workspace_id, from, kw, req.body.MessageSid);
     } catch (err) { console.error('[sms/incoming] opt-consent record failed:', err.message); }
     // Audit the inbound keyword in the owner's inbox (best-effort).
     pool.query(
