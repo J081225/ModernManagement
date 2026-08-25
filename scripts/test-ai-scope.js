@@ -193,6 +193,16 @@ const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engin
       [voiceP, smsP].every((p) => p.includes('Confirm EXACTLY ONCE before booking')
         && p.includes('"I\'m verifying you want [service] at [time] on [date] — correct?"')
         && p.includes('Never narrate availability checks, tool use, or internal process')));
+    // DIRECT-ANSWER (voice): answer-first with the taught pair; the R3
+    // verification line survives as the only restatement moment.
+    check('MH6 [DIRECT-ANSWER]: voice prompt leads with slots — forbidden/correct pair present, never re-say the caller, R3 stays the only confirmation',
+      voiceP.includes('## Answer first')
+      && voiceP.includes('LEAD with the slots')
+      && voiceP.includes('FORBIDDEN example — "You\'re looking for something between the 1st and the 3rd?')
+      && voiceP.includes('CORRECT — "Sure — on the 1st we have 9:00 and 11:30, the 2nd is open at 2:00, and the 3rd has 5:30."')
+      && voiceP.includes('never re-say what the caller just said')
+      && voiceP.includes('is the ONLY moment you restate anything')
+      && voiceP.includes('"I\'m verifying you want [service] at [time] on [date] — correct?"'));
   }
 
   console.log(`${pass}/${pass + fail} — ai-scope gate ${fail ? 'FAILED' : 'PASSED'}`);
