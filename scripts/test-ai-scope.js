@@ -131,10 +131,12 @@ const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engin
   // a channel-shaped fixture through the REAL rebuilt regex for each ----
   {
     // Site pins: 3× rows[0].text (SMS :~7572, email :~7330, voicemail
-    // :~7727 with re-alert dedup), 1× utterance (relay voice FD3-CP2),
+    // :~7727 with re-alert dedup), 1× turnText (relay voice FD3-CP2 —
+    // renamed by VE-TIMING: the gate now sees the fragment-guard's
+    // MERGED text, so held fragments can never dodge it),
     // 1× display recompute — all feeding the ONE shared gate.
     const rowSites = (srv.match(/detectEmergency\(rows\[0\]\.text\)/g) || []).length;
-    const voiceSite = srv.includes('detectEmergency(utterance)');
+    const voiceSite = srv.includes('detectEmergency(turnText)');
     const displaySite = srv.includes('msg.emergency_keywords = detectEmergency(msg.text)');
     // Channel-shaped fixtures through the regex rebuilt from source.
     const m = srv.match(/AUTOREPLY_EMERGENCY_KEYWORDS = \[([\s\S]*?)\];/);
@@ -153,6 +155,30 @@ const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engin
     check('AS8 [B5]: all four channel call sites feed the one gate (3× rows[0].text + relay utterance + display recompute) and a channel-shaped crisis fixture alerts on each',
       rowSites === 3 && voiceSite && displaySite && allChannels,
       JSON.stringify({ rowSites, voiceSite, displaySite, fixtures }));
+  }
+
+  // ---- MH1-MH3 (MISHEAR): voice-only clarification rules ----
+  // Behavioral, per the CL3 pattern: build the REAL prompt per channel.
+  {
+    const { buildSystemPrompt } = require(path.join(__dirname, '..', 'lib', 'appointment-engine'));
+    const base = { contact: null, knowledge: [], callerAppointments: [], menu: [], thread: {},
+      workspace: { id: 7, business_name: 'X', vertical: 'professional-services', customer_language: 'en' } };
+    const voiceP = buildSystemPrompt({ ...base, channel: 'voice' });
+    const smsP = buildSystemPrompt({ ...base, channel: 'sms' });
+    const emailP = buildSystemPrompt({ ...base, channel: 'email' });
+    const NEVER_ECHO = 'NEVER repeat, name, or paraphrase the suspicious interpretation';
+    const FIRST = "I'm sorry — could you repeat that?";
+    const SECOND = "I may be getting what you're saying confused — if you could speak a little more clearly, that would help.";
+    check('MH1: the VOICE prompt carries the mishear section — never-echo rule + both clarification lines + the ask-rather-than-guess tiebreak',
+      voiceP.includes('## Voice transcription') && voiceP.includes(NEVER_ECHO)
+      && voiceP.includes(FIRST) && voiceP.includes(SECOND)
+      && voiceP.includes('ask to repeat rather than guess'));
+    check('MH2: SMS and EMAIL prompts carry NONE of the mishear rules (customer words there are exact)',
+      [smsP, emailP].every((p) => !p.includes('## Voice transcription') && !p.includes(NEVER_ECHO)
+        && !p.includes(FIRST) && !p.includes(SECOND)));
+    const B2 = 'You are this business\'s receptionist — bookings, services, hours, prices, payments, and messages for the owner. You are not a general assistant, advisor, or counselor.';
+    check('MH3: the B2 scope line survives VERBATIM on every channel — plausible unoffered requests keep the honest scope answer',
+      voiceP.includes(B2) && smsP.includes(B2) && emailP.includes(B2));
   }
 
   console.log(`${pass}/${pass + fail} — ai-scope gate ${fail ? 'FAILED' : 'PASSED'}`);
