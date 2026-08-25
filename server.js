@@ -8227,6 +8227,13 @@ async function sendRelayConnect(req, res, workspace, vlang) {
   const { customerString: voiceString } = require('./lib/customer-strings');
   const bizName = (workspace && workspace.business_name) || 'our salon';
   const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
+  // VE-TIMING: explicit end-of-turn silence — env-tunable so live test
+  // calls can retune it WITHOUT a deploy; clamped to Twilio's documented
+  // 600-5000ms range; code default 1500. ignoreBackchannel keeps
+  // "uh-huh"/"ok" during Sarah's speech from becoming a turn.
+  // interruptible/interruptSensitivity stay at defaults BY RULING —
+  // callers may still talk over Sarah; the problem was patience.
+  const speechTimeoutMs = Math.min(5000, Math.max(600, parseInt(process.env.VOICE_SPEECH_TIMEOUT_MS, 10) || 1500));
   // ar = the Variant-B shape verbatim: FIXED transcription language, no
   // detection anywhere (the spike's ruled result). Reaching here with
   // 'ar' requires ARABIC_VOICE_ENABLED (dark flag in customer-strings).
@@ -8237,7 +8244,7 @@ async function sendRelayConnect(req, res, workspace, vlang) {
     '<?xml version="1.0" encoding="UTF-8"?>\n' +
     '<Response>\n' +
     '  <Connect>\n' +
-    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '"' + langAttr + ' />\n' +
+    '    <ConversationRelay url="' + wsUrl + '" welcomeGreeting="' + greeting + '"' + langAttr + ' speechTimeout="' + speechTimeoutMs + '" ignoreBackchannel="true" />\n' +
     '  </Connect>\n' +
     '</Response>'
   );
@@ -11969,6 +11976,9 @@ wss.on('connection', (ws, req) => {
   let lastThreadId = null;
   // FD3-CP2: once-per-call guards for the voice safety fallbacks.
   let emergencyAlerted = false;
+  // VE-TIMING: per-call fragment belt — bare function-word finals are
+  // held and merged into the next real final (lib/voice-fragments).
+  const fragmentGuard = require('./lib/voice-fragments').makeFragmentGuard();
   let callbackTaskCreated = false;
   // LP2a: demo-call timers (3-min max, R2 ruling). Set at setup for
   // is_demo workspaces, cleared on close.
@@ -12093,6 +12103,16 @@ wss.on('connection', (ws, req) => {
         const utterance = String(msg.voicePrompt || '').trim();
         if (!utterance) return;
 
+        // VE-TIMING: the fragment belt. A bare function-word final
+        // ("the", "um") is HELD — it never reaches the transcript,
+        // the emergency gate, or the model as its own turn — and is
+        // prepended to the next real final so no words are lost.
+        // Conservative: multi-word finals and meaningful one-word
+        // turns ("yes", "no", "ok") always pass.
+        const guarded = fragmentGuard.take(utterance);
+        if (!guarded.deliver) return;
+        const turnText = guarded.text;
+
         // The engine's thread lookup requires a phone or email. Without a
         // caller number, we can't route the turn — offer a callback and stop.
         if (!callerPhone) {
@@ -12101,7 +12121,7 @@ wss.on('connection', (ws, req) => {
         }
 
         // FD3-CP1: persist the caller's turn before the model runs.
-        try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'Customer', utterance); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
+        try { await voiceTranscript.appendCallTurn(pool, transcriptId, 'Customer', turnText); } catch (err) { console.error('[twilio-relay] transcript append failed:', err.message); }
 
         // FD3-CP2 (delta sweep): the emergency keyword gate now covers
         // live voice — SMS and voicemail had it, voice did not. Flags
@@ -12109,7 +12129,7 @@ wss.on('connection', (ws, req) => {
         // caller-facing flow is unchanged.
         if (!emergencyAlerted && workspace) {
           try {
-            const matched = detectEmergency(utterance);
+            const matched = detectEmergency(turnText);
             if (matched.length && transcriptId) {
               emergencyAlerted = true;
               await pool.query('UPDATE messages SET emergency_flagged = TRUE WHERE id = $1', [transcriptId]);
@@ -12127,7 +12147,7 @@ wss.on('connection', (ws, req) => {
           customer_phone: callerPhone,
           customer_email: null,
           channel: 'voice',
-          body: utterance,
+          body: turnText,
           db: pool,
           twilio: twilioClient,
           sendgrid: sgMail,
