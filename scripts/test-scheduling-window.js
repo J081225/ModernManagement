@@ -22,10 +22,10 @@ const tool = registry.getTool('propose_appointment_times');
 
 const TZ = 'America/New_York';
 const DATE = '2026-09-01';
-function ctxWith(events) {
+function ctxWith(events, wsExtra) {
   return {
     db: { query: async () => ({ rows: events }) },
-    workspace: { id: 21, timezone: TZ },
+    workspace: { id: 21, timezone: TZ, ...(wsExtra || {}) },
   };
 }
 function localHM(iso) {
@@ -139,6 +139,37 @@ function localHM(iso) {
     const clamped = big.success === true && big.data.days.length === 7 && /first 7 days/.test(big.message);
     check('DS10: 3-day range returns per-day slots with every day named; 30-day ask clamps to 7 and says so',
       okDays && clamped, JSON.stringify({ okDays, clamped, msg: r.message.slice(0, 120) }));
+  }
+
+  // DS11 (BH0) — closed target day: named refusal, reason field, no scan.
+  {
+    const r = await tool.execute({ target_date: '2026-08-31', duration_minutes: 30 }, ctxWith([], { closed_weekdays: [0, 1] }));
+    check('DS11: closed Monday -> slots [], reason closed_that_day, message NAMES Mondays',
+      r.success === true && r.data.slots.length === 0 && r.data.reason === 'closed_that_day'
+      && /closed on Mondays/.test(r.message), JSON.stringify(r));
+  }
+
+  // DS12 (BH0) — range marks closed days, never silently skips; open
+  // days in the same range still get slots.
+  {
+    const r = await tool.execute({ start_date: '2026-08-30', end_date: '2026-09-01', duration_minutes: 30 }, ctxWith([], { closed_weekdays: [0, 1] }));
+    check('DS12: Sun-Tue range -> Sun+Mon marked "closed (day)", Tuesday still has slots',
+      r.success === true && r.data.days.length === 3
+      && r.data.days[0].closed === true && r.data.days[1].closed === true
+      && r.data.days[2].slots.length > 0
+      && r.message.includes('2026-08-30 — closed (Sunday)') && r.message.includes('2026-08-31 — closed (Monday)'),
+      JSON.stringify({ msg: r.message.slice(0, 160) }));
+  }
+
+  // DS13 (BH0) — default empty array: a Monday at a workspace with NO
+  // closed days behaves exactly as before (no behavior change).
+  {
+    const r = await tool.execute({ target_date: '2026-08-31', duration_minutes: 30 }, ctxWith([], { closed_weekdays: [] }));
+    const rAbsent = await tool.execute({ target_date: '2026-08-31', duration_minutes: 30 }, ctxWith([]));
+    check('DS13: empty/absent closed_weekdays -> Monday scans normally (3 slots, spread intact)',
+      r.success === true && r.data.slots.length === 3
+      && rAbsent.success === true && rAbsent.data.slots.length === 3,
+      JSON.stringify({ withEmpty: r.data.slots.length, absent: rAbsent.data.slots.length }));
   }
 
   console.log(`${pass}/${pass + fail} — scheduling-window gate ${fail ? 'FAILED' : 'PASSED'}`);

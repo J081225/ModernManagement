@@ -3,6 +3,14 @@
 ws21's knowledge said 9 AM–7 PM while propose_appointment_times
 hard-codes 9:00–18:00 — the AI quoted hours it could never book.)
 
+**RUNG 1 SHIPPED (BH0, 2026-08-25):** `workspaces.closed_weekdays
+INTEGER[]` (085, DEFAULT '{}' = no change until set; ws21 = {0,1}
+Sun+Mon). propose refuses closed days with reason 'closed_that_day'
+naming the day; ranges mark closed days explicitly (never a silent
+skip); book_appointment refuses closed-day WRITES at the tool
+(workspace-timezone weekday); one prompt line relays plainly. Pins
+DS11-DS13, BA10. Remaining rungs below unchanged.
+
 ## The arc, when ruled in
 1. Workspaces get real open/close times (eventually per-day-of-week:
    open_time/close_time columns or a JSONB week schedule), owner-

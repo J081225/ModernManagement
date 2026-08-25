@@ -223,6 +223,20 @@ const INPUT = { customer_name: 'Test Caller', title: 'Classic Cut', starts_at: '
       JSON.stringify({ guarded, approvedText, declinedText, consentGate, demoGate, pendingGate, uiSeam }));
   }
 
+  // BA10 (BH0) — closed-day writes are refused AT THE TOOL: no prompt
+  // phrasing can book onto a closed day, and nothing is written.
+  {
+    const db = makeFakePg();
+    const ctx = makeCtx(db);
+    ctx.workspace = { ...ctx.workspace, closed_weekdays: [3] }; // INPUT is a Wednesday
+    const r = await tool.execute({ ...INPUT }, ctx);
+    check('BA10: booking a closed Wednesday -> success:false, reason closed_that_day, day NAMED, ZERO writes',
+      r.success === false && r.reason === 'closed_that_day'
+      && /closed on Wednesdays/.test(r.message)
+      && db.shared.appointments.length === 0 && db.shared.cal_events.length === 0,
+      JSON.stringify(r));
+  }
+
   // BA9 (R4) — live data: ws21 autonomous; new-workspace default TRUE.
   {
     require('dotenv').config();
