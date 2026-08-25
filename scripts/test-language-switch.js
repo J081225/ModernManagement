@@ -157,6 +157,20 @@ function makeCtx({ current = 'en', enabled = ['en', 'es'], channel = 'voice', wi
       wired && demoCapsIntact, JSON.stringify({ wired, demoCapsIntact }));
   }
 
+  // LS10 (LS-MENU-REMOVAL): the DTMF menu NEVER plays — relay-incoming
+  // has no Gather, no menu wording, no relay-menu route, no pin map;
+  // every call goes straight to the primary-language greeting. The
+  // mid-call switch tool (LS1-LS8) is the only language path and is
+  // untouched.
+  {
+    const srv = require('fs').readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+    check('LS10: menu never plays — no Gather/oprima/relay-menu/_relayLangPins; straight primary-language connect',
+      !srv.includes('oprima') && !srv.includes('/api/voice/relay-menu')
+      && !srv.includes('_relayLangPins')
+      && !/Gather numDigits="1"[^>]*relay/.test(srv)
+      && srv.includes('return sendRelayConnect(req, res, workspace, voiceLanguageFor(primary));'));
+  }
+
   console.log(`${pass}/${pass + fail} — language-switch gate ${fail ? 'FAILED' : 'PASSED'}`);
   process.exit(fail ? 1 : 0);
 })();
