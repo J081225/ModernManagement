@@ -67,5 +67,41 @@ check('VT2: interruptible / interruptSensitivity are NOT set anywhere (defaults 
     JSON.stringify({ iGuard, iTranscript, iEmergency, iBody }));
 }
 
+// ---- GN1-GN4 (GREET-BY-NAME) ----
+{
+  delete require.cache[require.resolve(path.join(__dirname, '..', 'lib', 'customer-strings'))];
+  const cs = require(path.join(__dirname, '..', 'lib', 'customer-strings'));
+  const kEn = cs.customerString('en', 'voice_greeting_known', { businessName: 'Test Biz', firstName: 'James' });
+  const kEs = cs.customerString('es', 'voice_greeting_known', { businessName: 'Test Biz', firstName: 'James' });
+  const kAr = cs.customerString('ar', 'voice_greeting_known', { businessName: 'Test Biz', firstName: 'James' });
+  const gEn = cs.customerString('en', 'voice_greeting', { businessName: 'Test Biz' });
+  check('GN1: known-caller greeting carries the FIRST name + the automated-manager disclosure in en/es/ar; generic unchanged with its disclosure',
+    kEn.startsWith('Hi James — thanks for calling Test Biz, this is their automated manager.')
+    && kEs.includes('Hola James') && kEs.includes('automatizado')
+    && kAr.includes('James') && kAr.includes('الآلي')
+    && gEn.includes('Hi, thanks for calling Test Biz — this is their automated manager.'));
+}
+{
+  const s = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  // GN2: the lookup is try/catch'd with a generic fallback, excludes
+  // "Caller " placeholders, takes the FIRST token only, and the
+  // known/generic choice is a ternary on the found name.
+  check('GN2: ring-answer lookup is failure-tolerant (try/catch -> generic), placeholder-excluded, first-token-only',
+    s.includes('greet-by-name lookup failed (generic greeting)')
+    && s.includes("!/^Caller /.test(nm)")
+    && s.includes('String(nm).trim().split(/\\s+/)[0]')
+    && s.includes("callerFirstName\n    ? voiceString(vlang, 'voice_greeting_known'"));
+  // GN3: XML-escape still wraps the greeting (a name like O'Brien or
+  // one with quotes cannot break the TwiML attribute).
+  check('GN3: the greeting (both variants) passes through escapeXmlAttr',
+    s.includes('const greeting = escapeXmlAttr(callerFirstName'));
+}
+{
+  const eng = fs.readFileSync(path.join(__dirname, '..', 'lib', 'appointment-engine.js'), 'utf8');
+  check('GN4: prompt tells the model to adapt when the caller is not the recognized person and never reuse the wrong name',
+    eng.includes('greeted by name but indicates they are someone else')
+    && eng.includes('NEVER reuse the wrong name'));
+}
+
 console.log(`${pass}/${pass + fail} — voice-timing gate ${fail ? 'FAILED' : 'PASSED'}`);
 process.exit(fail ? 1 : 0);

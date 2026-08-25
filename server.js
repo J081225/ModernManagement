@@ -8275,7 +8275,33 @@ async function sendRelayConnect(req, res, workspace, vlang) {
   const wsUrl = 'wss://' + req.headers.host + '/twilio-relay/v2/' + relayToken;
   const { customerString: voiceString } = require('./lib/customer-strings');
   const bizName = (workspace && workspace.business_name) || 'our salon';
-  const greeting = escapeXmlAttr(voiceString(vlang, 'voice_greeting', { businessName: bizName }));
+  // GREET-BY-NAME: one indexed lookup (086) on the ring-answer path.
+  // Failure-tolerant by construction: any error, miss, placeholder
+  // ("Caller +1 ...") or unusable token falls back to the generic
+  // greeting — the pickup is never delayed or broken. FIRST name only.
+  let callerFirstName = null;
+  try {
+    const { phoneDigits10 } = require('./lib/phone');
+    const digits = phoneDigits10(req.body && req.body.From);
+    if (digits) {
+      const cR = await pool.query(
+        `SELECT name FROM contacts
+          WHERE user_id = $1 AND RIGHT(regexp_replace(phone, '\\D', '', 'g'), 10) = $2
+          ORDER BY id LIMIT 1`,
+        [workspace.owner_user_id, digits]
+      );
+      const nm = cR.rows[0] && cR.rows[0].name;
+      if (nm && !/^Caller /.test(nm)) {
+        const first = String(nm).trim().split(/\s+/)[0];
+        if (first && /^[\p{L}'.-]{1,40}$/u.test(first)) callerFirstName = first;
+      }
+    }
+  } catch (err) {
+    console.error('[voice/relay] greet-by-name lookup failed (generic greeting):', err.message);
+  }
+  const greeting = escapeXmlAttr(callerFirstName
+    ? voiceString(vlang, 'voice_greeting_known', { businessName: bizName, firstName: callerFirstName })
+    : voiceString(vlang, 'voice_greeting', { businessName: bizName }));
   // VE-TIMING: explicit end-of-turn silence — env-tunable so live test
   // calls can retune it WITHOUT a deploy; clamped to Twilio's documented
   // 600-5000ms range; code default 1500. ignoreBackchannel keeps
