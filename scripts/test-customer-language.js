@@ -115,23 +115,20 @@ function check(name, ok, detail) {
   // ---- CL6: the setting UI — per-channel truth on the control ----
   {
     const app = fs.readFileSync(path.join(__dirname, '..', 'views', 'app.html'), 'utf8');
-    // CL6 [evolved again — LANG Phase1 unit 4]: the control is now
-    // toggles + a primary star. Exactly the three ruled languages, each
-    // row carrying its OWN channel truth (ar = text only until the voice
-    // spike), a star per row, and the primary-stays-enabled guard.
-    const rows = ['en', 'es', 'ar'].every((l) =>
-      app.includes('id="mbLangOn_' + l + '"') && app.includes('id="mbLangStar_' + l + '"'));
-    const exactlyThree = (app.match(/id="mbLangOn_/g) || []).length === 3
-      && (app.match(/<input type="radio" name="mbLangPrimary"/g) || []).length === 3;
+    // CL6 [evolved again — LANG-CARD]: ONE "Starting language"
+    // control — three radios, zero checkboxes, no keypress-menu copy
+    // anywhere; ar keeps its per-channel truth on the row.
+    const rows = ['en', 'es', 'ar'].every((l) => app.includes('id="mbLangStar_' + l + '"'));
+    const exactlyThree = (app.match(/<input type="radio" name="mbLangPrimary"/g) || []).length === 3;
     const rowTruth = /voice \+ text/.test(app)
       && /text only; voice answers in English until Arabic passes native-speaker review/.test(app);
-    const primaryGuard = app.includes('Star a primary language first.')
-      && app.includes('At least one language must stay on.');
-    const wired = app.includes('loadCustomerLanguage();') && app.includes('mbSaveCustomerLanguage')
-      && app.includes('enabled_languages: enabled');
-    check('CL6 [LANG unit 4]: the control is toggles + primary star — exactly three ruled languages, per-ROW channel truth (ar text-only until the voice spike), primary-stays-enabled guard, saving primary+set together',
-      rows && exactlyThree && rowTruth && primaryGuard && wired,
-      JSON.stringify({ rows, exactlyThree, rowTruth, primaryGuard, wired }));
+    const singleSave = app.includes('body: JSON.stringify({ customer_language: primary })')
+      && !app.includes('enabled_languages: enabled');
+    const noCheckboxes = !app.includes('id="mbLangOn_');
+    const noMenuCopy = !/oprima|keypress|language menu/i.test(app);
+    check('CL6 [LANG-CARD]: ONE starting-language control — three radios, zero checkboxes, no menu copy anywhere, ar per-channel truth intact, save sends customer_language only',
+      rows && exactlyThree && rowTruth && singleSave && noCheckboxes && noMenuCopy,
+      JSON.stringify({ rows, exactlyThree, rowTruth, singleSave, noCheckboxes, noMenuCopy }));
   }
 
   // ---- CL7: date localization ----

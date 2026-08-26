@@ -150,5 +150,17 @@ check('MR11: person-facing prompt self-descriptions say AI Manager (command cent
   && (serverSrc.match(/You are a professional property management AI Manager\./g) || []).length === 3
   && serverSrc.includes('You are a property management assistant that identifies follow-up tasks'));
 
+// MR12 (LANG-CARD) — the rename holds in LOCALIZED copy: the es/ar
+// save toasts use the ruled Manager terms; the old assistant nouns are
+// gone from every user-visible surface in es ("asistente") and the ar
+// toast ("مساعدتكم" as the assistant noun).
+{
+  const app = R('views/app.html');
+  check('MR12: localized toasts say "gerente automatizado" / "المدير الآلي"; no "asistente" anywhere in views/public',
+    app.includes('gerente automatizado') && app.includes('المدير الآلي')
+    && !/asistente/i.test(app + R('public/professional-services.html') + R('public/landing-next.html'))
+    && !app.includes('مساعدتكم تراسل'));
+}
+
 console.log(`${pass}/${pass + fail} — manager-rename gate ${fail ? 'FAILED' : 'PASSED'}`);
 process.exit(fail ? 1 : 0);

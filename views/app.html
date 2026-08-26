@@ -4017,36 +4017,31 @@
                       </select>
                     </div>
 
-                    <!-- ST5a: customer language. Per-channel truth on the
-                         control (the deposits pattern): text is live now,
-                         voice arrives with ST5b — the copy says so and
-                         changes only when voice actually ships. -->
+                    <!-- LANG-CARD: ONE control — the starting language.
+                         Sarah begins every conversation here and the
+                         mid-call switch tool covers the rest; no menu,
+                         no toggles. Arabic keeps its honest per-channel
+                         label while the voice flag is off. -->
                     <div>
-                      <label style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Customer languages</label>
-                      <!-- LANG Phase1 unit 4: toggles + primary star, with
-                           PER-CHANNEL truth on each row (ST7a discipline —
-                           ar claims text only until the voice spike proves
-                           Arabic STT). Two+ voice languages enabled = the
-                           callers' keypress menu, and the copy says so. -->
-                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:10px;line-height:1.5;" id="mbCustomerLanguageTruth">Turn on the languages your customers speak and star the primary. With more than one voice language on, callers get a quick keypress menu (&ldquo;para espa&ntilde;ol, oprima el dos&rdquo;) and each conversation keeps its own language.</span>
+                      <label style="display:block;font-size:0.9em;font-weight:600;color:var(--text-primary);line-height:1.4;margin-bottom:4px;">Starting language</label>
+                      <!-- LANG-CARD: ONE choice. The DTMF menu is
+                           retired (LS-MENU-REMOVAL); the mid-call
+                           switch_language tool covers every voice-ready
+                           language regardless of this selection, so the
+                           card only picks where conversations START. -->
+                      <span style="display:block;font-size:0.82em;color:var(--text-muted);margin-bottom:10px;line-height:1.5;" id="mbCustomerLanguageTruth">Your Manager starts every conversation in this language — and switches any time the customer asks.</span>
                       <div id="mbLangRows" style="display:flex;flex-direction:column;gap:8px;">
                         <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
-                          <input type="checkbox" id="mbLangOn_en" onchange="mbSaveCustomerLanguage()">
-                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">English <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
-                          <input type="radio" name="mbLangPrimary" id="mbLangStar_en" value="en" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make English the primary language">
-                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_en" value="en" onchange="mbSaveCustomerLanguage()" aria-label="Start conversations in English">
+                          <span style="flex:1;min-width:0;overflow-wrap:anywhere;font-size:0.92em;color:var(--text-primary);">English <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
                         </label>
                         <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
-                          <input type="checkbox" id="mbLangOn_es" onchange="mbSaveCustomerLanguage()">
-                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">Espa&ntilde;ol <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
-                          <input type="radio" name="mbLangPrimary" id="mbLangStar_es" value="es" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make Spanish the primary language">
-                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_es" value="es" onchange="mbSaveCustomerLanguage()" aria-label="Start conversations in Spanish">
+                          <span style="flex:1;min-width:0;overflow-wrap:anywhere;font-size:0.92em;color:var(--text-primary);">Espa&ntilde;ol <span style="font-size:0.85em;color:var(--text-muted);">&mdash; voice + text</span></span>
                         </label>
-                        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
-                          <input type="checkbox" id="mbLangOn_ar" onchange="mbSaveCustomerLanguage()">
-                          <span style="flex:1;font-size:0.92em;color:var(--text-primary);">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577; (Arabic) <span style="font-size:0.85em;color:var(--text-muted);">&mdash; text only; voice answers in English until Arabic passes native-speaker review</span></span>
-                          <input type="radio" name="mbLangPrimary" id="mbLangStar_ar" value="ar" onchange="mbSaveCustomerLanguage()" title="Primary language" aria-label="Make Arabic the primary language">
-                          <span style="font-size:0.8em;color:var(--text-muted);">primary</span>
+                        <label style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:8px;cursor:pointer;">
+                          <input type="radio" name="mbLangPrimary" id="mbLangStar_ar" value="ar" onchange="mbSaveCustomerLanguage()" style="margin-top:2px;" aria-label="Start conversations in Arabic">
+                          <span style="flex:1;min-width:0;overflow-wrap:anywhere;font-size:0.92em;color:var(--text-primary);"><span dir="auto">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</span> (Arabic) <span style="display:block;font-size:0.85em;color:var(--text-muted);line-height:1.5;">text only; voice answers in English until Arabic passes native-speaker review</span></span>
                         </label>
                       </div>
                       <div id="mbCustomerLanguageStatus" style="font-size:0.8em;color:var(--text-muted);min-height:1em;margin-top:6px;"></div>
@@ -14564,59 +14559,43 @@
         }
       }
 
-      // ---------- ST5a → LANG Phase1: customer languages ----------
-      // ST7a's per-channel truth now lives ON EACH ROW of the control
-      // (ar's row says text-only in the markup itself — the control
-      // never promises a channel the pipeline can't deliver).
-      // LANG Phase1 unit 4: toggles + primary star (replaces the single
-      // select). The primary must stay enabled — starring an off language
-      // turns it on; unchecking the primary is blocked with a message.
+      // ---------- LANG-CARD: starting language (ONE control) ----------
+      // The card picks where conversations START; the mid-call
+      // switch_language tool covers every voice-ready language
+      // regardless, and the DTMF menu is retired — so toggles and
+      // the star are gone. ar keeps its per-channel truth on the row.
       const MB_LANGS = ['en', 'es', 'ar'];
       function _mbLangState() {
-        const enabled = MB_LANGS.filter((l) => {
-          const el = document.getElementById('mbLangOn_' + l);
-          return el && el.checked;
-        });
         const starEl = document.querySelector('input[name="mbLangPrimary"]:checked');
-        return { enabled, primary: starEl ? starEl.value : null };
+        return { primary: starEl ? starEl.value : null };
       }
-      function _mbLangApply(primary, enabled) {
+      function _mbLangApply(primary) {
         MB_LANGS.forEach((l) => {
-          const on = document.getElementById('mbLangOn_' + l);
           const star = document.getElementById('mbLangStar_' + l);
-          if (on) on.checked = enabled.includes(l);
           if (star) star.checked = (l === primary);
         });
       }
       async function loadCustomerLanguage() {
-        if (!document.getElementById('mbLangOn_en')) return;
+        if (!document.getElementById('mbLangStar_en')) return;
         try {
           const r = await fetch('/api/workspace/customer-language', { credentials: 'include' });
           if (r.ok) {
             const d = await r.json();
-            _mbLangApply(d.customer_language || 'en',
-              (d.enabled_languages && d.enabled_languages.length) ? d.enabled_languages : [d.customer_language || 'en']);
+            _mbLangApply(d.customer_language || 'en');
           }
         } catch (e) { /* controls keep their defaults */ }
       }
       async function mbSaveCustomerLanguage() {
         const status = document.getElementById('mbCustomerLanguageStatus');
-        let { enabled, primary } = _mbLangState();
-        if (!primary) { if (status) status.textContent = 'Star a primary language first.'; return; }
-        // Starring an off language turns it on (the star implies enabled).
-        if (!enabled.includes(primary)) {
-          const on = document.getElementById('mbLangOn_' + primary);
-          if (on) on.checked = true;
-          enabled = _mbLangState().enabled;
-        }
-        if (!enabled.length) { if (status) status.textContent = 'At least one language must stay on.'; return; }
+        const { primary } = _mbLangState();
+        if (!primary) { if (status) status.textContent = 'Pick a starting language.'; return; }
         if (status) status.textContent = 'Saving…';
         try {
           const r = await fetch('/api/workspace/customer-language', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ customer_language: primary, enabled_languages: enabled }),
+            body: JSON.stringify({ customer_language: primary }),
           });
           const data = await r.json().catch(() => ({}));
           if (!r.ok) {
@@ -14624,15 +14603,12 @@
             await loadCustomerLanguage(); // resync controls to stored truth
             return;
           }
-          _mbLangApply(data.customer_language, data.enabled_languages);
-          const voiceCount = data.enabled_languages.filter((l) => l !== 'ar').length;
-          if (status) status.textContent = voiceCount > 1
-            ? 'Saved — callers now get the language menu; each conversation keeps its own language.'
-            : (data.customer_language === 'es'
-              ? 'Guardado — su asistente atiende a los clientes en español.'
-              : data.customer_language === 'ar'
-                ? 'تم الحفظ — مساعدتكم تراسل العملاء بالعربية (المكالمات بالإنجليزية حالياً).'
-                : 'Saved — your Manager serves customers in English.');
+          _mbLangApply(data.customer_language);
+          if (status) status.textContent = data.customer_language === 'es'
+            ? 'Guardado — su gerente automatizado inicia cada conversación en español y cambia de idioma cuando el cliente lo pida.'
+            : data.customer_language === 'ar'
+              ? 'تم الحفظ — المدير الآلي يبدأ كل محادثة بالعربية نصياً ويبدّل اللغة عند الطلب (المكالمات بالإنجليزية حالياً).'
+              : 'Saved — your Manager starts every conversation in English and switches when asked.';
         } catch (err) {
           if (status) status.textContent = 'Network error — not saved.';
         }

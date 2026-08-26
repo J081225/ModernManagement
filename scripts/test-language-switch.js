@@ -74,14 +74,16 @@ function makeCtx({ current = 'en', enabled = ['en', 'es'], channel = 'voice', wi
       hooked && restamped && confirmedInSpanish, JSON.stringify({ hooked, restamped, msg: r.message }));
   }
 
-  // ---- LS3: not-enabled language is declined in the CURRENT language; hook never called ----
+  // ---- LS3 [re-ruled by LANG-CARD]: enabled_languages is NO LONGER
+  // consulted — the switchable set is every voice-ready language, so a
+  // Spanish ask switches even when the stored set is ['en'] ----
   {
     freshStrings(false);
     const { ctx, calls } = makeCtx({ current: 'en', enabled: ['en'] });
     const r = await tool.execute({ language: 'es' }, ctx);
-    const declined = r.success === false && /Spanish isn't available for this business/.test(r.message);
-    check('LS3: a language the business has NOT enabled is declined in the current language (localized name), and the relay hook is never called',
-      declined && calls.hook.length === 0 && calls.queries.length === 0, JSON.stringify({ msg: r.message, hooks: calls.hook.length }));
+    check('LS3 [LANG-CARD]: the switchable set ignores enabled_languages — es switches from an [en]-only workspace (hook called, es-US)',
+      r.success === true && calls.hook.length === 1 && calls.hook[0].code === 'es-US',
+      JSON.stringify({ msg: r.message, hooks: calls.hook.length }));
   }
 
   // ---- LS4: ARABIC, FLAG OFF — enabled but not voice-ready → "coming soon" in the current language, no switch ----
