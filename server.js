@@ -1575,6 +1575,7 @@ async function sendNotificationEmail(userId, message) {
     await sgMail.send({
       to: toEmail,
       from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+      replyTo: 'support@modernmanagementapp.com',
       subject: `New ${categoryLabel} from ${message.resident || 'Unknown'} — Modern Management`,
       html: htmlBody,
       text: `New message from ${message.resident}\n\n${message.subject}\n\n${preview}\n\nOpen your workspace: ${appUrl}/workspace`
@@ -1793,7 +1794,7 @@ app.post('/api/credentials/change-password', requireAuth, async (req, res) => {
       await sgMail.send({
         to: result.notifyEmail,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: 'support@modernmanagementapp.com',
         subject: 'Your Modern Management password was changed',
         text: 'Your password was just changed. Other signed-in devices were signed out.\n\n' +
           'If this was not you, reset your password now at ' +
@@ -1835,7 +1836,7 @@ app.post('/api/credentials/request-email-change', requireAuth, async (req, res) 
     await sgMail.send({
       to: result.newEmail,
       from: _accountMailFrom,
-      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      replyTo: 'support@modernmanagementapp.com',
       subject: 'Verify your new Modern Management email',
       text: 'A request was made to use this address for a Modern Management account.\n\n' +
         'Confirm it here (link expires in 1 hour):\n' + verifyUrl + '\n\n' +
@@ -1849,7 +1850,7 @@ app.post('/api/credentials/request-email-change', requireAuth, async (req, res) 
       await sgMail.send({
         to: result.oldEmail,
         from: _accountMailFrom,
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: 'support@modernmanagementapp.com',
         subject: 'Security notice: email change requested',
         text: 'A request was made to change this account\u2019s email to ' +
           credentials.maskEmail(result.newEmail) + '.\n\n' +
@@ -1882,7 +1883,7 @@ app.post('/api/credentials/resend-email-verification', requireAuth, async (req, 
     await sgMail.send({
       to: result.newEmail,
       from: _accountMailFrom,
-      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      replyTo: 'support@modernmanagementapp.com',
       subject: 'Verify your new Modern Management email',
       text: 'Confirm this address for your Modern Management account (link expires in 1 hour):\n' +
         verifyUrl + '\n\n' +
@@ -1918,7 +1919,7 @@ app.post('/api/credentials/change-username', requireAuth, async (req, res) => {
       await sgMail.send({
         to: result.notifyEmail,
         from: _accountMailFrom,
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: 'support@modernmanagementapp.com',
         subject: 'Your Modern Management username was changed',
         text: 'Your login username was just changed.\n\n' +
           "If this wasn't you, reset your password now at " +
@@ -1969,7 +1970,7 @@ app.get('/verify-email-change', async (req, res) => {
         await sgMail.send({
           to,
           from: _accountMailFrom,
-          replyTo: process.env.SENDGRID_FROM_EMAIL,
+          replyTo: 'support@modernmanagementapp.com',
           subject: 'Your Modern Management account email was changed',
           text,
         });
@@ -2003,7 +2004,7 @@ app.post('/api/contact-verify/request-email', requireAuth, async (req, res) => {
     await sgMail.send({
       to: result.email,
       from: _accountMailFrom,
-      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      replyTo: 'support@modernmanagementapp.com',
       subject: 'Verify your Modern Management notification email',
       text: 'Confirm this address for Modern Management alerts and notices (link expires in 1 hour):\n' +
         verifyUrl + '\n\n' +
@@ -2209,7 +2210,7 @@ app.post('/api/auth/request-password-reset', passwordResetRequestLimiter, async 
       await sgMail.send({
         to: toEmail,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: 'support@modernmanagementapp.com',
         subject: 'Reset your Modern Management password',
         text: [
           'Hi ' + greetName + ',',
@@ -7572,7 +7573,7 @@ async function autoReplyToMessage(message, userId) {
       await sgMail.send({
         to: message.email,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: await require('./lib/workspace-email').aliasForUser(pool, userId, process.env),
         subject: 'Re: ' + message.subject,
         text: draft
       });
@@ -7688,6 +7689,16 @@ async function markRentPaidFromEvent(userId, rentId, paidDate) {
 }
 
 app.post('/api/email/incoming', upload.none(), async (req, res) => {
+  // EMAIL-POLICY part 3: shared-secret gate on the parse webhook. With
+  // EMAIL_INBOUND_TOKEN set, only the SendGrid URL carrying ?token=…
+  // is accepted (403 otherwise). Unset = open with a LOUD warning so
+  // the deploy→SendGrid-config window never breaks inbound mail.
+  const inboundToken = process.env.EMAIL_INBOUND_TOKEN;
+  if (inboundToken) {
+    if (String((req.query && req.query.token) || '') !== inboundToken) return res.sendStatus(403);
+  } else {
+    console.warn('[email/incoming] EMAIL_INBOUND_TOKEN unset — inbound parse is UNAUTHENTICATED (set it on Render and add ?token= to the SendGrid Inbound Parse URL).');
+  }
   const fromRaw = req.body.from || req.body.sender || 'Unknown';
   const toRaw = req.body.to || req.body.envelope || '';
   const emailMatch = fromRaw.match(/<([^>]+)>/);
@@ -7725,6 +7736,31 @@ app.post('/api/email/incoming', upload.none(), async (req, res) => {
   try {
     // Extract recipient addresses from the "to" field
     const toAddresses = String(toRaw).match(/[\w.+-]+@[\w.-]+/gi) || [];
+    // EMAIL-POLICY part 2: the ops mailbox. support@/hello@/admin@ are
+    // operator addresses — forward to the operator's inbox and stop.
+    // admin@ is intercepted BY RULING even though the grandfathered
+    // admin account's alias would otherwise match below; replyTo is
+    // the original sender so a reply goes straight back to them.
+    const OPS_LOCALS = new Set(['support', 'hello', 'admin']);
+    const opsHit = toAddresses.find((a) => {
+      const m = String(a).toLowerCase().match(/^([^@]+)@modernmanagementapp\.com$/);
+      return m && OPS_LOCALS.has(m[1]);
+    });
+    if (opsHit) {
+      try {
+        await sgMail.send({
+          to: 'jayhorton87@gmail.com',
+          from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+          replyTo: email,
+          subject: '[MM support] ' + subject,
+          text: 'To: ' + opsHit + '\nFrom: ' + email + '\n\n' + text,
+        });
+      } catch (err) {
+        console.error('[email/incoming] ops forward failed (mail logged here only):', err.message,
+          JSON.stringify({ to: opsHit, from: email, subject: String(subject).slice(0, 120) }));
+      }
+      return;
+    }
     let userId = null;
     for (const addr of toAddresses) {
       userId = await lookupUserByEmailAlias(addr);
@@ -7888,7 +7924,7 @@ app.post('/api/email/send', requireAuth, async (req, res) => {
     await sgMail.send({
       to,
       from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-      replyTo: process.env.SENDGRID_FROM_EMAIL,
+      replyTo: await require('./lib/workspace-email').aliasForUser(pool, req.session.userId, process.env),
       subject,
       text: body
     });
@@ -9554,6 +9590,7 @@ async function notifyPendingActionCustomer(pending, workspaceId, outcomeText) {
       await sgMail.send({
         to: pending.customer_email,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
+        replyTo: await require('./lib/workspace-email').aliasForUser(pool, ws.owner_user_id, process.env),
         subject: 'About your recent request',
         text: outcomeText,
       });
@@ -9837,7 +9874,7 @@ app.post('/api/rent/:id/late-notice', requireAuth, async (req, res) => {
       await sgMail.send({
         to: contact.email,
         from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-        replyTo: process.env.SENDGRID_FROM_EMAIL,
+        replyTo: await require('./lib/workspace-email').aliasForUser(pool, req.session.userId, process.env),
         subject: `Rent Payment Reminder — Unit ${rent.unit}`,
         text: noticeText
       });
@@ -11731,13 +11768,15 @@ app.post('/api/broadcast', requireAuth, async (req, res) => {
 
   // Fire sends in background
   let sent = 0, failed = 0;
+  // EMAIL-POLICY: broadcast replies route to THIS workspace's inbox.
+  const broadcastReplyTo = await require('./lib/workspace-email').aliasForUser(pool, req.session.userId, process.env);
   for (const contact of eligible) {
     try {
       if (channel === 'email') {
         await sgMail.send({
           to: contact.email,
           from: { name: 'Modern Management', email: 'noreply@modernmanagementapp.com' },
-          replyTo: process.env.SENDGRID_FROM_EMAIL,
+          replyTo: broadcastReplyTo,
           subject: subject || 'Message from your property manager',
           text: body,
           html: body.replace(/\n/g, '<br>')
